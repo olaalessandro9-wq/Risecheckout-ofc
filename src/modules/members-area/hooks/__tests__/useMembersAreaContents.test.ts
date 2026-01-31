@@ -29,37 +29,51 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
+// Helper to create valid MemberContent
+function createMockContent(overrides: Partial<MemberContent> = {}): MemberContent {
+  return {
+    id: 'content-1',
+    module_id: 'module-1',
+    title: 'Content 1',
+    content_type: 'mixed',
+    position: 0,
+    created_at: '2024-01-01',
+    updated_at: '2024-01-01',
+    description: null,
+    content_url: null,
+    body: null,
+    content_data: null,
+    duration_seconds: null,
+    is_active: true,
+    ...overrides,
+  };
+}
+
+// Helper to create valid ModuleWithContents
+function createMockModule(overrides: Partial<ModuleWithContents> = {}): ModuleWithContents {
+  return {
+    id: 'module-1',
+    title: 'Module 1',
+    product_id: 'product-1',
+    position: 0,
+    created_at: '2024-01-01',
+    updated_at: '2024-01-01',
+    description: null,
+    cover_image_url: null,
+    width: null,
+    height: null,
+    is_active: true,
+    contents: [],
+    ...overrides,
+  };
+}
+
 describe('useMembersAreaContents', () => {
   const mockDispatch = vi.fn();
   const mockModules: ModuleWithContents[] = [
-    {
-      id: 'module-1',
-      title: 'Module 1',
-      product_id: 'product-1',
-      position: 0,
-      created_at: '2024-01-01',
-      updated_at: '2024-01-01',
-      description: null,
-      cover_image_url: null,
-      contents: [
-        {
-          id: 'content-1',
-          module_id: 'module-1',
-          type: 'text',
-          title: 'Content 1',
-          position: 0,
-          created_at: '2024-01-01',
-          updated_at: '2024-01-01',
-          description: null,
-          content_url: null,
-          thumbnail_url: null,
-          duration_seconds: null,
-          is_free: false,
-          drip_days: null,
-          settings: null,
-        },
-      ],
-    },
+    createMockModule({
+      contents: [createMockContent()],
+    }),
   ];
 
   beforeEach(() => {
@@ -68,22 +82,12 @@ describe('useMembersAreaContents', () => {
 
   describe('addContent', () => {
     it('deve adicionar conteúdo com sucesso', async () => {
-      const newContent: MemberContent = {
+      const newContent = createMockContent({
         id: 'content-2',
-        module_id: 'module-1',
-        type: 'video',
         title: 'New Content',
+        content_type: 'video',
         position: 1,
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-        description: null,
-        content_url: null,
-        thumbnail_url: null,
-        duration_seconds: null,
-        is_free: false,
-        drip_days: null,
-        settings: null,
-      };
+      });
 
       vi.mocked(api.call).mockResolvedValueOnce({
         data: { success: true, data: newContent },
@@ -97,15 +101,14 @@ describe('useMembersAreaContents', () => {
       let addedContent: MemberContent | null = null;
       await act(async () => {
         addedContent = await result.current.addContent('module-1', {
-          type: 'video',
           title: 'New Content',
           description: null,
           content_url: null,
-          thumbnail_url: null,
+          body: null,
+          content_data: null,
           duration_seconds: null,
-          is_free: false,
-          drip_days: null,
-          settings: null,
+          content_type: 'video',
+          is_active: true,
         });
       });
 
@@ -126,15 +129,14 @@ describe('useMembersAreaContents', () => {
       let addedContent: MemberContent | null = null;
       await act(async () => {
         addedContent = await result.current.addContent('non-existent-module', {
-          type: 'text',
           title: 'Content',
           description: null,
           content_url: null,
-          thumbnail_url: null,
+          body: null,
+          content_data: null,
           duration_seconds: null,
-          is_free: false,
-          drip_days: null,
-          settings: null,
+          content_type: 'mixed',
+          is_active: true,
         });
       });
 
@@ -145,7 +147,7 @@ describe('useMembersAreaContents', () => {
     it('deve mostrar erro se API falhar', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
 
       const { result } = renderHook(() =>
@@ -155,15 +157,14 @@ describe('useMembersAreaContents', () => {
       let addedContent: MemberContent | null = null;
       await act(async () => {
         addedContent = await result.current.addContent('module-1', {
-          type: 'text',
           title: 'Content',
           description: null,
           content_url: null,
-          thumbnail_url: null,
+          body: null,
+          content_data: null,
           duration_seconds: null,
-          is_free: false,
-          drip_days: null,
-          settings: null,
+          content_type: 'mixed',
+          is_active: true,
         });
       });
 
@@ -198,7 +199,7 @@ describe('useMembersAreaContents', () => {
     it('deve mostrar erro se API falhar', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
 
       const { result } = renderHook(() =>
@@ -239,7 +240,7 @@ describe('useMembersAreaContents', () => {
     it('deve mostrar erro se API falhar', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
 
       const { result } = renderHook(() =>
@@ -281,7 +282,7 @@ describe('useMembersAreaContents', () => {
     it('deve mostrar erro se API falhar', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
 
       const { result } = renderHook(() =>

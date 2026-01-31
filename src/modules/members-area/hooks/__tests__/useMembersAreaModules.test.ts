@@ -29,21 +29,36 @@ vi.mock('@/lib/logger', () => ({
   }),
 }));
 
+// Helper to create valid MemberModule
+function createMockMemberModule(overrides: Partial<MemberModule> = {}): MemberModule {
+  return {
+    id: 'module-1',
+    title: 'Module 1',
+    product_id: 'product-1',
+    position: 0,
+    created_at: '2024-01-01',
+    updated_at: '2024-01-01',
+    description: null,
+    cover_image_url: null,
+    width: null,
+    height: null,
+    is_active: true,
+    ...overrides,
+  };
+}
+
+// Helper to create valid ModuleWithContents
+function createMockModuleWithContents(overrides: Partial<ModuleWithContents> = {}): ModuleWithContents {
+  return {
+    ...createMockMemberModule(),
+    contents: [],
+    ...overrides,
+  };
+}
+
 describe('useMembersAreaModules', () => {
   const mockDispatch = vi.fn();
-  const mockModules: ModuleWithContents[] = [
-    {
-      id: 'module-1',
-      title: 'Module 1',
-      product_id: 'product-1',
-      position: 0,
-      created_at: '2024-01-01',
-      updated_at: '2024-01-01',
-      description: null,
-      cover_image_url: null,
-      contents: [],
-    },
-  ];
+  const mockModules: ModuleWithContents[] = [createMockModuleWithContents()];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,16 +66,11 @@ describe('useMembersAreaModules', () => {
 
   describe('addModule', () => {
     it('deve adicionar módulo com sucesso', async () => {
-      const newModule: MemberModule = {
+      const newModule = createMockMemberModule({
         id: 'module-2',
         title: 'New Module',
-        product_id: 'product-1',
         position: 1,
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-        description: null,
-        cover_image_url: null,
-      };
+      });
 
       vi.mocked(api.call).mockResolvedValueOnce({
         data: { success: true, module: newModule },
@@ -109,7 +119,7 @@ describe('useMembersAreaModules', () => {
     it('deve mostrar erro se API falhar', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
 
       const { result } = renderHook(() =>
@@ -130,16 +140,13 @@ describe('useMembersAreaModules', () => {
     });
 
     it('deve adicionar módulo com descrição e cover image', async () => {
-      const newModule: MemberModule = {
+      const newModule = createMockMemberModule({
         id: 'module-2',
         title: 'New Module',
-        product_id: 'product-1',
         position: 1,
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
         description: 'Module description',
         cover_image_url: 'https://example.com/image.jpg',
-      };
+      });
 
       vi.mocked(api.call).mockResolvedValueOnce({
         data: { success: true, module: newModule },
@@ -197,7 +204,7 @@ describe('useMembersAreaModules', () => {
     it('deve mostrar erro se API falhar', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
 
       const { result } = renderHook(() =>
@@ -246,7 +253,7 @@ describe('useMembersAreaModules', () => {
     it('deve mostrar erro se API falhar', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
 
       const { result } = renderHook(() =>
@@ -295,7 +302,7 @@ describe('useMembersAreaModules', () => {
     it('deve mostrar erro se API falhar', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
 
       const { result } = renderHook(() =>

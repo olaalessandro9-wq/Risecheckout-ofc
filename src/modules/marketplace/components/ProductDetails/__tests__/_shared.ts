@@ -5,15 +5,22 @@
  */
 
 import { vi } from "vitest";
-import type { MockAffiliationStatus, MockOffer } from "./_fixtures";
+import type { MockOffer } from "./_fixtures";
+
+// ============================================================================
+// MOCK AFFILIATION STATUS TYPE
+// ============================================================================
+
+export interface MockAffiliationStatus {
+  isAffiliate: boolean;
+  status: "active" | "pending" | "rejected" | null;
+  affiliationId: string | null;
+}
 
 // ============================================================================
 // MOCK HOOKS
 // ============================================================================
 
-/**
- * Mock for useAffiliateRequest hook
- */
 export function createMockUseAffiliateRequest(overrides = {}) {
   return {
     requestAffiliate: vi.fn(),
@@ -24,9 +31,6 @@ export function createMockUseAffiliateRequest(overrides = {}) {
   };
 }
 
-/**
- * Mock for useAffiliationStatusCache hook
- */
 export function createMockUseAffiliationStatusCache(
   status: MockAffiliationStatus | null = null,
   overrides = {}
@@ -40,9 +44,6 @@ export function createMockUseAffiliationStatusCache(
   };
 }
 
-/**
- * Mock for useProductOffers hook
- */
 export function createMockUseProductOffers(
   offers: MockOffer[] = [],
   maxCommission = 0,
@@ -55,9 +56,6 @@ export function createMockUseProductOffers(
   };
 }
 
-/**
- * Mock for useOwnerCheck hook
- */
 export function createMockUseOwnerCheck(
   isOwner = false,
   checkingOwner = false,
@@ -74,9 +72,6 @@ export function createMockUseOwnerCheck(
 // MOCK MODULES
 // ============================================================================
 
-/**
- * Setup mocks for all ProductDetails hooks
- */
 export function setupProductDetailsHookMocks() {
   vi.mock("@/hooks/useAffiliateRequest", () => ({
     useAffiliateRequest: vi.fn(() => createMockUseAffiliateRequest()),
@@ -95,9 +90,6 @@ export function setupProductDetailsHookMocks() {
   }));
 }
 
-/**
- * Cleanup all mocks
- */
 export function cleanupProductDetailsHookMocks() {
   vi.clearAllMocks();
   vi.resetModules();
@@ -107,18 +99,4 @@ export function cleanupProductDetailsHookMocks() {
 // TEST HELPERS
 // ============================================================================
 
-/**
- * Wait for async operations to complete
- */
 export const waitForAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-/**
- * Simulate user clicking a button
- */
-export async function clickButton(buttonText: string, container: HTMLElement) {
-  const { fireEvent } = await import("@testing-library/react");
-  const button = container.querySelector(`button:has-text("${buttonText}")`);
-  if (button) {
-    fireEvent.click(button);
-  }
-}

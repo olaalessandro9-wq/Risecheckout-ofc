@@ -64,7 +64,7 @@ describe('useMembersAreaSettings', () => {
     it('deve lidar com erro ao buscar settings', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
       expect(api.call).toBeDefined();
     });
@@ -90,7 +90,7 @@ describe('useMembersAreaSettings', () => {
     it('deve lidar com erro ao buscar modulos', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
       expect(api.call).toBeDefined();
     });
@@ -161,7 +161,7 @@ describe('useMembersAreaSettings', () => {
     it('deve lidar com erro ao atualizar settings', async () => {
       vi.mocked(api.call).mockResolvedValueOnce({
         data: null,
-        error: new Error('API Error'),
+        error: { message: 'API Error', code: 'INTERNAL_ERROR' },
       });
       expect(api.call).toBeDefined();
     });
