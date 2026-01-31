@@ -150,10 +150,10 @@ const orderHandlers = [
 ];
 
 // ============================================================================
-// Legacy Product Handlers (Supabase REST - kept for backward compatibility)
+// Supabase REST Product Handlers (Direct DB queries for test scenarios)
 // ============================================================================
 
-const legacyProductHandlers = [
+const supabaseRestProductHandlers = [
   // Get product via Supabase REST
   http.get(`${SUPABASE_URL}/rest/v1/products`, ({ request }) => {
     const url = new URL(request.url);
@@ -220,7 +220,7 @@ const couponHandlers = [
 export const handlers = [
   ...authHandlers,
   ...orderHandlers,
-  ...legacyProductHandlers,
+  ...supabaseRestProductHandlers,
   ...checkoutHandlers,
   ...couponHandlers,
   ...domainHandlers,

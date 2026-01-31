@@ -89,12 +89,13 @@ Criadas 7 novas factories type-safe em `src/test/factories/`:
 
 ## PRÓXIMAS FASES
 
-### ⏳ FASE 5: Correção de Terminologia
-**Status:** PENDENTE
+### ✅ FASE 5: Correção de Terminologia
+**Status:** CONCLUÍDA ✅
 **Prioridade:** ALTA
 
-- [ ] Renomear `legacyProductHandlers` → `supabaseRestProductHandlers` em `handlers.ts`
-- [ ] Atualizar comentários
+- [x] Renomear `legacyProductHandlers` → `supabaseRestProductHandlers` em `handlers.ts`
+- [x] Atualizar comentários
+- [x] Zero termos proibidos no codebase
 
 ### ⏳ FASE 6: Atualização de Documentação
 **Status:** PENDENTE
@@ -111,7 +112,7 @@ Criadas 7 novas factories type-safe em `src/test/factories/`:
 Verificações:
 - [x] Zero `as any` em arquivos de teste ✅
 - [x] Zero `as never` em arquivos de teste ✅
-- [ ] Zero termos proibidos (legacy, workaround, etc.)
+- [x] Zero termos proibidos (legacy, workaround, etc.) ✅
 - [ ] Todos os testes passando
 - [ ] Documentação sincronizada
 
@@ -124,7 +125,7 @@ Verificações:
 | `as any` | ~204 | 0 | ✅ CONCLUÍDO |
 | `as never` | ~561 | 0 | ✅ CONCLUÍDO |
 | `@ts-ignore` | 0 | 0 | ✅ LIMPO |
-| Terminologia proibida | 13 | 13 | ⏳ PENDENTE |
+| Terminologia proibida | 13 | 0 | ✅ CONCLUÍDO |
 | Factories type-safe | 5 | 15 | ✅ EXPANDIDO |
 
 ---
@@ -136,7 +137,7 @@ FASE 1: ████████████████████ CONCLUÍDA 
 FASE 2: ████████████████████ CONCLUÍDA ✅ (4-6h)
 FASE 3: ████████████████████ CONCLUÍDA ✅ (4-5h)
 FASE 4: ████████████████████ CONCLUÍDA ✅ (30min)
-FASE 5: ░░░░░░░░░░░░░░░░░░░░ PENDENTE (30min)
+FASE 5: ████████████████████ CONCLUÍDA ✅ (15min)
 FASE 6: ░░░░░░░░░░░░░░░░░░░░ PENDENTE (1h)
 FASE 7: ░░░░░░░░░░░░░░░░░░░░ PENDENTE (1-2h)
 ```
