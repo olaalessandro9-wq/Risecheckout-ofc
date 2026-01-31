@@ -4,21 +4,32 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * Tests list rendering, empty state, and dropdown actions.
  * 
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
+ * 
  * @module test/modules/webhooks/components/WebhooksList
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { WebhooksList } from "../WebhooksList";
 import * as WebhooksContext from "../../context/WebhooksContext";
+import {
+  createMockWebhooksListContext,
+  type WebhooksListContextMock,
+} from "@/test/factories";
 
 // Mock the context
 vi.mock("../../context/WebhooksContext", () => ({
   useWebhooks: vi.fn(),
 }));
 
+// Type alias for the mock return type
+type MockReturn = ReturnType<typeof WebhooksContext.useWebhooks>;
+
 // Factory for mock webhooks
-function createMockWebhook(overrides = {}) {
+function createMockWebhook(overrides: Partial<WebhooksListContextMock["filteredWebhooks"][0]> = {}) {
   return {
     id: "webhook-1",
     name: "My Webhook",
@@ -30,17 +41,15 @@ function createMockWebhook(overrides = {}) {
 }
 
 describe("WebhooksList", () => {
-  const defaultContext = {
-    filteredWebhooks: [],
-    openForm: vi.fn(),
-    requestDelete: vi.fn(),
-    openTest: vi.fn(),
-    openLogs: vi.fn(),
-  };
+  let defaultContext: WebhooksListContextMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(defaultContext as never);
+    defaultContext = createMockWebhooksListContext();
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+      defaultContext as unknown as MockReturn
+    );
   });
 
   describe("empty state", () => {
@@ -53,10 +62,11 @@ describe("WebhooksList", () => {
 
   describe("list rendering", () => {
     it("should render webhook name", () => {
-      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue({
-        ...defaultContext,
-        filteredWebhooks: [createMockWebhook({ name: "Payment Webhook" })],
-      } as never);
+      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+        createMockWebhooksListContext({
+          filteredWebhooks: [createMockWebhook({ name: "Payment Webhook" })],
+        }) as unknown as MockReturn
+      );
 
       render(<WebhooksList />);
 
@@ -64,10 +74,11 @@ describe("WebhooksList", () => {
     });
 
     it("should render webhook URL", () => {
-      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue({
-        ...defaultContext,
-        filteredWebhooks: [createMockWebhook({ url: "https://test.com/hook" })],
-      } as never);
+      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+        createMockWebhooksListContext({
+          filteredWebhooks: [createMockWebhook({ url: "https://test.com/hook" })],
+        }) as unknown as MockReturn
+      );
 
       render(<WebhooksList />);
 
@@ -75,14 +86,15 @@ describe("WebhooksList", () => {
     });
 
     it("should render multiple webhooks", () => {
-      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue({
-        ...defaultContext,
-        filteredWebhooks: [
-          createMockWebhook({ id: "1", name: "Webhook A" }),
-          createMockWebhook({ id: "2", name: "Webhook B" }),
-          createMockWebhook({ id: "3", name: "Webhook C" }),
-        ],
-      } as never);
+      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+        createMockWebhooksListContext({
+          filteredWebhooks: [
+            createMockWebhook({ id: "1", name: "Webhook A" }),
+            createMockWebhook({ id: "2", name: "Webhook B" }),
+            createMockWebhook({ id: "3", name: "Webhook C" }),
+          ],
+        }) as unknown as MockReturn
+      );
 
       render(<WebhooksList />);
 
@@ -92,10 +104,11 @@ describe("WebhooksList", () => {
     });
 
     it("should render column headers", () => {
-      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue({
-        ...defaultContext,
-        filteredWebhooks: [createMockWebhook()],
-      } as never);
+      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+        createMockWebhooksListContext({
+          filteredWebhooks: [createMockWebhook()],
+        }) as unknown as MockReturn
+      );
 
       render(<WebhooksList />);
 
@@ -106,10 +119,11 @@ describe("WebhooksList", () => {
 
   describe("dropdown menu", () => {
     it("should render dropdown trigger button", () => {
-      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue({
-        ...defaultContext,
-        filteredWebhooks: [createMockWebhook()],
-      } as never);
+      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+        createMockWebhooksListContext({
+          filteredWebhooks: [createMockWebhook()],
+        }) as unknown as MockReturn
+      );
 
       render(<WebhooksList />);
 

@@ -4,6 +4,10 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for the Order Bump tab component that manages order bumps.
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * 
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/tabs/OrderBumpTab
  */
@@ -12,6 +16,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { OrderBumpTab } from "../OrderBumpTab";
 import * as ProductContext from "../../context/ProductContext";
+import {
+  createMockOrderBumpTabContext,
+  createMockOrderBump,
+  type OrderBumpTabContextMock,
+} from "@/test/factories";
 
 // Mock dependencies
 vi.mock("../../context/ProductContext", () => ({
@@ -37,49 +46,31 @@ vi.mock("@/components/products/order-bump-dialog", () => ({
   OrderBumpDialog: vi.fn(() => <div data-testid="order-bump-dialog">Order Bump Dialog</div>),
 }));
 
+// Type alias for the mock return type
+type ProductContextMock = ReturnType<typeof ProductContext.useProductContext>;
+
 describe("OrderBumpTab", () => {
-  const mockProduct = {
-    id: "product-123",
-    name: "Test Product",
-  };
+  let defaultContextReturn: OrderBumpTabContextMock;
 
   const mockOrderBumps = [
-    {
-      id: "bump-1",
-      bump_product_id: "product-456",
-      name: "Bump Product 1",
-      price: 1900,
-      image_url: "https://example.com/bump1.jpg",
-    },
-    {
-      id: "bump-2",
-      bump_product_id: "product-789",
-      name: "Bump Product 2",
-      price: 2900,
-      image_url: null,
-    },
+    createMockOrderBump({ id: "bump-1", name: "Bump Product 1" }),
+    createMockOrderBump({ id: "bump-2", name: "Bump Product 2", image_url: null }),
   ];
-
-  const defaultContextReturn = {
-    product: mockProduct,
-    orderBumps: [],
-    refreshOrderBumps: vi.fn(),
-    loading: false,
-  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContextReturn as never);
+    defaultContextReturn = createMockOrderBumpTabContext();
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      defaultContextReturn as unknown as ProductContextMock
+    );
   });
 
   describe("loading state", () => {
     it("should show loading message when product id is missing", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: { id: "" },
-        orderBumps: [],
-        refreshOrderBumps: vi.fn(),
-        loading: false,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockOrderBumpTabContext({ product: { id: "", name: "" } }) as unknown as ProductContextMock
+      );
 
       render(<OrderBumpTab />);
 
@@ -87,12 +78,9 @@ describe("OrderBumpTab", () => {
     });
 
     it("should not render OrderBumpList when product id is missing", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        product: { id: "" },
-        orderBumps: [],
-        refreshOrderBumps: vi.fn(),
-        loading: false,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockOrderBumpTabContext({ product: { id: "", name: "" } }) as unknown as ProductContextMock
+      );
 
       render(<OrderBumpTab />);
 
@@ -102,10 +90,9 @@ describe("OrderBumpTab", () => {
 
   describe("order bumps rendering", () => {
     beforeEach(() => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        orderBumps: mockOrderBumps,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockOrderBumpTabContext({ orderBumps: mockOrderBumps }) as unknown as ProductContextMock
+      );
     });
 
     it("should render OrderBumpList when product is loaded", () => {
@@ -156,10 +143,9 @@ describe("OrderBumpTab", () => {
 
   describe("order bumps transformation", () => {
     beforeEach(() => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        orderBumps: mockOrderBumps,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockOrderBumpTabContext({ orderBumps: mockOrderBumps }) as unknown as ProductContextMock
+      );
     });
 
     it("should transform order bumps correctly", () => {
@@ -169,18 +155,13 @@ describe("OrderBumpTab", () => {
     });
 
     it("should handle order bumps without image_url", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        orderBumps: [
-          {
-            id: "bump-3",
-            bump_product_id: "product-999",
-            name: "Bump without Image",
-            price: 3900,
-            image_url: null,
-          },
-        ],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockOrderBumpTabContext({
+          orderBumps: [
+            createMockOrderBump({ id: "bump-3", name: "Bump without Image", image_url: null }),
+          ],
+        }) as unknown as ProductContextMock
+      );
 
       render(<OrderBumpTab />);
 
@@ -190,10 +171,9 @@ describe("OrderBumpTab", () => {
 
   describe("empty order bumps", () => {
     it("should handle empty order bumps array", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        orderBumps: [],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockOrderBumpTabContext({ orderBumps: [] }) as unknown as ProductContextMock
+      );
 
       render(<OrderBumpTab />);
 
@@ -203,10 +183,9 @@ describe("OrderBumpTab", () => {
 
   describe("loading state in list", () => {
     it("should not pass initialOrderBumps when loading", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        loading: true,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockOrderBumpTabContext({ loading: true }) as unknown as ProductContextMock
+      );
 
       render(<OrderBumpTab />);
 

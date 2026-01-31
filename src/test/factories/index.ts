@@ -42,3 +42,17 @@ export * from "./pixelsContext";
 
 // Product Context Partial Factories (for hook tests)
 export * from "./productContextPartial";
+
+// GeneralTab Component Factories
+export * from "./generalTab";
+
+// Webhooks Context Test Helpers (renamed exports to avoid collision)
+export {
+  createMockWebhooksListContext,
+  createMockWebhooksHeaderContext,
+  type WebhooksListContextMock,
+  type WebhooksHeaderContextMock,
+} from "./webhooksContext.test-helpers";
+
+// Product Tabs Context Factories
+export * from "./productTabsContext";

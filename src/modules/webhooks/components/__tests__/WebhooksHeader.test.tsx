@@ -4,6 +4,10 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * Tests search input, product filter, and add button functionality.
  * 
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
+ * 
  * @module test/modules/webhooks/components/WebhooksHeader
  */
 
@@ -11,28 +15,29 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { WebhooksHeader } from "../WebhooksHeader";
 import * as WebhooksContext from "../../context/WebhooksContext";
+import {
+  createMockWebhooksHeaderContext,
+  type WebhooksHeaderContextMock,
+} from "@/test/factories";
 
 // Mock the context
 vi.mock("../../context/WebhooksContext", () => ({
   useWebhooks: vi.fn(),
 }));
 
+// Type alias for the mock return type
+type MockReturn = ReturnType<typeof WebhooksContext.useWebhooks>;
+
 describe("WebhooksHeader", () => {
-  const defaultContext = {
-    products: [
-      { id: "prod-1", name: "Product One" },
-      { id: "prod-2", name: "Product Two" },
-    ],
-    searchTerm: "",
-    selectedProductFilter: "all",
-    setSearchTerm: vi.fn(),
-    setProductFilter: vi.fn(),
-    openForm: vi.fn(),
-  };
+  let defaultContext: WebhooksHeaderContextMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(defaultContext as never);
+    defaultContext = createMockWebhooksHeaderContext();
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+      defaultContext as unknown as MockReturn
+    );
   });
 
   describe("search input", () => {
@@ -43,10 +48,9 @@ describe("WebhooksHeader", () => {
     });
 
     it("should show current search value", () => {
-      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue({
-        ...defaultContext,
-        searchTerm: "test search",
-      } as never);
+      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+        createMockWebhooksHeaderContext({ searchTerm: "test search" }) as unknown as MockReturn
+      );
 
       render(<WebhooksHeader />);
 
@@ -56,10 +60,9 @@ describe("WebhooksHeader", () => {
     it("should call setSearchTerm on input change", () => {
       const setSearchTerm = vi.fn();
       
-      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue({
-        ...defaultContext,
-        setSearchTerm,
-      } as never);
+      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+        createMockWebhooksHeaderContext({ setSearchTerm }) as unknown as MockReturn
+      );
 
       render(<WebhooksHeader />);
 
@@ -89,10 +92,9 @@ describe("WebhooksHeader", () => {
     it("should call openForm when clicked", () => {
       const openForm = vi.fn();
       
-      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue({
-        ...defaultContext,
-        openForm,
-      } as never);
+      vi.mocked(WebhooksContext.useWebhooks).mockReturnValue(
+        createMockWebhooksHeaderContext({ openForm }) as unknown as MockReturn
+      );
 
       render(<WebhooksHeader />);
 

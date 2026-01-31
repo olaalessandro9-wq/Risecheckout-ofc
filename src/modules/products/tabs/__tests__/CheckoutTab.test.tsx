@@ -4,6 +4,10 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Tests for the Checkout tab component that manages product checkouts.
+ * Uses `as unknown as T` pattern for vi.mocked() calls.
+ * 
+ * Justification: vi.mocked requires full type match, but tests only need
+ * the subset of properties actually consumed by the component.
  * 
  * @module test/modules/products/tabs/CheckoutTab
  */
@@ -15,6 +19,15 @@ import * as ProductContext from "../../context/ProductContext";
 import * as BusyProvider from "@/components/BusyProvider";
 import * as ConfirmDelete from "@/components/common/ConfirmDelete";
 import { api } from "@/lib/api";
+import {
+  createMockCheckoutTabContext,
+  createMockCheckout,
+  createMockConfirmDelete,
+  createMockBusyProvider,
+  type CheckoutTabContextMock,
+  type ConfirmDeleteMock,
+  type BusyProviderMock,
+} from "@/test/factories";
 
 // Mock dependencies
 vi.mock("../../context/ProductContext", () => ({
@@ -60,53 +73,46 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// Type aliases for mock return types
+type ProductContextMock = ReturnType<typeof ProductContext.useProductContext>;
+type BusyReturn = ReturnType<typeof BusyProvider.useBusy>;
+type ConfirmDeleteReturn = ReturnType<typeof ConfirmDelete.useConfirmDelete>;
+
 describe("CheckoutTab", () => {
-  const mockProduct = {
-    id: "product-123",
-    name: "Test Product",
-  };
+  let defaultContextReturn: CheckoutTabContextMock;
+  let defaultBusyReturn: BusyProviderMock;
+  let defaultConfirmReturn: ConfirmDeleteMock;
 
   const mockCheckouts = [
-    {
-      id: "checkout-1",
-      name: "Checkout 1",
-      slug: "checkout-1",
-    },
-    {
-      id: "checkout-2",
-      name: "Checkout 2",
-      slug: "checkout-2",
-    },
+    createMockCheckout({ id: "checkout-1", name: "Checkout 1" }),
+    createMockCheckout({ id: "checkout-2", name: "Checkout 2" }),
   ];
-
-  const defaultContextReturn = {
-    product: mockProduct,
-    checkouts: mockCheckouts,
-    refreshCheckouts: vi.fn(),
-  };
-
-  const defaultBusyReturn = {
-    run: vi.fn((fn: () => Promise<void>) => fn()),
-  };
-
-  const defaultConfirmReturn = {
-    confirm: vi.fn(),
-    Bridge: vi.fn(() => <div data-testid="confirm-bridge">Bridge</div>),
-  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(ProductContext.useProductContext).mockReturnValue(defaultContextReturn as never);
-    vi.mocked(BusyProvider.useBusy).mockReturnValue(defaultBusyReturn as never);
-    vi.mocked(ConfirmDelete.useConfirmDelete).mockReturnValue(defaultConfirmReturn as never);
+    defaultContextReturn = createMockCheckoutTabContext({ checkouts: mockCheckouts });
+    defaultBusyReturn = createMockBusyProvider();
+    defaultConfirmReturn = createMockConfirmDelete({
+      Bridge: vi.fn(() => <div data-testid="confirm-bridge">Bridge</div>),
+    });
+    
+    // RISE V3 Justified: Partial mock - component only uses subset of context
+    vi.mocked(ProductContext.useProductContext).mockReturnValue(
+      defaultContextReturn as unknown as ProductContextMock
+    );
+    vi.mocked(BusyProvider.useBusy).mockReturnValue(
+      defaultBusyReturn as unknown as BusyReturn
+    );
+    vi.mocked(ConfirmDelete.useConfirmDelete).mockReturnValue(
+      defaultConfirmReturn as unknown as ConfirmDeleteReturn
+    );
   });
 
   describe("loading state", () => {
     it("should show loading message when product is not loaded", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        product: null,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCheckoutTabContext({ product: null }) as unknown as ProductContextMock
+      );
 
       render(<CheckoutTab />);
 
@@ -114,10 +120,9 @@ describe("CheckoutTab", () => {
     });
 
     it("should show loading message when product id is missing", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        product: { id: "" },
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCheckoutTabContext({ product: { id: "", name: "" } }) as unknown as ProductContextMock
+      );
 
       render(<CheckoutTab />);
 
@@ -125,10 +130,9 @@ describe("CheckoutTab", () => {
     });
 
     it("should not render CheckoutTable when loading", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        product: null,
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCheckoutTabContext({ product: null }) as unknown as ProductContextMock
+      );
 
       render(<CheckoutTab />);
 
@@ -183,14 +187,14 @@ describe("CheckoutTab", () => {
           ],
         },
         error: null,
-      } as never);
+      });
 
       render(<CheckoutTab />);
 
       await waitFor(() => {
         expect(api.call).toHaveBeenCalledWith("product-entities", {
           action: "offers",
-          productId: mockProduct.id,
+          productId: defaultContextReturn.product?.id,
         });
       });
     });
@@ -204,7 +208,7 @@ describe("CheckoutTab", () => {
           ],
         },
         error: null,
-      } as never);
+      });
 
       render(<CheckoutTab />);
 
@@ -216,8 +220,8 @@ describe("CheckoutTab", () => {
     it("should handle offers loading error", async () => {
       vi.mocked(api.call).mockResolvedValue({
         data: null,
-        error: { message: "Failed to load offers" },
-      } as never);
+        error: { message: "Failed to load offers", code: "NETWORK_ERROR" },
+      });
 
       render(<CheckoutTab />);
 
@@ -229,10 +233,9 @@ describe("CheckoutTab", () => {
 
   describe("empty checkouts", () => {
     it("should handle empty checkouts array", () => {
-      vi.mocked(ProductContext.useProductContext).mockReturnValue({
-        ...defaultContextReturn,
-        checkouts: [],
-      } as never);
+      vi.mocked(ProductContext.useProductContext).mockReturnValue(
+        createMockCheckoutTabContext({ checkouts: [] }) as unknown as ProductContextMock
+      );
 
       render(<CheckoutTab />);
 
