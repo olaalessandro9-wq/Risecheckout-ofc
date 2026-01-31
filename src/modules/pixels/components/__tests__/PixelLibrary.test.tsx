@@ -8,10 +8,33 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@/test/utils";
 import { PixelLibrary } from "../PixelLibrary";
 import { mockVendorPixels } from "../../__tests__/_fixtures";
-import { createMockPixelsContextValue, mockLoadedContext, mockErrorContext } from "../../__tests__/_mocks";
+import { mockLoadedContext, mockErrorContext } from "../../__tests__/_mocks";
 
-// Mock PixelsContext
-const mockContextValue = createMockPixelsContextValue();
+// Mock PixelsContext with proper structure
+const mockContextValue = {
+  pixels: mockVendorPixels,
+  isLoading: false,
+  isError: false,
+  error: null,
+  deletingPixel: null,
+  isFormOpen: false,
+  editingPixel: null,
+  isSaving: false,
+  openForm: vi.fn(),
+  closeForm: vi.fn(),
+  savePixel: vi.fn(),
+  requestDelete: vi.fn(),
+  cancelDelete: vi.fn(),
+  confirmDelete: vi.fn(),
+  refresh: vi.fn(),
+  send: vi.fn(),
+  state: {
+    value: "ready",
+    context: mockLoadedContext,
+    matches: vi.fn(),
+  },
+  isReady: true,
+};
 
 vi.mock("../../context/PixelsContext", () => ({
   usePixelsContext: () => mockContextValue,
@@ -39,48 +62,54 @@ describe("PixelLibrary", () => {
     vi.clearAllMocks();
     
     // Reset mock context to default loaded state
-    Object.assign(mockContextValue, createMockPixelsContextValue({
-      context: mockLoadedContext,
-      isLoading: false,
-      isError: false,
-    }));
+    mockContextValue.pixels = mockVendorPixels;
+    mockContextValue.isLoading = false;
+    mockContextValue.isError = false;
+    mockContextValue.error = null;
+    mockContextValue.deletingPixel = null;
   });
 
   describe("Rendering", () => {
     it("should render without crashing in loading state", () => {
       mockContextValue.isLoading = true;
+      mockContextValue.pixels = [];
 
       expect(() => render(<PixelLibrary />)).not.toThrow();
     });
 
     it("should render without crashing in error state", () => {
       mockContextValue.isError = true;
-      mockContextValue.context = mockErrorContext;
+      mockContextValue.error = "Failed to load pixels";
+      mockContextValue.pixels = [];
 
       expect(() => render(<PixelLibrary />)).not.toThrow();
     });
 
     it("should render without crashing with loaded data", () => {
+      mockContextValue.pixels = mockVendorPixels;
+
       expect(() => render(<PixelLibrary />)).not.toThrow();
     });
   });
 
   describe("Edge Cases", () => {
     it("should handle empty pixel list", () => {
-      mockContextValue.context.pixels = [];
+      mockContextValue.pixels = [];
 
       expect(() => render(<PixelLibrary />)).not.toThrow();
     });
 
     it("should handle null error message", () => {
       mockContextValue.isError = true;
-      mockContextValue.context.error = null;
+      mockContextValue.error = null;
+      mockContextValue.pixels = [];
 
       expect(() => render(<PixelLibrary />)).not.toThrow();
     });
 
     it("should handle deletingPixel state", () => {
-      mockContextValue.context.deletingPixel = mockVendorPixels[0];
+      mockContextValue.deletingPixel = mockVendorPixels[0];
+      mockContextValue.pixels = mockVendorPixels;
 
       expect(() => render(<PixelLibrary />)).not.toThrow();
     });
