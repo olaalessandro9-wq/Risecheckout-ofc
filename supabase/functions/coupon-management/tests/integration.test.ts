@@ -1,18 +1,18 @@
 /**
  * Integration Tests for coupon-management (CORS, Auth, Response)
  * @module coupon-management/tests/integration.test
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { skipIntegration } from "../../_shared/testing/mod.ts";
 import { FUNCTION_URL, SUPABASE_ANON_KEY } from "./_shared.ts";
 
 // ============================================
-// CORS TESTS
+// CORS TESTS (Unit - no network)
 // ============================================
 
 Deno.test("coupon-management - CORS - returns expected CORS headers in structure", () => {
-  // Test the expected CORS header structure (no actual fetch needed)
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -23,25 +23,29 @@ Deno.test("coupon-management - CORS - returns expected CORS headers in structure
 });
 
 // ============================================
-// AUTHENTICATION TESTS
+// AUTHENTICATION TESTS (Integration - requires server)
 // ============================================
 
-Deno.test("coupon-management - auth - rejects unauthenticated requests", async () => {
-  const response = await fetch(FUNCTION_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({ action: "list", productId: "test" }),
-  });
-  
-  assertEquals(response.status, 401);
-  await response.text();
+Deno.test({
+  name: "coupon-management - auth - rejects unauthenticated requests",
+  ignore: skipIntegration(),
+  fn: async () => {
+    const response = await fetch(FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ action: "list", productId: "test" }),
+    });
+    
+    assertEquals(response.status, 401);
+    await response.text();
+  },
 });
 
 // ============================================
-// ERROR RESPONSE STRUCTURE
+// ERROR RESPONSE STRUCTURE (Unit - no network)
 // ============================================
 
 Deno.test("coupon-management - error structure - missing action error", () => {
@@ -66,7 +70,7 @@ Deno.test("coupon-management - error structure - method not allowed error", () =
 });
 
 // ============================================
-// SUCCESS RESPONSE STRUCTURE
+// SUCCESS RESPONSE STRUCTURE (Unit - no network)
 // ============================================
 
 Deno.test("coupon-management - success structure - create returns coupon", () => {
