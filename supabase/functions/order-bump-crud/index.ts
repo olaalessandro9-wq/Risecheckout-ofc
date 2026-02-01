@@ -148,6 +148,31 @@ async function verifyProductForOrderBump(supabase: SupabaseClient, productId: st
 }
 
 /**
+ * Order bump with joined product owner data.
+ * RISE V3: Explicit interface for Supabase join result.
+ * Note: Supabase may return products as array for .single() queries.
+ */
+interface OrderBumpWithOwner {
+  id: string;
+  parent_product_id: string;
+  products?: {
+    user_id: string;
+  } | { user_id: string }[] | null;
+}
+
+/**
+ * Extract user_id from products join result.
+ * Supabase may return single object or array depending on query.
+ */
+function extractOwnerUserId(products: { user_id: string } | { user_id: string }[] | null | undefined): string | null {
+  if (!products) return null;
+  if (Array.isArray(products)) {
+    return products[0]?.user_id ?? null;
+  }
+  return products.user_id;
+}
+
+/**
  * RISE V3: Verify order bump ownership via parent_product_id
  */
 async function verifyOrderBumpOwnership(
@@ -163,9 +188,9 @@ async function verifyOrderBumpOwnership(
 
   if (error || !data) return { valid: false };
   
-  // deno-lint-ignore no-explicit-any
-  const orderBumpData = data as any;
-  const ownerUserId = orderBumpData.products?.user_id;
+  // RISE V3: Type assertion to explicit interface - Supabase returns generic join type
+  const orderBumpData = data as unknown as OrderBumpWithOwner;
+  const ownerUserId = extractOwnerUserId(orderBumpData.products);
   if (ownerUserId !== producerId) return { valid: false };
   return { valid: true, orderBump: data as Record<string, unknown> };
 }

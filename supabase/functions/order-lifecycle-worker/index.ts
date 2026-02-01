@@ -70,8 +70,10 @@ serve(async (req) => {
     log.info(`Processando ${events.length} evento(s)`);
 
     // Processar cada evento
+    // RISE V3: Type assertion required due to Supabase SDK generics mismatch
+    // The processEvent function signature is compatible, but TS can't infer it
     for (const event of events as OrderLifecycleEvent[]) {
-      await processEvent(supabase as never, event, result);
+      await processEvent(supabase as Parameters<typeof processEvent>[0], event, result);
     }
 
     log.info('✅ Worker concluído', result);

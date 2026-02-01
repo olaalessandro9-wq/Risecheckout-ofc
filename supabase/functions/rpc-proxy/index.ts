@@ -69,6 +69,30 @@ interface ProducerWithTimezone {
 }
 
 /**
+ * Execute RPC with dynamic name.
+ * 
+ * RISE V3: Type assertion required due to Supabase SDK limitation.
+ * The SDK expects literal RPC names at compile time, but we need
+ * dynamic dispatch based on the incoming request.
+ * 
+ * This wrapper contains the type assertion in a documented location,
+ * avoiding 'as never' scattered throughout the codebase.
+ */
+async function executeRpc(
+  supabase: SupabaseClient,
+  rpcName: string,
+  params: Record<string, unknown>
+): Promise<{ data: unknown; error: Error | null }> {
+  // RISE V3: SDK limitation - dynamic RPC names require type assertion
+  // The RPC name is validated against PUBLIC_RPCS/PRODUCER_RPCS/ADMIN_RPCS
+  // before reaching this function, ensuring only allowed RPCs are executed
+  return await supabase.rpc(
+    rpcName as Parameters<typeof supabase.rpc>[0],
+    params
+  );
+}
+
+/**
  * Get vendor timezone from users table (SSOT)
  * 
  * RISE V3: Uses 'users' table instead of profiles
@@ -177,7 +201,7 @@ Deno.serve(async (req) => {
           log.info(`Injecting p_timezone=${timezone} for RPC ${rpc}`);
         }
         
-        const { data, error } = await supabase.rpc(rpc as never, enrichedParams);
+        const { data, error } = await executeRpc(supabase, rpc, enrichedParams);
         
         if (error) {
           log.error(`RPC ${rpc} failed:`, error);
@@ -195,7 +219,7 @@ Deno.serve(async (req) => {
     }
 
     // Execute the RPC (for public RPCs or producer RPCs that don't need injection)
-    const { data, error } = await supabase.rpc(rpc as never, params || {});
+    const { data, error } = await executeRpc(supabase, rpc, params || {});
 
     if (error) {
       log.error(`RPC ${rpc} failed:`, error);

@@ -14,7 +14,7 @@ import type {
   RlsTestResult,
   PolicyRow,
 } from "../types.ts";
-import { SERVICE_ROLE_ONLY_TABLES } from "../types.ts";
+import { SERVICE_ROLE_ONLY_TABLES, normalizeRoles } from "../types.ts";
 
 /**
  * Test that sensitive tables deny all access except service_role.
@@ -92,16 +92,8 @@ export async function runServiceRoleOnlyTest(
       const qual = (p.qual || '').toLowerCase().trim();
       const withCheck = (p.with_check || '').toLowerCase().trim();
       
-      // Parse roles - PostgreSQL returns as "{role1,role2}" string or array
-      // deno-lint-ignore no-explicit-any
-      const rolesRaw = p.roles as any;
-      let rolesStr = '';
-      if (Array.isArray(rolesRaw)) {
-        rolesStr = rolesRaw.join(',').toLowerCase();
-      } else if (typeof rolesRaw === 'string') {
-        // Handle PostgreSQL array format: "{service_role}" or "{authenticated,anon}"
-        rolesStr = rolesRaw.replace(/[{}]/g, '').toLowerCase();
-      }
+      // RISE V3: Use normalizeRoles helper to safely parse roles
+      const rolesStr = normalizeRoles(p.roles);
       
       // Skip if policy is specifically for service_role only
       if (rolesStr === 'service_role') {
