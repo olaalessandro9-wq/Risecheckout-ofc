@@ -14,26 +14,37 @@
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const config = getTestConfig();
+
+function getFunctionUrl(): string {
+  return config.supabaseUrl
+    ? `${config.supabaseUrl}/functions/v1/content-crud`
+    : "https://mock.supabase.co/functions/v1/content-crud";
+}
 
 // ============================================================================
 // CORS Tests
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'OPTIONS'
     });
-
     await response.text();
-
     assertEquals(response.status, 200);
     assertEquals(response.headers.get('Access-Control-Allow-Origin'), '*');
   }
@@ -44,10 +55,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: Deve rejeitar request sem autenticação",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: Deve rejeitar request sem autenticação",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create",
@@ -57,7 +67,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -66,7 +76,6 @@ Deno.test({
     });
 
     await response.text();
-
     assertEquals(response.status, 401);
   }
 });
@@ -76,10 +85,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: create - deve validar moduleId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: create - deve validar moduleId",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create",
@@ -91,7 +99,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -100,17 +108,15 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200 (sucesso)
     assertEquals([200, 401, 403].includes(response.status), true);
   }
 });
 
 Deno.test({
-  name: "content-crud: create - deve aceitar diferentes content_types",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: create - deve aceitar diferentes content_types",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create",
@@ -122,7 +128,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -131,17 +137,15 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200 (sucesso)
     assertEquals([200, 401, 403].includes(response.status), true);
   }
 });
 
 Deno.test({
-  name: "content-crud: create - deve aceitar is_active",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: create - deve aceitar is_active",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create",
@@ -153,7 +157,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -162,7 +166,6 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200 (sucesso)
     assertEquals([200, 401, 403].includes(response.status), true);
   }
@@ -173,10 +176,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: update - deve validar contentId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: update - deve validar contentId",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "update",
@@ -186,7 +188,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -195,17 +197,15 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200/404 (sucesso/não encontrado)
     assertEquals([200, 401, 403, 404].includes(response.status), true);
   }
 });
 
 Deno.test({
-  name: "content-crud: update - deve aceitar content_url null",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: update - deve aceitar content_url null",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "update",
@@ -215,7 +215,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -224,17 +224,15 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200/404 (sucesso/não encontrado)
     assertEquals([200, 401, 403, 404].includes(response.status), true);
   }
 });
 
 Deno.test({
-  name: "content-crud: update - deve aceitar body null",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: update - deve aceitar body null",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "update",
@@ -244,7 +242,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -253,7 +251,6 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200/404 (sucesso/não encontrado)
     assertEquals([200, 401, 403, 404].includes(response.status), true);
   }
@@ -264,17 +261,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: delete - deve validar contentId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: delete - deve validar contentId",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "delete",
       contentId: "test-content-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -283,7 +279,6 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200/404 (sucesso/não encontrado)
     assertEquals([200, 401, 403, 404].includes(response.status), true);
   }
@@ -294,10 +289,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: reorder - deve validar moduleId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: reorder - deve validar moduleId",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "reorder",
@@ -305,7 +299,7 @@ Deno.test({
       orderedIds: ["content-1", "content-2", "content-3"]
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -314,17 +308,15 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200 (sucesso)
     assertEquals([200, 401, 403].includes(response.status), true);
   }
 });
 
 Deno.test({
-  name: "content-crud: reorder - deve aceitar array vazio",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: reorder - deve aceitar array vazio",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "reorder",
@@ -332,7 +324,7 @@ Deno.test({
       orderedIds: []
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -341,7 +333,6 @@ Deno.test({
     });
 
     await response.text();
-
     // Deve retornar 401 (sem auth) ou 403 (sem ownership) ou 200 (sucesso)
     assertEquals([200, 401, 403].includes(response.status), true);
   }
@@ -352,17 +343,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: deve rejeitar ação inválida",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: deve rejeitar ação inválida",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "invalid-action",
       moduleId: "test-module-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -371,7 +361,6 @@ Deno.test({
     });
 
     await response.text();
-
     assertEquals(response.status >= 400, true);
   }
 });
@@ -381,12 +370,11 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: deve rejeitar JSON inválido",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: deve rejeitar JSON inválido",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -395,7 +383,6 @@ Deno.test({
     });
 
     await response.text();
-
     assertEquals(response.status >= 400, true);
   }
 });
@@ -405,10 +392,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "content-crud: deve aplicar rate limiting",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "content-crud/integration: deve aplicar rate limiting",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create",
@@ -420,7 +406,7 @@ Deno.test({
 
     // Fazer múltiplas requisições rapidamente
     const requests = Array.from({ length: 100 }, () =>
-      fetch(`${supabaseUrl}/functions/v1/content-crud`, {
+      fetch(getFunctionUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -12,21 +12,34 @@
  */
 
 import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const config = getTestConfig();
+
+function getFunctionUrl(): string {
+  return config.supabaseUrl
+    ? `${config.supabaseUrl}/functions/v1/affiliation-public`
+    : "https://mock.supabase.co/functions/v1/affiliation-public";
+}
 
 // ============================================================================
 // CORS Tests
 // ============================================================================
 
 Deno.test({
-  name: "affiliation-public: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'OPTIONS'
     });
     await response.text();
@@ -40,12 +53,11 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "affiliation-public: deve aceitar request sem autenticação (PUBLIC)",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: deve aceitar request sem autenticação (PUBLIC)",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -60,12 +72,11 @@ Deno.test({
 });
 
 Deno.test({
-  name: "affiliation-public: deve validar product_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: deve validar product_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -79,12 +90,11 @@ Deno.test({
 });
 
 Deno.test({
-  name: "affiliation-public: deve validar affiliate_code",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: deve validar affiliate_code",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -97,13 +107,16 @@ Deno.test({
   }
 });
 
+// ============================================================================
+// Validation Tests
+// ============================================================================
+
 Deno.test({
-  name: "affiliation-public: deve rejeitar sem product_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: deve rejeitar sem product_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -117,12 +130,11 @@ Deno.test({
 });
 
 Deno.test({
-  name: "affiliation-public: deve rejeitar sem affiliate_code",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: deve rejeitar sem affiliate_code",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -136,12 +148,11 @@ Deno.test({
 });
 
 Deno.test({
-  name: "affiliation-public: deve rejeitar código inválido",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: deve rejeitar código inválido",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -156,12 +167,11 @@ Deno.test({
 });
 
 Deno.test({
-  name: "affiliation-public: deve rejeitar afiliação bloqueada",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: deve rejeitar afiliação bloqueada",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -180,13 +190,12 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "affiliation-public: deve aplicar rate limiting",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "affiliation-public/integration: deve aplicar rate limiting",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const requests = Array.from({ length: 100 }, () =>
-      fetch(`${supabaseUrl}/functions/v1/affiliation-public`, {
+      fetch(getFunctionUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
