@@ -45,9 +45,9 @@ Esta política de segurança descreve as diretrizes e melhores práticas para ga
 
 ## 3. Prevenção de Vazamento de Secrets
 
-### 3.1 Gitleaks CI/CD
+### 3.1 TruffleHog CI/CD
 
-O repositório está configurado com **Gitleaks** que roda em cada `push` e `pull_request`. Commits com secrets serão **automaticamente bloqueados**.
+O repositório está configurado com **TruffleHog** que roda em cada `push` e `pull_request`. Apenas secrets **verificados** (ativos/válidos) são reportados, reduzindo falsos positivos. Commits com secrets verificados serão **automaticamente bloqueados**.
 
 ### 3.2 Pre-commit Hooks
 
