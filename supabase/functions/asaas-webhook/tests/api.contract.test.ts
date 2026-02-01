@@ -48,7 +48,7 @@ Deno.test({
       const response = await fetch(MOCK_URL, { method: "OPTIONS" });
       await response.text();
       
-      assertEquals(response.status, 200);
+      assertEquals(response.status, 204);
       assertExists(response.headers.get("Access-Control-Allow-Origin"));
     } finally {
       fetchMock.uninstall();

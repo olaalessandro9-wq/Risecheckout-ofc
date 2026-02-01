@@ -141,7 +141,7 @@ export class FetchMock {
               : new Request(input.toString(), init);
             return await mock.response(request);
           }
-          return mock.response;
+          return mock.response.clone();
         }
       }
       
