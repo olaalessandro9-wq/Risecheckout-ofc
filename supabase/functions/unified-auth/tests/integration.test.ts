@@ -9,7 +9,8 @@
  * @module unified-auth/tests/integration
  */
 
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+// Note: We do NOT use dotenv/load.ts because it throws when .env.example has extra vars
+// Tests that need env vars should use skipIntegration() guards
 import {
   assertEquals,
   assertExists,
