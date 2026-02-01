@@ -17,23 +17,27 @@
  * - Error handling
  * 
  * @module _integration-tests/payments/payment-order-webhook.integration.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+const config = getTestConfig();
+const supabaseUrl = config.supabaseUrl;
 
 // ============================================================================
 // PAYMENT CREATION TESTS
 // ============================================================================
 
 Deno.test({
-  name: "Integration: Asaas payment creation should create order",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: Asaas payment creation should create order",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -61,10 +65,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Integration: MercadoPago payment creation should create order",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: MercadoPago payment creation should create order",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -95,10 +98,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "Integration: Asaas webhook should update order status",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: Asaas webhook should update order status",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       event: 'PAYMENT_CONFIRMED',
@@ -123,10 +125,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Integration: Stripe webhook should update order status",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: Stripe webhook should update order status",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       type: 'payment_intent.succeeded',
@@ -159,10 +160,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "Integration: Order lifecycle worker should process pending orders",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: Order lifecycle worker should process pending orders",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/order-lifecycle-worker`, {
       method: 'POST',
@@ -178,10 +178,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Integration: Reconciliation should sync payment status",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: Reconciliation should sync payment status",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/reconcile-pending-orders`, {
       method: 'POST',
@@ -201,10 +200,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "Integration: Grant member access after payment confirmation",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: Grant member access after payment confirmation",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: `test_order_${Date.now()}`,
@@ -229,10 +227,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "Integration: Payment creation with invalid data should fail gracefully",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: Payment creation with invalid data should fail gracefully",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: -100, // Invalid amount
@@ -253,10 +250,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Integration: Webhook with invalid signature should be rejected",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "payment-order-webhook/integration: Webhook with invalid signature should be rejected",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       event: 'PAYMENT_CONFIRMED',

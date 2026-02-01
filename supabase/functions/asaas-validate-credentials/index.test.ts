@@ -13,26 +13,27 @@
  * - Error handling (invalid credentials, network errors)
  * 
  * @module asaas-validate-credentials/index.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-
-// Skip tests if environment is not configured or using mock values
-const isMockUrl = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
-const skipTests = isMockUrl;
+const config = getTestConfig();
+const supabaseUrl = config.supabaseUrl;
 
 // ============================================================================
 // CORS TESTS
 // ============================================================================
 
 Deno.test({
-  name: "asaas-validate-credentials: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/asaas-validate-credentials`, {
       method: 'OPTIONS'
@@ -51,10 +52,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve rejeitar request sem apiKey",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve rejeitar request sem apiKey",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       // apiKey missing
@@ -76,10 +76,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve rejeitar apiKey vazia",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve rejeitar apiKey vazia",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: '',
@@ -101,10 +100,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve rejeitar apiKey com apenas espaços",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve rejeitar apiKey com apenas espaços",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: '   ',
@@ -130,10 +128,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve rejeitar request sem environment",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve rejeitar request sem environment",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: 'test_key_123'
@@ -155,10 +152,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve rejeitar environment inválido",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve rejeitar environment inválido",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: 'test_key_123',
@@ -180,10 +176,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve aceitar environment 'sandbox'",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve aceitar environment 'sandbox'",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: 'invalid_key_for_test',
@@ -204,10 +199,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve aceitar environment 'production'",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve aceitar environment 'production'",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: 'invalid_key_for_test',
@@ -232,10 +226,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve retornar valid=false para credenciais inválidas",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve retornar valid=false para credenciais inválidas",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: 'definitely_invalid_key_12345',
@@ -260,10 +253,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-validate-credentials: Response deve ter estrutura correta para erro",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Response deve ter estrutura correta para erro",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: 'invalid_key',
@@ -286,10 +278,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-validate-credentials: Content-Type deve ser application/json",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Content-Type deve ser application/json",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       apiKey: 'test_key',
@@ -313,10 +304,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve lidar com JSON inválido",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve lidar com JSON inválido",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/asaas-validate-credentials`, {
       method: 'POST',
@@ -331,10 +321,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-validate-credentials: Deve lidar com body vazio",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-validate-credentials/integration: Deve lidar com body vazio",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/asaas-validate-credentials`, {
       method: 'POST',

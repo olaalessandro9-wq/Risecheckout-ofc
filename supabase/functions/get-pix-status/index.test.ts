@@ -11,19 +11,23 @@
  * - Error handling
  * 
  * @module get-pix-status/index.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+const config = getTestConfig();
+const supabaseUrl = config.supabaseUrl;
 
 Deno.test({
-  name: "get-pix-status: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-pix-status/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-pix-status`, {
       method: 'OPTIONS'
@@ -35,10 +39,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-pix-status: Deve rejeitar request sem transactionId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-pix-status/integration: Deve rejeitar request sem transactionId",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-pix-status`, {
       method: 'GET'
@@ -49,10 +52,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-pix-status: Deve rejeitar transactionId vazio",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-pix-status/integration: Deve rejeitar transactionId vazio",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-pix-status?transactionId=`, {
       method: 'GET'
@@ -63,10 +65,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-pix-status: Deve retornar 404 para transactionId inexistente",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-pix-status/integration: Deve retornar 404 para transactionId inexistente",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-pix-status?transactionId=nonexistent_tx_123`, {
       method: 'GET'
@@ -77,10 +78,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-pix-status: Content-Type deve ser application/json",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-pix-status/integration: Content-Type deve ser application/json",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-pix-status?transactionId=test_tx_123`, {
       method: 'GET'
@@ -91,10 +91,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-pix-status: Deve rejeitar request sem gateway",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-pix-status/integration: Deve rejeitar request sem gateway",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-pix-status?transactionId=test_tx_123`, {
       method: 'GET'

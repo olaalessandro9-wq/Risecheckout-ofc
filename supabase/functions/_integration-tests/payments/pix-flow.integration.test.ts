@@ -18,23 +18,27 @@
  * - Order completion
  * 
  * @module _integration-tests/payments/pix-flow.integration.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+const config = getTestConfig();
+const supabaseUrl = config.supabaseUrl;
 
 // ============================================================================
 // PIX CREATION TESTS (ALL GATEWAYS)
 // ============================================================================
 
 Deno.test({
-  name: "PIX Flow: Asaas PIX creation should return QR Code",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: Asaas PIX creation should return QR Code",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -62,10 +66,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "PIX Flow: MercadoPago PIX creation should return QR Code",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: MercadoPago PIX creation should return QR Code",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -92,10 +95,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "PIX Flow: PushinPay PIX creation should return QR Code",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: PushinPay PIX creation should return QR Code",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -125,10 +127,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "PIX Flow: Get PIX status should return current status",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: Get PIX status should return current status",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const transactionId = 'test_tx_123';
     
@@ -144,10 +145,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "PIX Flow: PushinPay get status should return payment status",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: PushinPay get status should return payment status",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const transactionId = 'test_tx_123';
     
@@ -168,10 +168,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "PIX Flow: Get order for PIX should return order data",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: Get order for PIX should return order data",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const orderId = `test_order_${Date.now()}`;
     
@@ -191,10 +190,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "PIX Flow: Asaas webhook PIX confirmation should update order",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: Asaas webhook PIX confirmation should update order",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       event: 'PAYMENT_CONFIRMED',
@@ -219,10 +217,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "PIX Flow: PushinPay webhook PIX confirmation should update order",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: PushinPay webhook PIX confirmation should update order",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       event: 'payment.approved',
@@ -250,10 +247,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "PIX Flow: PIX creation with zero amount should fail",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: PIX creation with zero amount should fail",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 0,
@@ -279,10 +275,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "PIX Flow: PIX creation with invalid document should fail",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: PIX creation with invalid document should fail",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -308,10 +303,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "PIX Flow: Get PIX status without transactionId should fail",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "pix-flow/integration: Get PIX status without transactionId should fail",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-pix-status`, {
       method: 'GET'
