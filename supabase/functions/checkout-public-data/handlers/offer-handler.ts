@@ -42,7 +42,7 @@ export async function handleOffer(ctx: HandlerContext): Promise<Response> {
     return jsonResponse({ error: "Oferta não encontrada" }, 404);
   }
 
-  const paymentLinks = data.payment_links as {
+  const paymentLinks = data.payment_links as unknown as {
     offer_id: string;
     offers: { id: string; name: string; price: number };
   };
@@ -82,6 +82,6 @@ export async function handleGetCheckoutOffer(ctx: HandlerContext): Promise<Respo
     return jsonResponse({ offerId: "" });
   }
 
-  const paymentLinks = data?.payment_links as { offer_id: string } | null;
+  const paymentLinks = data?.payment_links as unknown as { offer_id: string } | null;
   return jsonResponse({ offerId: paymentLinks?.offer_id || "" });
 }

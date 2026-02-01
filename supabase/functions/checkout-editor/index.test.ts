@@ -161,7 +161,8 @@ describe("checkout-editor - Action: GET-EDITOR-DATA", () => {
     
     const producerId = "producer-123";
     const checkoutOwnerId = "other-producer";
-    const isAuthorized = producerId === checkoutOwnerId;
+    // Compare as runtime values, not compile-time literals
+    const isAuthorized = String(producerId) === String(checkoutOwnerId);
     
     assertEquals(isAuthorized, false);
   });

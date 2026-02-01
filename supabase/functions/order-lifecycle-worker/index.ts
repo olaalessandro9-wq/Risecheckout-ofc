@@ -71,7 +71,7 @@ serve(async (req) => {
 
     // Processar cada evento
     for (const event of events as OrderLifecycleEvent[]) {
-      await processEvent(supabase, event, result);
+      await processEvent(supabase as never, event, result);
     }
 
     log.info('✅ Worker concluído', result);

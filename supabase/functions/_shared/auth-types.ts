@@ -8,8 +8,9 @@
 export { 
   CURRENT_HASH_VERSION, 
   BCRYPT_COST,
-  SESSION_DURATION_DAYS,
   RESET_TOKEN_EXPIRY_HOURS,
+  ACCESS_TOKEN_DURATION_MINUTES,
+  REFRESH_TOKEN_DURATION_DAYS,
 } from "./auth-constants.ts";
 
 // ============================================

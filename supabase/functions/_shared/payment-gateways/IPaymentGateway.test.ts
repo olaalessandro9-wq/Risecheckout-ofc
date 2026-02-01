@@ -20,8 +20,8 @@ import {
   assertEquals,
   assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { IPaymentGateway } from "./IPaymentGateway.ts";
-import { PaymentRequest, PaymentResponse } from "./types.ts";
+import type { IPaymentGateway } from "./IPaymentGateway.ts";
+import type { PaymentRequest, PaymentResponse } from "./types.ts";
 
 // ============================================================================
 // MOCK IMPLEMENTATION FOR INTERFACE TESTING
@@ -185,8 +185,8 @@ Deno.test("IPaymentGateway - implementation should have all required methods", (
   ];
   
   requiredMethods.forEach((method) => {
-    assertExists((gateway as Record<string, unknown>)[method]);
-    assertEquals(typeof (gateway as Record<string, unknown>)[method], "function");
+    assertExists((gateway as unknown as Record<string, unknown>)[method]);
+    assertEquals(typeof (gateway as unknown as Record<string, unknown>)[method], "function");
   });
 });
 
@@ -297,9 +297,10 @@ Deno.test("IPaymentGateway - should allow interface-based function parameters", 
 // DOCUMENTATION TESTS
 // ============================================================================
 
-Deno.test("IPaymentGateway - interface should be properly exported", () => {
-  // If we can import it, it's properly exported
-  assertExists(IPaymentGateway);
+Deno.test("IPaymentGateway - interface should be importable as type", () => {
+  // If we can use the type, it's properly exported
+  const gateway: IPaymentGateway = new MockPaymentGateway();
+  assertExists(gateway);
 });
 
 Deno.test("IPaymentGateway - should work with type assertions", () => {
