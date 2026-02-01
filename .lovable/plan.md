@@ -1,160 +1,274 @@
 
-# AUDITORIA COMPLETA - FASE 2: Auth Tests
-## RISE ARCHITECT PROTOCOL V3 - Relatório de Conformidade
+# PLANO: Correção de Violações `as never` e `as any` no Código de Produção
+
+## Resumo Executivo
+
+Este plano aborda a eliminação de **15 violações** de `as never` e `as any` no código de **produção** das Edge Functions. Todas as correções seguirão o RISE Architect Protocol V3 com tipagem explícita e zero dívida técnica.
 
 ---
 
-## SUMÁRIO EXECUTIVO
+## Análise de Soluções
 
-| Métrica | Valor | Status |
-|---------|-------|--------|
-| **Testes Unit** | 137/137 passando | ✅ 100% |
-| **Testes Integration** | 24/24 ignorados corretamente | ✅ 100% |
-| **Testes Contract** | 6/6 falhando (esperado) | ⚠️ Requer correção |
-| **Violações `as never`** | 0 nos arquivos da Fase 2 | ✅ 100% |
-| **Violações `as any`** | 0 nos arquivos da Fase 2 | ✅ 100% |
-| **Termos proibidos** | 0 nos arquivos da Fase 2 | ✅ 100% |
+### Solução A: Tipagem Explícita com Interfaces Locais
+- Manutenibilidade: 10/10
+- Zero DT: 10/10
+- Arquitetura: 10/10
+- Escalabilidade: 10/10
+- Segurança: 10/10
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 2-3 horas
 
----
-
-## 1. PROBLEMA IDENTIFICADO
-
-### 1.1 Causa Raiz dos Falsos Positivos
-
-Os arquivos `api.contract.test.ts` das 3 funções da Fase 2 fazem **chamadas HTTP reais** sem proteção `skipContract()`:
-
-```text
-❌ supabase/functions/security-management/tests/api.contract.test.ts  → Uncaught error (network timeout)
-❌ supabase/functions/session-manager/tests/api.contract.test.ts       → Uncaught error (network timeout)
-❌ supabase/functions/unified-auth/tests/api.contract.test.ts          → Uncaught error (network timeout)
-```
-
-**Por que falham?** Os testes tentam conectar ao servidor via `fetch(FUNCTION_URL)` mas o servidor não está acessível em ambiente de CI/teste.
-
-### 1.2 Este NÃO é um bug no código de produção
-
-Os testes de contrato foram **projetados para validar contratos HTTP reais**. Eles precisam de proteção `skipContract()` para não falharem em ambientes sem servidor.
-
----
-
-## 2. ANÁLISE DE CONFORMIDADE RISE V3
-
-### 2.1 Arquivos da Fase 2 - Testes Unit (✅ APROVADOS)
-
-| Arquivo | Testes | Violações | Status |
-|---------|--------|-----------|--------|
-| `unified-auth/tests/unit.test.ts` | 50+ | 0 | ✅ |
-| `unified-auth/tests/_shared.ts` | N/A | 0 | ✅ |
-| `session-manager/tests/unit.test.ts` | 29 | 0 | ✅ |
-| `session-manager/tests/_shared.ts` | N/A | 0 | ✅ |
-| `security-management/tests/unit.test.ts` | 27 | 0 | ✅ |
-| `security-management/tests/_shared.ts` | N/A | 0 | ✅ |
-
-### 2.2 Arquivos da Fase 2 - Testes Integration (✅ APROVADOS)
-
-| Arquivo | Testes | skipIntegration() | Status |
-|---------|--------|-------------------|--------|
-| `unified-auth/tests/integration.test.ts` | 10 | ✅ Aplicado | ✅ |
-| `session-manager/tests/integration.test.ts` | 5 | ✅ Aplicado | ✅ |
-| `security-management/tests/integration.test.ts` | 5 | ✅ Aplicado | ✅ |
-
-### 2.3 Arquivos da Fase 2 - Testes Contract (⚠️ REQUER CORREÇÃO)
-
-| Arquivo | Problema | Correção Necessária |
-|---------|----------|---------------------|
-| `unified-auth/tests/api.contract.test.ts` | Faz fetch() real sem proteção | Adicionar `skipContract()` |
-| `session-manager/tests/api.contract.test.ts` | Faz fetch() real sem proteção | Adicionar `skipContract()` |
-| `security-management/tests/api.contract.test.ts` | Faz fetch() real sem proteção | Adicionar `skipContract()` |
-
----
-
-## 3. VIOLAÇÕES FORA DO ESCOPO DA FASE 2
-
-Foram identificadas violações `as never` em arquivos **legacy** que **NÃO fazem parte da Fase 2**:
-
-| Arquivo | Violações `as never` | Fase de Correção |
-|---------|---------------------|------------------|
-| `_shared/__tests__/members-area-handlers.test.ts` | 6 | Fase 3/4 |
-| `_shared/payment-gateways/adapters/PushinPayAdapter.test.ts` | 9 | Fase 3/4 |
-| `_shared/payment-gateways/adapters/MercadoPagoAdapter.test.ts` | ~10 | Fase 3/4 |
-| `_shared/payment-gateways/adapters/AsaasAdapter.test.ts` | ~10 | Fase 3/4 |
-| `_shared/payment-gateways/adapters/StripeAdapter.test.ts` | ~10 | Fase 3/4 |
-
-**Total: ~45 violações `as never` em arquivos legacy (fora do escopo).**
-
----
-
-## 4. PLANO DE CORREÇÃO
-
-### Solução A: Adicionar `skipContract()` aos testes de contrato
-- **Nota: 10.0/10**
-- **Tempo:** 15 minutos
-- **Descrição:** Os testes de contrato são ignorados por padrão, executando apenas quando `RUN_CONTRACT=true`
-
-### Solução B: Converter para mocks puros
-- **Nota: 9.5/10**
-- **Tempo:** 2 horas
-- **Descrição:** Remover fetch() real e usar apenas mocks internos
+### Solução B: Type Guards Genéricos
+- Manutenibilidade: 8/10
+- Zero DT: 9/10
+- Arquitetura: 8/10
+- Escalabilidade: 9/10
+- Segurança: 9/10
+- **NOTA FINAL: 8.6/10**
+- Tempo estimado: 1 hora
 
 ### DECISÃO: Solução A (Nota 10.0)
-
-A Solução A é superior porque:
-1. Mantém a capacidade de testar contratos reais quando o servidor está disponível
-2. Segue o padrão já estabelecido com `skipIntegration()`
-3. Zero impacto nos testes unit (que já passam)
-4. Alinha com a arquitetura de testes da Fase 1
+A Solução B usa type guards genéricos que escondem a tipagem real. A Solução A expõe tipos explícitos em cada módulo, facilitando manutenção e refatoração futura.
 
 ---
 
-## 5. CORREÇÃO TÉCNICA PROPOSTA
+## Inventário de Violações
 
-Para cada arquivo `api.contract.test.ts`:
+| Arquivo | Linha | Violação | Causa Raiz |
+|---------|-------|----------|------------|
+| `resolve-and-load-handler.ts` | 165 | `as never` | `formatOrderBumps` não aceita tipo Supabase |
+| `resolve-and-load-handler.ts` | 268 | `as never` | Mesmo problema |
+| `order-lifecycle-worker/index.ts` | 74 | `as never` | `supabase` passado sem tipo explícito |
+| `rpc-proxy/index.ts` | 180 | `as never` | `rpc()` não aceita string dinâmica |
+| `rpc-proxy/index.ts` | 198 | `as never` | Mesmo problema |
+| `data-retention-executor/execute-cleanup.ts` | 44 | `as any[]` | RPC retorna `unknown` |
+| `data-retention-executor/execute-cleanup.ts` | 90 | `as any[]` | Mesmo problema |
+| `data-retention-executor/execute-cleanup.ts` | 135 | `as any[]` | Mesmo problema |
+| `order-bump-crud/index.ts` | 167 | `as any` | Join do Supabase retorna tipo aninhado |
+| `rls-security-tester/service-role-only.ts` | 97 | `as any` | Campo `roles` com tipo ambíguo |
 
-```typescript
-// ANTES (linha 31):
-Deno.test("api contract: CORS preflight returns 204", async () => {
-
-// DEPOIS (linha 31):
-Deno.test({
-  name: "api contract: CORS preflight returns 204",
-  ignore: skipContract(),
-  fn: async () => {
-```
-
-E importar `skipContract`:
-
-```typescript
-import { skipIntegration, skipContract } from "../../_shared/testing/mod.ts";
-```
+**Total: 10 linhas com violações (algumas linhas têm múltiplas)**
 
 ---
 
-## 6. RESUMO DA AUDITORIA
+## Estratégia de Correção por Arquivo
+
+### Fase 1: `checkout-public-data/handlers/resolve-and-load-handler.ts`
+
+**Problema:** `formatOrderBumps` recebe `as never` porque o tipo de retorno do Supabase não corresponde a `RawBump[]`.
+
+**Solução:**
+1. Importar `RawBump` de `order-bumps-handler.ts` (ou exportá-lo se não estiver público)
+2. Fazer cast explícito para `RawBump[]` com type assertion documentada
+3. Alternativa: Usar type guard para validar a estrutura
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│           FASE 2 - AUTH TESTS - AUDITORIA FINAL             │
-│                                                              │
-│  ✅ Testes Unit: 137/137 passando (100%)                    │
-│  ✅ Testes Integration: 24/24 ignorados corretamente        │
-│  ⚠️ Testes Contract: 6 arquivos requerem skipContract()     │
-│                                                              │
-│  ✅ Violações `as never` na Fase 2: 0                       │
-│  ✅ Violações `as any` na Fase 2: 0                         │
-│  ✅ Termos proibidos na Fase 2: 0                           │
-│                                                              │
-│  📌 CONFORMIDADE RISE V3: 95%                               │
-│  📌 Para 100%: Aplicar skipContract() nos 3 arquivos        │
-│                                                              │
-│  ⚠️ Violações legacy (fora do escopo): ~45 (Fase 3/4)       │
-└─────────────────────────────────────────────────────────────┘
+Antes:  formatOrderBumps((orderBumpsResult.data || []) as never)
+Depois: formatOrderBumps((orderBumpsResult.data ?? []) as RawBump[])
+```
+
+**Arquivos a modificar:**
+- `order-bumps-handler.ts` - Exportar `RawBump` interface
+- `resolve-and-load-handler.ts` - Importar e usar `RawBump`
+
+---
+
+### Fase 2: `order-lifecycle-worker/index.ts`
+
+**Problema:** `supabase as never` passado para `processEvent` porque a tipagem não corresponde.
+
+**Solução:**
+1. Remover o cast `as never` na linha 74
+2. Garantir que `processEvent` aceita `ReturnType<typeof createClient>` (já está correto na assinatura)
+3. O problema está no loop - o tipo já é correto mas TypeScript não infere
+
+```text
+Antes:  await processEvent(supabase as never, event, result)
+Depois: await processEvent(supabase, event, result)
+```
+
+**Análise:** A função `processEvent` já aceita `ReturnType<typeof createClient>`. O cast era desnecessário e foi adicionado erroneamente.
+
+---
+
+### Fase 3: `rpc-proxy/index.ts`
+
+**Problema:** `supabase.rpc(rpc as never, ...)` porque TypeScript não aceita string dinâmica como nome de RPC.
+
+**Solução:**
+1. Criar um wrapper tipado para chamadas RPC
+2. Usar type assertion para o nome do RPC com documentação
+
+```text
+Antes:  supabase.rpc(rpc as never, params)
+Depois: supabase.rpc(rpc, params) // Com wrapper tipado
+```
+
+**Nota:** Esta é uma limitação conhecida do Supabase SDK. A solução é criar uma função helper:
+
+```typescript
+/**
+ * Execute RPC with dynamic name.
+ * RISE V3: Type assertion required due to Supabase SDK limitation.
+ * The SDK expects literal RPC names, not dynamic strings.
+ */
+async function executeRpc(
+  supabase: SupabaseClient,
+  rpcName: string,
+  params: Record<string, unknown>
+) {
+  // Type assertion documented and contained
+  return await supabase.rpc(rpcName as keyof Database['public']['Functions'], params);
+}
 ```
 
 ---
 
-## 7. PRÓXIMOS PASSOS
+### Fase 4: `data-retention-executor/handlers/execute-cleanup.ts`
 
-1. **CORREÇÃO IMEDIATA:** Aplicar `skipContract()` aos 3 arquivos de contrato da Fase 2
-2. **VALIDAÇÃO:** Reexecutar testes para confirmar 100% de sucesso
-3. **FASE 3:** Migrar testes de lógica de negócios (vendors, coupons, products)
-4. **FASE 4:** Corrigir violações `as never` em arquivos legacy de adapters
+**Problema:** RPC retorna `unknown` e precisa de `as any[]` para iterar.
+
+**Solução:**
+1. Criar interfaces para os tipos de retorno de cada RPC
+2. Usar type assertion para o tipo específico
+
+```typescript
+interface CleanupAllResult {
+  category: string;
+  table_name: string;
+  rows_deleted: number;
+}
+
+interface CleanupCategoryResult {
+  table_name: string;
+  rows_deleted: number;
+}
+
+interface DryRunResult {
+  category: string;
+  table_name: string;
+  rows_to_delete: number;
+}
+```
+
+```text
+Antes:  (data as any[]).forEach((row: {...}) => ...)
+Depois: (data as CleanupAllResult[]).forEach((row) => ...)
+```
+
+---
+
+### Fase 5: `order-bump-crud/index.ts`
+
+**Problema:** Join do Supabase retorna tipo aninhado que precisa de `as any`.
+
+**Solução:**
+1. Criar interface para o resultado do join
+
+```typescript
+interface OrderBumpWithOwner {
+  id: string;
+  parent_product_id: string;
+  products?: {
+    user_id: string;
+  } | null;
+}
+```
+
+```text
+Antes:  const orderBumpData = data as any
+Depois: const orderBumpData = data as OrderBumpWithOwner
+```
+
+---
+
+### Fase 6: `rls-security-tester/tests/service-role-only.ts`
+
+**Problema:** Campo `roles` tem tipo ambíguo (pode ser array ou string PostgreSQL).
+
+**Solução:**
+1. Atualizar `PolicyRow` em `types.ts` para incluir o tipo correto
+2. Usar type guard para normalizar o valor
+
+```typescript
+function normalizeRoles(roles: string[] | string | unknown): string {
+  if (Array.isArray(roles)) {
+    return roles.join(',').toLowerCase();
+  }
+  if (typeof roles === 'string') {
+    return roles.replace(/[{}]/g, '').toLowerCase();
+  }
+  return '';
+}
+```
+
+---
+
+## Árvore de Arquivos Modificados
+
+```text
+supabase/functions/
+├── checkout-public-data/
+│   └── handlers/
+│       ├── order-bumps-handler.ts    # Exportar RawBump
+│       └── resolve-and-load-handler.ts  # Usar RawBump tipado
+├── order-lifecycle-worker/
+│   └── index.ts                      # Remover cast desnecessário
+├── rpc-proxy/
+│   └── index.ts                      # Criar wrapper executeRpc()
+├── data-retention-executor/
+│   ├── types.ts                      # Adicionar interfaces RPC
+│   └── handlers/
+│       └── execute-cleanup.ts        # Usar tipos explícitos
+├── order-bump-crud/
+│   └── index.ts                      # Criar interface OrderBumpWithOwner
+└── rls-security-tester/
+    ├── types.ts                      # Atualizar PolicyRow.roles
+    └── tests/
+        └── service-role-only.ts      # Usar normalizeRoles()
+```
+
+---
+
+## Checklist de Validação RISE V3
+
+| Critério | Verificação |
+|----------|-------------|
+| Zero `as never` em produção | Todas as 10 ocorrências eliminadas |
+| Zero `as any` em produção | Todas substituídas por tipos explícitos |
+| Documentação de casts | Cada cast restante tem JSDoc explicando |
+| Testes passando | Suite de testes executada com sucesso |
+| Sem termos proibidos | Zero `TODO`, `HACK`, `FIXME`, `gambiarra` |
+| Arquivos < 300 linhas | Todos os arquivos dentro do limite |
+
+---
+
+## Detalhes Técnicos
+
+### Por que `as never` existia?
+
+1. **`formatOrderBumps`**: O tipo de retorno do Supabase usa tipos genéricos que não correspondem às interfaces locais. A solução é exportar e reutilizar `RawBump`.
+
+2. **`supabase.rpc()`**: O SDK Supabase gera tipos estáticos baseados no schema. Chamadas dinâmicas (onde o nome do RPC vem de uma variável) não são suportadas pelo sistema de tipos.
+
+3. **`supabase as never`**: Cast desnecessário - o tipo já era compatível.
+
+4. **Joins Supabase**: O SDK retorna tipos aninhados complexos que precisam de interfaces explícitas.
+
+### Infraestrutura Criada
+
+Nenhum novo módulo de infraestrutura será necessário. As correções serão feitas inline com:
+- Interfaces locais por arquivo
+- Type assertions documentadas
+- Funções helper quando apropriado
+
+---
+
+## Resultado Esperado
+
+Após implementação:
+- **0 violações** de `as never` em código de produção
+- **0 violações** de `as any` em código de produção
+- **100% conformidade** RISE V3
+- **Todos os testes** passando
+
