@@ -1,18 +1,33 @@
 /**
  * Integration Tests for coupon-management (CORS, Auth, Response)
- * @module coupon-management/tests/integration.test
- * @version 2.0.0 - RISE Protocol V3 Compliant
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * @module coupon-management/tests/integration
+ * @version 2.1.0
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { skipIntegration } from "../../_shared/testing/mod.ts";
-import { FUNCTION_URL, SUPABASE_ANON_KEY } from "./_shared.ts";
+import {
+  skipIntegration,
+  integrationTestOptions,
+  FUNCTION_NAME,
+  buildFunctionUrl,
+  createUnauthHeaders,
+} from "./_shared.ts";
 
-// ============================================
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+// ============================================================================
 // CORS TESTS (Unit - no network)
-// ============================================
+// ============================================================================
 
-Deno.test("coupon-management - CORS - returns expected CORS headers in structure", () => {
+Deno.test("coupon-management: CORS headers structure is correct", () => {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -22,18 +37,21 @@ Deno.test("coupon-management - CORS - returns expected CORS headers in structure
   assertExists(corsHeaders["Access-Control-Allow-Headers"]);
 });
 
-// ============================================
+// ============================================================================
 // AUTHENTICATION TESTS (Integration - requires server)
-// ============================================
+// ============================================================================
 
 Deno.test({
-  name: "coupon-management - auth - rejects unauthenticated requests",
+  name: "coupon-management/integration: rejects unauthenticated requests",
   ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(FUNCTION_URL, {
+    const functionUrl = buildFunctionUrl(SUPABASE_URL);
+    
+    const response = await fetch(functionUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        ...createUnauthHeaders(),
         "apikey": SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({ action: "list", productId: "test" }),
