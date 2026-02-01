@@ -1,16 +1,21 @@
 /**
  * Shared utilities for offer-crud tests
  * @module offer-crud/tests/_shared
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant (Zero Hardcoded Credentials)
  */
 
+import { getTestConfig } from "../../_shared/testing/mod.ts";
+
 // ============================================
-// CONFIGURATION (Hardcoded for unit tests - no dotenv dependency)
+// CONFIGURATION (Centralized via getTestConfig)
 // ============================================
 
-export const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpdmJ0bXRncHN4dXBmand3b3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3Mjg2NzIsImV4cCI6MjA4MTA4ODY3Mn0.h8HDRdHaVTZpZLqBxj7bODaUPCox2h6HF_3U1xfbSXY";
-export const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/offer-crud`;
+const config = getTestConfig();
+
+export const FUNCTION_NAME = "offer-crud";
+export const FUNCTION_URL = config.supabaseUrl
+  ? `${config.supabaseUrl}/functions/v1/${FUNCTION_NAME}`
+  : `https://mock.supabase.co/functions/v1/${FUNCTION_NAME}`;
 
 // ============================================
 // CONSTANTS

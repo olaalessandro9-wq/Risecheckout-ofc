@@ -1,12 +1,14 @@
 /**
  * Integration Tests for offer-crud (CORS, Auth, Response)
  * @module offer-crud/tests/integration.test
- * @version 2.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant (Zero Hardcoded Credentials)
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { skipIntegration } from "../../_shared/testing/mod.ts";
-import { FUNCTION_URL, SUPABASE_ANON_KEY } from "./_shared.ts";
+import { skipIntegration, integrationTestOptions, getTestConfig } from "../../_shared/testing/mod.ts";
+import { FUNCTION_URL } from "./_shared.ts";
+
+const config = getTestConfig();
 
 // ============================================
 // CORS TESTS (Unit - no network)
@@ -27,14 +29,15 @@ Deno.test("offer-crud - CORS - returns expected CORS headers in structure", () =
 // ============================================
 
 Deno.test({
-  name: "offer-crud - auth - rejects unauthenticated requests",
+  name: "offer-crud/integration: auth - rejects unauthenticated requests",
   ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
+        "apikey": config.supabaseAnonKey ?? "",
       },
       body: JSON.stringify({ action: "list" }),
     });

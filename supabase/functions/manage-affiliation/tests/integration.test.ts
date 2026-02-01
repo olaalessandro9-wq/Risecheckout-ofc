@@ -1,11 +1,14 @@
 /**
  * Integration Tests for manage-affiliation (CORS, Auth, Response)
  * @module manage-affiliation/tests/integration.test
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant (Zero Hardcoded Credentials)
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { FUNCTION_URL, SUPABASE_ANON_KEY, ACTION_MESSAGES, MAX_COMMISSION_RATE } from "./_shared.ts";
+import { skipIntegration, integrationTestOptions, getTestConfig } from "../../_shared/testing/mod.ts";
+import { FUNCTION_URL, ACTION_MESSAGES, MAX_COMMISSION_RATE } from "./_shared.ts";
+
+const config = getTestConfig();
 
 // ============================================
 // CORS TESTS
@@ -26,18 +29,23 @@ Deno.test("manage-affiliation - CORS - returns expected CORS headers in structur
 // AUTHENTICATION TESTS
 // ============================================
 
-Deno.test("manage-affiliation - auth - rejects unauthenticated requests", async () => {
-  const response = await fetch(FUNCTION_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({ affiliation_id: "test", action: "approve" }),
-  });
-  
-  assertEquals(response.status, 401);
-  await response.text();
+Deno.test({
+  name: "manage-affiliation/integration: auth - rejects unauthenticated requests",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
+  fn: async () => {
+    const response = await fetch(FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": config.supabaseAnonKey ?? "",
+      },
+      body: JSON.stringify({ affiliation_id: "test", action: "approve" }),
+    });
+    
+    assertEquals(response.status, 401);
+    await response.text();
+  },
 });
 
 // ============================================
