@@ -150,7 +150,8 @@ Deno.test("endpoints: defines all required auth endpoints", () => {
   ];
   
   expectedEndpoints.forEach(endpoint => {
-    const exists = Object.values(AUTH_ENDPOINTS).includes(endpoint as never);
+    const endpointValues = Object.values(AUTH_ENDPOINTS) as string[];
+    const exists = endpointValues.includes(endpoint);
     assertEquals(exists, true, `Endpoint "${endpoint}" should be defined`);
   });
 });
