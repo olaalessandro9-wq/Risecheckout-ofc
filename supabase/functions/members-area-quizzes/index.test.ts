@@ -14,21 +14,34 @@
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const config = getTestConfig();
+
+function getFunctionUrl(): string {
+  return config.supabaseUrl
+    ? `${config.supabaseUrl}/functions/v1/members-area-quizzes`
+    : "https://mock.supabase.co/functions/v1/members-area-quizzes";
+}
 
 // ============================================================================
 // CORS Tests
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'OPTIONS'
     });
 
@@ -44,17 +57,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: list - deve validar content_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: list - deve validar content_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "list",
       content_id: "test-content-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -74,17 +86,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: get - deve validar quiz_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: get - deve validar quiz_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "get",
       quiz_id: "test-quiz-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -104,10 +115,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: create - deve rejeitar sem content_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: create - deve rejeitar sem content_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create",
@@ -117,7 +127,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -133,10 +143,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "members-area-quizzes: create - deve validar estrutura de questions",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: create - deve validar estrutura de questions",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create",
@@ -158,7 +167,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -178,10 +187,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: update - deve validar quiz_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: update - deve validar quiz_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "update",
@@ -191,7 +199,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -211,17 +219,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: delete - deve validar quiz_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: delete - deve validar quiz_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "delete",
       quiz_id: "test-quiz-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -241,10 +248,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: submit - deve validar quiz_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: submit - deve validar quiz_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "submit",
@@ -257,7 +263,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -273,10 +279,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "members-area-quizzes: submit - deve rejeitar sem answers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: submit - deve rejeitar sem answers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "submit",
@@ -284,7 +289,7 @@ Deno.test({
       data: {}
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -304,17 +309,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: get-attempts - deve validar quiz_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: get-attempts - deve validar quiz_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "get-attempts",
       quiz_id: "test-quiz-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -334,17 +338,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: deve rejeitar ação inválida",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: deve rejeitar ação inválida",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "invalid-action",
       quiz_id: "test-quiz-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -363,10 +366,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-quizzes: deve aplicar rate limiting",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-quizzes/integration: deve aplicar rate limiting",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "list",
@@ -375,7 +377,7 @@ Deno.test({
 
     // Fazer múltiplas requisições rapidamente
     const requests = Array.from({ length: 100 }, () =>
-      fetch(`${supabaseUrl}/functions/v1/members-area-quizzes`, {
+      fetch(getFunctionUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

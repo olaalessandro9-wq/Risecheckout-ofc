@@ -14,21 +14,34 @@
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const config = getTestConfig();
+
+function getFunctionUrl(): string {
+  return config.supabaseUrl
+    ? `${config.supabaseUrl}/functions/v1/members-area-certificates`
+    : "https://mock.supabase.co/functions/v1/members-area-certificates";
+}
 
 // ============================================================================
 // CORS Tests
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'OPTIONS'
     });
 
@@ -44,17 +57,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: list-templates - deve validar product_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: list-templates - deve validar product_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "list-templates",
       product_id: "test-product-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -74,17 +86,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: get-template - deve validar template_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: get-template - deve validar template_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "get-template",
       template_id: "test-template-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -104,10 +115,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: create-template - deve validar product_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: create-template - deve validar product_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create-template",
@@ -119,7 +129,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -135,10 +145,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "members-area-certificates: create-template - deve aceitar is_default",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: create-template - deve aceitar is_default",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "create-template",
@@ -150,7 +159,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -170,10 +179,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: update-template - deve validar template_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: update-template - deve validar template_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "update-template",
@@ -183,7 +191,7 @@ Deno.test({
       }
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -203,17 +211,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: delete-template - deve validar template_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: delete-template - deve validar template_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "delete-template",
       template_id: "test-template-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -233,17 +240,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: generate - deve rejeitar sem product_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: generate - deve rejeitar sem product_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "generate"
       // product_id ausente
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -259,17 +265,16 @@ Deno.test({
 });
 
 Deno.test({
-  name: "members-area-certificates: generate - deve validar product_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: generate - deve validar product_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "generate",
       product_id: "test-product-id"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -289,17 +294,16 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: verify - deve rejeitar sem verification_code",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: verify - deve rejeitar sem verification_code",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "verify"
       // verification_code ausente
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -315,17 +319,16 @@ Deno.test({
 });
 
 Deno.test({
-  name: "members-area-certificates: verify - deve retornar valid: false para código inexistente",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: verify - deve retornar valid: false para código inexistente",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "verify",
       verification_code: "XXXX-XXXX-XXXX"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -341,17 +344,16 @@ Deno.test({
 });
 
 Deno.test({
-  name: "members-area-certificates: verify - deve converter código para uppercase",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: verify - deve converter código para uppercase",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "verify",
       verification_code: "abcd-efgh-ijkl"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -372,16 +374,15 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: list-buyer-certificates - deve requerer autenticação",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: list-buyer-certificates - deve requerer autenticação",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "list-buyer-certificates"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -401,16 +402,15 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: deve rejeitar ação inválida",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: deve rejeitar ação inválida",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "invalid-action"
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+    const response = await fetch(getFunctionUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -429,10 +429,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "members-area-certificates: deve aplicar rate limiting",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "members-area-certificates/integration: deve aplicar rate limiting",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       action: "verify",
@@ -441,7 +440,7 @@ Deno.test({
 
     // Fazer múltiplas requisições rapidamente
     const requests = Array.from({ length: 100 }, () =>
-      fetch(`${supabaseUrl}/functions/v1/members-area-certificates`, {
+      fetch(getFunctionUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
