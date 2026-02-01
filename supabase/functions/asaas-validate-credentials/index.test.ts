@@ -198,8 +198,8 @@ Deno.test({
 
     await response.json();
 
-    // Should not return 400 for environment validation
-    assertEquals(response.status !== 400 || response.status === 401, true);
+    // Should not return 400 for environment validation (401 is acceptable - invalid key)
+    assertEquals(response.status === 200 || response.status === 401 || response.status === 500, true);
   }
 });
 
@@ -222,8 +222,8 @@ Deno.test({
 
     await response.json();
 
-    // Should not return 400 for environment validation
-    assertEquals(response.status !== 400 || response.status === 401, true);
+    // Should not return 400 for environment validation (401 is acceptable - invalid key)
+    assertEquals(response.status === 200 || response.status === 401 || response.status === 500, true);
   }
 });
 

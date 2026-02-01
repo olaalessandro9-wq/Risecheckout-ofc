@@ -133,6 +133,6 @@ export async function handleOrderBumps(ctx: HandlerContext): Promise<Response> {
     return jsonResponse({ success: true, data: [] });
   }
 
-  const formatted = formatOrderBumps(data as RawBump[] || []);
+  const formatted = formatOrderBumps(data as unknown as RawBump[] || []);
   return jsonResponse({ success: true, data: formatted });
 }

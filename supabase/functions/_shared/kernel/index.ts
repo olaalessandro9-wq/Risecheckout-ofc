@@ -44,10 +44,11 @@ export type {
   
   // Credentials
   GatewayCredentials,
-  AsaasCredentials,
-  MercadoPagoCredentials,
-  StripeCredentials,
-  PushinPayCredentials,
+  PayoutIdentifiers,
+  AsaasPayoutId,
+  MercadoPagoPayoutId,
+  StripePayoutId,
+  PushinPayPayoutId,
   
   // Pixels
   AffiliatePixelRecord,

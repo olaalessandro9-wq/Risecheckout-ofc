@@ -27,7 +27,8 @@ export type ActionType =
   | "order-by-token" 
   | "payment-link-data"
   | "resolve-and-load"
-  | "check-order-payment-status";
+  | "check-order-payment-status"
+  | "get-checkout-slug-by-order";
 
 export interface RequestBody {
   action: ActionType;

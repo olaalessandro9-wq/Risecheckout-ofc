@@ -165,9 +165,9 @@ Deno.test("verify-turnstile: send correct request to Cloudflare", async () => {
     
     // Assert: Request structure
     assertExists(capturedRequest);
-    assertEquals(capturedRequest!.method, "POST");
+    assertEquals((capturedRequest as Request)!.method, "POST");
     
-    const requestBody = await capturedRequest!.json();
+    const requestBody = await (capturedRequest as Request)!.json();
     assertExists(requestBody.secret);
     assertExists(requestBody.response);
     assertEquals(requestBody.response, testToken);
@@ -207,7 +207,7 @@ Deno.test("verify-turnstile: include remote IP in request", async () => {
     
     // Assert: Remote IP included
     if (capturedRequest) {
-      const requestBody = await capturedRequest.json();
+      const requestBody = await (capturedRequest as Request).json();
       // Remote IP may or may not be included depending on implementation
       assert(true); // Placeholder
     }

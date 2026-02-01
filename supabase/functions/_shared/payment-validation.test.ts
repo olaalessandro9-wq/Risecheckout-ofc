@@ -15,116 +15,138 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import * as paymentValidation from "./payment-validation.ts";
 
+// ============================================================================
+// EXPORT VERIFICATION TESTS
+// ============================================================================
+
 Deno.test({
-  name: "payment-validation: Deve re-exportar validateAmount",
+  name: "payment-validation: Deve re-exportar validateOrderAmount",
   fn: () => {
-    assertExists(paymentValidation.validateAmount);
-    assertEquals(typeof paymentValidation.validateAmount, 'function');
+    assertExists(paymentValidation.validateOrderAmount);
+    assertEquals(typeof paymentValidation.validateOrderAmount, 'function');
   }
 });
 
 Deno.test({
-  name: "payment-validation: Deve re-exportar validateCustomer",
+  name: "payment-validation: Deve re-exportar validateCustomerData",
   fn: () => {
-    assertExists(paymentValidation.validateCustomer);
-    assertEquals(typeof paymentValidation.validateCustomer, 'function');
+    assertExists(paymentValidation.validateCustomerData);
+    assertEquals(typeof paymentValidation.validateCustomerData, 'function');
   }
 });
 
 Deno.test({
-  name: "payment-validation: Deve re-exportar validatePaymentMethod",
+  name: "payment-validation: Deve re-exportar isValidEmail",
   fn: () => {
-    assertExists(paymentValidation.validatePaymentMethod);
-    assertEquals(typeof paymentValidation.validatePaymentMethod, 'function');
+    assertExists(paymentValidation.isValidEmail);
+    assertEquals(typeof paymentValidation.isValidEmail, 'function');
   }
 });
 
 Deno.test({
-  name: "payment-validation: Deve re-exportar validateOrderId",
+  name: "payment-validation: Deve re-exportar isValidCPF",
   fn: () => {
-    assertExists(paymentValidation.validateOrderId);
-    assertEquals(typeof paymentValidation.validateOrderId, 'function');
+    assertExists(paymentValidation.isValidCPF);
+    assertEquals(typeof paymentValidation.isValidCPF, 'function');
   }
 });
 
 Deno.test({
-  name: "payment-validation: validateAmount deve funcionar corretamente",
+  name: "payment-validation: Deve re-exportar formatCentsToBRL",
   fn: () => {
-    const result = paymentValidation.validateAmount(10000);
+    assertExists(paymentValidation.formatCentsToBRL);
+    assertEquals(typeof paymentValidation.formatCentsToBRL, 'function');
+  }
+});
+
+// ============================================================================
+// FORMAT UTILITY TESTS (Sync functions)
+// ============================================================================
+
+Deno.test({
+  name: "payment-validation: isValidEmail deve aceitar emails válidos",
+  fn: () => {
+    const result = paymentValidation.isValidEmail('test@example.com');
+    assertEquals(result, true);
+  }
+});
+
+Deno.test({
+  name: "payment-validation: isValidEmail deve rejeitar emails inválidos",
+  fn: () => {
+    const result = paymentValidation.isValidEmail('invalid-email');
+    assertEquals(result, false);
+  }
+});
+
+Deno.test({
+  name: "payment-validation: formatCentsToBRL deve formatar corretamente",
+  fn: () => {
+    const result = paymentValidation.formatCentsToBRL(10000);
     assertExists(result);
-    assertEquals(result.valid, true);
+    assertEquals(typeof result, 'string');
+    // Should contain formatted number
+    assertEquals(result.includes('100'), true);
   }
 });
 
 Deno.test({
-  name: "payment-validation: validateAmount deve rejeitar valores inválidos",
+  name: "payment-validation: isValidCPF deve aceitar CPFs válidos",
   fn: () => {
-    const result = paymentValidation.validateAmount(0);
-    assertExists(result);
-    assertEquals(result.valid, false);
+    // Known valid CPF for testing (checksum-valid)
+    const result = paymentValidation.isValidCPF('52998224725');
+    assertEquals(result, true);
   }
 });
 
 Deno.test({
-  name: "payment-validation: validateCustomer deve funcionar corretamente",
+  name: "payment-validation: isValidCPF deve rejeitar CPFs inválidos",
+  fn: () => {
+    const result = paymentValidation.isValidCPF('12345678900');
+    assertEquals(result, false);
+  }
+});
+
+// ============================================================================
+// CUSTOMER DATA VALIDATION TESTS (Sync function)
+// ============================================================================
+
+Deno.test({
+  name: "payment-validation: validateCustomerData deve funcionar corretamente",
   fn: () => {
     const customer = {
       name: 'Test Customer',
       email: 'test@example.com',
       document: '12345678900'
     };
-    const result = paymentValidation.validateCustomer(customer);
+    const result = paymentValidation.validateCustomerData(customer);
     assertExists(result);
     assertEquals(result.valid, true);
   }
 });
 
 Deno.test({
-  name: "payment-validation: validateCustomer deve rejeitar dados inválidos",
+  name: "payment-validation: validateCustomerData deve rejeitar dados inválidos",
   fn: () => {
     const customer = {
       name: '',
       email: 'invalid-email',
       document: ''
     };
-    const result = paymentValidation.validateCustomer(customer);
+    const result = paymentValidation.validateCustomerData(customer);
     assertExists(result);
     assertEquals(result.valid, false);
   }
 });
 
-Deno.test({
-  name: "payment-validation: validatePaymentMethod deve aceitar métodos válidos",
-  fn: () => {
-    const result = paymentValidation.validatePaymentMethod('pix');
-    assertExists(result);
-    assertEquals(result.valid, true);
-  }
-});
+// ============================================================================
+// SECURITY LOGGING TESTS
+// ============================================================================
 
 Deno.test({
-  name: "payment-validation: validatePaymentMethod deve rejeitar métodos inválidos",
+  name: "payment-validation: Deve re-exportar logSecurityViolation",
   fn: () => {
-    const result = paymentValidation.validatePaymentMethod('invalid_method');
-    assertExists(result);
-    assertEquals(result.valid, false);
-  }
-});
-
-Deno.test({
-  name: "payment-validation: validateOrderId deve aceitar IDs válidos",
-  fn: () => {
-    const result = paymentValidation.validateOrderId('order_123abc');
-    assertExists(result);
-    assertEquals(result.valid, true);
-  }
-});
-
-Deno.test({
-  name: "payment-validation: validateOrderId deve rejeitar IDs inválidos",
-  fn: () => {
-    const result = paymentValidation.validateOrderId('');
-    assertExists(result);
-    assertEquals(result.valid, false);
+    assertExists(paymentValidation.logSecurityViolation);
+    assertEquals(typeof paymentValidation.logSecurityViolation, 'function');
   }
 });

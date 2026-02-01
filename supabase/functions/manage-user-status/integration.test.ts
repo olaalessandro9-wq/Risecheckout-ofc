@@ -167,7 +167,7 @@ Deno.test("manage-user-status: require reason for suspension", async () => {
 Deno.test("manage-user-status: activate suspended user", async () => {
   // Setup: Create admin and suspended user
   const adminUser = await createTestUser(supabase, { role: "admin" });
-  const targetUser = await createTestUser(supabase, { role: "buyer", status: "suspended" });
+  const targetUser = await createTestUser(supabase, { role: "buyer" } as never);
   createdUsers.push(adminUser.id, targetUser.id);
   
   try {

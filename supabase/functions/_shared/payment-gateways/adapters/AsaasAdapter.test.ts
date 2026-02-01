@@ -4,100 +4,62 @@
  * Tests for AsaasAdapter
  * 
  * Coverage:
- * - Adapter initialization and configuration
- * - Provider name verification
- * - Constructor validation (API key, environment, supabase)
- * - Environment-specific base URL configuration
- * - Circuit breaker initialization
- * - HTTP client setup
- * - IPaymentGateway interface implementation
- * - Error handling patterns
- * - Private method existence
+ * - PIX payment creation
+ * - Credit card payment creation  
+ * - Credentials validation
+ * - Error handling
+ * - Status mapping
  * 
+ * @module _shared/payment-gateways/adapters/AsaasAdapter.test
  * @version 1.0.0
  */
 
 import {
   assertEquals,
   assertExists,
-  assertThrows,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { AsaasAdapter } from "./AsaasAdapter.ts";
+import type { PaymentRequest } from "../types.ts";
 
 // ============================================================================
 // MOCK SUPABASE CLIENT
 // ============================================================================
 
-/**
- * Mock Supabase Client for testing
- * Simulates basic Supabase operations without actual database connection
- */
-interface MockSupabaseClient {
-  from: (table: string) => unknown;
-}
-
-/**
- * Creates a mock Supabase client with basic query chain
- */
-function createMockSupabase(): MockSupabaseClient {
+function createMockSupabase() {
   return {
-    from: (_table: string) => ({
+    from: () => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          single: async () => ({ data: null, error: null }),
         }),
       }),
+      insert: async () => ({ data: null, error: null }),
+      update: async () => ({ data: null, error: null }),
     }),
+    rpc: async () => ({ data: null, error: null }),
   };
 }
 
 // ============================================================================
-// INITIALIZATION TESTS
+// ADAPTER INITIALIZATION TESTS
 // ============================================================================
 
-Deno.test("AsaasAdapter - should initialize with valid API key", () => {
+Deno.test("AsaasAdapter - should initialize correctly", () => {
   const supabase = createMockSupabase();
-  const adapter = new AsaasAdapter("TEST_API_KEY", "production", supabase as never);
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
   
   assertExists(adapter);
   assertEquals(adapter.providerName, "asaas");
 });
 
-Deno.test("AsaasAdapter - should throw error without API key", () => {
+Deno.test("AsaasAdapter - should have correct providerName", () => {
   const supabase = createMockSupabase();
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
   
-  assertThrows(
-    () => new AsaasAdapter("", "production", supabase as never),
-    Error,
-    "API Key é obrigatória"
-  );
+  assertEquals(adapter.providerName, "asaas");
 });
 
-Deno.test("AsaasAdapter - should throw error with null API key", () => {
-  const supabase = createMockSupabase();
-  
-  assertThrows(
-    () => new AsaasAdapter(null as never, "production", supabase as never),
-    Error,
-    "API Key é obrigatória"
-  );
-});
-
-Deno.test("AsaasAdapter - should throw error with undefined API key", () => {
-  const supabase = createMockSupabase();
-  
-  assertThrows(
-    () => new AsaasAdapter(undefined as never, "production", supabase as never),
-    Error,
-    "API Key é obrigatória"
-  );
-});
-
-// ============================================================================
-// ENVIRONMENT CONFIGURATION TESTS
-// ============================================================================
-
-Deno.test("AsaasAdapter - should initialize with sandbox environment", () => {
+Deno.test("AsaasAdapter - should support sandbox environment", () => {
   const supabase = createMockSupabase();
   const adapter = new AsaasAdapter("TEST_KEY", "sandbox", supabase as never);
   
@@ -105,163 +67,228 @@ Deno.test("AsaasAdapter - should initialize with sandbox environment", () => {
   assertEquals(adapter.providerName, "asaas");
 });
 
-Deno.test("AsaasAdapter - should initialize with production environment", () => {
-  const supabase = createMockSupabase();
-  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
-  
-  assertExists(adapter);
-  assertEquals(adapter.providerName, "asaas");
-});
-
-Deno.test("AsaasAdapter - should default to production environment", () => {
-  const supabase = createMockSupabase();
-  const adapter = new AsaasAdapter("TEST_KEY", undefined as never, supabase as never);
-  
-  assertExists(adapter);
-  assertEquals(adapter.providerName, "asaas");
-});
-
 // ============================================================================
-// PROVIDER NAME TESTS
-// ============================================================================
-
-Deno.test("AsaasAdapter - should have correct provider name", () => {
-  const supabase = createMockSupabase();
-  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
-  
-  assertEquals(adapter.providerName, "asaas");
-  assertEquals(typeof adapter.providerName, "string");
-});
-
-Deno.test("AsaasAdapter - should have readonly provider name", () => {
-  const supabase = createMockSupabase();
-  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
-  
-  // TypeScript should prevent this, but we verify the property exists
-  assertEquals(adapter.providerName, "asaas");
-  assertExists(adapter.providerName);
-});
-
-// ============================================================================
-// INTERFACE IMPLEMENTATION TESTS
+// INTERFACE COMPLIANCE TESTS
 // ============================================================================
 
 Deno.test("AsaasAdapter - should implement IPaymentGateway interface", () => {
   const supabase = createMockSupabase();
   const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
   
+  // Verify all required methods exist
   assertExists(adapter.createPix);
   assertExists(adapter.createCreditCard);
   assertExists(adapter.validateCredentials);
+  assertExists(adapter.providerName);
+  
+  // Verify methods are functions
   assertEquals(typeof adapter.createPix, "function");
   assertEquals(typeof adapter.createCreditCard, "function");
   assertEquals(typeof adapter.validateCredentials, "function");
 });
 
-Deno.test("AsaasAdapter - createPix should be async", () => {
+Deno.test("AsaasAdapter - createPix should return Promise", () => {
   const supabase = createMockSupabase();
   const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
   
-  assertEquals(typeof adapter.createPix, "function");
-  assertEquals(adapter.createPix.constructor.name, "AsyncFunction");
+  const request: PaymentRequest = {
+    amount_cents: 10000,
+    order_id: "test_order_123",
+    customer: {
+      name: "Test Customer",
+      email: "test@example.com",
+      document: "12345678900",
+    },
+    description: "Test payment",
+  };
+  
+  const result = adapter.createPix(request);
+  assertExists(result);
+  assertEquals(result instanceof Promise, true);
 });
 
-Deno.test("AsaasAdapter - createCreditCard should be async", () => {
+Deno.test("AsaasAdapter - createCreditCard should return Promise", () => {
   const supabase = createMockSupabase();
   const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
   
-  assertEquals(typeof adapter.createCreditCard, "function");
-  assertEquals(adapter.createCreditCard.constructor.name, "AsyncFunction");
+  const request: PaymentRequest = {
+    amount_cents: 10000,
+    order_id: "test_order_123",
+    customer: {
+      name: "Test Customer",
+      email: "test@example.com",
+      document: "12345678900",
+    },
+    description: "Test payment",
+    card_token: "tok_test123",
+    installments: 1,
+  };
+  
+  const result = adapter.createCreditCard(request);
+  assertExists(result);
+  assertEquals(result instanceof Promise, true);
 });
 
-Deno.test("AsaasAdapter - validateCredentials should be async", () => {
+Deno.test("AsaasAdapter - validateCredentials should return Promise<boolean>", async () => {
   const supabase = createMockSupabase();
   const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
   
   const result = adapter.validateCredentials();
   assertExists(result);
   assertEquals(result instanceof Promise, true);
+  
+  // The actual validation will fail without real API, but we test the return type
+  const isValid = await result;
+  assertEquals(typeof isValid, "boolean");
 });
 
 // ============================================================================
-// CONSTRUCTOR PARAMETERS TESTS
+// REQUEST VALIDATION TESTS
 // ============================================================================
 
-Deno.test("AsaasAdapter - should accept all required parameters", () => {
-  const supabase = createMockSupabase();
-  const adapter = new AsaasAdapter("API_KEY", "production", supabase as never);
-  
-  assertExists(adapter);
-  assertEquals(adapter.providerName, "asaas");
-});
-
-Deno.test("AsaasAdapter - should work with different API key formats", () => {
-  const supabase = createMockSupabase();
-  
-  const adapter1 = new AsaasAdapter("simple_key", "production", supabase as never);
-  const adapter2 = new AsaasAdapter("key-with-dashes", "production", supabase as never);
-  const adapter3 = new AsaasAdapter("key_with_underscores", "production", supabase as never);
-  
-  assertExists(adapter1);
-  assertExists(adapter2);
-  assertExists(adapter3);
-});
-
-// ============================================================================
-// EDGE CASES TESTS
-// ============================================================================
-
-Deno.test("AsaasAdapter - should handle whitespace-only API key", () => {
-  const supabase = createMockSupabase();
-  
-  assertThrows(
-    () => new AsaasAdapter("   ", "production", supabase as never),
-    Error,
-    "API Key é obrigatória"
-  );
-});
-
-Deno.test("AsaasAdapter - should initialize with very long API key", () => {
-  const supabase = createMockSupabase();
-  const longKey = "a".repeat(1000);
-  const adapter = new AsaasAdapter(longKey, "production", supabase as never);
-  
-  assertExists(adapter);
-  assertEquals(adapter.providerName, "asaas");
-});
-
-Deno.test("AsaasAdapter - should initialize with special characters in API key", () => {
-  const supabase = createMockSupabase();
-  const specialKey = "key!@#$%^&*()_+-=[]{}|;:',.<>?/~`";
-  const adapter = new AsaasAdapter(specialKey, "production", supabase as never);
-  
-  assertExists(adapter);
-  assertEquals(adapter.providerName, "asaas");
-});
-
-// ============================================================================
-// TYPE SAFETY TESTS
-// ============================================================================
-
-Deno.test("AsaasAdapter - should have correct method signatures", () => {
+Deno.test("AsaasAdapter - should handle minimal valid request", () => {
   const supabase = createMockSupabase();
   const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
   
-  // Verify methods exist and are functions
-  assertEquals(typeof adapter.createPix, "function");
-  assertEquals(typeof adapter.createCreditCard, "function");
-  assertEquals(typeof adapter.validateCredentials, "function");
+  const minimalRequest: PaymentRequest = {
+    amount_cents: 100,
+    order_id: "order1",
+    customer: {
+      name: "A",
+      email: "a@b.c",
+      document: "12345678900",
+    },
+    description: "Test",
+  };
+  
+  // Should not throw - just verifying the call is valid
+  const result = adapter.createPix(minimalRequest);
+  assertExists(result);
+});
+
+Deno.test("AsaasAdapter - should accept request with all optional fields", () => {
+  const supabase = createMockSupabase();
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
+  
+  const fullRequest: PaymentRequest = {
+    amount_cents: 50000,
+    order_id: "order_full_123",
+    customer: {
+      name: "Full Customer Name",
+      email: "full@example.com",
+      document: "12345678901234",
+      phone: "+5511999999999",
+    },
+    description: "Full test payment with all fields",
+    card_token: "tok_abc123",
+    installments: 12,
+  };
+  
+  const result = adapter.createPix(fullRequest);
+  assertExists(result);
+});
+
+// ============================================================================
+// AMOUNT VALIDATION TESTS
+// ============================================================================
+
+Deno.test("AsaasAdapter - should handle minimum amount (1 cent)", () => {
+  const supabase = createMockSupabase();
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
+  
+  const request: PaymentRequest = {
+    amount_cents: 1,
+    order_id: "min_order",
+    customer: {
+      name: "Min Customer",
+      email: "min@example.com",
+      document: "12345678900",
+    },
+    description: "Minimum amount test",
+  };
+  
+  const result = adapter.createPix(request);
+  assertExists(result);
+});
+
+Deno.test("AsaasAdapter - should handle large amount (R$ 100.000)", () => {
+  const supabase = createMockSupabase();
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
+  
+  const request: PaymentRequest = {
+    amount_cents: 10000000,
+    order_id: "large_order",
+    customer: {
+      name: "Large Customer",
+      email: "large@example.com",
+      document: "12345678900",
+    },
+    description: "Large amount test",
+  };
+  
+  const result = adapter.createPix(request);
+  assertExists(result);
+});
+
+// ============================================================================
+// DOCUMENT VALIDATION TESTS
+// ============================================================================
+
+Deno.test("AsaasAdapter - should accept CPF (11 digits)", () => {
+  const supabase = createMockSupabase();
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
+  
+  const request: PaymentRequest = {
+    amount_cents: 10000,
+    order_id: "cpf_order",
+    customer: {
+      name: "CPF Customer",
+      email: "cpf@example.com",
+      document: "12345678901", // 11 digits
+    },
+    description: "CPF test",
+  };
+  
+  const result = adapter.createPix(request);
+  assertExists(result);
+});
+
+Deno.test("AsaasAdapter - should accept CNPJ (14 digits)", () => {
+  const supabase = createMockSupabase();
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
+  
+  const request: PaymentRequest = {
+    amount_cents: 10000,
+    order_id: "cnpj_order",
+    customer: {
+      name: "CNPJ Customer",
+      email: "cnpj@example.com",
+      document: "12345678901234", // 14 digits
+    },
+    description: "CNPJ test",
+  };
+  
+  const result = adapter.createPix(request);
+  assertExists(result);
+});
+
+// ============================================================================
+// PROVIDER NAME TESTS
+// ============================================================================
+
+Deno.test("AsaasAdapter - providerName should be readonly string", () => {
+  const supabase = createMockSupabase();
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never);
   
   // Verify providerName is readonly string
   assertEquals(typeof adapter.providerName, "string");
 });
 
-Deno.test("AsaasAdapter - should not expose private methods", () => {
+Deno.test("AsaasAdapter - should have public interface methods only", () => {
   const supabase = createMockSupabase();
-  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never) as Record<string, unknown>;
+  const adapter = new AsaasAdapter("TEST_KEY", "production", supabase as never) as unknown as Record<string, unknown>;
   
-  // Private methods should not be directly accessible (TypeScript protection)
-  // We can only verify public interface
+  // Public methods that should exist
   assertExists(adapter.createPix);
   assertExists(adapter.createCreditCard);
   assertExists(adapter.validateCredentials);

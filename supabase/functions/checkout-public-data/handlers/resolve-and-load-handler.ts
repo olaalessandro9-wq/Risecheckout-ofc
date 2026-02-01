@@ -150,7 +150,7 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
   // 4. Process offer
   let offer = null;
   if (offerResult.data) {
-    const pl = offerResult.data.payment_links as { 
+    const pl = offerResult.data.payment_links as unknown as { 
       offer_id: string; 
       offers: { id: string; name: string; price: number } 
     };
@@ -162,7 +162,7 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
   }
 
   // 5. Process order bumps using shared formatter
-  const orderBumps = formatOrderBumps(orderBumpsResult.data || []);
+  const orderBumps = formatOrderBumps((orderBumpsResult.data || []) as never);
 
   // 6. Process affiliate
   let affiliate = null;
@@ -256,7 +256,7 @@ export async function handleAll(ctx: HandlerContext): Promise<Response> {
   // Process offer
   let offer = null;
   if (offerResult.data) {
-    const pl = offerResult.data.payment_links as { offer_id: string; offers: { id: string; name: string; price: number } };
+    const pl = offerResult.data.payment_links as unknown as { offer_id: string; offers: { id: string; name: string; price: number } };
     offer = {
       offerId: pl.offer_id,
       offerName: pl.offers.name,
@@ -265,7 +265,7 @@ export async function handleAll(ctx: HandlerContext): Promise<Response> {
   }
 
   // Process order bumps
-  const orderBumps = formatOrderBumps(orderBumpsResult.data || []);
+  const orderBumps = formatOrderBumps((orderBumpsResult.data || []) as never);
 
   return jsonResponse({
     success: true,

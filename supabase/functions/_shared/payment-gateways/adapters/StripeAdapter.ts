@@ -9,9 +9,9 @@
  */
 
 import Stripe from "https://esm.sh/stripe@14.14.0";
-import { IPaymentGateway } from "./IPaymentGateway.ts";
-import { PaymentRequest, PaymentResponse, GatewayCredentials } from "./types.ts";
-import { calculatePlatformFeeCents } from "../platform-config.ts";
+import type { IPaymentGateway } from "../IPaymentGateway.ts";
+import type { PaymentRequest, PaymentResponse, GatewayCredentials } from "../types.ts";
+import { calculatePlatformFeeCents } from "../../fee-calculator.ts";
 import { createLogger } from "../../logger.ts";
 
 const log = createLogger("StripeAdapter");

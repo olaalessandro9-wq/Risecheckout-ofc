@@ -771,7 +771,8 @@ describe("checkout-public-data - Pure Router Pattern", () => {
   it("should be a pure router (no business logic)", async () => {
     mockRequest = createMockRequest({ action: "product", productId: "product-123" });
     
-    // Router only delegatesureRouter = true;
+    // Router only delegates to handlers
+    const isPureRouter = true;
     
     assertEquals(isPureRouter, true);
   });

@@ -24,10 +24,11 @@ export type {
 // Credentials
 export type {
   GatewayCredentials,
-  AsaasCredentials,
-  MercadoPagoCredentials,
-  StripeCredentials,
-  PushinPayCredentials,
+  PayoutIdentifiers,
+  AsaasPayoutId,
+  MercadoPagoPayoutId,
+  StripePayoutId,
+  PushinPayPayoutId,
 } from "./credentials.ts";
 
 // Records
