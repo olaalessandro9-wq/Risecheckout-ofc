@@ -5,11 +5,37 @@
  */
 
 /**
- * Valida formato de email
+ * Valida formato de email com compliance básica RFC 5321.
+ * 
+ * Rejeita:
+ * - Valores não-string
+ * - Strings vazias
+ * - Ausência de @
+ * - Ausência de domínio
+ * - Ausência de TLD
+ * - Pontos consecutivos (..)
+ * - Ponto inicial/final no local part
+ * - Emails > 255 caracteres
+ * 
+ * @param email - Email a validar
+ * @returns true se formato válido
  */
 export function isValidEmail(email: string): boolean {
+  if (typeof email !== "string") return false;
+  if (email.length === 0 || email.length > 255) return false;
+  
+  // Validação estrutural básica: local@domain.tld
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  if (!emailRegex.test(email)) return false;
+  
+  // RFC 5321: Pontos consecutivos proibidos
+  if (email.includes("..")) return false;
+  
+  // RFC 5321: Ponto inicial/final no local part proibido
+  const localPart = email.split("@")[0];
+  if (localPart.startsWith(".") || localPart.endsWith(".")) return false;
+  
+  return true;
 }
 
 /**

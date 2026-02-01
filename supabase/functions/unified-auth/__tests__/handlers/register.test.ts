@@ -105,14 +105,23 @@ Deno.test("register: should return 400 when name is missing", async () => {
 });
 
 Deno.test("register: should return 400 when email format is invalid", async () => {
-  const invalidEmails = ["invalid", "test@", "@test.com", "test..test@test.com"];
+  // Import centralized validator
+  const { isValidEmail } = await import("../../../_shared/validators.ts");
+  
+  const invalidEmails = [
+    "invalid",
+    "test@",
+    "@test.com",
+    "test..test@test.com",  // Consecutive dots - RFC 5321 violation
+    ".test@test.com",       // Leading dot - RFC 5321 violation
+    "test.@test.com",       // Trailing dot - RFC 5321 violation
+  ];
   
   for (const email of invalidEmails) {
     const req = createMockRequest({ email, password: "NewPass123", name: "Test" });
     const body = await req.json();
     
-    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email);
-    assertEquals(isValid, false);
+    assertEquals(isValidEmail(body.email), false, `${email} should be invalid`);
     // Handler should return 400
   }
 });

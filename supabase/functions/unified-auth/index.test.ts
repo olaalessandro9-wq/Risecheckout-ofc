@@ -69,19 +69,22 @@ Deno.test("unified-auth: should define all required endpoints", () => {
 // Login Tests
 // ============================================================================
 
-Deno.test("unified-auth/login: should validate email format", () => {
+Deno.test("unified-auth/login: should validate email format with isValidEmail", async () => {
+  // Import centralized validator
+  const { isValidEmail } = await import("../_shared/validators.ts");
+  
   const invalidEmails = [
     "",
     "invalid",
     "test@",
     "@test.com",
-    "test..test@test.com",
+    "test..test@test.com",  // Consecutive dots - RFC 5321 violation
+    ".test@test.com",       // Leading dot - RFC 5321 violation
+    "test.@test.com",       // Trailing dot - RFC 5321 violation
   ];
   
   invalidEmails.forEach(email => {
-    // Email validation should fail for invalid formats
-    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    assertEquals(isValid, false, `Email ${email} should be invalid`);
+    assertEquals(isValidEmail(email), false, `Email ${email} should be invalid`);
   });
 });
 

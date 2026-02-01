@@ -125,28 +125,34 @@ Deno.test("security-management: should define alert types", () => {
 // IP Blocking Tests
 // ============================================================================
 
-Deno.test("security-management/block-ip: should validate IP address format", () => {
+Deno.test("security-management/block-ip: should validate IP address format with isValidIPv4", async () => {
+  // Import centralized validator
+  const { isValidIPv4 } = await import("../_shared/validators.ts");
+  
   const validIPs = [
     "192.168.1.1",
     "10.0.0.1",
     "172.16.0.1",
+    "127.0.0.1",
+    "0.0.0.0",
+    "255.255.255.255",
   ];
   
   const invalidIPs = [
     "",
     "invalid",
-    "999.999.999.999",
-    "192.168.1",
+    "999.999.999.999",  // Octets > 255 - RFC 791 violation
+    "192.168.1",        // Incomplete
+    "256.168.1.1",      // First octet > 255
+    "localhost",        // Not an IP
   ];
   
   validIPs.forEach(ip => {
-    const isValid = /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
-    assertEquals(isValid, true, `${ip} should be valid`);
+    assertEquals(isValidIPv4(ip), true, `${ip} should be valid`);
   });
   
   invalidIPs.forEach(ip => {
-    const isValid = /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
-    assertEquals(isValid, false, `${ip} should be invalid`);
+    assertEquals(isValidIPv4(ip), false, `${ip} should be invalid`);
   });
 });
 
