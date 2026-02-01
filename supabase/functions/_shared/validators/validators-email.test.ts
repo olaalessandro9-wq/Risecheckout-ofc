@@ -59,3 +59,31 @@ Deno.test("isValidEmail: should reject very long email (> 255 chars)", () => {
   const longEmail = "a".repeat(250) + "@example.com";
   assertEquals(isValidEmail(longEmail), false);
 });
+
+// ============================================================================
+// RFC 5321 Compliance Tests (Consecutive Dots)
+// ============================================================================
+
+Deno.test("isValidEmail: should reject consecutive dots in local part", () => {
+  assertEquals(isValidEmail("test..test@example.com"), false);
+});
+
+Deno.test("isValidEmail: should reject consecutive dots in domain", () => {
+  assertEquals(isValidEmail("test@example..com"), false);
+});
+
+Deno.test("isValidEmail: should reject leading dot in local part", () => {
+  assertEquals(isValidEmail(".test@example.com"), false);
+});
+
+Deno.test("isValidEmail: should reject trailing dot in local part", () => {
+  assertEquals(isValidEmail("test.@example.com"), false);
+});
+
+Deno.test("isValidEmail: should accept single dot in local part", () => {
+  assertEquals(isValidEmail("first.last@example.com"), true);
+});
+
+Deno.test("isValidEmail: should accept multiple single dots in local part", () => {
+  assertEquals(isValidEmail("first.middle.last@example.com"), true);
+});

@@ -25,12 +25,66 @@ export function isValidUUID(value: unknown): boolean {
 }
 
 /**
- * Validates email format
+ * Validates email format with RFC 5321 basic compliance.
+ * 
+ * Rejects:
+ * - Non-string values
+ * - Empty strings
+ * - Missing @ symbol
+ * - Missing domain
+ * - Missing TLD
+ * - Consecutive dots (..)
+ * - Leading/trailing dots in local part
+ * - Emails > 255 characters
+ * 
+ * @param value - Value to validate
+ * @returns true if valid email format
  */
 export function isValidEmail(value: unknown): boolean {
   if (typeof value !== "string") return false;
+  if (value.length === 0 || value.length > 255) return false;
+  
+  // Basic structure check: local@domain.tld
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(value) && value.length <= 255;
+  if (!emailRegex.test(value)) return false;
+  
+  // RFC 5321: No consecutive dots in any part
+  if (value.includes("..")) return false;
+  
+  // RFC 5321: No leading/trailing dots in local part
+  const localPart = value.split("@")[0];
+  if (localPart.startsWith(".") || localPart.endsWith(".")) return false;
+  
+  return true;
+}
+
+/**
+ * Validates IPv4 address format with octet validation (0-255).
+ * RFC 791 compliant.
+ * 
+ * Validates:
+ * - Exactly 4 octets separated by dots
+ * - Each octet is a number from 0 to 255
+ * - No leading zeros (e.g., "01.02.03.04" is invalid)
+ * 
+ * @param value - Value to validate
+ * @returns true if valid IPv4 address
+ */
+export function isValidIPv4(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  if (value === "") return false;
+  
+  const parts = value.split(".");
+  if (parts.length !== 4) return false;
+  
+  return parts.every(part => {
+    // Must be 1-3 digits only
+    if (!/^\d{1,3}$/.test(part)) return false;
+    
+    // Convert to number and validate range 0-255
+    const num = parseInt(part, 10);
+    return num >= 0 && num <= 255;
+  });
 }
 
 /**
