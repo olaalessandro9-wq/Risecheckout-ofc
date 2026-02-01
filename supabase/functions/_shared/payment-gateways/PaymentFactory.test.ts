@@ -9,6 +9,8 @@
  * - Credential validation
  * - Error handling for unsupported gateways
  * - Supported gateways list
+ * 
+ * @version 2.0.0 - Type-safe factories (zero 'as never')
  */
 
 import {
@@ -18,26 +20,7 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { PaymentFactory } from "./PaymentFactory.ts";
 import { GatewayCredentials } from "./types.ts";
-
-// ============================================================================
-// MOCK SUPABASE CLIENT
-// ============================================================================
-
-interface MockSupabaseClient {
-  from: (table: string) => unknown;
-}
-
-function createMockSupabase(): MockSupabaseClient {
-  return {
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: () => Promise.resolve({ data: null, error: null }),
-        }),
-      }),
-    }),
-  };
-}
+import { createMockSupabaseClient } from "./adapters/_shared.ts";
 
 // ============================================================================
 // MERCADOPAGO CREATION TESTS
@@ -47,9 +30,9 @@ Deno.test("PaymentFactory - should create MercadoPago adapter with access_token"
   const credentials: GatewayCredentials = {
     access_token: "TEST_ACCESS_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("mercadopago", credentials, supabase as never);
+  const gateway = PaymentFactory.create("mercadopago", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "mercadopago");
@@ -59,9 +42,9 @@ Deno.test("PaymentFactory - should create MercadoPago adapter with token alias",
   const credentials: GatewayCredentials = {
     token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("mercadopago", credentials, supabase as never);
+  const gateway = PaymentFactory.create("mercadopago", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "mercadopago");
@@ -71,9 +54,9 @@ Deno.test("PaymentFactory - should normalize mercado_pago name", () => {
   const credentials: GatewayCredentials = {
     access_token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("mercado_pago", credentials, supabase as never);
+  const gateway = PaymentFactory.create("mercado_pago", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "mercadopago");
@@ -83,9 +66,9 @@ Deno.test("PaymentFactory - should normalize mercado-pago name", () => {
   const credentials: GatewayCredentials = {
     access_token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("mercado-pago", credentials, supabase as never);
+  const gateway = PaymentFactory.create("mercado-pago", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "mercadopago");
@@ -93,10 +76,10 @@ Deno.test("PaymentFactory - should normalize mercado-pago name", () => {
 
 Deno.test("PaymentFactory - should throw error for MercadoPago without credentials", () => {
   const credentials: GatewayCredentials = {};
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
   assertThrows(
-    () => PaymentFactory.create("mercadopago", credentials, supabase as never),
+    () => PaymentFactory.create("mercadopago", credentials, supabase),
     Error,
     "access_token é obrigatório"
   );
@@ -110,9 +93,9 @@ Deno.test("PaymentFactory - should create PushinPay adapter with token", () => {
   const credentials: GatewayCredentials = {
     token: "TEST_PUSHIN_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("pushinpay", credentials, supabase as never);
+  const gateway = PaymentFactory.create("pushinpay", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "pushinpay");
@@ -122,9 +105,9 @@ Deno.test("PaymentFactory - should create PushinPay adapter with access_token al
   const credentials: GatewayCredentials = {
     access_token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("pushinpay", credentials, supabase as never);
+  const gateway = PaymentFactory.create("pushinpay", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "pushinpay");
@@ -134,9 +117,9 @@ Deno.test("PaymentFactory - should normalize pushin_pay name", () => {
   const credentials: GatewayCredentials = {
     token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("pushin_pay", credentials, supabase as never);
+  const gateway = PaymentFactory.create("pushin_pay", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "pushinpay");
@@ -146,9 +129,9 @@ Deno.test("PaymentFactory - should normalize pushin-pay name", () => {
   const credentials: GatewayCredentials = {
     token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("pushin-pay", credentials, supabase as never);
+  const gateway = PaymentFactory.create("pushin-pay", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "pushinpay");
@@ -156,10 +139,10 @@ Deno.test("PaymentFactory - should normalize pushin-pay name", () => {
 
 Deno.test("PaymentFactory - should throw error for PushinPay without credentials", () => {
   const credentials: GatewayCredentials = {};
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
   assertThrows(
-    () => PaymentFactory.create("pushinpay", credentials, supabase as never),
+    () => PaymentFactory.create("pushinpay", credentials, supabase),
     Error,
     "token é obrigatório"
   );
@@ -173,9 +156,9 @@ Deno.test("PaymentFactory - should create Asaas adapter with api_key", () => {
   const credentials: GatewayCredentials = {
     api_key: "TEST_ASAAS_KEY",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("asaas", credentials, supabase as never);
+  const gateway = PaymentFactory.create("asaas", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "asaas");
@@ -185,9 +168,9 @@ Deno.test("PaymentFactory - should create Asaas adapter with token alias", () =>
   const credentials: GatewayCredentials = {
     token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("asaas", credentials, supabase as never);
+  const gateway = PaymentFactory.create("asaas", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "asaas");
@@ -197,9 +180,9 @@ Deno.test("PaymentFactory - should create Asaas adapter with access_token alias"
   const credentials: GatewayCredentials = {
     access_token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("asaas", credentials, supabase as never);
+  const gateway = PaymentFactory.create("asaas", credentials, supabase);
   
   assertExists(gateway);
   assertEquals(gateway.providerName, "asaas");
@@ -207,10 +190,10 @@ Deno.test("PaymentFactory - should create Asaas adapter with access_token alias"
 
 Deno.test("PaymentFactory - should throw error for Asaas without credentials", () => {
   const credentials: GatewayCredentials = {};
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
   assertThrows(
-    () => PaymentFactory.create("asaas", credentials, supabase as never),
+    () => PaymentFactory.create("asaas", credentials, supabase),
     Error,
     "api_key é obrigatório"
   );
@@ -224,10 +207,10 @@ Deno.test("PaymentFactory - should throw error for unsupported gateway", () => {
   const credentials: GatewayCredentials = {
     token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
   assertThrows(
-    () => PaymentFactory.create("pagseguro", credentials, supabase as never),
+    () => PaymentFactory.create("pagseguro", credentials, supabase),
     Error,
     "não é suportado pelo sistema"
   );
@@ -237,10 +220,10 @@ Deno.test("PaymentFactory - should throw error for empty gateway name", () => {
   const credentials: GatewayCredentials = {
     token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
   assertThrows(
-    () => PaymentFactory.create("", credentials, supabase as never),
+    () => PaymentFactory.create("", credentials, supabase),
     Error,
     "não é suportado"
   );
@@ -284,9 +267,9 @@ Deno.test("PaymentFactory - should create adapter with sandbox environment", () 
     access_token: "TEST_TOKEN",
     environment: "sandbox",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("mercadopago", credentials, supabase as never);
+  const gateway = PaymentFactory.create("mercadopago", credentials, supabase);
   
   assertExists(gateway);
 });
@@ -296,9 +279,9 @@ Deno.test("PaymentFactory - should create adapter with production environment", 
     access_token: "TEST_TOKEN",
     environment: "production",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("mercadopago", credentials, supabase as never);
+  const gateway = PaymentFactory.create("mercadopago", credentials, supabase);
   
   assertExists(gateway);
 });
@@ -307,9 +290,9 @@ Deno.test("PaymentFactory - should default to production if no environment speci
   const credentials: GatewayCredentials = {
     access_token: "TEST_TOKEN",
   };
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
 
-  const gateway = PaymentFactory.create("mercadopago", credentials, supabase as never);
+  const gateway = PaymentFactory.create("mercadopago", credentials, supabase);
   
   assertExists(gateway);
 });

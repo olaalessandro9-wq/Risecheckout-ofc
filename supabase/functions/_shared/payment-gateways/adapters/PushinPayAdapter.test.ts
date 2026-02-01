@@ -8,6 +8,9 @@
  * - Provider name verification
  * - Constructor validation
  * - Environment configuration
+ * 
+ * @module _shared/payment-gateways/adapters/PushinPayAdapter.test
+ * @version 2.0.0 - Type-safe factories (zero 'as never')
  */
 
 import {
@@ -16,76 +19,62 @@ import {
   assertThrows,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { PushinPayAdapter } from "./PushinPayAdapter.ts";
-
-// ============================================================================
-// MOCK SUPABASE CLIENT
-// ============================================================================
-
-interface MockSupabaseClient {
-  from: (table: string) => unknown;
-}
-
-function createMockSupabase(): MockSupabaseClient {
-  return {
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: () => Promise.resolve({ data: null, error: null }),
-        }),
-      }),
-    }),
-  };
-}
+import {
+  createMockSupabaseClient,
+  hasPaymentGatewayInterface,
+} from "./_shared.ts";
 
 // ============================================================================
 // INITIALIZATION TESTS
 // ============================================================================
 
 Deno.test("PushinPayAdapter - should initialize with valid credentials", () => {
-  const supabase = createMockSupabase();
-  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase as never);
+  const supabase = createMockSupabaseClient();
+  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase);
   
   assertExists(adapter);
   assertEquals(adapter.providerName, "pushinpay");
 });
 
 Deno.test("PushinPayAdapter - should throw error without token", () => {
-  const supabase = createMockSupabase();
+  const supabase = createMockSupabaseClient();
   
   assertThrows(
-    () => new PushinPayAdapter("", "production", supabase as never),
+    () => new PushinPayAdapter("", "production", supabase),
     Error,
     "Token é obrigatório"
   );
 });
 
 Deno.test("PushinPayAdapter - should initialize with sandbox environment", () => {
-  const supabase = createMockSupabase();
-  const adapter = new PushinPayAdapter("TEST_TOKEN", "sandbox", supabase as never);
+  const supabase = createMockSupabaseClient();
+  const adapter = new PushinPayAdapter("TEST_TOKEN", "sandbox", supabase);
   
   assertExists(adapter);
   assertEquals(adapter.providerName, "pushinpay");
 });
 
 Deno.test("PushinPayAdapter - should initialize with production environment", () => {
-  const supabase = createMockSupabase();
-  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase as never);
+  const supabase = createMockSupabaseClient();
+  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase);
   
   assertExists(adapter);
   assertEquals(adapter.providerName, "pushinpay");
 });
 
 Deno.test("PushinPayAdapter - should have correct provider name", () => {
-  const supabase = createMockSupabase();
-  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase as never);
+  const supabase = createMockSupabaseClient();
+  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase);
   
   assertEquals(adapter.providerName, "pushinpay");
   assertEquals(typeof adapter.providerName, "string");
 });
 
 Deno.test("PushinPayAdapter - should implement IPaymentGateway interface", () => {
-  const supabase = createMockSupabase();
-  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase as never);
+  const supabase = createMockSupabaseClient();
+  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase);
+  
+  assertEquals(hasPaymentGatewayInterface(adapter), true);
   
   assertExists(adapter.createPix);
   assertExists(adapter.createCreditCard);
@@ -96,8 +85,8 @@ Deno.test("PushinPayAdapter - should implement IPaymentGateway interface", () =>
 });
 
 Deno.test("PushinPayAdapter - should have readonly provider name", () => {
-  const supabase = createMockSupabase();
-  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase as never);
+  const supabase = createMockSupabaseClient();
+  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase);
   
   assertEquals(adapter.providerName, "pushinpay");
 });
@@ -107,8 +96,8 @@ Deno.test("PushinPayAdapter - should have readonly provider name", () => {
 // ============================================================================
 
 Deno.test("PushinPayAdapter - validateCredentials should be async", () => {
-  const supabase = createMockSupabase();
-  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase as never);
+  const supabase = createMockSupabaseClient();
+  const adapter = new PushinPayAdapter("TEST_TOKEN", "production", supabase);
   
   const result = adapter.validateCredentials();
   assertExists(result);
