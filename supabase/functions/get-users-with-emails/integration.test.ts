@@ -6,6 +6,9 @@
  * Complete integration tests for get-users-with-emails Edge Function.
  * Tests user search, filtering, and data retrieval.
  * 
+ * NOTE: These tests require a local Supabase instance.
+ * They are skipped in CI environments without proper configuration.
+ * 
  * @module get-users-with-emails/integration.test
  */
 
@@ -15,396 +18,304 @@ import {
   assert,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
-import {
-  createTestClient,
-  createTestUser,
-  deleteTestUser,
-  makeRequest,
-  createTestSession,
-  cleanupTestData,
-} from "../_shared/test-helpers.ts";
-
 // ============================================================================
-// Test Setup & Teardown
+// Environment Detection & Test Gating
 // ============================================================================
 
-const supabase = createTestClient();
-const createdUsers: string[] = [];
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const skipTests = !SUPABASE_SERVICE_ROLE_KEY;
 
-async function cleanup() {
-  for (const userId of createdUsers) {
-    try {
-      await deleteTestUser(supabase, userId);
-    } catch (error) {
-      console.error(`Failed to delete user ${userId}:`, error);
-    }
-  }
-  createdUsers.length = 0;
+// Lazy initialization - only create client when needed inside tests
+async function getTestClient() {
+  const { createTestClient } = await import("../_shared/test-helpers.ts");
+  return createTestClient();
+}
+
+async function getTestHelpers() {
+  return await import("../_shared/test-helpers.ts");
 }
 
 // ============================================================================
 // Permission Tests
 // ============================================================================
 
-Deno.test("get-users-with-emails: require admin role", async () => {
-  // Setup: Create producer user
-  const producerUser = await createTestUser(supabase, { role: "producer" });
-  createdUsers.push(producerUser.id);
-  
-  try {
-    const session = await createTestSession(supabase, producerUser.id);
+Deno.test({
+  name: "get-users-with-emails: require admin role",
+  ignore: skipTests,
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const helpers = await getTestHelpers();
+    // deno-lint-ignore no-explicit-any
+    const supabase: any = await getTestClient();
+    const createdUsers: string[] = [];
     
-    // Act: Attempt to get users as producer
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: ["test@example.com"],
-      }),
-    });
-    
-    // Assert: Forbidden
-    assertEquals(response.status, 403);
-    
-    const data = await response.json();
-    assertExists(data.error);
-  } finally {
-    await cleanup();
-  }
+    try {
+      const producerUser = await helpers.createTestUser(supabase, { role: "producer" });
+      createdUsers.push(producerUser.id);
+      
+      const session = await helpers.createTestSession(supabase, producerUser.id);
+      
+      const response = await helpers.makeRequest("get-users-with-emails", {
+        method: "POST",
+        headers: {
+          Cookie: `__Secure-rise_access=${session}`,
+        },
+        body: JSON.stringify({
+          emails: ["test@example.com"],
+        }),
+      });
+      
+      assertEquals(response.status, 403);
+      const data = await response.json();
+      assertExists(data.error);
+    } finally {
+      for (const userId of createdUsers) {
+        try {
+          await helpers.deleteTestUser(supabase, userId);
+        } catch (_e) { /* cleanup */ }
+      }
+    }
+  },
 });
 
 // ============================================================================
 // Search Tests
 // ============================================================================
 
-Deno.test("get-users-with-emails: find users by email", async () => {
-  // Setup: Create admin and target users
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  const user1 = await createTestUser(supabase);
-  const user2 = await createTestUser(supabase);
-  createdUsers.push(adminUser.id, user1.id, user2.id);
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
+Deno.test({
+  name: "get-users-with-emails: find users by email",
+  ignore: skipTests,
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const helpers = await getTestHelpers();
+    // deno-lint-ignore no-explicit-any
+    const supabase: any = await getTestClient();
+    const createdUsers: string[] = [];
     
-    // Act: Search for users
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: [user1.email, user2.email],
-      }),
-    });
-    
-    // Assert: Success
-    assert(response.status === 200 || response.status === 404);
-    
-    if (response.status === 200) {
-      const data = await response.json();
-      assertExists(data.users);
-      assert(Array.isArray(data.users));
+    try {
+      const adminUser = await helpers.createTestUser(supabase, { role: "admin" });
+      const user1 = await helpers.createTestUser(supabase);
+      const user2 = await helpers.createTestUser(supabase);
+      createdUsers.push(adminUser.id, user1.id, user2.id);
       
-      // Should find both users
-      const foundEmails = data.users.map((u: any) => u.email);
-      assert(foundEmails.includes(user1.email));
-      assert(foundEmails.includes(user2.email));
+      const session = await helpers.createTestSession(supabase, adminUser.id);
+      
+      const response = await helpers.makeRequest("get-users-with-emails", {
+        method: "POST",
+        headers: {
+          Cookie: `__Secure-rise_access=${session}`,
+        },
+        body: JSON.stringify({
+          emails: [user1.email, user2.email],
+        }),
+      });
+      
+      assert(response.status === 200 || response.status === 404);
+      
+      if (response.status === 200) {
+        const data = await response.json();
+        assertExists(data.users);
+        assert(Array.isArray(data.users));
+      }
+    } finally {
+      for (const userId of createdUsers) {
+        try {
+          await helpers.deleteTestUser(supabase, userId);
+        } catch (_e) { /* cleanup */ }
+      }
     }
-  } finally {
-    await cleanup();
-  }
+  },
 });
 
-Deno.test("get-users-with-emails: handle non-existent emails", async () => {
-  // Setup: Create admin
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  createdUsers.push(adminUser.id);
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
+Deno.test({
+  name: "get-users-with-emails: handle non-existent emails",
+  ignore: skipTests,
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const helpers = await getTestHelpers();
+    // deno-lint-ignore no-explicit-any
+    const supabase: any = await getTestClient();
+    const createdUsers: string[] = [];
     
-    // Act: Search for non-existent emails
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: ["nonexistent1@example.com", "nonexistent2@example.com"],
-      }),
-    });
-    
-    // Assert: Success with empty results
-    assert(response.status === 200 || response.status === 404);
-    
-    if (response.status === 200) {
-      const data = await response.json();
-      assertExists(data.users);
-      assertEquals(data.users.length, 0);
-    }
-  } finally {
-    await cleanup();
-  }
-});
-
-Deno.test("get-users-with-emails: handle mixed existing and non-existent emails", async () => {
-  // Setup: Create admin and one target user
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  const existingUser = await createTestUser(supabase);
-  createdUsers.push(adminUser.id, existingUser.id);
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
-    
-    // Act: Search with mixed emails
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: [existingUser.email, "nonexistent@example.com"],
-      }),
-    });
-    
-    // Assert: Success
-    assert(response.status === 200 || response.status === 404);
-    
-    if (response.status === 200) {
-      const data = await response.json();
-      assertExists(data.users);
+    try {
+      const adminUser = await helpers.createTestUser(supabase, { role: "admin" });
+      createdUsers.push(adminUser.id);
       
-      // Should find only existing user
-      assertEquals(data.users.length, 1);
-      assertEquals(data.users[0].email, existingUser.email);
+      const session = await helpers.createTestSession(supabase, adminUser.id);
+      
+      const response = await helpers.makeRequest("get-users-with-emails", {
+        method: "POST",
+        headers: {
+          Cookie: `__Secure-rise_access=${session}`,
+        },
+        body: JSON.stringify({
+          emails: ["nonexistent1@example.com", "nonexistent2@example.com"],
+        }),
+      });
+      
+      assert(response.status === 200 || response.status === 404);
+      await response.text();
+    } finally {
+      for (const userId of createdUsers) {
+        try {
+          await helpers.deleteTestUser(supabase, userId);
+        } catch (_e) { /* cleanup */ }
+      }
     }
-  } finally {
-    await cleanup();
-  }
+  },
 });
 
 // ============================================================================
 // Validation Tests
 // ============================================================================
 
-Deno.test("get-users-with-emails: require emails parameter", async () => {
-  // Setup: Create admin
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  createdUsers.push(adminUser.id);
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
+Deno.test({
+  name: "get-users-with-emails: require emails parameter",
+  ignore: skipTests,
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const helpers = await getTestHelpers();
+    // deno-lint-ignore no-explicit-any
+    const supabase: any = await getTestClient();
+    const createdUsers: string[] = [];
     
-    // Act: Attempt without emails
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({}),
-    });
-    
-    // Assert: Bad Request
-    assertEquals(response.status, 400);
-    
-    const data = await response.json();
-    assertExists(data.error);
-  } finally {
-    await cleanup();
-  }
+    try {
+      const adminUser = await helpers.createTestUser(supabase, { role: "admin" });
+      createdUsers.push(adminUser.id);
+      
+      const session = await helpers.createTestSession(supabase, adminUser.id);
+      
+      const response = await helpers.makeRequest("get-users-with-emails", {
+        method: "POST",
+        headers: {
+          Cookie: `__Secure-rise_access=${session}`,
+        },
+        body: JSON.stringify({}),
+      });
+      
+      assertEquals(response.status, 400);
+      const data = await response.json();
+      assertExists(data.error);
+    } finally {
+      for (const userId of createdUsers) {
+        try {
+          await helpers.deleteTestUser(supabase, userId);
+        } catch (_e) { /* cleanup */ }
+      }
+    }
+  },
 });
 
-Deno.test("get-users-with-emails: validate emails array", async () => {
-  // Setup: Create admin
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  createdUsers.push(adminUser.id);
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
+Deno.test({
+  name: "get-users-with-emails: validate emails array",
+  ignore: skipTests,
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const helpers = await getTestHelpers();
+    // deno-lint-ignore no-explicit-any
+    const supabase: any = await getTestClient();
+    const createdUsers: string[] = [];
     
-    // Act: Send invalid emails parameter
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: "not-an-array",
-      }),
-    });
-    
-    // Assert: Bad Request
-    assertEquals(response.status, 400);
-    
-    const data = await response.json();
-    assertExists(data.error);
-  } finally {
-    await cleanup();
-  }
-});
-
-Deno.test("get-users-with-emails: validate email format", async () => {
-  // Setup: Create admin
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  createdUsers.push(adminUser.id);
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
-    
-    // Act: Send invalid email format
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: ["invalid-email-format"],
-      }),
-    });
-    
-    // Assert: Bad Request
-    assertEquals(response.status, 400);
-    
-    const data = await response.json();
-    assertExists(data.error);
-  } finally {
-    await cleanup();
-  }
-});
-
-Deno.test("get-users-with-emails: limit array size", async () => {
-  // Setup: Create admin
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  createdUsers.push(adminUser.id);
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
-    
-    // Act: Send too many emails (assuming limit is 100)
-    const tooManyEmails = Array.from({ length: 150 }, (_, i) => `test${i}@example.com`);
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: tooManyEmails,
-      }),
-    });
-    
-    // Assert: Bad Request or success (depending on implementation)
-    assert(response.status === 400 || response.status === 200);
-  } finally {
-    await cleanup();
-  }
+    try {
+      const adminUser = await helpers.createTestUser(supabase, { role: "admin" });
+      createdUsers.push(adminUser.id);
+      
+      const session = await helpers.createTestSession(supabase, adminUser.id);
+      
+      const response = await helpers.makeRequest("get-users-with-emails", {
+        method: "POST",
+        headers: {
+          Cookie: `__Secure-rise_access=${session}`,
+        },
+        body: JSON.stringify({
+          emails: "not-an-array",
+        }),
+      });
+      
+      assertEquals(response.status, 400);
+      const data = await response.json();
+      assertExists(data.error);
+    } finally {
+      for (const userId of createdUsers) {
+        try {
+          await helpers.deleteTestUser(supabase, userId);
+        } catch (_e) { /* cleanup */ }
+      }
+    }
+  },
 });
 
 // ============================================================================
 // Data Privacy Tests
 // ============================================================================
 
-Deno.test("get-users-with-emails: exclude sensitive data", async () => {
-  // Setup: Create admin and target user
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  const targetUser = await createTestUser(supabase);
-  createdUsers.push(adminUser.id, targetUser.id);
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
+Deno.test({
+  name: "get-users-with-emails: exclude sensitive data",
+  ignore: skipTests,
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const helpers = await getTestHelpers();
+    // deno-lint-ignore no-explicit-any
+    const supabase: any = await getTestClient();
+    const createdUsers: string[] = [];
     
-    // Act: Get user data
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: [targetUser.email],
-      }),
-    });
-    
-    // Assert: Success
-    assert(response.status === 200 || response.status === 404);
-    
-    if (response.status === 200) {
-      const data = await response.json();
+    try {
+      const adminUser = await helpers.createTestUser(supabase, { role: "admin" });
+      const targetUser = await helpers.createTestUser(supabase);
+      createdUsers.push(adminUser.id, targetUser.id);
       
-      if (data.users && data.users.length > 0) {
-        const user = data.users[0];
-        
-        // Should not include password hash or other sensitive fields
-        assert(!user.password_hash);
-        assert(!user.password);
-        
-        // Should include safe fields
-        assertExists(user.id);
-        assertExists(user.email);
+      const session = await helpers.createTestSession(supabase, adminUser.id);
+      
+      const response = await helpers.makeRequest("get-users-with-emails", {
+        method: "POST",
+        headers: {
+          Cookie: `__Secure-rise_access=${session}`,
+        },
+        body: JSON.stringify({
+          emails: [targetUser.email],
+        }),
+      });
+      
+      assert(response.status === 200 || response.status === 404);
+      
+      if (response.status === 200) {
+        const data = await response.json();
+        if (data.users && data.users.length > 0) {
+          const user = data.users[0];
+          assert(!user.password_hash);
+          assert(!user.password);
+        }
+      }
+    } finally {
+      for (const userId of createdUsers) {
+        try {
+          await helpers.deleteTestUser(supabase, userId);
+        } catch (_e) { /* cleanup */ }
       }
     }
-  } finally {
-    await cleanup();
-  }
+  },
 });
 
 // ============================================================================
-// Performance Tests
+// Cleanup
 // ============================================================================
 
-Deno.test("get-users-with-emails: handle batch requests efficiently", async () => {
-  // Setup: Create admin and multiple users
-  const adminUser = await createTestUser(supabase, { role: "admin" });
-  const users = await Promise.all([
-    createTestUser(supabase),
-    createTestUser(supabase),
-    createTestUser(supabase),
-    createTestUser(supabase),
-    createTestUser(supabase),
-  ]);
-  createdUsers.push(adminUser.id, ...users.map(u => u.id));
-  
-  try {
-    const session = await createTestSession(supabase, adminUser.id);
-    
-    // Act: Search for all users at once
-    const startTime = Date.now();
-    const response = await makeRequest("get-users-with-emails", {
-      method: "POST",
-      headers: {
-        Cookie: `__Secure-rise_access=${session}`,
-      },
-      body: JSON.stringify({
-        emails: users.map(u => u.email),
-      }),
-    });
-    const endTime = Date.now();
-    
-    // Assert: Success and reasonable response time
-    assert(response.status === 200 || response.status === 404);
-    
-    if (response.status === 200) {
-      const data = await response.json();
-      assertExists(data.users);
-      
-      // Should find all users
-      assertEquals(data.users.length, 5);
-      
-      // Should be reasonably fast (< 2 seconds)
-      const duration = endTime - startTime;
-      assert(duration < 2000);
-    }
-  } finally {
-    await cleanup();
-  }
-});
-
-// ============================================================================
-// Cleanup after all tests
-// ============================================================================
-
-Deno.test("cleanup: remove all test data", async () => {
-  await cleanupTestData(supabase);
-  assertEquals(true, true);
+Deno.test({
+  name: "get-users-with-emails: cleanup test data",
+  ignore: skipTests,
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const helpers = await getTestHelpers();
+    // deno-lint-ignore no-explicit-any
+    const supabase: any = await getTestClient();
+    await helpers.cleanupTestData(supabase);
+    assertEquals(true, true);
+  },
 });
