@@ -5,8 +5,10 @@
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { skipIntegration } from "../../_shared/testing/mod.ts";
-import { FUNCTION_URL, SUPABASE_ANON_KEY, isRateLimited } from "./_shared.ts";
+import { skipIntegration, getTestConfig } from "../../_shared/testing/mod.ts";
+import { FUNCTION_URL, isRateLimited } from "./_shared.ts";
+
+const config = getTestConfig();
 
 // ============================================
 // CORS TESTS (Unit - no network)
@@ -30,11 +32,15 @@ Deno.test({
   name: "checkout-crud - auth - rejects unauthenticated requests",
   ignore: skipIntegration(),
   fn: async () => {
+    if (!config.supabaseAnonKey) {
+      throw new Error("SUPABASE_ANON_KEY not configured");
+    }
+    
     const response = await fetch(FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
+        "apikey": config.supabaseAnonKey,
       },
       body: JSON.stringify({ action: "create", productId: "test", name: "test", offerId: "test" }),
     });
