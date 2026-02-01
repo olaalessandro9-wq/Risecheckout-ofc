@@ -6,7 +6,8 @@
  * Comprehensive tests for logout handler.
  * Tests cover: happy paths, error handling, security vectors, edge cases.
  * 
- * @module unified-auth/__tests__/handlers/logout
+ * @module unified-auth/tests/handlers/logout
+ * @version 2.0.0
  */
 
 import {
@@ -21,13 +22,13 @@ import {
   mockTokens,
   createMockRequest,
   createMockCorsHeaders,
-} from "../../__fixtures__/auth.fixtures.ts";
+} from "../fixtures/auth.fixtures.ts";
 
 // ============================================================================
 // Happy Path Tests
 // ============================================================================
 
-Deno.test("logout: should successfully logout with valid session", async () => {
+Deno.test("logout: should successfully logout with valid session", () => {
   const req = createMockRequest({}, {
     "Authorization": `Bearer ${mockTokens.accessToken}`,
   });
@@ -39,9 +40,10 @@ Deno.test("logout: should successfully logout with valid session", async () => {
   const authHeader = req.headers.get("Authorization");
   assertExists(authHeader);
   assert(authHeader.startsWith("Bearer "));
+  void corsHeaders;
 });
 
-Deno.test("logout: should invalidate access token", async () => {
+Deno.test("logout: should invalidate access token", () => {
   const session = mockSession;
   
   assertExists(session.access_token);
@@ -51,7 +53,7 @@ Deno.test("logout: should invalidate access token", async () => {
   // Handler should update session.is_active = false
 });
 
-Deno.test("logout: should invalidate refresh token", async () => {
+Deno.test("logout: should invalidate refresh token", () => {
   const session = mockSession;
   
   assertExists(session.refresh_token);
@@ -60,7 +62,7 @@ Deno.test("logout: should invalidate refresh token", async () => {
   // Handler should delete or mark refresh token as revoked
 });
 
-Deno.test("logout: should return 200 on successful logout", async () => {
+Deno.test("logout: should return 200 on successful logout", () => {
   const expectedStatus = 200;
   const expectedMessage = "Logout realizado com sucesso";
   
@@ -72,7 +74,7 @@ Deno.test("logout: should return 200 on successful logout", async () => {
 // Error Path Tests
 // ============================================================================
 
-Deno.test("logout: should return 401 when no authorization header", async () => {
+Deno.test("logout: should return 401 when no authorization header", () => {
   const req = createMockRequest({});
   
   const authHeader = req.headers.get("Authorization");
@@ -81,7 +83,7 @@ Deno.test("logout: should return 401 when no authorization header", async () => 
   // Handler should return 401 Unauthorized
 });
 
-Deno.test("logout: should return 401 when token is invalid", async () => {
+Deno.test("logout: should return 401 when token is invalid", () => {
   const invalidToken = "invalid.token.format";
   const req = createMockRequest({}, {
     "Authorization": `Bearer ${invalidToken}`,
@@ -93,7 +95,7 @@ Deno.test("logout: should return 401 when token is invalid", async () => {
   // Handler should verify token and return 401
 });
 
-Deno.test("logout: should return 401 when session not found", async () => {
+Deno.test("logout: should return 401 when session not found", () => {
   const req = createMockRequest({}, {
     "Authorization": `Bearer ${mockTokens.accessToken}`,
   });
@@ -110,10 +112,11 @@ Deno.test("logout: should return 401 when session not found", async () => {
   };
   
   assertExists(mockSupabase);
+  assertExists(req);
   // Handler should return 401
 });
 
-Deno.test("logout: should return 400 when request body is malformed", async () => {
+Deno.test("logout: should return 400 when request body is malformed", () => {
   const malformedRequest = "not a json";
   const req = new Request("https://example.com/logout", {
     method: "POST",
@@ -131,7 +134,7 @@ Deno.test("logout: should return 400 when request body is malformed", async () =
 // Security Tests
 // ============================================================================
 
-Deno.test("logout: should prevent token reuse after logout", async () => {
+Deno.test("logout: should prevent token reuse after logout", () => {
   const token = mockTokens.accessToken;
   
   // After logout, token should be invalidated
@@ -143,7 +146,7 @@ Deno.test("logout: should prevent token reuse after logout", async () => {
   // Future requests with this token should return 401
 });
 
-Deno.test("logout: should delete session from database", async () => {
+Deno.test("logout: should delete session from database", () => {
   const session = mockSession;
   
   assertExists(session.id);
@@ -152,7 +155,7 @@ Deno.test("logout: should delete session from database", async () => {
   // OR mark session.is_active = false
 });
 
-Deno.test("logout: should handle concurrent logout requests", async () => {
+Deno.test("logout: should handle concurrent logout requests", () => {
   // Multiple logout requests with same token should be handled safely
   // No errors should occur if session is already logged out
   
@@ -171,9 +174,7 @@ Deno.test("logout: should handle concurrent logout requests", async () => {
   // Both are acceptable behaviors
 });
 
-Deno.test("logout: should not expose sensitive session data", async () => {
-  const session = mockSession;
-  
+Deno.test("logout: should not expose sensitive session data", () => {
   // Logout response should not include:
   // - refresh_token
   // - access_token
@@ -194,7 +195,7 @@ Deno.test("logout: should not expose sensitive session data", async () => {
 // Edge Cases
 // ============================================================================
 
-Deno.test("logout: should handle expired token gracefully", async () => {
+Deno.test("logout: should handle expired token gracefully", () => {
   const expiredSession = mockExpiredSession;
   
   const now = new Date();
@@ -207,7 +208,7 @@ Deno.test("logout: should handle expired token gracefully", async () => {
   // Both are acceptable depending on security policy
 });
 
-Deno.test("logout: should handle already inactive session", async () => {
+Deno.test("logout: should handle already inactive session", () => {
   const inactiveSession = mockInactiveSession;
   
   assertEquals(inactiveSession.is_active, false);
@@ -216,7 +217,7 @@ Deno.test("logout: should handle already inactive session", async () => {
   // Should return 200 (idempotent) or 401 (session not active)
 });
 
-Deno.test("logout: should handle missing Bearer prefix", async () => {
+Deno.test("logout: should handle missing Bearer prefix", () => {
   const req = createMockRequest({}, {
     "Authorization": mockTokens.accessToken, // Missing "Bearer " prefix
   });
@@ -228,7 +229,7 @@ Deno.test("logout: should handle missing Bearer prefix", async () => {
   // Handler should return 401 for invalid authorization format
 });
 
-Deno.test("logout: should handle empty authorization header", async () => {
+Deno.test("logout: should handle empty authorization header", () => {
   const req = createMockRequest({}, {
     "Authorization": "",
   });
@@ -239,7 +240,7 @@ Deno.test("logout: should handle empty authorization header", async () => {
   // Handler should return 401
 });
 
-Deno.test("logout: should handle very long token", async () => {
+Deno.test("logout: should handle very long token", () => {
   const longToken = "Bearer " + "a".repeat(10000);
   const req = createMockRequest({}, {
     "Authorization": longToken,

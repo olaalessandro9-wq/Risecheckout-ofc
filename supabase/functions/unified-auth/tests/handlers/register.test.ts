@@ -6,7 +6,8 @@
  * Comprehensive tests for user registration handler.
  * Tests cover: happy paths, error handling, security vectors, edge cases.
  * 
- * @module unified-auth/__tests__/handlers/register
+ * @module unified-auth/tests/handlers/register
+ * @version 2.0.0
  */
 
 import {
@@ -22,7 +23,7 @@ import {
   xssPayloads,
   createMockRequest,
   createMockCorsHeaders,
-} from "../../__fixtures__/auth.fixtures.ts";
+} from "../fixtures/auth.fixtures.ts";
 
 // ============================================================================
 // Happy Path Tests
@@ -39,9 +40,10 @@ Deno.test("register: should create new user with valid data", async () => {
   assertEquals(body.email, mockRegisterRequest.email);
   assertEquals(body.password, mockRegisterRequest.password);
   assertEquals(body.name, mockRegisterRequest.name);
+  void corsHeaders;
 });
 
-Deno.test("register: should return user data and tokens", async () => {
+Deno.test("register: should return user data and tokens", () => {
   const response = mockAuthResponse;
   
   assertExists(response.user);
@@ -53,7 +55,7 @@ Deno.test("register: should return user data and tokens", async () => {
   assertExists(response.tokens.refreshToken);
 });
 
-Deno.test("register: should hash password before storing", async () => {
+Deno.test("register: should hash password before storing", () => {
   const plainPassword = "NewPass123";
   const hashedPassword = mockUser.password_hash;
   
@@ -65,7 +67,7 @@ Deno.test("register: should hash password before storing", async () => {
   assert(hashedPassword !== plainPassword);
 });
 
-Deno.test("register: should create session after registration", async () => {
+Deno.test("register: should create session after registration", () => {
   const session = mockAuthResponse.session;
   
   assertExists(session.id);
@@ -158,7 +160,7 @@ Deno.test("register: should return 409 when email already exists", async () => {
   // Handler should check if email exists and return 409 Conflict
 });
 
-Deno.test("register: should return 400 when request body is malformed", async () => {
+Deno.test("register: should return 400 when request body is malformed", () => {
   const malformedRequest = "not a json";
   const req = new Request("https://example.com/register", {
     method: "POST",
@@ -223,7 +225,7 @@ Deno.test("register: should trim email whitespace", async () => {
   assertEquals(trimmed, "newuser@example.com");
 });
 
-Deno.test("register: should enforce password policy", async () => {
+Deno.test("register: should enforce password policy", () => {
   const passwordPolicy = {
     minLength: 8,
     requireUppercase: true,
@@ -240,7 +242,7 @@ Deno.test("register: should enforce password policy", async () => {
   assertEquals(/[0-9]/.test(validPassword), passwordPolicy.requireNumber);
 });
 
-Deno.test("register: should never store password in plain text", async () => {
+Deno.test("register: should never store password in plain text", () => {
   const plainPassword = "NewPass123";
   const storedUser = mockUser;
   
@@ -249,7 +251,7 @@ Deno.test("register: should never store password in plain text", async () => {
   assert(storedUser.password_hash.startsWith("$2a$"));
 });
 
-Deno.test("register: should prevent race condition on duplicate email", async () => {
+Deno.test("register: should prevent race condition on duplicate email", () => {
   // Two concurrent registrations with same email should not both succeed
   // Database unique constraint should prevent this
   
@@ -264,7 +266,7 @@ Deno.test("register: should prevent race condition on duplicate email", async ()
   // This is enforced by database UNIQUE constraint on email
 });
 
-Deno.test("register: should check email case-insensitively", async () => {
+Deno.test("register: should check email case-insensitively", () => {
   const existingEmail = "test@example.com";
   const uppercaseEmail = "TEST@EXAMPLE.COM";
   

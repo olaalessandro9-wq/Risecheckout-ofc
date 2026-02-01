@@ -6,16 +6,15 @@
  * Comprehensive tests for login authentication handler.
  * Tests cover: happy paths, error handling, security vectors, edge cases.
  * 
- * @module unified-auth/__tests__/handlers/login
+ * @module unified-auth/tests/handlers/login
+ * @version 2.0.0
  */
 
 import {
   assertEquals,
   assertExists,
   assert,
-  assertRejects,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { stub, returnsNext } from "https://deno.land/std@0.224.0/testing/mock.ts";
 import {
   mockUser,
   mockInactiveUser,
@@ -26,7 +25,7 @@ import {
   sqlInjectionPayloads,
   createMockRequest,
   createMockCorsHeaders,
-} from "../../__fixtures__/auth.fixtures.ts";
+} from "../fixtures/auth.fixtures.ts";
 
 // ============================================================================
 // Happy Path Tests
@@ -54,9 +53,11 @@ Deno.test("login: should authenticate user with valid credentials", async () => 
   const body = await req.json();
   assertEquals(body.email, mockLoginRequest.email);
   assertEquals(body.password, mockLoginRequest.password);
+  void mockSupabase;
+  void corsHeaders;
 });
 
-Deno.test("login: should return access and refresh tokens", async () => {
+Deno.test("login: should return access and refresh tokens", () => {
   const tokens = mockAuthResponse.tokens;
   
   assertExists(tokens.accessToken);
@@ -68,7 +69,7 @@ Deno.test("login: should return access and refresh tokens", async () => {
   assertEquals(accessTokenParts.length, 3);
 });
 
-Deno.test("login: should create session after successful login", async () => {
+Deno.test("login: should create session after successful login", () => {
   const session = mockAuthResponse.session;
   
   assertExists(session.id);
@@ -101,7 +102,7 @@ Deno.test("login: should return 400 when password is missing", async () => {
   // Handler should return 400
 });
 
-Deno.test("login: should return 401 when user not found", async () => {
+Deno.test("login: should return 401 when user not found", () => {
   const mockSupabase = {
     from: () => ({
       select: () => ({
@@ -132,9 +133,10 @@ Deno.test("login: should return 401 when password is incorrect", async () => {
   
   // Handler should verify password and return 401
   assertExists(req);
+  void mockSupabase;
 });
 
-Deno.test("login: should return 403 when account is inactive", async () => {
+Deno.test("login: should return 403 when account is inactive", () => {
   const mockSupabase = {
     from: () => ({
       select: () => ({
@@ -146,10 +148,11 @@ Deno.test("login: should return 403 when account is inactive", async () => {
   };
   
   assertEquals(mockInactiveUser.is_active, false);
+  void mockSupabase;
   // Handler should return 403 with "Conta desativada"
 });
 
-Deno.test("login: should return 403 when account is pending setup", async () => {
+Deno.test("login: should return 403 when account is pending setup", () => {
   const mockSupabase = {
     from: () => ({
       select: () => ({
@@ -161,10 +164,11 @@ Deno.test("login: should return 403 when account is pending setup", async () => 
   };
   
   assertEquals(mockPendingUser.account_status, "pending_setup");
+  void mockSupabase;
   // Handler should return 403 with "Conta pendente de configuração"
 });
 
-Deno.test("login: should return 403 when password reset is required", async () => {
+Deno.test("login: should return 403 when password reset is required", () => {
   const mockSupabase = {
     from: () => ({
       select: () => ({
@@ -176,10 +180,11 @@ Deno.test("login: should return 403 when password reset is required", async () =
   };
   
   assertEquals(mockResetRequiredUser.account_status, "reset_required");
+  void mockSupabase;
   // Handler should return 403 with "Redefinição de senha necessária"
 });
 
-Deno.test("login: should return 400 when request body is malformed", async () => {
+Deno.test("login: should return 400 when request body is malformed", () => {
   const malformedRequest = "not a json";
   const req = new Request("https://example.com/login", {
     method: "POST",
@@ -232,7 +237,7 @@ Deno.test("login: should trim email whitespace", async () => {
   assertEquals(trimmed, "test@example.com");
 });
 
-Deno.test("login: should prevent account enumeration via timing", async () => {
+Deno.test("login: should prevent account enumeration via timing", () => {
   // Both "user not found" and "invalid password" should take similar time
   // to prevent attackers from determining if an email exists
   
@@ -251,7 +256,7 @@ Deno.test("login: should prevent account enumeration via timing", async () => {
   assert(Math.abs(timeNotFound - timeInvalidPassword) < 100);
 });
 
-Deno.test("login: should never expose password hash in response", async () => {
+Deno.test("login: should never expose password hash in response", () => {
   const response = mockAuthResponse;
   
   // Verify password_hash is not in response
@@ -273,7 +278,7 @@ Deno.test("login: should never log password in plain text", async () => {
   assert(!logMessage.includes(body.password));
 });
 
-Deno.test("login: should use constant-time password comparison", async () => {
+Deno.test("login: should use constant-time password comparison", () => {
   // bcrypt.compare() is constant-time by design
   // This prevents timing attacks to guess passwords
   
@@ -283,9 +288,10 @@ Deno.test("login: should use constant-time password comparison", async () => {
   // Verify bcrypt hash format
   assert(hash.startsWith("$2a$"));
   assertEquals(hash.length, 60);
+  void password;
 });
 
-Deno.test("login: should enforce rate limiting (security)", async () => {
+Deno.test("login: should enforce rate limiting (security)", () => {
   // Rate limiting should prevent brute force attacks
   // Implementation: Track failed login attempts per IP/email
   
@@ -303,7 +309,7 @@ Deno.test("login: should enforce rate limiting (security)", async () => {
 // Edge Cases
 // ============================================================================
 
-Deno.test("login: should handle concurrent login requests", async () => {
+Deno.test("login: should handle concurrent login requests", () => {
   // Multiple login requests for same user should be handled safely
   // No race conditions should occur
   
@@ -347,7 +353,7 @@ Deno.test("login: should handle special characters in email", async () => {
   // Handler should accept valid email with special chars
 });
 
-Deno.test("login: should handle unicode characters in name", async () => {
+Deno.test("login: should handle unicode characters in name", () => {
   const unicodeUser = {
     ...mockUser,
     name: "José García 日本語",
