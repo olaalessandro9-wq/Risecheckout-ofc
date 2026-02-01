@@ -10,32 +10,47 @@
  * - Default rate validation (0-90%)
  * 
  * @module update-affiliate-settings/index.test
+ * @version 1.1.0
  */
 
-import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  skipIntegration,
+  integrationTestOptions,
+  getTestConfig,
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const config = getTestConfig();
+const FUNCTION_NAME = "update-affiliate-settings";
+
+function getFunctionUrl(): string {
+  return config.supabaseUrl
+    ? `${config.supabaseUrl}/functions/v1/${FUNCTION_NAME}`
+    : `https://mock.supabase.co/functions/v1/${FUNCTION_NAME}`;
+}
 
 // ============================================================================
 // CORS Tests
 // ============================================================================
 
 Deno.test({
-  name: "update-affiliate-settings: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'OPTIONS'
+    const response = await fetch(getFunctionUrl(), {
+      method: "OPTIONS",
     });
 
     await response.text();
 
     assertEquals(response.status, 200);
-    assertEquals(response.headers.get('Access-Control-Allow-Origin'), '*');
-  }
+    assertEquals(response.headers.get("Access-Control-Allow-Origin"), "*");
+  },
 });
 
 // ============================================================================
@@ -43,28 +58,27 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "update-affiliate-settings: Deve rejeitar request sem autenticação",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: rejects unauthenticated requests",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "product-123",
-      enabled: true
+      enabled: true,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
     assertEquals(response.status, 401);
-  }
+  },
 });
 
 // ============================================================================
@@ -72,257 +86,247 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "update-affiliate-settings: deve validar product_id",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: validates product_id",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
-      enabled: true
+      enabled: true,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
-    // Deve retornar 401 (sem auth) ou 200/403/404 (com auth)
+    // Should return 401 (no auth) or 200/403/404 (with auth)
     assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
+  },
 });
 
 Deno.test({
-  name: "update-affiliate-settings: deve aceitar enabled = true",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: accepts enabled = true",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
-      enabled: true
+      enabled: true,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
-    });
-
-    await response.text();
-
-    assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
-});
-
-Deno.test({
-  name: "update-affiliate-settings: deve aceitar enabled = false",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: async () => {
-    const payload = {
-      product_id: "test-product-id",
-      enabled: false
-    };
-
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
     assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
+  },
 });
 
 Deno.test({
-  name: "update-affiliate-settings: deve aceitar requireApproval = true",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: accepts enabled = false",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
-      requireApproval: true
+      enabled: false,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
     assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
+  },
 });
 
 Deno.test({
-  name: "update-affiliate-settings: deve aceitar requireApproval = false",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: accepts requireApproval = true",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
-      requireApproval: false
+      requireApproval: true,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
     assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
+  },
 });
 
 Deno.test({
-  name: "update-affiliate-settings: deve aceitar defaultRate válido (0-90)",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: accepts requireApproval = false",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
-      defaultRate: 50
+      requireApproval: false,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
     assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
+  },
 });
 
 Deno.test({
-  name: "update-affiliate-settings: deve aceitar defaultRate = 0",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: accepts valid defaultRate (0-90)",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
-      defaultRate: 0
+      defaultRate: 50,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
     assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
+  },
 });
 
 Deno.test({
-  name: "update-affiliate-settings: deve aceitar defaultRate = 90",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: accepts defaultRate = 0",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
-      defaultRate: 90
+      defaultRate: 0,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
     assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
+  },
 });
 
 Deno.test({
-  name: "update-affiliate-settings: deve aceitar múltiplos campos combinados",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: accepts defaultRate = 90",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
+  fn: async () => {
+    const payload = {
+      product_id: "test-product-id",
+      defaultRate: 90,
+    };
+
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    await response.text();
+
+    assertEquals([200, 401, 403, 404].includes(response.status), true);
+  },
+});
+
+Deno.test({
+  name: "update-affiliate-settings/integration: accepts multiple fields combined",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
       enabled: true,
       requireApproval: false,
-      defaultRate: 30
+      defaultRate: 30,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
     assertEquals([200, 401, 403, 404].includes(response.status), true);
-  }
+  },
 });
 
 Deno.test({
-  name: "update-affiliate-settings: deve verificar ownership do produto",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: verifies product ownership",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "non-owned-product-id",
-      enabled: true
+      enabled: true,
     };
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-      method: 'POST',
+    const response = await fetch(getFunctionUrl(), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     await response.text();
 
-    // Deve retornar 401 (sem auth) ou 403 (sem ownership)
+    // Should return 401 (no auth) or 403 (no ownership)
     assertEquals([401, 403].includes(response.status), true);
-  }
+  },
 });
 
 // ============================================================================
@@ -330,31 +334,33 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "update-affiliate-settings: deve aplicar rate limiting",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "update-affiliate-settings/integration: applies rate limiting",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       product_id: "test-product-id",
-      enabled: true
+      enabled: true,
     };
 
-    // Fazer múltiplas requisições rapidamente
+    // Make multiple requests rapidly
     const requests = Array.from({ length: 100 }, () =>
-      fetch(`${supabaseUrl}/functions/v1/update-affiliate-settings`, {
-        method: 'POST',
+      fetch(getFunctionUrl(), {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       })
     );
 
     const responses = await Promise.all(requests);
-    const statuses = responses.map(r => r.status);
+    const statuses = responses.map((r) => r.status);
 
-    // Todas devem retornar status válidos
-    assertEquals(statuses.every(s => [200, 401, 403, 404, 429].includes(s)), true);
-  }
+    // All should return valid statuses
+    assertEquals(
+      statuses.every((s) => [200, 401, 403, 404, 429].includes(s)),
+      true
+    );
+  },
 });

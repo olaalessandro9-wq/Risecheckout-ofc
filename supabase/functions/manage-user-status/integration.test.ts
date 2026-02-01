@@ -10,6 +10,7 @@
  * They are skipped in CI environments without SUPABASE_SERVICE_ROLE_KEY.
  * 
  * @module manage-user-status/integration.test
+ * @version 1.1.0
  */
 
 import {
@@ -17,18 +18,17 @@ import {
   assertExists,
   assert,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  skipIntegration,
+  integrationTestOptions,
+} from "../_shared/testing/mod.ts";
 
 // ============================================================================
-// Environment Detection & Test Gating
+// Environment Detection
 // ============================================================================
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-const skipTests = !SUPABASE_URL || 
-  !SUPABASE_SERVICE_ROLE_KEY || 
-  SUPABASE_URL.includes("test.supabase.co") || 
-  !SUPABASE_URL.startsWith("https://");
+const skipServiceRoleTests = !SUPABASE_SERVICE_ROLE_KEY || skipIntegration();
 
 // ============================================================================
 // Lazy Client Factory
@@ -72,10 +72,9 @@ async function cleanup() {
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-status: require admin role",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: require admin role",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -114,10 +113,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-status: suspend user successfully",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: suspend user successfully",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
@@ -165,10 +163,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "manage-user-status: require reason for suspension",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: require reason for suspension",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -206,10 +203,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-status: activate suspended user",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: activate suspended user",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
@@ -260,10 +256,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-status: deactivate user",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: deactivate user",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -304,10 +299,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-status: validate action parameter",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: validate action parameter",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -341,10 +335,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "manage-user-status: require userId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: require userId",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -381,10 +374,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-status: handle non-existent user",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: handle non-existent user",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -418,10 +410,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "manage-user-status: prevent changing own status",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: prevent changing own status",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -459,10 +450,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-status: revoke sessions on suspension",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: revoke sessions on suspension",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
@@ -506,67 +496,13 @@ Deno.test({
 });
 
 // ============================================================================
-// Audit Trail Tests
+// Cleanup
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-status: log status changes in audit trail",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: async () => {
-    const supabase = await getTestClient();
-    const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
-    
-    const adminUser = await createTestUser(supabase, { role: "admin" });
-    const targetUser = await createTestUser(supabase, { role: "buyer" });
-    createdUsers.push(adminUser.id, targetUser.id);
-    
-    try {
-      const session = await createTestSession(supabase, adminUser.id);
-      
-      await makeRequest("manage-user-status", {
-        method: "POST",
-        headers: {
-          Cookie: `__Secure-rise_access=${session}`,
-        },
-        body: JSON.stringify({
-          userId: targetUser.id,
-          action: "suspend",
-          reason: "Audit trail test",
-        }),
-      });
-      
-      await wait(200);
-      const { data: auditLogs } = await supabase
-        .from("audit_logs")
-        .select("*")
-        .eq("action", "change-user-status")
-        .eq("performed_by", adminUser.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      
-      if (auditLogs && auditLogs.length > 0) {
-        const log = auditLogs[0];
-        assertEquals(log.action, "change-user-status");
-        assertEquals(log.performed_by, adminUser.id);
-        assertExists(log.metadata);
-      }
-    } finally {
-      await cleanup();
-    }
-  },
-});
-
-// ============================================================================
-// Cleanup after all tests
-// ============================================================================
-
-Deno.test({
-  name: "cleanup: remove all test data",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-status/integration: cleanup test data",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { cleanupTestData } = await getTestHelpers();

@@ -7,26 +7,27 @@
  * They are skipped in CI environments without proper configuration.
  * 
  * @module admin-data/tests/integration.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  skipIntegration,
+  integrationTestOptions,
+  getTestConfig,
+} from "../../_shared/testing/mod.ts";
 
 // ============================================================================
-// Environment Detection & Test Gating
+// Configuration
 // ============================================================================
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const config = getTestConfig();
+const FUNCTION_NAME = "admin-data";
 
-const skipTests = !SUPABASE_URL || 
-  !SUPABASE_ANON_KEY || 
-  SUPABASE_URL.includes("test.supabase.co") || 
-  !SUPABASE_URL.startsWith("https://");
-
-// Lazy URL construction
 function getFunctionUrl(): string {
-  return `${SUPABASE_URL}/functions/v1/admin-data`;
+  return config.supabaseUrl
+    ? `${config.supabaseUrl}/functions/v1/${FUNCTION_NAME}`
+    : `https://mock.supabase.co/functions/v1/${FUNCTION_NAME}`;
 }
 
 // ============================================================================
@@ -34,10 +35,9 @@ function getFunctionUrl(): string {
 // ============================================================================
 
 Deno.test({
-  name: "admin-data - CORS - returns expected CORS headers in structure",
+  name: "admin-data/integration: CORS headers structure",
   ignore: false, // This test doesn't require network
-  sanitizeResources: false,
-  sanitizeOps: false,
+  ...integrationTestOptions,
   fn: () => {
     // Test the expected CORS header structure (no actual fetch needed)
     const corsHeaders = {
@@ -55,16 +55,15 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "admin-data - auth - rejects unauthenticated requests",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "admin-data/integration: rejects unauthenticated requests",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(getFunctionUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
+        "apikey": config.supabaseAnonKey ?? "",
       },
       body: JSON.stringify({ action: "admin-products" }),
     });
@@ -75,10 +74,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "admin-data - auth - rejects requests without apikey",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "admin-data/integration: rejects requests without apikey",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(getFunctionUrl(), {
       method: "POST",
@@ -94,16 +92,15 @@ Deno.test({
 });
 
 Deno.test({
-  name: "admin-data - integration - rejects unknown action (with auth failure first)",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "admin-data/integration: rejects unknown action (with auth failure first)",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(getFunctionUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
+        "apikey": config.supabaseAnonKey ?? "",
       },
       body: JSON.stringify({ action: "unknown-action-xyz" }),
     });
