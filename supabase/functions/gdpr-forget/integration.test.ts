@@ -10,6 +10,7 @@
  * They are skipped in CI environments without SUPABASE_SERVICE_ROLE_KEY.
  * 
  * @module gdpr-forget/integration.test
+ * @version 1.1.0
  */
 
 import {
@@ -17,18 +18,17 @@ import {
   assertExists,
   assert,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  skipIntegration,
+  integrationTestOptions,
+} from "../_shared/testing/mod.ts";
 
 // ============================================================================
-// Environment Detection & Test Gating
+// Environment Detection
 // ============================================================================
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-const skipTests = !SUPABASE_URL || 
-  !SUPABASE_SERVICE_ROLE_KEY || 
-  SUPABASE_URL.includes("test.supabase.co") || 
-  !SUPABASE_URL.startsWith("https://");
+const skipServiceRoleTests = !SUPABASE_SERVICE_ROLE_KEY || skipIntegration();
 
 // ============================================================================
 // Lazy Client Factory
@@ -72,10 +72,9 @@ async function cleanup() {
 // ============================================================================
 
 Deno.test({
-  name: "gdpr-forget: initiate account deletion",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: initiate account deletion",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -108,10 +107,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "gdpr-forget: require confirmation",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: require confirmation",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -143,10 +141,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "gdpr-forget: validate confirmation text",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: validate confirmation text",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -183,10 +180,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "gdpr-forget: delete user data",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: delete user data",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
@@ -228,10 +224,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "gdpr-forget: invalidate all sessions on deletion",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: invalidate all sessions on deletion",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
@@ -277,10 +272,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "gdpr-forget: require authentication",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: require authentication",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const { makeRequest } = await getTestHelpers();
     
@@ -300,10 +294,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "gdpr-forget: only allow deleting own account",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: only allow deleting own account",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
@@ -348,10 +341,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "gdpr-forget: create deletion request record",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: create deletion request record",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
@@ -399,10 +391,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "gdpr-forget: anonymize instead of hard delete (if applicable)",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: anonymize instead of hard delete (if applicable)",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest, wait } = await getTestHelpers();
@@ -449,10 +440,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "gdpr-forget: complete deletion within compliance timeframe",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: complete deletion within compliance timeframe",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { createTestUser, createTestSession, makeRequest } = await getTestHelpers();
@@ -492,10 +482,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "cleanup: remove all test data",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "gdpr-forget/integration: cleanup test data",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const supabase = await getTestClient();
     const { cleanupTestData } = await getTestHelpers();

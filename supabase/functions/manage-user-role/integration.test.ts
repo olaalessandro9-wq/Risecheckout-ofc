@@ -10,6 +10,7 @@
  * They are skipped in CI environments without proper configuration.
  * 
  * @module manage-user-role/integration.test
+ * @version 1.1.0
  */
 
 import {
@@ -17,13 +18,17 @@ import {
   assertExists,
   assert,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  skipIntegration,
+  integrationTestOptions,
+} from "../_shared/testing/mod.ts";
 
 // ============================================================================
-// Environment Detection & Test Gating
+// Environment Detection
 // ============================================================================
 
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const skipTests = !SUPABASE_SERVICE_ROLE_KEY;
+const skipServiceRoleTests = !SUPABASE_SERVICE_ROLE_KEY || skipIntegration();
 
 // Lazy initialization - only create client when needed inside tests
 async function getTestClient() {
@@ -40,10 +45,9 @@ async function getTestHelpers() {
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-role: require admin role",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-role/integration: require admin role",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const helpers = await getTestHelpers();
     // deno-lint-ignore no-explicit-any
@@ -82,10 +86,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "manage-user-role: allow admin to change roles",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-role/integration: allow admin to change roles",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const helpers = await getTestHelpers();
     // deno-lint-ignore no-explicit-any
@@ -127,10 +130,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-role: validate role values",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-role/integration: validate role values",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const helpers = await getTestHelpers();
     // deno-lint-ignore no-explicit-any
@@ -169,10 +171,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "manage-user-role: require userId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-role/integration: require userId",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const helpers = await getTestHelpers();
     // deno-lint-ignore no-explicit-any
@@ -209,10 +210,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "manage-user-role: require newRole",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-role/integration: require newRole",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const helpers = await getTestHelpers();
     // deno-lint-ignore no-explicit-any
@@ -254,10 +254,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-role: handle non-existent user",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-role/integration: handle non-existent user",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const helpers = await getTestHelpers();
     // deno-lint-ignore no-explicit-any
@@ -295,10 +294,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "manage-user-role: prevent changing own role",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-role/integration: prevent changing own role",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const helpers = await getTestHelpers();
     // deno-lint-ignore no-explicit-any
@@ -340,10 +338,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "manage-user-role: cleanup test data",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "manage-user-role/integration: cleanup test data",
+  ignore: skipServiceRoleTests,
+  ...integrationTestOptions,
   fn: async () => {
     const helpers = await getTestHelpers();
     // deno-lint-ignore no-explicit-any
