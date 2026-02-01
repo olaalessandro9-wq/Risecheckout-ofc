@@ -11,19 +11,23 @@
  * - Error handling
  * 
  * @module get-order-for-pix/index.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+const config = getTestConfig();
+const supabaseUrl = config.supabaseUrl;
 
 Deno.test({
-  name: "get-order-for-pix: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-order-for-pix/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-order-for-pix`, {
       method: 'OPTIONS'
@@ -35,10 +39,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-order-for-pix: Deve rejeitar request sem orderId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-order-for-pix/integration: Deve rejeitar request sem orderId",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-order-for-pix`, {
       method: 'GET'
@@ -49,10 +52,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-order-for-pix: Deve rejeitar orderId vazio",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-order-for-pix/integration: Deve rejeitar orderId vazio",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-order-for-pix?orderId=`, {
       method: 'GET'
@@ -63,10 +65,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-order-for-pix: Deve retornar 404 para orderId inexistente",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-order-for-pix/integration: Deve retornar 404 para orderId inexistente",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-order-for-pix?orderId=nonexistent_order_123`, {
       method: 'GET'
@@ -77,10 +78,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "get-order-for-pix: Content-Type deve ser application/json",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "get-order-for-pix/integration: Content-Type deve ser application/json",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/get-order-for-pix?orderId=test_order_123`, {
       method: 'GET'

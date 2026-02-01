@@ -18,23 +18,27 @@
  * - Refund handling
  * 
  * @module _integration-tests/payments/card-flow.integration.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+const config = getTestConfig();
+const supabaseUrl = config.supabaseUrl;
 
 // ============================================================================
 // CARD PAYMENT CREATION TESTS
 // ============================================================================
 
 Deno.test({
-  name: "Card Flow: Stripe card payment creation should process payment",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Stripe card payment creation should process payment",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -67,10 +71,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Card Flow: MercadoPago card payment creation should process payment",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: MercadoPago card payment creation should process payment",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -98,10 +101,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Card Flow: Asaas card payment creation should process payment",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Asaas card payment creation should process payment",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -139,10 +141,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "Card Flow: Stripe webhook payment success should update order",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Stripe webhook payment success should update order",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       type: 'payment_intent.succeeded',
@@ -172,10 +173,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Card Flow: Stripe webhook payment failed should update order",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Stripe webhook payment failed should update order",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       type: 'payment_intent.payment_failed',
@@ -211,10 +211,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "Card Flow: Card payment with invalid card number should fail",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Card payment with invalid card number should fail",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -246,10 +245,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Card Flow: Card payment with expired card should fail",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Card payment with expired card should fail",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -281,10 +279,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Card Flow: Card payment without CVC should fail",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Card payment without CVC should fail",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -320,10 +317,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "Card Flow: Card payment with installments should process correctly",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Card payment with installments should process correctly",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       amount: 10000,
@@ -356,10 +352,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "Card Flow: Stripe webhook charge.refunded should update order",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Stripe webhook charge.refunded should update order",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       type: 'charge.refunded',
@@ -389,10 +384,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Card Flow: Stripe webhook charge.dispute.created should update order",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "card-flow/integration: Stripe webhook charge.dispute.created should update order",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const webhookPayload = {
       type: 'charge.dispute.created',

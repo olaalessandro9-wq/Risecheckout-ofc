@@ -16,26 +16,27 @@
  * - Success responses
  * 
  * @module asaas-create-payment/index.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-
-// Skip tests if environment is not configured or using mock values
-const isMockUrl = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
-const skipTests = isMockUrl;
+const config = getTestConfig();
+const supabaseUrl = config.supabaseUrl;
 
 // ============================================================================
 // CORS TESTS
 // ============================================================================
 
 Deno.test({
-  name: "asaas-create-payment: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/asaas-create-payment`, {
       method: 'OPTIONS'
@@ -54,10 +55,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar payload sem orderId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar payload sem orderId",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       // orderId missing
@@ -82,10 +82,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar payload sem amountCents",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar payload sem amountCents",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -110,10 +109,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar payload sem paymentMethod",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar payload sem paymentMethod",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -138,10 +136,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar payload sem customer",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar payload sem customer",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -166,10 +163,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar paymentMethod inválido",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar paymentMethod inválido",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -194,10 +190,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar credit_card sem cardToken",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar credit_card sem cardToken",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -227,10 +222,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar amountCents zero",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar amountCents zero",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -255,10 +249,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar amountCents negativo",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar amountCents negativo",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -287,10 +280,9 @@ Deno.test({
 // ============================================================================
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar customer sem name",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar customer sem name",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -315,10 +307,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar customer sem email",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar customer sem email",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -343,10 +334,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "asaas-create-payment: Deve rejeitar customer sem document",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "asaas-create-payment/integration: Deve rejeitar customer sem document",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',

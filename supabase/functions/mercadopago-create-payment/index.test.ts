@@ -13,19 +13,23 @@
  * - Error handling
  * 
  * @module mercadopago-create-payment/index.test
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration, 
+  integrationTestOptions,
+  getTestConfig 
+} from "../_shared/testing/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
+const config = getTestConfig();
+const supabaseUrl = config.supabaseUrl;
 
 Deno.test({
-  name: "mercadopago-create-payment: OPTIONS deve retornar CORS headers",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "mercadopago-create-payment/integration: OPTIONS deve retornar CORS headers",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const response = await fetch(`${supabaseUrl}/functions/v1/mercadopago-create-payment`, {
       method: 'OPTIONS'
@@ -37,10 +41,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "mercadopago-create-payment: Deve rejeitar payload sem orderId",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "mercadopago-create-payment/integration: Deve rejeitar payload sem orderId",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       payerEmail: 'test@example.com',
@@ -57,10 +60,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "mercadopago-create-payment: Deve rejeitar payload sem payerEmail",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "mercadopago-create-payment/integration: Deve rejeitar payload sem payerEmail",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -77,10 +79,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "mercadopago-create-payment: Deve rejeitar payload sem paymentMethod",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "mercadopago-create-payment/integration: Deve rejeitar payload sem paymentMethod",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -97,10 +98,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "mercadopago-create-payment: Deve rejeitar paymentMethod inválido",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "mercadopago-create-payment/integration: Deve rejeitar paymentMethod inválido",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -118,10 +118,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "mercadopago-create-payment: Deve rejeitar credit_card sem token",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "mercadopago-create-payment/integration: Deve rejeitar credit_card sem token",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -139,10 +138,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "mercadopago-create-payment: Deve rejeitar email inválido",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "mercadopago-create-payment/integration: Deve rejeitar email inválido",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
@@ -160,10 +158,9 @@ Deno.test({
 });
 
 Deno.test({
-  name: "mercadopago-create-payment: Content-Type deve ser application/json",
-  ignore: skipTests,
-  sanitizeResources: false,
-  sanitizeOps: false,
+  name: "mercadopago-create-payment/integration: Content-Type deve ser application/json",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
   fn: async () => {
     const payload = {
       orderId: 'order_test_123',
