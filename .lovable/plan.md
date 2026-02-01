@@ -1,366 +1,634 @@
 
-# PLANO DEFINITIVO: FASE 0 - INFRAESTRUTURA DE MOCKS CENTRALIZADA
+# FASE 1: MIGRAÇÃO DE TESTES DE PAGAMENTOS
 
 ## RISE ARCHITECT PROTOCOL V3 - 10.0/10
 
 ---
 
-## 1. DIAGNÓSTICO TÉCNICO VERIFICADO
+## 1. ESCOPO DA FASE 1
 
-### 1.1 Estado Atual da Infraestrutura
+### 1.1 Arquivos a Migrar
 
-| Componente | Status | Localização |
-|------------|--------|-------------|
-| `FetchMock` | ✅ Existe | `_shared/test-mocks.ts` |
-| `EmailServiceMock` | ✅ Existe | `_shared/test-mocks.ts` |
-| `CloudflareTurnstileMock` | ✅ Existe | `_shared/test-mocks.ts` |
-| `test-helpers.ts` | ✅ Existe | `_shared/test-helpers.ts` (para integration tests) |
-| `MockSupabaseClient` centralizado | ❌ NÃO EXISTE | 14 implementações locais duplicadas |
-| `MockResponses` padronizadas | ❌ NÃO EXISTE | - |
-| `TestFactories` type-safe | ❌ NÃO EXISTE | - |
-| `TestConfig` para ambiente | ❌ NÃO EXISTE | - |
+| # | Arquivo | Testes Ignorados | Complexidade |
+|---|---------|------------------|--------------|
+| 1 | `pushinpay-validate-token/index.test.ts` | 4 testes | Baixa |
+| 2 | `pushinpay-get-status/index.test.ts` | 3 testes | Média |
+| 3 | `pushinpay-webhook/index.test.ts` | 4 testes | Alta |
+| 4 | `pushinpay-create-pix/index.test.ts` | 6 testes | Média |
+| 5 | `asaas-webhook/index.test.ts` | 5 testes | Alta |
+| 6 | `mercadopago-webhook/index.test.ts` | 4 testes | Alta |
+| 7 | `reconcile-pending-orders/index.test.ts` | 3 testes | Média |
 
-### 1.2 Problema: 14 Implementações Duplicadas
+**TOTAL: 7 arquivos, ~29 testes**
 
-Arquivos com `createMockSupabaseClient` local (cada um reinventando a roda):
+### 1.2 Padrão Legado Identificado
 
-1. `detect-abandoned-checkouts/index.test.ts`
-2. `trigger-webhooks/index.test.ts`
-3. `dashboard-analytics/index.test.ts`
-4. `grant-product-access/index.test.ts`
-5. `check-product-access/index.test.ts`
-6. `product-gallery-crud/tests/unit.test.ts`
-7. `get-product-gallery/tests/unit.test.ts`
-8. `create-access-token/index.test.ts`
-9. `validate-access-token/index.test.ts`
-10. `cart-crud/tests/unit.test.ts`
-11. `cart-crud/tests/integration.test.ts`
-12. `members-area-progress/index.test.ts`
-13. `send-checkout-notifications/index.test.ts`
-14. `notify-abandoned-checkout/tests/unit.test.ts`
+Todos os arquivos usam o mesmo padrão problemático:
 
-**TOTAL: 840 referências** ao padrão local que precisam ser migradas para o centralizado.
-
----
-
-## 2. ARQUITETURA DA SOLUÇÃO
-
-### 2.1 Estrutura de Diretórios
-
-```text
-supabase/functions/_shared/
-├── testing/                          # NOVO DIRETÓRIO
-│   ├── mod.ts                        # Barrel export (ponto único)
-│   ├── types.ts                      # Tipos compartilhados
-│   ├── test-config.ts                # Configuração de ambiente
-│   ├── mock-supabase-client.ts       # Cliente Supabase mockado
-│   ├── mock-responses.ts             # Respostas HTTP padronizadas
-│   ├── test-factories.ts             # Factories de dados
-│   └── __tests__/                    # Testes da própria infraestrutura
-│       └── mock-supabase-client.test.ts
-├── test-mocks.ts                     # EXISTENTE - manter
-└── test-helpers.ts                   # EXISTENTE - manter (integration)
-```
-
-### 2.2 Hierarquia de Importação
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│              testing/mod.ts (BARREL EXPORT)                 │
-│  Ponto único de importação para toda infraestrutura         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-       ┌──────────────────────┼──────────────────────┐
-       │                      │                      │
-       ▼                      ▼                      ▼
-┌─────────────┐     ┌─────────────────┐     ┌──────────────┐
-│  types.ts   │     │ test-config.ts  │     │ test-mocks.ts│
-│  Tipos base │     │ Ambiente/skip   │     │ (existente)  │
-└─────────────┘     └─────────────────┘     └──────────────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────────────────┐
-│              mock-supabase-client.ts                         │
-│  Cliente Supabase mockado com QueryBuilder completo         │
-└─────────────────────────────────────────────────────────────┘
-       │
-       ├────────────────────────────────────────┐
-       ▼                                        ▼
-┌─────────────────────┐              ┌─────────────────────┐
-│  mock-responses.ts  │              │  test-factories.ts  │
-│  Respostas HTTP     │              │  Dados de teste     │
-└─────────────────────┘              └─────────────────────┘
-```
-
----
-
-## 3. ESPECIFICAÇÃO TÉCNICA DETALHADA
-
-### 3.1 `types.ts` - Tipos Fundamentais
-
-**Responsabilidade:** Definir tipos base usados por toda infraestrutura de testes.
-
-**Conteúdo:**
-- `MockUser` - Usuário mockado com id, email, role
-- `MockSession` - Sessão mockada com tokens
-- `MockQueryResult<T>` - Resultado de query Supabase
-- `MockError` - Erro padronizado
-- `MockDataStore` - Map de dados por tabela
-- `TestEnvironment` - "unit" | "contract" | "integration"
-
-**Linhas estimadas:** ~60 linhas
-
-### 3.2 `test-config.ts` - Configuração de Ambiente
-
-**Responsabilidade:** Detectar ambiente de execução e fornecer funções de skip.
-
-**Funções Exportadas:**
-- `getTestConfig()` - Retorna configuração completa do ambiente
-- `skipIntegration()` - Retorna `true` se não for ambiente de integração
-- `skipContract()` - Retorna `true` se for ambiente unit-only
-- `isCI()` - Detecta se está rodando em CI
-
-**Lógica de Detecção:**
 ```typescript
-environment = "unit";  // default
-if (SUPABASE_URL && SERVICE_ROLE_KEY && RUN_INTEGRATION) → "integration"
-else if (SUPABASE_URL) → "contract"
-```
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const skipTests = !supabaseUrl || supabaseUrl.includes('test.supabase.co') || !supabaseUrl.startsWith('https://');
 
-**Linhas estimadas:** ~80 linhas
-
-### 3.3 `mock-supabase-client.ts` - Cliente Mockado
-
-**Responsabilidade:** Substituir 14 implementações locais por uma única centralizada e type-safe.
-
-**Interface Principal:**
-```typescript
-interface MockSupabaseClient {
-  from<T>(table: string): MockQueryBuilder<T>;
-  auth: MockAuth;
-  rpc<T>(fn: string, params?: unknown): Promise<MockQueryResult<T>>;
-}
-```
-
-**MockQueryBuilder - Métodos Suportados:**
-- `select`, `insert`, `update`, `upsert`, `delete`
-- Filtros: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `is`, `in`
-- Modificadores: `order`, `limit`, `range`
-- Terminadores: `single`, `maybeSingle`, `then`
-
-**MockAuth - Métodos Suportados:**
-- `getUser()`, `getSession()`
-- `admin.createUser()`, `admin.deleteUser()`
-
-**Configuração:**
-```typescript
-createMockSupabaseClient({
-  mockData: Map<string, unknown[]>,  // Dados iniciais por tabela
-  authUser: MockUser | null,          // Usuário autenticado
-  authSession: MockSession | null,    // Sessão ativa
-  rpcHandlers: Record<string, Function>, // Handlers para RPCs
-  forceError: MockError | null,       // Forçar erro em todas ops
+Deno.test({
+  name: "function-name: description",
+  ignore: skipTests,  // <-- IGNORADO EM CI
+  fn: async () => {
+    const response = await fetch(`${supabaseUrl}/functions/v1/function-name`);
+    // ...
+  }
 });
 ```
 
-**Linhas estimadas:** ~250 linhas
+---
 
-### 3.4 `mock-responses.ts` - Respostas HTTP
+## 2. ARQUITETURA ALVO (3 CAMADAS)
 
-**Responsabilidade:** Biblioteca de respostas HTTP padronizadas para contract tests.
+### 2.1 Estrutura de Diretórios Por Função
 
-**Categorias:**
-1. **Success Responses:** `jsonResponse`, `successResponse`, `createdResponse`
-2. **Error Responses:** `badRequestResponse`, `unauthorizedResponse`, `forbiddenResponse`, `notFoundResponse`, `serverErrorResponse`
-3. **CORS:** `corsOptionsResponse`
-4. **Gateway-Specific:** `GatewayResponses.pushinpay.*`, `GatewayResponses.mercadopago.*`, `GatewayResponses.asaas.*`
-
-**Linhas estimadas:** ~150 linhas
-
-### 3.5 `test-factories.ts` - Factories de Dados
-
-**Responsabilidade:** Gerar dados de teste type-safe e consistentes.
-
-**Factories Disponíveis:**
-- **IDs:** `generateId()`, `generateUUID()`
-- **Users:** `createMockUser()`, `createMockProducer()`, `createMockAdmin()`, `createMockOwner()`
-- **Sessions:** `createMockSession(userId)`
-- **Products:** `createMockProduct(userId)`
-- **Orders:** `createMockOrder(vendorId, productId)`, `createMockPaidOrder()`
-- **Affiliates:** `createMockAffiliate(userId, productId)`
-- **Webhooks:** `createMockWebhook(userId)`
-- **Requests:** `createMockRequest()`, `createAuthenticatedRequest()`
-
-**Linhas estimadas:** ~200 linhas
-
-### 3.6 `mod.ts` - Barrel Export
-
-**Responsabilidade:** Ponto único de importação para toda infraestrutura.
-
-**Exports:**
-```typescript
-// Types
-export type * from "./types.ts";
-
-// Config
-export { getTestConfig, skipIntegration, skipContract, isCI } from "./test-config.ts";
-
-// Mock Supabase
-export { createMockSupabaseClient, createMockDataStore } from "./mock-supabase-client.ts";
-
-// Mock Responses
-export { jsonResponse, successResponse, errorResponse, ... } from "./mock-responses.ts";
-
-// Factories
-export { createMockUser, createMockProduct, ... } from "./test-factories.ts";
-
-// Re-export from existing
-export { FetchMock, EmailServiceMock, ... } from "../test-mocks.ts";
+```text
+supabase/functions/pushinpay-webhook/
+├── index.ts                    # Código principal
+├── tests/                      # NOVO DIRETÓRIO
+│   ├── _shared.ts             # Constantes, tipos, helpers
+│   ├── validation.test.ts     # Camada 1: Unit tests de validação
+│   ├── handlers.test.ts       # Camada 1: Unit tests de handlers
+│   ├── api.contract.test.ts   # Camada 2: Contract tests (mockados)
+│   └── integration.test.ts    # Camada 3: Integration tests (opt-in)
+└── index.test.ts               # MANTER TEMPORARIAMENTE (será removido)
 ```
 
-**Linhas estimadas:** ~50 linhas
+### 2.2 Camadas de Teste
+
+| Camada | Tipo | Execução | Dependência de Infra |
+|--------|------|----------|---------------------|
+| **1** | Unit | SEMPRE | Nenhuma |
+| **2** | Contract | SEMPRE | Mock HTTP |
+| **3** | Integration | OPT-IN | Supabase real |
+
+---
+
+## 3. IMPLEMENTAÇÃO DETALHADA
+
+### 3.1 Arquivo `_shared.ts` (Padrão para cada função)
+
+Cada função terá um arquivo `tests/_shared.ts` contendo:
+
+- Constantes específicas da função
+- Tipos de payload
+- Factories específicas
+- Helper functions
+
+**Exemplo para `pushinpay-webhook`:**
+
+```typescript
+/**
+ * Shared Test Utilities - pushinpay-webhook
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ */
+
+// Re-export from centralized testing
+export {
+  createMockSupabaseClient,
+  createMockDataStore,
+  createMockUser,
+  createMockOrder,
+  skipIntegration,
+  unitTestOptions,
+  PushinPayResponses,
+} from "../../_shared/testing/mod.ts";
+
+// Function-specific constants
+export const FUNCTION_NAME = "pushinpay-webhook";
+export const WEBHOOK_TOKEN = "test-webhook-token-123";
+
+// Payload types
+export interface PushinPayWebhookPayload {
+  id: string;
+  status: "created" | "paid" | "canceled" | "expired";
+  value?: number;
+  payer_name?: string | null;
+  payer_national_registration?: string | null;
+}
+
+// Payload factories
+export function createValidPayload(overrides?: Partial<PushinPayWebhookPayload>): PushinPayWebhookPayload {
+  return {
+    id: "pix-test-123",
+    status: "paid",
+    value: 10000,
+    payer_name: "Test User",
+    ...overrides,
+  };
+}
+
+export function createEmptyPayload(): Record<string, never> {
+  return {};
+}
+
+export function createInvalidJsonPayload(): string {
+  return "invalid json {";
+}
+```
+
+### 3.2 Arquivo `validation.test.ts` (Camada 1 - Unit)
+
+Testa validação de payload SEM chamadas HTTP:
+
+```typescript
+/**
+ * Unit Tests - Payload Validation
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Camada 1: Testes de lógica pura
+ * Execução: SEMPRE (sem dependência de infraestrutura)
+ */
+
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  createValidPayload,
+  createEmptyPayload,
+  unitTestOptions,
+} from "./_shared.ts";
+
+// ============================================================================
+// PAYLOAD VALIDATION TESTS
+// ============================================================================
+
+Deno.test({
+  name: "pushinpay-webhook/validation: payload válido tem todos os campos",
+  ...unitTestOptions,
+  fn: () => {
+    const payload = createValidPayload();
+    assertEquals(typeof payload.id, "string");
+    assertEquals(payload.id.length > 0, true);
+    assertEquals(["created", "paid", "canceled", "expired"].includes(payload.status), true);
+  }
+});
+
+Deno.test({
+  name: "pushinpay-webhook/validation: payload vazio é detectado",
+  ...unitTestOptions,
+  fn: () => {
+    const payload = createEmptyPayload();
+    assertEquals(Object.keys(payload).length, 0);
+  }
+});
+
+Deno.test({
+  name: "pushinpay-webhook/validation: status paid é reconhecido",
+  ...unitTestOptions,
+  fn: () => {
+    const payload = createValidPayload({ status: "paid" });
+    assertEquals(payload.status, "paid");
+  }
+});
+
+Deno.test({
+  name: "pushinpay-webhook/validation: status expired é reconhecido",
+  ...unitTestOptions,
+  fn: () => {
+    const payload = createValidPayload({ status: "expired" });
+    assertEquals(payload.status, "expired");
+  }
+});
+```
+
+### 3.3 Arquivo `handlers.test.ts` (Camada 1 - Unit)
+
+Testa lógica de handlers com mock Supabase:
+
+```typescript
+/**
+ * Unit Tests - Handler Logic
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Camada 1: Testes de lógica de handlers com MockSupabaseClient
+ * Execução: SEMPRE
+ */
+
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  createMockSupabaseClient,
+  createMockDataStore,
+  createMockOrder,
+  unitTestOptions,
+  createValidPayload,
+} from "./_shared.ts";
+
+// ============================================================================
+// ORDER LOOKUP TESTS
+// ============================================================================
+
+Deno.test({
+  name: "pushinpay-webhook/handlers: encontra order por pix_id",
+  ...unitTestOptions,
+  fn: async () => {
+    const mockOrder = createMockOrder({ pix_id: "pix-test-123" });
+    const client = createMockSupabaseClient({
+      mockData: createMockDataStore({
+        orders: [mockOrder]
+      })
+    });
+
+    const { data } = await client
+      .from("orders")
+      .select("*")
+      .eq("pix_id", "pix-test-123")
+      .single();
+
+    assertEquals(data?.pix_id, "pix-test-123");
+  }
+});
+
+Deno.test({
+  name: "pushinpay-webhook/handlers: retorna erro se order não existe",
+  ...unitTestOptions,
+  fn: async () => {
+    const client = createMockSupabaseClient({
+      mockData: createMockDataStore({ orders: [] })
+    });
+
+    const { data, error } = await client
+      .from("orders")
+      .select("*")
+      .eq("pix_id", "non-existent")
+      .single();
+
+    assertEquals(data, null);
+    assertEquals(error !== null, true);
+  }
+});
+
+Deno.test({
+  name: "pushinpay-webhook/handlers: atualiza status para paid",
+  ...unitTestOptions,
+  fn: async () => {
+    const mockOrder = createMockOrder({ 
+      id: "order-123",
+      pix_id: "pix-test-123", 
+      status: "pending" 
+    });
+    const client = createMockSupabaseClient({
+      mockData: createMockDataStore({
+        orders: [mockOrder]
+      })
+    });
+
+    await client
+      .from("orders")
+      .update({ status: "paid", paid_at: new Date().toISOString() })
+      .eq("id", "order-123");
+
+    const { data } = await client
+      .from("orders")
+      .select("*")
+      .eq("id", "order-123")
+      .single();
+
+    assertEquals(data?.status, "paid");
+  }
+});
+```
+
+### 3.4 Arquivo `api.contract.test.ts` (Camada 2 - Contract)
+
+Testa contratos HTTP com FetchMock:
+
+```typescript
+/**
+ * Contract Tests - HTTP API
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Camada 2: Testes de contrato HTTP com FetchMock
+ * Execução: SEMPRE (não depende de SUPABASE_URL real)
+ */
+
+import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  FetchMock,
+  corsOptionsResponse,
+  unauthorizedResponse,
+  badRequestResponse,
+  successResponse,
+  unitTestOptions,
+  FUNCTION_NAME,
+  WEBHOOK_TOKEN,
+  createValidPayload,
+  createEmptyPayload,
+} from "./_shared.ts";
+
+const MOCK_URL = `https://mock.supabase.co/functions/v1/${FUNCTION_NAME}`;
+
+// ============================================================================
+// CORS CONTRACT TESTS
+// ============================================================================
+
+Deno.test({
+  name: "pushinpay-webhook/contract: OPTIONS retorna CORS headers",
+  ...unitTestOptions,
+  fn: async () => {
+    const fetchMock = new FetchMock();
+    fetchMock.add({
+      url: MOCK_URL,
+      method: "OPTIONS",
+      response: corsOptionsResponse()
+    });
+    fetchMock.install();
+
+    try {
+      const response = await fetch(MOCK_URL, { method: "OPTIONS" });
+      await response.text();
+      
+      assertEquals(response.status, 200);
+      assertExists(response.headers.get("Access-Control-Allow-Origin"));
+    } finally {
+      fetchMock.uninstall();
+    }
+  }
+});
+
+// ============================================================================
+// AUTHENTICATION CONTRACT TESTS
+// ============================================================================
+
+Deno.test({
+  name: "pushinpay-webhook/contract: rejeita request sem token",
+  ...unitTestOptions,
+  fn: async () => {
+    const fetchMock = new FetchMock();
+    fetchMock.add({
+      url: MOCK_URL,
+      method: "POST",
+      response: unauthorizedResponse("Token ausente")
+    });
+    fetchMock.install();
+
+    try {
+      const response = await fetch(MOCK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createValidPayload())
+      });
+      await response.text();
+      
+      assertEquals(response.status, 401);
+    } finally {
+      fetchMock.uninstall();
+    }
+  }
+});
+
+// ============================================================================
+// VALIDATION CONTRACT TESTS
+// ============================================================================
+
+Deno.test({
+  name: "pushinpay-webhook/contract: rejeita payload vazio",
+  ...unitTestOptions,
+  fn: async () => {
+    const fetchMock = new FetchMock();
+    fetchMock.add({
+      url: MOCK_URL,
+      method: "POST",
+      response: badRequestResponse("Missing payment ID")
+    });
+    fetchMock.install();
+
+    try {
+      const response = await fetch(MOCK_URL, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-pushinpay-token": WEBHOOK_TOKEN
+        },
+        body: JSON.stringify(createEmptyPayload())
+      });
+      await response.text();
+      
+      assertEquals(response.status, 400);
+    } finally {
+      fetchMock.uninstall();
+    }
+  }
+});
+
+// ============================================================================
+// SUCCESS CONTRACT TESTS
+// ============================================================================
+
+Deno.test({
+  name: "pushinpay-webhook/contract: aceita payload válido",
+  ...unitTestOptions,
+  fn: async () => {
+    const fetchMock = new FetchMock();
+    fetchMock.add({
+      url: MOCK_URL,
+      method: "POST",
+      response: successResponse({ success: true, order_id: "order-123" })
+    });
+    fetchMock.install();
+
+    try {
+      const response = await fetch(MOCK_URL, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-pushinpay-token": WEBHOOK_TOKEN
+        },
+        body: JSON.stringify(createValidPayload())
+      });
+      const data = await response.json();
+      
+      assertEquals(response.status, 200);
+      assertEquals(data.success, true);
+    } finally {
+      fetchMock.uninstall();
+    }
+  }
+});
+```
+
+### 3.5 Arquivo `integration.test.ts` (Camada 3 - Opt-In)
+
+Mantém testes de integração real, mas com skip controlado:
+
+```typescript
+/**
+ * Integration Tests - Real HTTP
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Camada 3: Testes contra Edge Function real
+ * Execução: OPT-IN (apenas quando SUPABASE_URL e RUN_INTEGRATION estão presentes)
+ */
+
+import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { 
+  skipIntegration,
+  integrationTestOptions,
+  FUNCTION_NAME,
+  createValidPayload,
+} from "./_shared.ts";
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+
+// ============================================================================
+// REAL HTTP INTEGRATION TESTS
+// ============================================================================
+
+Deno.test({
+  name: "pushinpay-webhook/integration: CORS real",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
+  fn: async () => {
+    const response = await fetch(`${supabaseUrl}/functions/v1/${FUNCTION_NAME}`, {
+      method: "OPTIONS"
+    });
+    await response.text();
+    
+    assertEquals(response.status, 200);
+    assertExists(response.headers.get("Access-Control-Allow-Origin"));
+  }
+});
+
+Deno.test({
+  name: "pushinpay-webhook/integration: rejeita token inválido (real)",
+  ignore: skipIntegration(),
+  ...integrationTestOptions,
+  fn: async () => {
+    const response = await fetch(`${supabaseUrl}/functions/v1/${FUNCTION_NAME}`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "x-pushinpay-token": "invalid-token"
+      },
+      body: JSON.stringify(createValidPayload())
+    });
+    await response.text();
+    
+    assertEquals(response.status, 401);
+  }
+});
+```
 
 ---
 
 ## 4. CRONOGRAMA DE IMPLEMENTAÇÃO
 
-| Dia | Tarefa | Entregáveis | Linhas |
-|-----|--------|-------------|--------|
-| **1** | Criar estrutura + `types.ts` | `testing/types.ts` | ~60 |
-| **1** | Implementar `test-config.ts` | `testing/test-config.ts` | ~80 |
-| **2** | Implementar `mock-supabase-client.ts` | `testing/mock-supabase-client.ts` | ~250 |
-| **2** | Implementar `mock-responses.ts` | `testing/mock-responses.ts` | ~150 |
-| **3** | Implementar `test-factories.ts` | `testing/test-factories.ts` | ~200 |
-| **3** | Criar `mod.ts` + testar imports | `testing/mod.ts` | ~50 |
-| **4** | Testes da infraestrutura | `testing/__tests__/*.test.ts` | ~150 |
-| **4** | Documentação | Atualizar README | ~50 |
+| Dia | Tarefa | Arquivos | Testes |
+|-----|--------|----------|--------|
+| **1** | Migrar `pushinpay-validate-token` | 4 arquivos | 4 → 8+ |
+| **1** | Migrar `pushinpay-get-status` | 4 arquivos | 3 → 6+ |
+| **2** | Migrar `pushinpay-webhook` | 4 arquivos | 4 → 12+ |
+| **2** | Migrar `pushinpay-create-pix` | 4 arquivos | 6 → 10+ |
+| **3** | Migrar `asaas-webhook` | 4 arquivos | 5 → 12+ |
+| **3** | Migrar `mercadopago-webhook` | 4 arquivos | 4 → 10+ |
+| **4** | Migrar `reconcile-pending-orders` | 4 arquivos | 3 → 6+ |
+| **4** | Validação final + cleanup | - | - |
 
-**TOTAL: 4 dias úteis, ~990 linhas de código**
-
----
-
-## 5. EXEMPLO DE USO (ANTES/DEPOIS)
-
-### ANTES (14 implementações locais duplicadas):
-
-```typescript
-// detect-abandoned-checkouts/index.test.ts
-function createMockSupabaseClient() {
-  return {
-    from: () => ({
-      select: () => ({ eq: () => ({ data: [], error: null }) }),
-      // ... implementação incompleta e duplicada
-    }),
-  };
-}
-
-let mockSupabaseClient = createMockSupabaseClient();
-```
-
-### DEPOIS (importação centralizada):
-
-```typescript
-// detect-abandoned-checkouts/index.test.ts
-import { 
-  createMockSupabaseClient,
-  createMockDataStore,
-  createMockUser,
-  skipIntegration 
-} from "../_shared/testing/mod.ts";
-
-const user = createMockUser({ role: "user" });
-const mockClient = createMockSupabaseClient({
-  mockData: createMockDataStore({
-    checkout_sessions: [{ id: "sess-1", status: "abandoned" }],
-  }),
-  authUser: user,
-});
-
-Deno.test("detect-abandoned-checkouts: finds abandoned sessions", async () => {
-  const result = await mockClient.from("checkout_sessions")
-    .select("*")
-    .eq("status", "abandoned");
-  
-  assertEquals(result.data?.length, 1);
-});
-```
+**TOTAL: 4 dias, 28 novos arquivos, 29 testes antigos → 64+ testes novos**
 
 ---
 
-## 6. BENEFÍCIOS MENSURÁVEIS
+## 5. MÉTRICAS DE SUCESSO
 
 | Métrica | Antes | Depois |
 |---------|-------|--------|
-| Implementações de MockSupabase | 14 duplicadas | 1 centralizada |
-| Linhas de código duplicado | ~1400 linhas | 0 linhas |
-| Consistência de mocks | Variável | 100% type-safe |
-| Manutenibilidade | Baixa (14 lugares) | Alta (1 lugar) |
-| Cobertura de métodos Supabase | Parcial | Completa |
-| Tempo para criar novos testes | Alto | Baixo |
+| Testes de pagamento ignorados | 29 | 0 |
+| Testes sempre executados | 0 | 64+ |
+| Cobertura de validação | ~20% | ~80%+ |
+| Cobertura de handlers | ~10% | ~70%+ |
+| Dependência de SUPABASE_URL | 100% | 0% (Camadas 1-2) |
 
 ---
 
-## 7. INTEGRAÇÃO COM FASES SEGUINTES
+## 6. ORDEM DE IMPLEMENTAÇÃO
 
-Esta infraestrutura será usada nas Fases 1-5 para migrar os 38 arquivos com `skipTests`:
+1. **pushinpay-validate-token** (mais simples - piloto)
+   - Criar `tests/_shared.ts`
+   - Criar `tests/validation.test.ts`
+   - Criar `tests/api.contract.test.ts`
+   - Criar `tests/integration.test.ts`
 
-```text
-Fase 0 (esta) → Infraestrutura de Mocks
-      │
-      ▼
-Fase 1 → Migrar 7 arquivos de Pagamentos (pushinpay, asaas, mercadopago)
-      │
-      ▼
-Fase 2 → Migrar 4 arquivos de Auth (unified-auth, session-manager, etc)
-      │
-      ▼
-Fase 3 → Migrar 5 arquivos GDPR/Security (gdpr-request, rls-tester, etc)
-      │
-      ▼
-Fase 4 → Migrar 8 arquivos de Afiliados/Conteúdo
-      │
-      ▼
-Fase 5 → Migrar arquivos restantes + consolidar 14 implementações locais
-```
+2. **pushinpay-get-status** (médio)
+
+3. **pushinpay-create-pix** (médio)
+
+4. **pushinpay-webhook** (complexo - muita lógica de negócio)
+
+5. **asaas-webhook** (complexo - IP whitelist + token)
+
+6. **mercadopago-webhook** (complexo - HMAC signature)
+
+7. **reconcile-pending-orders** (médio - cron job)
 
 ---
 
-## 8. CONFORMIDADE RISE V3
+## 7. CONFORMIDADE RISE V3
 
 | Seção | Requisito | Status |
 |-------|-----------|--------|
-| 4.1 | Melhor solução (nota máxima) | ✅ Infraestrutura centralizada 10.0/10 |
-| 4.3 | Ignorar tempo/complexidade | ✅ 4 dias, 990 linhas |
-| 4.5 | Nenhum atalho | ✅ Implementação completa |
-| 6.1 | Resolver causa raiz | ✅ Elimina 14 duplicações |
-| 6.4 | Código < 300 linhas/arquivo | ✅ Maior arquivo: 250 linhas |
+| 4.1 | Melhor solução (nota máxima) | ✅ 3 camadas type-safe |
+| 4.5 | Nenhum atalho | ✅ Migração completa |
+| 6.1 | Resolver causa raiz | ✅ Elimina skipTests |
+| 6.4 | Código < 300 linhas | ✅ Arquivos modulares |
 
 ---
 
-## 9. ARQUIVOS A SEREM CRIADOS
+## 8. ENTREGÁVEIS FINAIS DA FASE 1
 
 ```text
-supabase/functions/_shared/testing/
-├── mod.ts                           # 50 linhas
-├── types.ts                         # 60 linhas
-├── test-config.ts                   # 80 linhas
-├── mock-supabase-client.ts          # 250 linhas
-├── mock-responses.ts                # 150 linhas
-├── test-factories.ts                # 200 linhas
-└── __tests__/
-    ├── mock-supabase-client.test.ts # 100 linhas
-    └── test-factories.test.ts       # 50 linhas
+supabase/functions/
+├── pushinpay-validate-token/
+│   └── tests/
+│       ├── _shared.ts
+│       ├── validation.test.ts
+│       ├── api.contract.test.ts
+│       └── integration.test.ts
+├── pushinpay-get-status/
+│   └── tests/
+│       ├── _shared.ts
+│       ├── validation.test.ts
+│       ├── handlers.test.ts
+│       ├── api.contract.test.ts
+│       └── integration.test.ts
+├── pushinpay-webhook/
+│   └── tests/
+│       ├── _shared.ts
+│       ├── validation.test.ts
+│       ├── handlers.test.ts
+│       ├── status-mapping.test.ts
+│       ├── api.contract.test.ts
+│       └── integration.test.ts
+├── pushinpay-create-pix/
+│   └── tests/
+│       ├── _shared.ts
+│       ├── validation.test.ts
+│       ├── handlers.test.ts
+│       ├── api.contract.test.ts
+│       └── integration.test.ts
+├── asaas-webhook/
+│   └── tests/
+│       ├── _shared.ts
+│       ├── validation.test.ts
+│       ├── handlers.test.ts
+│       ├── ip-whitelist.test.ts
+│       ├── status-mapping.test.ts
+│       ├── api.contract.test.ts
+│       └── integration.test.ts
+├── mercadopago-webhook/
+│   └── tests/
+│       ├── _shared.ts
+│       ├── validation.test.ts
+│       ├── signature.test.ts
+│       ├── handlers.test.ts
+│       ├── api.contract.test.ts
+│       └── integration.test.ts
+└── reconcile-pending-orders/
+    └── tests/
+        ├── _shared.ts
+        ├── reconciliation.test.ts
+        ├── api.contract.test.ts
+        └── integration.test.ts
 
-TOTAL: 8 arquivos, ~940 linhas
+TOTAL: 28 novos arquivos de teste
 ```
-
----
-
-## 10. PRÓXIMOS PASSOS APÓS APROVAÇÃO
-
-1. **Criar diretório** `_shared/testing/`
-2. **Implementar** `types.ts` e `test-config.ts` (Dia 1)
-3. **Implementar** `mock-supabase-client.ts` e `mock-responses.ts` (Dia 2)
-4. **Implementar** `test-factories.ts` e `mod.ts` (Dia 3)
-5. **Criar testes** e documentação (Dia 4)
-6. **Iniciar Fase 1** - Migração de testes de Pagamentos
