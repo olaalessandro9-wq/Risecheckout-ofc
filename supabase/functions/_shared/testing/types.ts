@@ -28,6 +28,7 @@ export type TestEnvironment = "unit" | "contract" | "integration";
 export interface TestConfig {
   environment: TestEnvironment;
   supabaseUrl: string | null;
+  supabaseAnonKey: string | null;
   hasServiceRoleKey: boolean;
   isCI: boolean;
   runIntegration: boolean;
