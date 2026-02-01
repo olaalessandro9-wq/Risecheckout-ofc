@@ -710,7 +710,7 @@ describe("checkout-public-data - Edge Cases", () => {
       slug: longSlug,
     });
     
-    assertEqualslength, 1000);
+    assertEquals(longSlug.length, 1000);
   });
 
   it("should handle special characters in coupon code", async () => {
