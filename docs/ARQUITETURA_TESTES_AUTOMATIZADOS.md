@@ -68,8 +68,7 @@ npm run test:e2e
 Os workflows do GitHub Actions estão configurados em `.github/workflows/`:
 
 - `ci.yml` - Pipeline principal de CI
-- `gitleaks.yml` - Scan de segurança para secrets
-- `security-scan.yml` - Análise de vulnerabilidades
+- `security-scan.yml` - Análise de segurança (TruffleHog, Dependency Audit, CodeQL)
 
 ---
 

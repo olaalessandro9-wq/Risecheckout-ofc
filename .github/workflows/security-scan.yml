@@ -3,6 +3,11 @@
 # =============================================================================
 # This workflow runs on every push and PR to detect exposed secrets
 # and other security vulnerabilities before they reach main.
+# 
+# Tools:
+# - TruffleHog: Deep secret scanning (free, verified secrets only)
+# - Dependency Audit: npm vulnerability scanning
+# - CodeQL: Static code analysis
 # =============================================================================
 
 name: 🔐 Security Scan
@@ -21,29 +26,10 @@ permissions:
 
 jobs:
   # ===========================================================================
-  # Gitleaks - Secret Detection
-  # ===========================================================================
-  gitleaks:
-    name: 🔍 Gitleaks Secret Scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
-          GITLEAKS_ENABLE_COMMENTS: true
-
-  # ===========================================================================
-  # TruffleHog - Deep Secret Scanning
+  # TruffleHog - Deep Secret Scanning (Primary Secret Detection)
   # ===========================================================================
   trufflehog:
-    name: 🐷 TruffleHog Deep Scan
+    name: 🐷 TruffleHog Secret Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -111,7 +97,7 @@ jobs:
   security-summary:
     name: 📊 Security Summary
     runs-on: ubuntu-latest
-    needs: [gitleaks, trufflehog, dependency-audit, codeql]
+    needs: [trufflehog, dependency-audit, codeql]
     if: always()
     steps:
       - name: Security Check Results
@@ -119,16 +105,10 @@ jobs:
           echo "## 🔐 Security Scan Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ needs.gitleaks.result }}" == "success" ]; then
-            echo "✅ **Gitleaks**: No secrets detected" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Gitleaks**: Potential secrets found - REVIEW REQUIRED" >> $GITHUB_STEP_SUMMARY
-          fi
-          
           if [ "${{ needs.trufflehog.result }}" == "success" ]; then
-            echo "✅ **TruffleHog**: No verified secrets" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **TruffleHog**: No verified secrets detected" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ **TruffleHog**: Review recommended" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **TruffleHog**: Potential secrets found - REVIEW REQUIRED" >> $GITHUB_STEP_SUMMARY
           fi
           
           if [ "${{ needs.dependency-audit.result }}" == "success" ]; then
@@ -144,7 +124,7 @@ jobs:
           fi
 
       - name: Fail if secrets detected
-        if: needs.gitleaks.result == 'failure'
+        if: needs.trufflehog.result == 'failure'
         run: |
           echo "::error::🚨 SECRETS DETECTED! This PR cannot be merged until all secrets are removed."
           exit 1
