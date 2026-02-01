@@ -78,7 +78,7 @@ Ambas as correções seguiram a **LEI SUPREMA** (Seção 4 do RISE V3): a melhor
 - **Router Pattern**: Edge Functions modularizadas com handlers específicos
 
 ### Segurança
-- **4 camadas de detecção de secrets**: Gitleaks, TruffleHog, npm audit, CodeQL
+- **3 camadas de detecção**: TruffleHog (verified secrets), npm audit, CodeQL
 - **RLS 100%**: Todas as tabelas com Row Level Security
 - **OWASP Top 10 Compliance**: Conformidade total documentada
 

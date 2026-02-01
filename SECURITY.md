@@ -81,7 +81,7 @@ Se você descobrir uma vulnerabilidade de segurança no RiseCheckout, por favor,
 ### Gerenciamento de Secrets
 
 - ✅ Nenhum secret hardcoded no código
-- ✅ Gitleaks scanning em CI/CD
+- ✅ TruffleHog scanning em CI/CD (verified secrets only)
 - ✅ Pre-commit hooks para detecção local
 - ✅ Rotação trimestral de secrets
 
