@@ -8,6 +8,9 @@
  * - Provider name verification
  * - Constructor validation
  * - Stripe Connect configuration
+ * 
+ * @module _shared/payment-gateways/adapters/StripeAdapter.test
+ * @version 2.0.0 - Type-safe factories (zero 'as never')
  */
 
 import {
@@ -15,6 +18,7 @@ import {
   assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { StripeAdapter, type StripeCredentials } from "./StripeAdapter.ts";
+import { hasPaymentGatewayInterface } from "./_shared.ts";
 
 // ============================================================================
 // INITIALIZATION TESTS
@@ -84,6 +88,8 @@ Deno.test("StripeAdapter - should implement IPaymentGateway interface", () => {
   };
   
   const adapter = new StripeAdapter(credentials);
+  
+  assertEquals(hasPaymentGatewayInterface(adapter), true);
   
   assertExists(adapter.createPix);
   assertExists(adapter.createCreditCard);
