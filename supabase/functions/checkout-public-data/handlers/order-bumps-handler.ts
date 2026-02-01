@@ -19,7 +19,11 @@ import type { HandlerContext, OrderBumpFormatted } from "../types.ts";
 
 const log = createLogger("checkout-public-data/order-bumps");
 
-interface BumpProduct {
+/**
+ * Product data structure for order bump products.
+ * Exported for reuse in resolve-and-load-handler.
+ */
+export interface BumpProduct {
   id: string;
   name: string;
   description: string | null;
@@ -27,13 +31,21 @@ interface BumpProduct {
   image_url: string | null;
 }
 
-interface BumpOffer {
+/**
+ * Offer data structure for order bump offers.
+ * Exported for reuse in resolve-and-load-handler.
+ */
+export interface BumpOffer {
   id: string;
   name: string;
   price: number;
 }
 
-interface RawBump {
+/**
+ * Raw order bump data from Supabase query.
+ * RISE V3: Exported for type-safe usage in resolve-and-load-handler.
+ */
+export interface RawBump {
   id: string;
   product_id: string;
   custom_title: string | null;

@@ -76,6 +76,35 @@ export interface RetentionPolicy {
   criteria: string;
 }
 
+/**
+ * RPC result from cleanup_all_data_v2
+ * RISE V3: Explicit interface for type-safe RPC response handling
+ */
+export interface CleanupAllRpcResult {
+  category: string;
+  table_name: string;
+  rows_deleted: number;
+}
+
+/**
+ * RPC result from cleanup_by_category
+ * RISE V3: Explicit interface for type-safe RPC response handling
+ */
+export interface CleanupCategoryRpcResult {
+  table_name: string;
+  rows_deleted: number;
+}
+
+/**
+ * RPC result from cleanup_dry_run
+ * RISE V3: Explicit interface for type-safe RPC response handling
+ */
+export interface DryRunRpcResult {
+  category: string;
+  table_name: string;
+  rows_to_delete: number;
+}
+
 /** All retention policies (for status endpoint) */
 export const RETENTION_POLICIES: RetentionPolicy[] = [
   { table_name: 'oauth_states', category: 'oauth', retention_period: '1 hour', criteria: 'Expired or used tokens' },

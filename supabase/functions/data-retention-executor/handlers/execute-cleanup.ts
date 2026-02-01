@@ -15,7 +15,10 @@ import type {
   CleanupResult, 
   CleanupExecutionResult,
   DryRunResult,
-  DryRunExecutionResult 
+  DryRunExecutionResult,
+  CleanupAllRpcResult,
+  CleanupCategoryRpcResult,
+  DryRunRpcResult,
 } from '../types.ts';
 
 /** Creates Supabase admin client */
@@ -40,14 +43,15 @@ export async function executeFullCleanup(): Promise<CleanupExecutionResult> {
     if (error) {
       errors.push(`RPC error: ${error.message}`);
     } else if (data) {
-      // deno-lint-ignore no-explicit-any
-      (data as any[]).forEach((row: { category: string; table_name: string; rows_deleted: number }) => {
+      // RISE V3: Type assertion to explicit interface - RPC returns unknown
+      const rpcResults = data as CleanupAllRpcResult[];
+      for (const row of rpcResults) {
         results.push({
           category: row.category,
           table_name: row.table_name,
           rows_deleted: Number(row.rows_deleted),
         });
-      });
+      }
     }
 
     // Also run the logging function
@@ -86,14 +90,15 @@ export async function executeCategoryCleanup(category: CleanupCategory): Promise
     if (error) {
       errors.push(`RPC error: ${error.message}`);
     } else if (data) {
-      // deno-lint-ignore no-explicit-any
-      (data as any[]).forEach((row: { table_name: string; rows_deleted: number }) => {
+      // RISE V3: Type assertion to explicit interface - RPC returns unknown
+      const rpcResults = data as CleanupCategoryRpcResult[];
+      for (const row of rpcResults) {
         results.push({
           category,
           table_name: row.table_name,
           rows_deleted: Number(row.rows_deleted),
         });
-      });
+      }
     }
   } catch (e) {
     errors.push(`Exception: ${e instanceof Error ? e.message : String(e)}`);
@@ -131,14 +136,15 @@ export async function executeDryRun(): Promise<DryRunExecutionResult> {
     }
 
     if (data) {
-      // deno-lint-ignore no-explicit-any
-      (data as any[]).forEach((row: { category: string; table_name: string; rows_to_delete: number }) => {
+      // RISE V3: Type assertion to explicit interface - RPC returns unknown
+      const rpcResults = data as DryRunRpcResult[];
+      for (const row of rpcResults) {
         results.push({
           category: row.category,
           table_name: row.table_name,
           rows_to_delete: Number(row.rows_to_delete),
         });
-      });
+      }
     }
   } catch (_e) {
     return {

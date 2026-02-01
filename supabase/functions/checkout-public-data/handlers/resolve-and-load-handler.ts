@@ -10,7 +10,7 @@
  */
 
 import { createLogger } from "../../_shared/logger.ts";
-import { formatOrderBumps } from "./order-bumps-handler.ts";
+import { formatOrderBumps, type RawBump } from "./order-bumps-handler.ts";
 import type { HandlerContext } from "../types.ts";
 
 const log = createLogger("checkout-public-data/resolve-and-load");
@@ -162,7 +162,9 @@ export async function handleResolveAndLoad(ctx: HandlerContext): Promise<Respons
   }
 
   // 5. Process order bumps using shared formatter
-  const orderBumps = formatOrderBumps((orderBumpsResult.data || []) as never);
+  // RISE V3: Two-step assertion (as unknown as RawBump[]) due to Supabase SDK
+  // returning array types for join relations instead of single objects
+  const orderBumps = formatOrderBumps((orderBumpsResult.data ?? []) as unknown as RawBump[]);
 
   // 6. Process affiliate
   let affiliate = null;
@@ -265,7 +267,9 @@ export async function handleAll(ctx: HandlerContext): Promise<Response> {
   }
 
   // Process order bumps
-  const orderBumps = formatOrderBumps((orderBumpsResult.data || []) as never);
+  // RISE V3: Two-step assertion (as unknown as RawBump[]) due to Supabase SDK
+  // returning array types for join relations instead of single objects
+  const orderBumps = formatOrderBumps((orderBumpsResult.data ?? []) as unknown as RawBump[]);
 
   return jsonResponse({
     success: true,

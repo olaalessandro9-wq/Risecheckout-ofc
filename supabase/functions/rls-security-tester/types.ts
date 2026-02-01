@@ -102,14 +102,42 @@ export interface RlsStatusRow {
   has_rls: boolean;
 }
 
+/**
+ * Policy row from pg_policies view.
+ * RISE V3: Updated roles type to handle PostgreSQL array format.
+ * PostgreSQL returns roles as either:
+ * - JavaScript array: ["authenticated", "anon"]
+ * - PostgreSQL literal: "{authenticated,anon}"
+ */
 export interface PolicyRow {
   tablename: string;
   policyname: string;
   cmd: string;
   permissive: string;
-  roles: string[];
+  /** 
+   * Roles can be returned as JavaScript array or PostgreSQL array literal.
+   * Use normalizeRoles() helper to safely extract role names.
+   */
+  roles: string[] | string;
   qual: string | null;
   with_check: string | null;
+}
+
+/**
+ * Normalize roles field from PolicyRow to a lowercase comma-separated string.
+ * Handles both JavaScript arrays and PostgreSQL array literals.
+ * 
+ * RISE V3: Helper function to eliminate 'as any' casts when parsing roles.
+ */
+export function normalizeRoles(roles: string[] | string | unknown): string {
+  if (Array.isArray(roles)) {
+    return roles.join(',').toLowerCase();
+  }
+  if (typeof roles === 'string') {
+    // Handle PostgreSQL array format: "{role1,role2}"
+    return roles.replace(/[{}]/g, '').toLowerCase();
+  }
+  return '';
 }
 
 export interface PolicyCoverageRow {
