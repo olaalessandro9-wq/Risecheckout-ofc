@@ -17,7 +17,6 @@ import { PixPaymentPage } from "../../fixtures/pages/PixPaymentPage";
 import {
   TEST_CHECKOUT,
   TEST_CHECKOUT_GATEWAYS,
-  TIMEOUTS,
   generateTestEmail,
 } from "../../fixtures/test-data";
 
