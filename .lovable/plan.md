@@ -1,104 +1,156 @@
 
-# Plano: Integrar Vercel Analytics e Speed Insights
+
+# Plano: Correção de CSS + Diagnóstico do Erro ZeptoMail
+
+---
 
 ## Resumo Executivo
 
-Integração dos componentes de monitoramento da Vercel no projeto React/Vite para coletar métricas de visitantes, page views e Core Web Vitals.
+**Dois problemas identificados:**
+
+1. **CSS Bugado**: Uso de `text-white` hardcoded violando o RISE Protocol V3 em vários arquivos de autenticação
+2. **Erro 401 ZeptoMail**: Token de API inválido ou mal formatado causando falha no envio de email
 
 ---
 
-## Análise de Soluções
+## Problema 1: CSS Violando RISE Protocol
 
-### Solução A: Import direto no App.tsx
-- Manutenibilidade: 10/10 - Componentes da Vercel são self-contained
-- Zero DT: 10/10 - Implementação oficial documentada
-- Arquitetura: 10/10 - Componentes ficam no nível mais alto da árvore
-- Escalabilidade: 10/10 - Sem impacto de performance
-- Segurança: 10/10 - Nenhum dado sensível exposto
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 2 minutos
+### Causa Raiz
 
-### DECISÃO: Solução A (Nota 10.0)
-Única solução viável e oficialmente documentada pela Vercel.
+Os seguintes arquivos usam `text-white` hardcoded ao invés de design tokens semânticos:
 
----
+| Arquivo | Linhas com violação |
+|---------|---------------------|
+| `ResetPasswordLayout.tsx` | 34, 36, 50, 52, 64 |
+| `BuyerRecuperarSenha.tsx` | 101, 103, 119, 136, 146, 164, 190, 193, 200, 225, 236, 241, 259, 261, 273 |
 
-## Implementação
+### Solução
 
-### Passo 1: Instalação dos Pacotes
+Substituir TODAS as ocorrências de `text-white` por `text-[hsl(var(--auth-text-primary))]` para garantir consistência com o design system.
 
-```bash
-npm i @vercel/analytics @vercel/speed-insights
-```
+**Arquivos a modificar:**
 
-### Passo 2: Modificação do App.tsx
+```text
+src/components/auth/reset-password/ResetPasswordLayout.tsx
+├── Linha 34: text-white → text-[hsl(var(--auth-text-primary))]
+├── Linha 36: text-white → text-[hsl(var(--auth-text-primary))]
+├── Linha 50: text-white → text-[hsl(var(--auth-text-primary))]
+├── Linha 52: text-white → text-[hsl(var(--auth-text-primary))]
+└── Linha 64: text-white → text-[hsl(var(--auth-text-primary))]
 
-Adicionar os imports corretos para **React** (não Next.js):
-
-```typescript
-// Vercel Monitoring (React/Vite)
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
-```
-
-### Passo 3: Adicionar Componentes
-
-Os componentes serão adicionados dentro do `App()`, após o `RouterProvider`:
-
-```tsx
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <HelmetProvider>
-        <AppErrorBoundary>
-          <BusyProvider>
-            <TooltipProvider>
-              <RouterProvider router={router} />
-            </TooltipProvider>
-          </BusyProvider>
-        </AppErrorBoundary>
-      </HelmetProvider>
-      
-      {/* Vercel Monitoring - Apenas em produção na Vercel */}
-      <Analytics />
-      <SpeedInsights />
-    </QueryClientProvider>
-  );
-}
+src/modules/members-area/pages/buyer/BuyerRecuperarSenha.tsx
+├── Todas as ocorrências de text-white → text-[hsl(var(--auth-text-primary))]
+└── Isso inclui: logo, títulos, labels, botões, links
 ```
 
 ---
 
-## Arquivos Modificados
+## Problema 2: Erro 401 do ZeptoMail
+
+### Diagnóstico (logs confirmados)
+
+Os logs mostram dois problemas:
+
+```text
+1. [ERROR] [ZeptoMail] API error {"status":401,"details":[{"message":"Invalid API Token found"}]}
+
+2. [INFO] [ZeptoMail] Sending email {"from":"PLACEHOLDER_VALUE_TO_BE_REPLACED",...}
+```
+
+### Causa Raiz
+
+**O secret `ZEPTOMAIL_FROM_NOREPLY` contém um placeholder (`PLACEHOLDER_VALUE_TO_BE_REPLACED`) ao invés de um email real!**
+
+Além disso, o token `ZEPTOMAIL_API_KEY` pode estar em formato incorreto.
+
+### Formato Correto do Token ZeptoMail
+
+O token DEVE estar exatamente neste formato:
 
 ```
-src/
-└── App.tsx          ← Adicionar imports + componentes
+Zoho-enczapikey wSsVR61q...token_completo...
 ```
+
+Onde:
+- `Zoho-enczapikey` (com `Z` maiúsculo e hífen)
+- **Espaço** entre o prefixo e o token
+- Token base64 completo copiado do painel ZeptoMail
+
+### Solução
+
+**No Supabase Dashboard → Edge Functions → Manage Secrets:**
+
+1. **Verificar/Atualizar `ZEPTOMAIL_API_KEY`:**
+   - Acessar: https://mail.zoho.com → Agentes → mail_agent_1 → SMTP/API → API
+   - Copiar o token completo (já vem com o prefixo `Zoho-enczapikey`)
+   - Colar no secret `ZEPTOMAIL_API_KEY`
+
+2. **Verificar/Atualizar `ZEPTOMAIL_FROM_NOREPLY`:**
+   - Valor: `naoresponda@risecheckout.com` (ou seu email verificado)
+   - **NÃO pode ser** `PLACEHOLDER_VALUE_TO_BE_REPLACED`
+
+3. **Verificar outros secrets de remetente:**
+   - `ZEPTOMAIL_FROM_SUPPORT`: `suporte@risecheckout.com`
+   - `ZEPTOMAIL_FROM_NOTIFICATIONS`: `notificacoes@risecheckout.com`
+   - `ZEPTOMAIL_FROM_NAME`: `Rise Checkout`
+
+---
+
+## Arquivos a Modificar (Código)
+
+```text
+1. src/components/auth/reset-password/ResetPasswordLayout.tsx
+   └── 5 substituições de text-white
+
+2. src/modules/members-area/pages/buyer/BuyerRecuperarSenha.tsx
+   └── ~15 substituições de text-white
+```
+
+---
+
+## Checklist de Configuração (Supabase Secrets)
+
+| Secret | Valor Esperado | Status |
+|--------|---------------|--------|
+| `ZEPTOMAIL_API_KEY` | `Zoho-enczapikey [TOKEN]` | ❌ Verificar formato |
+| `ZEPTOMAIL_FROM_NOREPLY` | `naoresponda@risecheckout.com` | ❌ PLACEHOLDER detectado |
+| `ZEPTOMAIL_FROM_SUPPORT` | `suporte@risecheckout.com` | ⚠️ Verificar |
+| `ZEPTOMAIL_FROM_NOTIFICATIONS` | `notificacoes@risecheckout.com` | ⚠️ Verificar |
+| `ZEPTOMAIL_FROM_NAME` | `Rise Checkout` | ⚠️ Verificar |
+
+---
+
+## Próximos Passos
+
+1. **Você verifica e atualiza os secrets** no Supabase Dashboard
+2. **Eu implemento as correções de CSS** nos arquivos identificados
+3. **Testamos o fluxo** de recuperação de senha em risecheckout.com
 
 ---
 
 ## Detalhes Técnicos
 
-| Item | Valor |
-|------|-------|
-| Pacotes | `@vercel/analytics`, `@vercel/speed-insights` |
-| Import Analytics | `@vercel/analytics/react` (NÃO `/next`) |
-| Import Speed | `@vercel/speed-insights/react` (NÃO `/next`) |
-| Posição | Após `RouterProvider`, dentro do `QueryClientProvider` |
+### Por que o erro diz "Invalid API Token" mesmo com token "correto"?
 
----
+O código em `zeptomail.ts` envia o header assim:
 
-## Comportamento
+```typescript
+'Authorization': apiKey, // Já inclui "Zoho-enczapikey"
+```
 
-- **Em desenvolvimento (localhost)**: Componentes são injetados mas não enviam dados
-- **Em produção (Vercel)**: Dados são coletados automaticamente
-- **Fora da Vercel**: Componentes são ignorados silenciosamente
+Se o secret `ZEPTOMAIL_API_KEY` tiver:
+- Espaços extras no início/fim
+- Quebras de linha invisíveis
+- Formato incorreto (`zoho-enczapikey` minúsculo ou sem espaço)
 
----
+O ZeptoMail retorna 401 porque o token não corresponde exatamente.
 
-## Resultado Esperado
+### Sobre o Placeholder no From Email
 
-Após o deploy:
-1. **Analytics Tab** → Mostrará Visitors, Page Views, Bounce Rate
-2. **Speed Insights Tab** → Mostrará LCP, FID, CLS, TTFB por rota
+O log mostra:
+```
+"from":"PLACEHOLDER_VALUE_TO_BE_REPLACED"
+```
+
+Isso significa que algum secret de remetente nunca foi configurado com valor real. Mesmo que não cause o erro 401 (que é do token), causará falha de entrega se o domínio não estiver verificado.
+
