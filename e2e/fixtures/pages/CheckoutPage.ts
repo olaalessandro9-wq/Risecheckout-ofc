@@ -246,4 +246,101 @@ export class CheckoutPage {
       { timeout: TIMEOUTS.pageLoad }
     );
   }
+
+  // ============================================================================
+  // Card Form Actions (RISE V3 - Happy Path E2E)
+  // ============================================================================
+
+  /**
+   * Fill card form with test card data
+   * Handles different iframe-based card forms (MercadoPago, Stripe, Asaas)
+   */
+  async fillCardForm(card: {
+    number: string;
+    expiry: string;
+    cvv: string;
+    holder: string;
+  }): Promise<void> {
+    // Try direct inputs first (Asaas-style)
+    const cardNumber = this.page.locator('input[name="cardNumber"], input[data-testid="card-number"]');
+    const cardExpiry = this.page.locator('input[name="cardExpiry"], input[data-testid="card-expiry"]');
+    const cardCvv = this.page.locator('input[name="cardCvv"], input[data-testid="card-cvv"], input[name="securityCode"]');
+    const cardHolder = this.page.locator('input[name="cardHolder"], input[data-testid="card-holder"], input[name="cardholderName"]');
+
+    // Clean card number (remove spaces)
+    const cleanNumber = card.number.replace(/\s/g, '');
+
+    if (await cardNumber.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await cardNumber.fill(cleanNumber);
+      await cardExpiry.fill(card.expiry);
+      await cardCvv.fill(card.cvv);
+      await cardHolder.fill(card.holder);
+    }
+  }
+
+  /**
+   * Select installments count
+   */
+  async selectInstallments(count: number): Promise<void> {
+    const select = this.page.locator('select[name="installments"], [data-testid="installments-select"]');
+    if (await select.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await select.selectOption({ value: String(count) });
+    }
+  }
+
+  /**
+   * Wait for payment error message to appear
+   */
+  async waitForPaymentError(): Promise<void> {
+    const errorLocator = this.page.locator(
+      '[data-testid="payment-error"], [role="alert"]:has-text("erro"), [role="alert"]:has-text("recusado")'
+    ).first();
+    await errorLocator.waitFor({ state: "visible", timeout: 15000 });
+  }
+
+  /**
+   * Check if payment error is visible
+   */
+  async hasPaymentError(): Promise<boolean> {
+    const errorLocator = this.page.locator(
+      '[data-testid="payment-error"], [role="alert"]:has-text("erro"), [role="alert"]:has-text("recusado")'
+    ).first();
+    return await errorLocator.isVisible({ timeout: 1000 }).catch(() => false);
+  }
+
+  /**
+   * Get applied coupon discount text
+   */
+  async getAppliedCouponDiscount(): Promise<string> {
+    return await this.discountAmount.textContent() ?? "";
+  }
+
+  /**
+   * Wait for coupon feedback (success or error)
+   */
+  async waitForCouponFeedback(): Promise<"success" | "error" | "timeout"> {
+    const result = await Promise.race([
+      this.couponSuccessMessage.waitFor({ state: "visible", timeout: 5000 }).then(() => "success" as const),
+      this.couponErrorMessage.waitFor({ state: "visible", timeout: 5000 }).then(() => "error" as const),
+      this.page.waitForTimeout(5000).then(() => "timeout" as const),
+    ]);
+    return result;
+  }
+
+  /**
+   * Remove applied coupon
+   */
+  async removeCoupon(): Promise<void> {
+    const removeButton = this.page.getByRole("button", { name: /remover|remove|x/i });
+    if (await removeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await removeButton.click();
+    }
+  }
+
+  /**
+   * Get current URL path
+   */
+  getCurrentUrl(): string {
+    return this.page.url();
+  }
 }

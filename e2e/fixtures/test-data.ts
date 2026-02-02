@@ -232,4 +232,121 @@ export const ERROR_MESSAGES = {
     invalidCpf: /cpf.*inválido/i,
     invalidPhone: /telefone.*inválido/i,
   },
+  
+  payment: {
+    declined: /recusado|negado|declined/i,
+    insufficientFunds: /saldo.*insuficiente|insufficient.*funds/i,
+    invalidCard: /cartão.*inválido|invalid.*card/i,
+    expired: /expirado|expired/i,
+    generic: /erro.*pagamento|payment.*error/i,
+  },
 } as const;
+
+// ============================================================================
+// Gateway Test Data (RISE V3 - Happy Path E2E)
+// ============================================================================
+
+/**
+ * Checkout slugs configured per gateway for E2E testing
+ * Each slug points to a checkout with the specific gateway configured
+ */
+export const TEST_CHECKOUT_GATEWAYS = {
+  pushinpay: {
+    slug: "test-checkout-pushinpay",
+    pixEnabled: true,
+    cardEnabled: false,
+  },
+  mercadopago: {
+    slug: "test-checkout-mercadopago",
+    pixEnabled: true,
+    cardEnabled: true,
+  },
+  asaas: {
+    slug: "test-checkout-asaas",
+    pixEnabled: true,
+    cardEnabled: true,
+  },
+  stripe: {
+    slug: "test-checkout-stripe",
+    pixEnabled: true,
+    cardEnabled: true,
+  },
+} as const;
+
+/**
+ * Test cards per gateway - approved and declined
+ * These are official sandbox/test cards from each gateway
+ */
+export const TEST_CARDS = {
+  mercadopago: {
+    approved: {
+      number: "5031433215406351",
+      expiry: "11/30",
+      cvv: "123",
+      holder: "APRO",
+    },
+    declined: {
+      number: "5031755734530604",
+      expiry: "11/30",
+      cvv: "123",
+      holder: "OTHE",
+    },
+  },
+  stripe: {
+    approved: {
+      number: "4242424242424242",
+      expiry: "12/30",
+      cvv: "123",
+      holder: "Test User",
+    },
+    declined: {
+      number: "4000000000000002",
+      expiry: "12/30",
+      cvv: "123",
+      holder: "Test User",
+    },
+  },
+  asaas: {
+    approved: {
+      number: "4111111111111111",
+      expiry: "12/30",
+      cvv: "123",
+      holder: "Test User",
+    },
+    declined: {
+      number: "4000000000000002",
+      expiry: "12/30",
+      cvv: "123",
+      holder: "Test User",
+    },
+  },
+} as const;
+
+/**
+ * Test coupons for E2E validation
+ * These must be created in the test database
+ */
+export const TEST_COUPONS = {
+  valid: {
+    code: "VALID10",
+    discountType: "percentage" as const,
+    discountValue: 10,
+  },
+  invalid: {
+    code: "INVALIDCOUPON999",
+  },
+  expired: {
+    code: "EXPIRED2020",
+  },
+} as const;
+
+// ============================================================================
+// Card Form Type
+// ============================================================================
+
+export interface TestCardData {
+  number: string;
+  expiry: string;
+  cvv: string;
+  holder: string;
+}
