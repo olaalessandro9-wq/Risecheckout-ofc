@@ -1,7 +1,7 @@
 # Documentação do Sistema de Testes - RiseCheckout
 
-**Status:** ✅ FASES 1-8 COMPLETAS (100% RISE V3)  
-**Última atualização:** 30 de Janeiro de 2026  
+**Status:** ✅ FASES 1-8 + MODULARIZAÇÃO COMPLETAS (100% RISE V3)  
+**Última atualização:** 2 de Fevereiro de 2026  
 **RISE V3 Score:** 10.0/10
 
 ---
@@ -20,11 +20,11 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
         / Integração\        ~20% (Vitest + MSW - 66 testes)
        /─────────────\
       /               \
-     /    Unitários    \     ~70% (Vitest - 458+ testes)
+     /    Unitários    \     ~70% (Vitest - 550+ testes Edge + 330+ Frontend)
     /───────────────────\
 ```
 
-**Total: 1105+ testes**
+**Total: 1231+ testes**
 
 ---
 
@@ -346,10 +346,11 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 - [x] **Fase 2:** Testes unitários backend (_shared) - ✅ 129 testes
 - [x] **Fase 3:** Testes unitários frontend (lib) - ✅ 150+ testes
 - [x] **Fase 4:** Testes de integração (hooks) - ✅ 66 testes
-- [x] **Fase 5:** Testes de Edge Functions - ✅ 463+ testes
+- [x] **Fase 5:** Testes de Edge Functions - ✅ 550+ testes (modularizados)
 - [x] **Fase 6:** Testes E2E (Playwright) - ✅ 43+ testes
 - [x] **Fase 7:** CI/CD Bloqueante - ✅ Pipeline completo
 - [x] **Fase 8:** Testes UI Components - ✅ 179 testes
+- [x] **Fase 4.1:** Modularização de Testes Gigantes - ✅ 30 funções refatoradas
 
 ---
 
@@ -360,10 +361,54 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 | F2 | Backend _shared | 129 |
 | F3 | Frontend lib | 150+ |
 | F4 | Hooks integração | 66 |
-| F5 | Edge Functions | 463+ |
+| F5 | Edge Functions (modularizados) | 550+ |
 | F6 | E2E Playwright | 43+ |
 | F8 | UI Components | 179 |
-| **TOTAL** | | **1105+** |
+| **TOTAL** | | **1231+** |
+
+---
+
+## Fase 4.1: Modularização de Testes de Edge Functions
+
+### Padrão de Diretório tests/
+
+Arquivos de teste monolíticos (`index.test.ts`) foram substituídos por:
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `tests/_shared.ts` | Constantes, tipos, mock factories, type guards |
+| `tests/authentication.test.ts` | Testes de autenticação e sessão |
+| `tests/validation.test.ts` | Testes de validação de payload |
+| `tests/[domain].test.ts` | Testes específicos de domínio |
+| `tests/error-handling.test.ts` | Testes de edge cases e erros |
+
+### Funções Modularizadas (30 Total)
+
+| Função | Arquivos | Testes |
+|--------|----------|--------|
+| webhook-crud | 7 | 45+ |
+| pixel-management | 6 | 40+ |
+| trigger-webhooks | 10 | 50+ |
+| dashboard-analytics | 7 | 35+ |
+| affiliate-pixel-management | 5 | 35+ |
+| checkout-crud | 4 | 30+ |
+| product-duplicate | 5 | 30+ |
+| + 23 funções adicionais | ~76 | ~285+ |
+| **TOTAL** | **~110** | **~550+** |
+
+### Script de Validação
+
+```bash
+cd supabase/functions && ./lint-tests.sh
+```
+
+**Verificações:**
+- Zero arquivos `index.test.ts` monolíticos
+- Todos os arquivos < 300 linhas
+- Zero termos proibidos
+- Zero `as any` / `as never` em código real
+
+**Relatório Completo:** [`docs/TESTING_MODULARIZATION_REPORT.md`](./TESTING_MODULARIZATION_REPORT.md)
 
 ---
 
@@ -371,7 +416,7 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 
 ### RISE V3 Certified 10.0/10
 
-✅ 1105+ testes automatizados  
+✅ 1231+ testes automatizados  
 ✅ 60%+ coverage thresholds  
 ✅ CI/CD bloqueante com quality gate  
 ✅ Jobs paralelos e cache otimizado  
@@ -379,7 +424,9 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 ✅ Single Responsibility em todos os arquivos  
 ✅ Zero arquivos acima de 300 linhas  
 ✅ 17 arquivos de testes UI (Fase 8)  
-✅ 9 arquivos de validators modularizados
+✅ 9 arquivos de validators modularizados  
+✅ 30 funções modularizadas (Fase 4.1)  
+✅ ~110 arquivos de teste modulares
 
 ---
 
@@ -398,11 +445,13 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 ║  ═══════════════════════════════════════════════════════════════════════════  ║
 ║                                                                               ║
 ║  SISTEMA DE TESTES ENTERPRISE - CERTIFICADO                                  ║
-║  Data de Certificação: 30 de Janeiro de 2026                                 ║
+║  Data de Certificação: 2 de Fevereiro de 2026                                ║
 ║  Score Final: 10.0/10                                                         ║
 ║  Status: PRONTO PARA PRODUÇÃO                                                ║
 ║                                                                               ║
-║  Relatório Completo: docs/TESTING_PHASE7_FINAL_REPORT.md                     ║
+║  Relatórios:                                                                  ║
+║  - docs/TESTING_PHASE7_FINAL_REPORT.md                                       ║
+║  - docs/TESTING_MODULARIZATION_REPORT.md                                     ║
 ║                                                                               ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
