@@ -239,6 +239,9 @@ export class MembersAreaPage {
   }
 
   async waitForProgressUpdate(): Promise<void> {
-    await this.page.waitForTimeout(TIMEOUTS.animation);
+    // State-based wait for progress bar visibility (RISE V3 - 10.0/10)
+    await this.progressBar.waitFor({ state: "visible", timeout: TIMEOUTS.animation }).catch(() => {});
+    // Ensure network requests complete for accurate progress data
+    await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.animation }).catch(() => {});
   }
 }

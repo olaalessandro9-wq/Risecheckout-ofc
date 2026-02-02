@@ -150,7 +150,7 @@ export class SuccessPage {
 
   async waitForPageReady(): Promise<void> {
     await this.waitForSuccess();
-    // Wait a bit for animations to complete
-    await this.page.waitForTimeout(500);
+    // State-based wait for page stability (RISE V3 - 10.0/10)
+    await this.page.waitForLoadState("domcontentloaded");
   }
 }
