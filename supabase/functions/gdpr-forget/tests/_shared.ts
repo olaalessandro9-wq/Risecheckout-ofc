@@ -2,16 +2,30 @@
  * Shared Test Infrastructure for gdpr-forget
  * 
  * @module gdpr-forget/tests/_shared
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant (Zero Hardcoded Credentials)
  */
 
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+import { getTestConfig, skipIntegration, integrationTestOptions } from "../../_shared/testing/mod.ts";
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
 export const FUNCTION_NAME = "gdpr-forget";
+
+const config = getTestConfig();
+
+export function getFunctionUrl(): string {
+  return config.supabaseUrl
+    ? `${config.supabaseUrl}/functions/v1/${FUNCTION_NAME}`
+    : `https://mock.supabase.co/functions/v1/${FUNCTION_NAME}`;
+}
+
+// ============================================================================
+// RE-EXPORT CENTRALIZED TEST HELPERS
+// ============================================================================
+
+export { skipIntegration, integrationTestOptions };
 
 // ============================================================================
 // DATA CATEGORIES
@@ -70,4 +84,28 @@ export const GDPR_RULES: GdprRules = {
 
 export function canDelete(hasActiveOrders: boolean): boolean {
   return !hasActiveOrders;
+}
+
+// ============================================================================
+// MOCK FACTORIES
+// ============================================================================
+
+export interface ForgetPayload {
+  email?: string;
+  confirmation_token?: string;
+}
+
+export function createPayload(overrides: Partial<ForgetPayload> = {}): ForgetPayload {
+  return {
+    email: "test@example.com",
+    ...overrides,
+  };
+}
+
+export function createMockRequest(payload: ForgetPayload = {}): Request {
+  return new Request(getFunctionUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 }
