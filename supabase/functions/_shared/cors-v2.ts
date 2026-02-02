@@ -1,15 +1,16 @@
 /**
- * CORS V2 Configuration - Single Secret Architecture
+ * CORS V2 Configuration - Wildcard Domain Support
  * 
  * RISE Protocol V3 Compliant - 10.0/10 Security
  * 
  * Architecture:
- * - Single secret CORS_ALLOWED_ORIGINS for all environments
- * - Supports multi-subdomain: risecheckout.com, app.*, pay.*, api.*
+ * - Supports wildcards: *.risecheckout.com matches all subdomains
+ * - Supports exact origins: https://sandrodev.lovable.app
+ * - Wildcard ONLY for risecheckout.com, other domains require explicit listing
  * 
  * Fail-Secure: If secret is missing, ALL requests are blocked.
  * 
- * @version 2.1.0 - Single Secret Architecture
+ * @version 3.0.0 - Wildcard Domain Support
  */
 
 import { createLogger } from "./logger.ts";
@@ -17,40 +18,112 @@ import { createLogger } from "./logger.ts";
 const log = createLogger("CORS-V2");
 
 // ============================================================================
+// TYPES
+// ============================================================================
+
+interface CorsConfig {
+  /** Exact origins for O(1) lookup (e.g., https://sandrodev.lovable.app) */
+  exactOrigins: Set<string>;
+  /** Wildcard domains for suffix matching (e.g., risecheckout.com) */
+  wildcardDomains: string[];
+}
+
+// ============================================================================
 // SINGLETON CACHE
 // ============================================================================
 
-let cachedOrigins: Set<string> | null = null;
+let cachedConfig: CorsConfig | null = null;
 
 // ============================================================================
-// ORIGINS LOADING
+// ORIGINS LOADING & PARSING
 // ============================================================================
 
 /**
- * Loads allowed origins from CORS_ALLOWED_ORIGINS secret.
- * Returns an empty Set if secret is missing (fail-secure).
+ * Parses CORS_ALLOWED_ORIGINS into exact origins and wildcard domains.
+ * 
+ * Format examples:
+ * - "*.risecheckout.com" → wildcardDomains: ["risecheckout.com"]
+ * - "https://sandrodev.lovable.app" → exactOrigins: Set(["https://sandrodev.lovable.app"])
+ * 
+ * Returns empty config if secret is missing (fail-secure).
  */
-function loadAllowedOrigins(): Set<string> {
-  if (cachedOrigins) return cachedOrigins;
+function loadAllowedOrigins(): CorsConfig {
+  if (cachedConfig) return cachedConfig;
   
   const originsRaw = Deno.env.get("CORS_ALLOWED_ORIGINS");
   
   if (!originsRaw) {
     log.error("🚨 CRITICAL: CORS_ALLOWED_ORIGINS not configured - blocking ALL origins");
-    cachedOrigins = new Set();
-    return cachedOrigins;
+    cachedConfig = { exactOrigins: new Set(), wildcardDomains: [] };
+    return cachedConfig;
   }
   
-  // Parse CSV into Set for O(1) lookup
-  const origins = originsRaw
+  const config: CorsConfig = {
+    exactOrigins: new Set(),
+    wildcardDomains: [],
+  };
+  
+  // Parse CSV entries
+  const entries = originsRaw
     .split(",")
-    .map(o => o.trim())
-    .filter(o => o.length > 0);
+    .map(e => e.trim())
+    .filter(e => e.length > 0);
   
-  cachedOrigins = new Set(origins);
-  log.info(`Loaded ${cachedOrigins.size} allowed origins`);
+  for (const entry of entries) {
+    if (entry.startsWith("*.")) {
+      // Wildcard entry: extract base domain (e.g., "*.risecheckout.com" → "risecheckout.com")
+      const domain = entry.slice(2);
+      config.wildcardDomains.push(domain);
+      log.info(`Registered wildcard domain: *.${domain}`);
+    } else {
+      // Exact origin entry
+      config.exactOrigins.add(entry);
+    }
+  }
   
-  return cachedOrigins;
+  log.info(`Loaded CORS config: ${config.exactOrigins.size} exact origins, ${config.wildcardDomains.length} wildcard domains`);
+  
+  cachedConfig = config;
+  return cachedConfig;
+}
+
+// ============================================================================
+// ORIGIN VALIDATION
+// ============================================================================
+
+/**
+ * Checks if an origin is allowed based on exact match or wildcard domain.
+ * 
+ * @param origin - The origin header from the request
+ * @param config - The parsed CORS configuration
+ * @returns true if origin is allowed
+ */
+function isOriginAllowed(origin: string, config: CorsConfig): boolean {
+  // 1. Check exact match first (O(1) lookup)
+  if (config.exactOrigins.has(origin)) {
+    return true;
+  }
+  
+  // 2. Check wildcard domains
+  if (config.wildcardDomains.length > 0) {
+    try {
+      const url = new URL(origin);
+      const hostname = url.hostname;
+      
+      for (const domain of config.wildcardDomains) {
+        // Check if hostname ends with .domain (e.g., app.risecheckout.com ends with .risecheckout.com)
+        if (hostname.endsWith(`.${domain}`)) {
+          return true;
+        }
+      }
+    } catch {
+      // Invalid URL format - reject
+      log.warn(`Invalid origin URL format: ${origin}`);
+      return false;
+    }
+  }
+  
+  return false;
 }
 
 // ============================================================================
@@ -89,15 +162,19 @@ function buildCorsHeaders(origin: string): Record<string, string> {
 /**
  * Returns CORS headers if origin is valid, null otherwise.
  * 
+ * Supports:
+ * - Exact origins: https://sandrodev.lovable.app
+ * - Wildcard domains: *.risecheckout.com (matches app.risecheckout.com, www.risecheckout.com, etc.)
+ * 
  * @param origin - Origin header from request
  * @returns CORS headers or null if origin is blocked
  */
 export function getCorsHeadersV2(origin: string | null): Record<string, string> | null {
-  const allowedOrigins = loadAllowedOrigins();
+  const config = loadAllowedOrigins();
   
   // No origin (server-to-server) - use first allowed origin if available
   if (!origin) {
-    const firstOrigin = allowedOrigins.values().next().value;
+    const firstOrigin = config.exactOrigins.values().next().value;
     if (!firstOrigin) {
       log.warn("No origin provided and no allowed origins configured");
       return null;
@@ -105,8 +182,8 @@ export function getCorsHeadersV2(origin: string | null): Record<string, string> 
     return buildCorsHeaders(firstOrigin);
   }
   
-  // Check if origin is in allowed set (O(1) lookup)
-  if (!allowedOrigins.has(origin)) {
+  // Check if origin is allowed (exact or wildcard)
+  if (!isOriginAllowed(origin, config)) {
     log.warn(`Origin blocked: ${origin}`);
     return null;
   }
