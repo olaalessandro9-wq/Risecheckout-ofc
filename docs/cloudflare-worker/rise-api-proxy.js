@@ -1,42 +1,27 @@
 // rise-api-proxy Worker - RISE ARCHITECT PROTOCOL V3 - 10.0/10
 // API Gateway - Zero Secrets in Frontend Architecture
 // FIX: Preserva múltiplos Set-Cookie headers corretamente
-// UPDATED: 2026-02-02 - Wildcard matching para *.risecheckout.com
+// UPDATED: 2026-02-02 - SECURITY HARDENED - Only risecheckout.com allowed
 
 const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
 
 // Domínio principal (wildcard match para todos subdomínios)
 const MAIN_DOMAIN = "risecheckout.com";
 
-// Origins explicitamente permitidos (para domínios externos)
-const EXPLICIT_ORIGINS = [
-  "https://biz-bridge-bliss.lovable.app",
-  "https://kindred-sell-hub.lovable.app",
-];
-
 function isAllowedOrigin(origin) {
   if (!origin) return false;
-  
-  // 1. Verificar origens explícitas
-  if (EXPLICIT_ORIGINS.includes(origin)) return true;
-  
-  // 2. Permitir qualquer subdomínio de risecheckout.com (incluindo www)
+
   try {
     const url = new URL(origin);
     const hostname = url.hostname;
-    
-    // Match exato do domínio root
+
+    // Permitir risecheckout.com e *.risecheckout.com
     if (hostname === MAIN_DOMAIN) return true;
-    
-    // Match de qualquer subdomínio (*.risecheckout.com)
     if (hostname.endsWith("." + MAIN_DOMAIN)) return true;
   } catch (e) {
     return false;
   }
-  
-  // 3. Permitir previews do Lovable (*.lovable.app)
-  if (origin.endsWith(".lovable.app")) return true;
-  
+
   return false;
 }
 
