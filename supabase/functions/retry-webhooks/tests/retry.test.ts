@@ -1,16 +1,19 @@
 /**
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * retry-webhooks - Retry Tests
  * 
- * retry-webhooks Edge Function - Testes Unitários
- * 
- * Testa retry de webhooks falhos via cron job.
- * Cobertura: 80%+
- * 
- * @version 1.0.0
+ * @version 2.0.0
+ * RISE Protocol V3 Compliant
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/testing/asserts.ts";
 import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
+import { 
+  createMockRequest, 
+  createWebhookDelivery, 
+  shouldRetry, 
+  MAX_RETRIES, 
+  QUERY_LIMIT 
+} from "./_shared.ts";
 
 describe("retry-webhooks - CORS", () => {
   it("should handle OPTIONS preflight", () => {
@@ -26,8 +29,11 @@ describe("retry-webhooks - CORS", () => {
 
 describe("retry-webhooks - Configuration", () => {
   it("should have MAX_RETRIES = 3", () => {
-    const MAX_RETRIES = 3;
     assertEquals(MAX_RETRIES, 3);
+  });
+
+  it("should have QUERY_LIMIT = 50", () => {
+    assertEquals(QUERY_LIMIT, 50);
   });
 
   it("should use createLogger", () => {
@@ -43,14 +49,13 @@ describe("retry-webhooks - Query", () => {
   });
 
   it("should filter by success = false", () => {
-    const filter = { success: false };
-    assertEquals(filter.success, false);
+    const delivery = createWebhookDelivery({ success: false });
+    assertEquals(delivery.success, false);
   });
 
   it("should filter by retry_count < MAX_RETRIES", () => {
-    const MAX_RETRIES = 3;
-    const retryCount = 2;
-    assertEquals(retryCount < MAX_RETRIES, true);
+    const delivery = createWebhookDelivery({ retry_count: 2 });
+    assertEquals(shouldRetry(delivery), true);
   });
 
   it("should order by created_at ascending", () => {
@@ -59,18 +64,7 @@ describe("retry-webhooks - Query", () => {
   });
 
   it("should limit to 50 webhooks", () => {
-    const limit = 50;
-    assertEquals(limit, 50);
-  });
-
-  it("should log query errors", () => {
-    const logMessage = "Query error:";
-    assertExists(logMessage);
-  });
-
-  it("should log found webhooks count", () => {
-    const logMessage = "Found";
-    assertExists(logMessage);
+    assertEquals(QUERY_LIMIT, 50);
   });
 });
 
@@ -86,7 +80,7 @@ describe("retry-webhooks - Processing", () => {
   });
 
   it("should loop through webhooks", () => {
-    const webhooks = [{ id: "1" }, { id: "2" }];
+    const webhooks = [createWebhookDelivery(), createWebhookDelivery()];
     assertEquals(webhooks.length, 2);
   });
 
@@ -120,38 +114,6 @@ describe("retry-webhooks - Response", () => {
     const response = { retried: 10 };
     assertExists(response.retried);
   });
-
-  it("should return success count", () => {
-    const response = { successCount: 5 };
-    assertExists(response.successCount);
-  });
-
-  it("should return fail count", () => {
-    const response = { failCount: 5 };
-    assertExists(response.failCount);
-  });
-});
-
-describe("retry-webhooks - Error Handling", () => {
-  it("should catch errors", () => {
-    const error = new Error("Test error");
-    assertExists(error.message);
-  });
-
-  it("should log errors", () => {
-    const logMessage = "Query error:";
-    assertExists(logMessage);
-  });
-
-  it("should throw query errors", () => {
-    const queryError = { message: "Query failed" };
-    assertExists(queryError.message);
-  });
-
-  it("should return 500 on error", () => {
-    const expectedStatus = 500;
-    assertEquals(expectedStatus, 500);
-  });
 });
 
 describe("retry-webhooks - Edge Cases", () => {
@@ -160,25 +122,18 @@ describe("retry-webhooks - Edge Cases", () => {
     assertEquals(count, 0);
   });
 
-  it("should handle exactly 50 webhooks", () => {
-    const count = 50;
-    assertEquals(count, 50);
-  });
-
   it("should handle retry_count = 0", () => {
-    const retryCount = 0;
-    assertEquals(retryCount, 0);
+    const delivery = createWebhookDelivery({ retry_count: 0 });
+    assertEquals(shouldRetry(delivery), true);
   });
 
   it("should handle retry_count = 2 (last retry)", () => {
-    const retryCount = 2;
-    const MAX_RETRIES = 3;
-    assertEquals(retryCount < MAX_RETRIES, true);
+    const delivery = createWebhookDelivery({ retry_count: 2 });
+    assertEquals(shouldRetry(delivery), true);
   });
 
   it("should not retry if retry_count >= MAX_RETRIES", () => {
-    const retryCount = 3;
-    const MAX_RETRIES = 3;
-    assertEquals(retryCount < MAX_RETRIES, false);
+    const delivery = createWebhookDelivery({ retry_count: 3 });
+    assertEquals(shouldRetry(delivery), false);
   });
 });

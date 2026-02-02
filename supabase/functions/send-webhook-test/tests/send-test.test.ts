@@ -1,27 +1,13 @@
 /**
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * send-webhook-test - Send Test Tests
  * 
- * send-webhook-test Edge Function - Testes Unitários
- * 
- * Testa envio de webhook de teste para validação.
- * Cobertura: 80%+
- * 
- * @version 1.0.0
+ * @version 2.0.0
+ * RISE Protocol V3 Compliant
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/testing/asserts.ts";
 import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
-
-function createMockRequest(body: Record<string, unknown>): Request {
-  return new Request("https://test.supabase.co/functions/v1/send-webhook-test", {
-    method: "POST",
-    headers: new Headers({
-      "Content-Type": "application/json",
-      "Cookie": "producer_session=valid-token",
-    }),
-    body: JSON.stringify(body),
-  });
-}
+import { createMockRequest, createTestPayload, hasValidUrl } from "./_shared.ts";
 
 describe("send-webhook-test - Authentication", () => {
   it("should require producer_session cookie", () => {
@@ -47,29 +33,30 @@ describe("send-webhook-test - Request Validation", () => {
   });
 
   it("should validate URL format", () => {
-    const url = "https://example.com/webhook";
-    assertEquals(url.startsWith("https://") || url.startsWith("http://"), true);
+    const valid = hasValidUrl({ url: "https://example.com/webhook" });
+    assertEquals(valid, true);
+  });
+
+  it("should reject invalid URL format", () => {
+    const valid = hasValidUrl({ url: "not-a-url" });
+    assertEquals(valid, false);
   });
 });
 
 describe("send-webhook-test - Test Payload", () => {
   it("should create test payload", () => {
-    const payload = {
-      event: "test",
-      timestamp: new Date().toISOString(),
-      message: "This is a test webhook",
-    };
+    const payload = createTestPayload();
     assertExists(payload.event);
   });
 
   it("should include timestamp", () => {
-    const payload = { timestamp: new Date().toISOString() };
+    const payload = createTestPayload();
     assertExists(payload.timestamp);
   });
 
   it("should include test message", () => {
-    const message = "This is a test webhook";
-    assertExists(message);
+    const payload = createTestPayload();
+    assertEquals(payload.message, "This is a test webhook");
   });
 });
 
@@ -141,12 +128,7 @@ describe("send-webhook-test - Edge Cases", () => {
   });
 
   it("should handle URLs with query params", () => {
-    const url = "https://example.com/webhook?param=value";
-    assertExists(url);
-  });
-
-  it("should handle URLs with special characters", () => {
-    const url = "https://example.com/webhook?param=value&other=123";
-    assertExists(url);
+    const valid = hasValidUrl({ url: "https://example.com/webhook?param=value" });
+    assertEquals(valid, true);
   });
 });

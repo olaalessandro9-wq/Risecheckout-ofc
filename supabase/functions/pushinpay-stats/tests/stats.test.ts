@@ -1,27 +1,13 @@
 /**
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * pushinpay-stats - Stats Tests
  * 
- * pushinpay-stats Edge Function - Testes Unitários
- * 
- * Testa estatísticas de integração PushInPay.
- * Cobertura: 80%+
- * 
- * @version 1.0.0
+ * @version 2.0.0
+ * RISE Protocol V3 Compliant
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/testing/asserts.ts";
 import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
-
-function createMockRequest(body: Record<string, unknown>): Request {
-  return new Request("https://test.supabase.co/functions/v1/pushinpay-stats", {
-    method: "POST",
-    headers: new Headers({
-      "Content-Type": "application/json",
-      "Cookie": "producer_session=valid-token",
-    }),
-    body: JSON.stringify(body),
-  });
-}
+import { createMockRequest, isValidAction, type StatsPayload } from "./_shared.ts";
 
 describe("pushinpay-stats - Authentication", () => {
   it("should require producer_session cookie", () => {
@@ -38,7 +24,7 @@ describe("pushinpay-stats - Authentication", () => {
 describe("pushinpay-stats - Request Validation", () => {
   it("should parse action from body", async () => {
     const mockRequest = createMockRequest({ action: "get-stats" });
-    const body = await mockRequest.json() as Record<string, unknown>;
+    const body = await mockRequest.json() as StatsPayload;
     assertEquals(body.action, "get-stats");
   });
 
@@ -51,8 +37,8 @@ describe("pushinpay-stats - Request Validation", () => {
 describe("pushinpay-stats - Actions", () => {
   it("should support get-stats action", async () => {
     const mockRequest = createMockRequest({ action: "get-stats" });
-    const body = await mockRequest.json() as Record<string, unknown>;
-    assertEquals(body.action, "get-stats");
+    const body = await mockRequest.json() as StatsPayload;
+    assertEquals(isValidAction(body.action ?? ""), true);
   });
 
   it("should return 400 for unknown action", () => {
@@ -119,11 +105,6 @@ describe("pushinpay-stats - Error Handling", () => {
   it("should return 500 on error", () => {
     const expectedStatus = 500;
     assertEquals(expectedStatus, 500);
-  });
-
-  it("should log errors", () => {
-    const logMessage = "Error:";
-    assertExists(logMessage);
   });
 });
 
