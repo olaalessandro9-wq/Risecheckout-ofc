@@ -1,59 +1,64 @@
 
-# Plano: Corrigir Erro de Deploy na Vercel (pnpm-lock.yaml desatualizado)
+
+# Plano: Corrigir Erro 404 nas Rotas do React (SPA na Vercel)
 
 ## Diagnóstico
 
-O deploy na Vercel está falhando com o erro:
-```
-ERR_PNPM_OUTDATED_LOCKFILE: lovable-tagger (lockfile: ^1.1.11, package.json: ^1.1.13)
-```
+**Erro:** Ao acessar `risecheckout.com/c/d9bc95_300_1f`, a Vercel retorna 404 NOT_FOUND.
 
-**Causa Raiz:** O `pnpm-lock.yaml` não foi regenerado após a atualização do `lovable-tagger` para `^1.1.13`.
+**Causa Raiz:** O `vercel.json` atual contém apenas headers de segurança. Falta a configuração de `rewrites` que instrui a Vercel a direcionar todas as rotas para `index.html`, permitindo que o React Router gerencie as rotas do lado do cliente.
+
+**Arquivo `public/_redirects`:** Este arquivo usa sintaxe do Netlify e é ignorado pela Vercel.
 
 ---
 
 ## Análise de Soluções
 
-### Solução A: Regenerar o pnpm-lock.yaml
-- Manutenibilidade: 6/10
-- Zero DT: 5/10 (mantém múltiplos lockfiles)
-- Arquitetura: 5/10 (não resolve a inconsistência de lockfiles)
+### Solução A: Adicionar rewrites ao vercel.json existente
+- Manutenibilidade: 10/10 (configuração centralizada)
+- Zero DT: 10/10 (resolve o problema definitivamente)
+- Arquitetura: 10/10 (padrão oficial da Vercel para SPAs)
+- Escalabilidade: 10/10 (suporta qualquer rota futura)
+- Segurança: 10/10 (mantém headers de segurança)
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 5 minutos
+
+### Solução B: Usar configuração via Vercel Dashboard
+- Manutenibilidade: 6/10 (configuração fora do código)
+- Zero DT: 7/10 (não versionada no Git)
+- Arquitetura: 5/10 (separa config de código)
 - Escalabilidade: 6/10
 - Segurança: 8/10
-- **NOTA FINAL: 6.0/10**
-- Tempo estimado: 2 minutos
+- **NOTA FINAL: 6.4/10**
+- Tempo estimado: 3 minutos
 
-### Solução B: Unificar para um único gerenciador de pacotes (pnpm) e limpar lockfiles legados
-- Manutenibilidade: 10/10 (um único lockfile = zero ambiguidade)
-- Zero DT: 10/10 (elimina dívida técnica de múltiplos lockfiles)
-- Arquitetura: 10/10 (padrão correto para projetos modernos)
-- Escalabilidade: 10/10 (CI/CD consistente)
-- Segurança: 10/10 (dependências determinísticas)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 10 minutos
+### DECISÃO: Solução A (Nota 10.0)
 
-### DECISÃO: Solução B (Nota 10.0)
-
-A Solução A seria um "remendo" que apenas regenera o lockfile sem resolver o problema arquitetural de ter **3 lockfiles diferentes** (`pnpm-lock.yaml`, `package-lock.json`, `bun.lock/bun.lockb`). Isso é dívida técnica que causará problemas futuros.
+Configuração via código (Infrastructure as Code) é sempre superior a configurações manuais no dashboard.
 
 ---
 
 ## Implementação
 
-### Passo 1: Remover lockfiles legados
-Deletar os arquivos que não são usados pela Vercel:
-- `package-lock.json` (npm)
-- `bun.lock` (bun)
-- `bun.lockb` (bun binary)
+### Passo 1: Atualizar vercel.json
 
-### Passo 2: Atualizar .npmrc para garantir uso do pnpm
-Verificar que o `.npmrc` está configurado corretamente.
+Adicionar a configuração `rewrites` que direciona todas as rotas para `index.html`:
 
-### Passo 3: Regenerar pnpm-lock.yaml
-Deletar o `pnpm-lock.yaml` atual e deixar o sistema regenerar com as versões corretas do `package.json`.
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    // ... headers existentes mantidos
+  ]
+}
+```
 
-### Passo 4: Atualizar .gitignore
-Garantir que os lockfiles não utilizados não sejam commitados acidentalmente no futuro.
+### Passo 2: Remover arquivo obsoleto (opcional)
+
+O arquivo `public/_redirects` pode ser removido pois é sintaxe do Netlify e não funciona na Vercel.
 
 ---
 
@@ -61,34 +66,45 @@ Garantir que os lockfiles não utilizados não sejam commitados acidentalmente n
 
 | Arquivo | Ação |
 |---------|------|
-| `package-lock.json` | DELETAR |
-| `bun.lock` | DELETAR |
-| `bun.lockb` | DELETAR |
-| `pnpm-lock.yaml` | DELETAR (será regenerado automaticamente) |
-| `.gitignore` | ATUALIZAR (adicionar lockfiles não utilizados) |
+| `vercel.json` | ATUALIZAR (adicionar rewrites) |
+| `public/_redirects` | DELETAR (opcional - sintaxe Netlify) |
 
 ---
 
 ## Resultado Esperado
 
-Após a implementação:
-1. Deploy na Vercel funcionará corretamente
-2. Projeto terá **apenas um lockfile** (`pnpm-lock.yaml`)
-3. Zero ambiguidade sobre qual gerenciador de pacotes usar
-4. CI/CD consistente e determinístico
+Após deploy:
+1. Acessar `risecheckout.com/c/slug` carregará o `index.html`
+2. React Router assumirá e renderizará `PaymentLinkRedirect`
+3. Todas as rotas dinâmicas funcionarão (checkout, pagamentos, etc.)
 
 ---
 
 ## Seção Técnica
 
-### Por que a Vercel usa frozen-lockfile?
+### Por que SPAs precisam de rewrites?
 
-A flag `--frozen-lockfile` garante que o ambiente de CI/CD instale **exatamente** as mesmas versões que foram testadas localmente. Sem isso, poderia haver "works on my machine" bugs.
+Single Page Applications usam client-side routing. O servidor (Vercel) não conhece rotas como `/c/slug` - elas só existem no JavaScript do React Router. Sem rewrites:
 
-### Por que múltiplos lockfiles são problemáticos?
+```
+Usuário acessa: /c/d9bc95_300_1f
+Vercel procura: dist/c/d9bc95_300_1f/index.html
+Resultado: 404 NOT_FOUND
+```
 
-Cada gerenciador de pacotes (npm, pnpm, bun) resolve dependências de forma ligeiramente diferente. Ter múltiplos lockfiles significa que diferentes ambientes podem ter diferentes versões instaladas, causando bugs difíceis de rastrear.
+Com rewrites:
 
-### Configuração do pnpm na Vercel
+```
+Usuário acessa: /c/d9bc95_300_1f
+Vercel rewrite: → /index.html
+React Router: renderiza <PaymentLinkRedirect />
+```
 
-A Vercel detecta automaticamente o gerenciador de pacotes baseado no lockfile presente. Com apenas `pnpm-lock.yaml`, ela usará pnpm consistentemente.
+### Ordem de prioridade no vercel.json
+
+A Vercel processa na ordem:
+1. **Arquivos estáticos existentes** (JS, CSS, imagens)
+2. **Rewrites** (redireciona para index.html se não for arquivo)
+
+Isso garante que assets estáticos são servidos normalmente, e apenas rotas "virtuais" são redirecionadas.
+
