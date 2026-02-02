@@ -253,7 +253,8 @@ export class CheckoutPage {
 
   /**
    * Fill card form with test card data
-   * Handles different iframe-based card forms (MercadoPago, Stripe, Asaas)
+   * Handles Mercado Pago card form (gateway único de referência para testes E2E)
+   * @see docs/TESTING_SYSTEM.md - Decisão estratégica: apenas MP para testes E2E
    */
   async fillCardForm(card: {
     number: string;
