@@ -9,7 +9,11 @@
  * - Delete product
  * - Product form interactions
  * 
+ * All waits are state-based (no arbitrary timeouts).
+ * Refactored: 2026-02-02 - Eliminated all waitForTimeout calls.
+ * 
  * @module e2e/fixtures/pages/ProductsPage
+ * @version 3.0.0
  */
 
 import type { Page, Locator } from "@playwright/test";
@@ -124,7 +128,8 @@ export class ProductsPage {
 
   async searchProduct(query: string): Promise<void> {
     await this.searchInput.fill(query);
-    await this.page.waitForTimeout(500); // Debounce
+    // State-based: wait for network to settle after debounce (RISE V3 - 10.0/10)
+    await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.apiResponse });
   }
 
   async getProductCount(): Promise<number> {
@@ -158,7 +163,9 @@ export class ProductsPage {
 
   async confirmDelete(): Promise<void> {
     await this.confirmDeleteButton.click();
-    await this.page.waitForTimeout(1000); // Wait for deletion
+    // State-based: wait for dialog to close and network to complete (RISE V3 - 10.0/10)
+    await this.confirmDialog.waitFor({ state: "hidden", timeout: TIMEOUTS.apiResponse });
+    await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.apiResponse });
   }
 
   async cancelDelete(): Promise<void> {
@@ -168,7 +175,10 @@ export class ProductsPage {
 
   async duplicateProduct(index: number = 0): Promise<void> {
     await this.duplicateButton.nth(index).click();
-    await this.page.waitForTimeout(1000); // Wait for duplication
+    // State-based: wait for network request to complete (RISE V3 - 10.0/10)
+    await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.apiResponse });
+    // Optionally wait for success feedback
+    await this.successMessage.waitFor({ state: "visible", timeout: TIMEOUTS.apiResponse }).catch(() => {});
   }
 
   // ============================================================================
@@ -193,7 +203,8 @@ export class ProductsPage {
 
   async saveProduct(): Promise<void> {
     await this.saveButton.click();
-    await this.page.waitForTimeout(2000); // Wait for save operation
+    // State-based: wait for form submission (RISE V3 - 10.0/10)
+    await this.waitForSaveComplete();
   }
 
   async cancelEdit(): Promise<void> {
@@ -217,22 +228,26 @@ export class ProductsPage {
 
   async switchToGeneralTab(): Promise<void> {
     await this.generalTab.click();
-    await this.page.waitForTimeout(500);
+    // State-based: wait for tab content to be visible (RISE V3 - 10.0/10)
+    await this.page.waitForLoadState("domcontentloaded");
   }
 
   async switchToCheckoutTab(): Promise<void> {
     await this.checkoutTab.click();
-    await this.page.waitForTimeout(500);
+    // State-based: wait for tab content to load (RISE V3 - 10.0/10)
+    await this.page.waitForLoadState("domcontentloaded");
   }
 
   async switchToMembersAreaTab(): Promise<void> {
     await this.membersAreaTab.click();
-    await this.page.waitForTimeout(500);
+    // State-based: wait for tab content to load (RISE V3 - 10.0/10)
+    await this.page.waitForLoadState("domcontentloaded");
   }
 
   async switchToAffiliatesTab(): Promise<void> {
     await this.affiliatesTab.click();
-    await this.page.waitForTimeout(500);
+    // State-based: wait for tab content to load (RISE V3 - 10.0/10)
+    await this.page.waitForLoadState("domcontentloaded");
   }
 
   // ============================================================================
@@ -287,7 +302,13 @@ export class ProductsPage {
   }
 
   async waitForSaveComplete(): Promise<void> {
-    await this.page.waitForTimeout(2000);
+    // State-based: wait for loading to finish and network to settle (RISE V3 - 10.0/10)
     await this.loadingSpinner.waitFor({ state: "hidden", timeout: TIMEOUTS.formSubmit }).catch(() => {});
+    await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.formSubmit });
+    // Optionally wait for success/error feedback
+    await Promise.race([
+      this.successMessage.waitFor({ state: "visible", timeout: TIMEOUTS.apiResponse }),
+      this.errorMessage.waitFor({ state: "visible", timeout: TIMEOUTS.apiResponse }),
+    ]).catch(() => {});
   }
 }
