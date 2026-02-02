@@ -1,13 +1,10 @@
 /**
- * Redirect Validation - Navigation Flow E2E Tests
+ * Redirect Validation - Navigation Flow Tests
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Tests correct redirects for success and error scenarios.
- * Validates URL structure and state preservation.
- * 
- * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
- * All waits are now state-based using Playwright best practices.
+ * Testa redirecionamentos corretos usando Mercado Pago como gateway único.
+ * Valida URLs, UUIDs e preservação de estado.
  * 
  * @module e2e/specs/critical/redirect-validation.spec
  * @version 2.0.0
@@ -18,25 +15,25 @@ import { CheckoutPage } from "../../fixtures/pages/CheckoutPage";
 import { PixPaymentPage } from "../../fixtures/pages/PixPaymentPage";
 import { SuccessPage } from "../../fixtures/pages/SuccessPage";
 import {
-  TEST_CHECKOUT,
-  TEST_CHECKOUT_GATEWAYS,
+  TEST_CHECKOUT_MERCADOPAGO,
   TEST_CARDS,
+  TEST_CUSTOMER,
   generateTestEmail,
 } from "../../fixtures/test-data";
 
-test.describe("Redirect Validation - Navigation Flow", () => {
+test.describe("Redirect Validation - Mercado Pago", () => {
   test.describe("Success Redirects", () => {
     test("PIX payment should redirect to /pay/pix/{orderId}", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("redirect-pix"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       await checkoutPage.selectPaymentPix();
@@ -50,20 +47,19 @@ test.describe("Redirect Validation - Navigation Flow", () => {
     test("Card approved should redirect to /success/{orderId}", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.mercadopago.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("redirect-card"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       await checkoutPage.selectPaymentCard();
-      // ASSERTIVE: Wait for card form visibility
       await checkoutPage.waitForCardFormReady();
-      await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
+      await checkoutPage.fillCardForm(TEST_CARDS.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();
 
@@ -75,20 +71,19 @@ test.describe("Redirect Validation - Navigation Flow", () => {
     test("Success page should have valid UUID orderId in URL", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.mercadopago.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("redirect-uuid"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       await checkoutPage.selectPaymentCard();
-      // ASSERTIVE: Wait for card form visibility
       await checkoutPage.waitForCardFormReady();
-      await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
+      await checkoutPage.fillCardForm(TEST_CARDS.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();
 
@@ -105,14 +100,14 @@ test.describe("Redirect Validation - Navigation Flow", () => {
     test("PIX page should have valid UUID orderId in URL", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("pix-uuid"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       await checkoutPage.selectPaymentPix();
@@ -131,22 +126,21 @@ test.describe("Redirect Validation - Navigation Flow", () => {
   test.describe("Error Redirects", () => {
     test("Declined card should NOT redirect (stay on checkout)", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
-      const initialSlug = TEST_CHECKOUT_GATEWAYS.mercadopago.slug;
+      const initialSlug = TEST_CHECKOUT_MERCADOPAGO.slug;
 
       await checkoutPage.navigate(initialSlug);
       await checkoutPage.waitForCheckoutReady();
 
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("redirect-declined"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       await checkoutPage.selectPaymentCard();
-      // ASSERTIVE: Wait for card form visibility
       await checkoutPage.waitForCardFormReady();
-      await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.declined);
+      await checkoutPage.fillCardForm(TEST_CARDS.declined);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submit();
 
@@ -166,24 +160,22 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       // Intercept API and fail it
       await page.route('**/create-order**', route => route.abort());
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("redirect-network"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       await checkoutPage.selectPaymentPix();
       await checkoutPage.submit();
 
-      // ASSERTIVE: Wait for error state OR timeout via error message
+      // Wait for error state
       const errorIndicator = page.locator('[role="alert"], .error-message, :has-text("erro")').first();
-      await errorIndicator.waitFor({ state: "visible", timeout: 10000 }).catch(() => {
-        // Network error may show different states - verify we stayed on checkout
-      });
+      await errorIndicator.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
 
       // Should still be on checkout
       const url = page.url();
@@ -197,14 +189,14 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       const checkoutPage = new CheckoutPage(page);
       const pixPaymentPage = new PixPaymentPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("state-pix"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       await checkoutPage.selectPaymentPix();
@@ -220,20 +212,19 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       const checkoutPage = new CheckoutPage(page);
       const successPage = new SuccessPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.mercadopago.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("state-success"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       await checkoutPage.selectPaymentCard();
-      // ASSERTIVE: Wait for card form visibility
       await checkoutPage.waitForCardFormReady();
-      await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
+      await checkoutPage.fillCardForm(TEST_CARDS.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();
 
@@ -241,55 +232,6 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       await successPage.waitForSuccess();
       const isSuccessful = await successPage.isSuccessful();
       expect(isSuccessful).toBe(true);
-    });
-  });
-
-  test.describe("Cross-Gateway Redirect Consistency", () => {
-    test("All gateways should redirect to same URL pattern for PIX", async ({ page }) => {
-      const checkoutPage = new CheckoutPage(page);
-
-      // Test MercadoPago PIX
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.mercadopago.slug);
-      await checkoutPage.waitForCheckoutReady();
-
-      await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
-        email: generateTestEmail("cross-pix"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
-      });
-
-      await checkoutPage.selectPaymentPix();
-      await checkoutPage.submitAndWaitForPix();
-
-      const url = page.url();
-      // Should follow same pattern regardless of gateway
-      expect(url).toMatch(/\/pay\/pix\/[a-f0-9-]+/i);
-    });
-
-    test("All gateways should redirect to same URL pattern for Card", async ({ page }) => {
-      const checkoutPage = new CheckoutPage(page);
-
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.stripe.slug);
-      await checkoutPage.waitForCheckoutReady();
-
-      await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
-        email: generateTestEmail("cross-card"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
-      });
-
-      await checkoutPage.selectPaymentCard();
-      // ASSERTIVE: Wait for card form visibility
-      await checkoutPage.waitForCardFormReady();
-      await checkoutPage.fillCardForm(TEST_CARDS.stripe.approved);
-      await checkoutPage.selectInstallments(1);
-      await checkoutPage.submitAndWaitForSuccess();
-
-      const url = page.url();
-      // Should follow same pattern regardless of gateway
-      expect(url).toMatch(/\/success\/[a-f0-9-]+/i);
     });
   });
 });

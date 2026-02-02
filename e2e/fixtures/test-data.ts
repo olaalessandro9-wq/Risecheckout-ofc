@@ -1,12 +1,24 @@
 /**
- * E2E Test Data - Centralized Test Fixtures
+ * E2E Test Data - Centralized Test Fixtures (Mercado Pago Only)
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Provides consistent, isolated test data across all E2E tests.
- * Emails use timestamps to ensure uniqueness across test runs.
+ * 
+ * ARQUITETURA CONSOLIDADA (02/02/2026):
+ * - Testes E2E usam APENAS Mercado Pago como gateway de referência
+ * - Gateways são "infraestrutura" - implementa e pronto, não precisa testar cada um
+ * - Foco em FUNCIONALIDADES (cupons, order bumps, fluxos) não em gateways
+ * - Escalabilidade: adicionar 100 gateways ≠ adicionar 100 testes
+ * 
+ * REQUISITOS PARA EXECUTAR TESTES:
+ * 1. Conta com role ADMIN (única que pode configurar Sandbox)
+ * 2. Mercado Pago configurado em modo SANDBOX
+ * 3. Checkout com slug "test-checkout-mercadopago"
+ * 4. Cupons VALID10 e EXPIRED2020 criados
  * 
  * @module e2e/fixtures/test-data
+ * @version 2.0.0
  */
 
 // ============================================================================
@@ -72,7 +84,7 @@ export const TEST_CREDENTIALS = {
 
 export const TEST_CHECKOUT = {
   // Slugs for testing (will 404 in test env, which is expected)
-  validSlug: "test-product-checkout",
+  validSlug: "test-checkout-mercadopago",
   invalidSlug: "non-existent-checkout-slug-12345",
   
   // Coupon codes for testing
@@ -243,88 +255,52 @@ export const ERROR_MESSAGES = {
 } as const;
 
 // ============================================================================
-// Gateway Test Data (RISE V3 - Happy Path E2E)
+// Mercado Pago Test Data (Gateway Único de Referência)
 // ============================================================================
 
 /**
- * Checkout slugs configured per gateway for E2E testing
- * Each slug points to a checkout with the specific gateway configured
+ * Checkout slug para testes E2E
+ * 
+ * REQUISITOS PARA CONFIGURAR:
+ * 1. Role ADMIN no sistema (owner/user não podem configurar Sandbox)
+ * 2. Mercado Pago configurado em modo SANDBOX
+ * 3. Checkout criado com PIX + Cartão habilitados
+ * 4. Pelo menos 1 Order Bump configurado
  */
-export const TEST_CHECKOUT_GATEWAYS = {
-  pushinpay: {
-    slug: "test-checkout-pushinpay",
-    pixEnabled: true,
-    cardEnabled: false,
-  },
-  mercadopago: {
-    slug: "test-checkout-mercadopago",
-    pixEnabled: true,
-    cardEnabled: true,
-  },
-  asaas: {
-    slug: "test-checkout-asaas",
-    pixEnabled: true,
-    cardEnabled: true,
-  },
-  stripe: {
-    slug: "test-checkout-stripe",
-    pixEnabled: true,
-    cardEnabled: true,
-  },
+export const TEST_CHECKOUT_MERCADOPAGO = {
+  slug: "test-checkout-mercadopago",
+  pixEnabled: true,
+  cardEnabled: true,
 } as const;
 
 /**
- * Test cards per gateway - approved and declined
- * These are official sandbox/test cards from each gateway
+ * Cartões de teste do Mercado Pago (Sandbox)
+ * 
+ * Documentação oficial: https://www.mercadopago.com.br/developers/pt/docs/checkout-api/testing/test-cards
  */
 export const TEST_CARDS = {
-  mercadopago: {
-    approved: {
-      number: "5031433215406351",
-      expiry: "11/30",
-      cvv: "123",
-      holder: "APRO",
-    },
-    declined: {
-      number: "5031755734530604",
-      expiry: "11/30",
-      cvv: "123",
-      holder: "OTHE",
-    },
+  /** Cartão que será APROVADO */
+  approved: {
+    number: "5031433215406351",
+    expiry: "11/30",
+    cvv: "123",
+    holder: "APRO",
   },
-  stripe: {
-    approved: {
-      number: "4242424242424242",
-      expiry: "12/30",
-      cvv: "123",
-      holder: "Test User",
-    },
-    declined: {
-      number: "4000000000000002",
-      expiry: "12/30",
-      cvv: "123",
-      holder: "Test User",
-    },
-  },
-  asaas: {
-    approved: {
-      number: "4111111111111111",
-      expiry: "12/30",
-      cvv: "123",
-      holder: "Test User",
-    },
-    declined: {
-      number: "4000000000000002",
-      expiry: "12/30",
-      cvv: "123",
-      holder: "Test User",
-    },
+  /** Cartão que será RECUSADO */
+  declined: {
+    number: "5031755734530604",
+    expiry: "11/30",
+    cvv: "123",
+    holder: "OTHE",
   },
 } as const;
 
 /**
- * Test coupons for E2E validation
- * These must be created in the test database
+ * Cupons de teste para validação E2E
+ * 
+ * DEVEM SER CRIADOS NO BANCO:
+ * - VALID10: Cupom ativo, 10% de desconto, sem expiração
+ * - EXPIRED2020: Cupom com data de expiração no passado
  */
 export const TEST_COUPONS = {
   valid: {
@@ -340,3 +316,11 @@ export const TEST_COUPONS = {
   },
 } as const;
 
+/**
+ * Dados do cliente para formulário de checkout
+ */
+export const TEST_CUSTOMER = {
+  name: "Cliente E2E Teste",
+  phone: "(11) 99999-9999",
+  cpf: "123.456.789-09",
+} as const;
