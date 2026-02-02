@@ -1,199 +1,208 @@
 
-# Auditoria de Conformidade RISE V3 Seção 4 - Relatório Final
+# Plano: Corrigir Infraestrutura de Testes + Ativar CI no GitHub
 
-## 1. Resultado da Auditoria
-
-| Item | Status | Nota |
-|------|--------|------|
-| Arquivos legados multi-gateway | ✅ DELETADOS | 10/10 |
-| Specs críticos consolidados para MP único | ✅ COMPLETO | 10/10 |
-| `test-data.ts` simplificado | ✅ CORRETO | 10/10 |
-| Documentação `TESTING_SYSTEM.md` | ✅ ATUALIZADA | 10/10 |
-| JSDoc do `CheckoutPage.ts` (linha 256-257) | ✅ ATUALIZADO | 10/10 |
-| **Comentário legado linha 265** | ❌ PENDENTE | 8/10 |
-
-**STATUS: 9.7/10 - CORREÇÃO ÚNICA NECESSÁRIA**
+## Objetivo
+Corrigir os 18 arquivos de teste que usam `dotenv/load.ts` (causando falhas) e garantir que todos os testes passem para habilitar o GitHub Branch Protection.
 
 ---
 
-## 2. Problema Identificado
+## 1. Problema Identificado
 
-### 2.1 Comentário Legado no CheckoutPage.ts
-
-**Arquivo:** `e2e/fixtures/pages/CheckoutPage.ts`
-**Linha:** 265
-
-**Atual:**
+### 1.1 Causa Raiz
+18 arquivos `_shared.ts` em Edge Functions usam:
 ```typescript
-// Try direct inputs first (Asaas-style)
+import "https://deno.land/std@0.224.0/dotenv/load.ts";
 ```
 
-**Problema:** Referência a "Asaas" viola a decisão estratégica documentada de usar apenas Mercado Pago como gateway de referência.
+Este import **valida obrigatoriamente** todas as variáveis do `.env.example`, quebrando quando faltam variáveis no ambiente de CI.
+
+### 1.2 Arquivos Afetados
+- `affiliation-public/tests/_shared.ts`
+- `members-area-quizzes/tests/_shared.ts`
+- `get-order-for-pix/tests/_shared.ts`
+- `members-area-certificates/tests/_shared.ts`
+- `request-affiliation/tests/_shared.ts`
+- `update-affiliate-settings/tests/_shared.ts`
+- `mercadopago-create-payment/tests/_shared.ts`
+- `asaas-validate-credentials/tests/_shared.ts`
+- `get-all-affiliation-statuses/tests/_shared.ts`
+- `manage-user-role/tests/_shared.ts`
+- `get-affiliation-status/tests/_shared.ts`
+- `get-affiliation-details/tests/_shared.ts`
+- `alert-stuck-orders/tests/_shared.ts`
+- `get-pix-status/tests/_shared.ts`
+- `gdpr-request/tests/_shared.ts`
+- `gdpr-forget/tests/_shared.ts`
+- (+ 2 outros arquivos)
 
 ---
 
-## 3. Validação do que está CORRETO
+## 2. Solução RISE V3 Nota 10.0
 
-### 3.1 Specs Críticos (32 testes - 100% MP Único)
+### 2.1 Análise de Soluções
 
-| Spec | Testes | Status |
-|------|--------|--------|
-| `complete-pix-flow.spec.ts` | 4 | ✅ MP único, JSDoc correto |
-| `complete-card-flow.spec.ts` | 4 | ✅ MP único, JSDoc correto |
-| `card-errors.spec.ts` | 5 | ✅ MP único, JSDoc correto |
-| `coupon-validation.spec.ts` | 9 | ✅ MP único, JSDoc correto |
-| `order-bump.spec.ts` | 4 | ✅ MP único, JSDoc correto |
-| `redirect-validation.spec.ts` | 6 | ✅ MP único, JSDoc correto |
+#### Solução A: Adicionar todas as variáveis no ambiente
+- Manutenibilidade: 5/10 (frágil, quebra quando `.env.example` mudar)
+- Zero DT: 3/10 (cria acoplamento)
+- Arquitetura: 4/10 (não segue padrão centralizado)
+- Escalabilidade: 4/10 (cada nova variável requer update)
+- Segurança: 8/10 (N/A)
+- **NOTA FINAL: 4.8/10**
 
-### 3.2 Test Data (test-data.ts)
+#### Solução B: Migrar para infraestrutura centralizada
+- Manutenibilidade: 10/10 (padrão único para todos os testes)
+- Zero DT: 10/10 (elimina causa raiz)
+- Arquitetura: 10/10 (segue `_shared/testing/mod.ts`)
+- Escalabilidade: 10/10 (adicionar funções é trivial)
+- Segurança: 10/10 (N/A)
+- **NOTA FINAL: 10.0/10**
 
-| Verificação | Status |
-|-------------|--------|
-| Zero referências a Stripe | ✅ |
-| Zero referências a Asaas | ✅ |
-| Zero referências a PushinPay | ✅ |
-| Apenas `TEST_CHECKOUT_MERCADOPAGO` | ✅ |
-| Apenas `TEST_CARDS.approved/declined` (MP) | ✅ |
-| JSDoc com decisão estratégica documentada | ✅ |
-
-### 3.3 Arquivos Deletados (Código Morto Removido)
-
-| Arquivo | Status |
-|---------|--------|
-| `e2e/specs/payment-asaas.spec.ts` | ✅ DELETADO |
-| `e2e/specs/payment-gateways-core.spec.ts` | ✅ DELETADO |
-| `e2e/specs/payment-mercadopago.spec.ts` | ✅ DELETADO |
-| `e2e/specs/checkout-bumps.spec.ts` | ✅ DELETADO |
-| `e2e/specs/critical/happy-path-pix.spec.ts` | ✅ DELETADO |
-| `e2e/specs/critical/happy-path-card.spec.ts` | ✅ DELETADO |
-| `e2e/specs/critical/card-declined.spec.ts` | ✅ DELETADO |
-
-### 3.4 Zero TODOs/FIXMEs Problemáticos
-
-Busca por `TODO|FIXME|HACK|XXX` retornou apenas um comentário explicativo (linha 97 do redirect-validation.spec.ts explicando formato UUID v4), que não representa dívida técnica.
+### DECISÃO: Solução B (Nota 10.0)
 
 ---
 
-## 4. Análise RISE V3 Seção 4 - Sistema de Notas
+## 3. Implementação Técnica
 
-### 4.1 Solução A: Manter Comentário Legado (0 minutos)
+### 3.1 Ação por Arquivo
 
-| Critério | Peso | Nota | Justificativa |
-|----------|------|------|---------------|
-| Manutenibilidade | 30% | 8/10 | Comentário confunde futuros devs |
-| Zero DT | 25% | 7/10 | Referência a gateway excluído = dívida |
-| Arquitetura | 20% | 8/10 | Viola decisão documentada |
-| Escalabilidade | 15% | 10/10 | Não impacta |
-| Segurança | 10% | 10/10 | N/A |
+Para cada um dos 18 arquivos, a correção é:
 
-**NOTA FINAL: 8.15/10**
-
-### 4.2 Solução B: Corrigir Comentário (2 minutos)
-
-| Critério | Peso | Nota | Justificativa |
-|----------|------|------|---------------|
-| Manutenibilidade | 30% | 10/10 | Comentário reflete arquitetura atual |
-| Zero DT | 25% | 10/10 | Zero referências legadas |
-| Arquitetura | 20% | 10/10 | Alinhado com decisão estratégica |
-| Escalabilidade | 15% | 10/10 | N/A |
-| Segurança | 10% | 10/10 | N/A |
-
-**NOTA FINAL: 10.0/10**
-
-### 4.3 DECISÃO: Solução B (Nota 10.0)
-
-Conforme RISE V3 Seção 4.6 (Regra "1 ano vs 5 minutos"):
-- Diferença de nota: 1.85 pontos
-- A melhor solução VENCE. SEMPRE.
-
----
-
-## 5. Correção Necessária
-
-### 5.1 Arquivo: e2e/fixtures/pages/CheckoutPage.ts
-
-**Linha 265 - Antes:**
+**Antes:**
 ```typescript
-// Try direct inputs first (Asaas-style)
+import "https://deno.land/std@0.224.0/dotenv/load.ts";
+
+// ...local config functions...
 ```
 
-**Linha 265 - Depois:**
+**Depois:**
 ```typescript
-// Try direct inputs first (standard HTML inputs)
+import { getTestConfig, skipIntegration, integrationTestOptions } from "../../_shared/testing/mod.ts";
+
+// Remove funções locais duplicadas, usa as centralizadas
 ```
 
-**Justificativa:** Remove referência legada a gateway excluído, mantendo a explicação técnica do comportamento do código.
+### 3.2 Padrão Correto (Referência: admin-data)
+
+```typescript
+/**
+ * Shared utilities for [function-name] tests
+ * @module [function-name]/tests/_shared
+ * @version 2.0.0 - RISE Protocol V3 Compliant (Zero Hardcoded Credentials)
+ */
+
+import { getTestConfig } from "../../_shared/testing/mod.ts";
+
+const config = getTestConfig();
+
+export const FUNCTION_NAME = "[function-name]";
+export const FUNCTION_URL = config.supabaseUrl
+  ? `${config.supabaseUrl}/functions/v1/${FUNCTION_NAME}`
+  : `https://mock.supabase.co/functions/v1/${FUNCTION_NAME}`;
+
+// ... rest of shared utilities
+```
 
 ---
 
-## 6. Checklist de Conformidade Final
+## 4. Ativação do CI no GitHub
 
-Após correção da linha 265:
+### 4.1 Pré-requisitos
+1. ✅ Workflow `ci.yml` já existe
+2. ❌ Testes precisam passar
+3. ❌ Fazer push para branch `main` ou `develop`
 
-| Verificação | Status |
-|-------------|--------|
-| Zero arquivos de teste multi-gateway | ✅ |
-| Zero referências a Stripe em testes E2E | ✅ |
-| Zero referências a PushinPay em testes E2E | ✅ |
-| Zero referências a Asaas em testes E2E | ✅ (após correção) |
-| `test-data.ts` usa apenas `TEST_CHECKOUT_MERCADOPAGO` | ✅ |
-| Documentação atualizada com decisão estratégica | ✅ |
-| Todos os comentários atualizados | ✅ (após correção) |
-| Zero código morto | ✅ |
-| Zero dívida técnica | ✅ |
-| Frases proibidas RISE V3 ausentes | ✅ |
+### 4.2 Passos para Ativar Branch Protection
+
+Após corrigir os testes:
+
+1. **Push para GitHub** - O workflow roda automaticamente
+2. **Esperar checks completarem** - ~3-5 minutos
+3. **No GitHub** → Settings → Branches → Edit rule para `main`
+4. **Em "Require status checks to pass before merging"**:
+   - Ativar checkbox
+   - Clicar no campo de busca
+   - Selecionar: `🚦 Quality Gate`
+
+### 4.3 Status Checks Disponíveis Após Fix
+- `📦 Install Dependencies`
+- `🧪 Unit & Integration Tests`
+- `🎭 E2E Tests (Playwright)`
+- `⚡ Edge Functions Tests`
+- `🚦 Quality Gate` (bloqueante)
 
 ---
 
-## 7. Resumo Executivo
+## 5. Arquivos a Modificar
+
+### Lista Completa (18 arquivos)
 
 ```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║       AUDITORIA RISE V3 SEÇÃO 4 - CONSOLIDAÇÃO E2E MP ÚNICO                   ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║                                                                               ║
-║  STATUS ATUAL: 9.7/10 (1 CORREÇÃO PENDENTE)                                  ║
-║  STATUS APÓS CORREÇÃO: 10.0/10 (CONFORMIDADE TOTAL)                          ║
-║                                                                               ║
-║  ✅ COMPLETO:                                                                 ║
-║  • 7 arquivos legados deletados                                              ║
-║  • 6 specs críticos consolidados (32 testes)                                 ║
-║  • test-data.ts 100% MP único                                                ║
-║  • TESTING_SYSTEM.md documentação atualizada                                 ║
-║  • JSDoc principal do CheckoutPage atualizado                                ║
-║                                                                               ║
-║  ❌ PENDENTE:                                                                 ║
-║  • Linha 265 CheckoutPage.ts: "(Asaas-style)" → "(standard HTML inputs)"    ║
-║                                                                               ║
-║  TEMPO ESTIMADO PARA 10.0/10: 2 minutos                                      ║
-║                                                                               ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+supabase/functions/
+├── affiliation-public/tests/_shared.ts
+├── alert-stuck-orders/tests/_shared.ts
+├── asaas-validate-credentials/tests/_shared.ts
+├── gdpr-forget/tests/_shared.ts
+├── gdpr-request/tests/_shared.ts
+├── get-affiliation-details/tests/_shared.ts
+├── get-affiliation-status/tests/_shared.ts
+├── get-all-affiliation-statuses/tests/_shared.ts
+├── get-order-for-pix/tests/_shared.ts
+├── get-pix-status/tests/_shared.ts
+├── manage-user-role/tests/_shared.ts
+├── members-area-certificates/tests/_shared.ts
+├── members-area-quizzes/tests/_shared.ts
+├── mercadopago-create-payment/tests/_shared.ts
+├── request-affiliation/tests/_shared.ts
+├── update-affiliate-settings/tests/_shared.ts
+└── (+ verificar se há mais)
 ```
 
 ---
 
-## 8. Seção Técnica
+## 6. Impacto e Métricas
 
-### 8.1 Ação a Implementar
+| Métrica | Antes | Depois |
+|---------|-------|--------|
+| Arquivos com padrão antigo | 18 | 0 |
+| Testes Edge Functions passando | 36/40 | 40/40 |
+| CI bloqueado por falhas | ✅ | ❌ |
+| Branch Protection habilitável | ❌ | ✅ |
+| Conformidade RISE V3 | 8/10 | 10/10 |
 
-1. **Modificar** `e2e/fixtures/pages/CheckoutPage.ts` linha 265
-   - De: `// Try direct inputs first (Asaas-style)`
-   - Para: `// Try direct inputs first (standard HTML inputs)`
+---
 
-### 8.2 Impacto
+## 7. Próximos Passos
 
-| Métrica | Valor |
-|---------|-------|
-| Linhas modificadas | 1 |
-| Risco de regressão | Zero (apenas comentário) |
-| Tempo de implementação | < 1 minuto |
+1. **Aprovar este plano**
+2. **Eu corrijo os 18 arquivos** (migração para padrão centralizado)
+3. **Executar testes novamente** para validar
+4. **Push para GitHub** (sync automático Lovable → GitHub)
+5. **Ativar Branch Protection** no GitHub (você faz manualmente)
 
-### 8.3 Conformidade RISE V3 Seção 4
+---
 
-- **4.1 Mandamento Absoluto:** ✅ Escolhendo solução nota 10.0
-- **4.2 Critérios:** ✅ Manutenibilidade infinita, zero DT
-- **4.3 Fatores irrelevantes:** ✅ Não priorizando velocidade
-- **4.4 Sistema de notas:** ✅ Documentado acima
-- **4.5 Frases proibidas:** ✅ Nenhuma utilizada
-- **4.6 Regra 1 ano vs 5 min:** ✅ Escolhendo melhor nota
+## 8. Seção Técnica Detalhada
 
+### 8.1 Por que `dotenv/load.ts` Quebra
+
+O módulo `https://deno.land/std@0.224.0/dotenv/load.ts` internamente:
+1. Lê o arquivo `.env.example`
+2. Compara com as variáveis de ambiente atuais
+3. **LANÇA ERRO** se qualquer variável do `.env.example` estiver ausente
+
+No ambiente Lovable/CI, apenas algumas variáveis estão disponíveis, causando o erro.
+
+### 8.2 Solução Centralizada
+
+O módulo `_shared/testing/test-config.ts`:
+1. Usa `Deno.env.get()` diretamente
+2. **NÃO valida** contra `.env.example`
+3. Retorna `null` para variáveis ausentes
+4. Testes usam `skipIntegration()` para pular quando necessário
+
+### 8.3 Checklist de Conformidade
+
+- ✅ Zero `dotenv/load.ts` em arquivos de teste
+- ✅ Todos usam `getTestConfig()` centralizado
+- ✅ Padrão consistente em 100% das funções
+- ✅ CI passa sem variáveis sensíveis
