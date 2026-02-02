@@ -2,16 +2,30 @@
  * Shared Test Infrastructure for manage-user-role
  * 
  * @module manage-user-role/tests/_shared
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant (Zero Hardcoded Credentials)
  */
 
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+import { getTestConfig, skipIntegration, integrationTestOptions } from "../../_shared/testing/mod.ts";
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
 export const FUNCTION_NAME = "manage-user-role";
+
+const config = getTestConfig();
+
+export function getFunctionUrl(): string {
+  return config.supabaseUrl
+    ? `${config.supabaseUrl}/functions/v1/${FUNCTION_NAME}`
+    : `https://mock.supabase.co/functions/v1/${FUNCTION_NAME}`;
+}
+
+// ============================================================================
+// RE-EXPORT CENTRALIZED TEST HELPERS
+// ============================================================================
+
+export { skipIntegration, integrationTestOptions };
 
 // ============================================================================
 // VALID ROLES
@@ -51,3 +65,28 @@ export function hasRequiredField(field: string): field is RequiredField {
 // ============================================================================
 
 export const TABLE_NAME = "user_roles";
+
+// ============================================================================
+// MOCK FACTORIES
+// ============================================================================
+
+export interface RolePayload {
+  userId?: string;
+  role?: string;
+}
+
+export function createPayload(overrides: Partial<RolePayload> = {}): RolePayload {
+  return {
+    userId: "test-user-id",
+    role: "producer",
+    ...overrides,
+  };
+}
+
+export function createMockRequest(payload: RolePayload): Request {
+  return new Request(getFunctionUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
