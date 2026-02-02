@@ -21,6 +21,10 @@ import { BusyProvider } from "@/components/BusyProvider";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import NotFound from "@/pages/NotFound";
 
+// Vercel Monitoring (React/Vite)
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+
 // Modular route imports
 import {
   publicRoutes,
@@ -98,6 +102,10 @@ function App() {
           </BusyProvider>
         </AppErrorBoundary>
       </HelmetProvider>
+      
+      {/* Vercel Monitoring - Apenas em produção na Vercel */}
+      <Analytics />
+      <SpeedInsights />
     </QueryClientProvider>
   );
 }
