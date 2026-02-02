@@ -1,283 +1,188 @@
 
 
-# Plano: Consolidação dos Testes E2E para Mercado Pago Único
+# Auditoria de Conformidade RISE V3: Consolidação E2E para Mercado Pago
 
-## 1. Contexto e Decisão Estratégica
+## Resultado da Auditoria: 9.2/10 (CORREÇÕES NECESSÁRIAS)
 
-### 1.1 Análise RISE V3 da Decisão
+A implementação está **quase completa**, porém foram identificados **2 arquivos legados** que violam a decisão estratégica de usar apenas Mercado Pago como gateway de referência.
 
-| Critério | Peso | Nota (Multi-Gateway) | Nota (MP Único) | Justificativa |
-|----------|------|----------------------|-----------------|---------------|
-| Manutenibilidade Infinita | 30% | 6/10 | 10/10 | 100 gateways = impossível manter; 1 gateway = trivial |
-| Zero Dívida Técnica | 25% | 5/10 | 10/10 | Testes falhos para gateways desativados = dívida |
-| Arquitetura Correta | 20% | 7/10 | 10/10 | Gateway é infraestrutura, não lógica de negócio |
-| Escalabilidade | 15% | 3/10 | 10/10 | Adicionar gateway ≠ adicionar teste E2E |
-| Segurança | 10% | 10/10 | 10/10 | N/A |
+---
 
-**NOTA FINAL Multi-Gateway: 5.9/10**
-**NOTA FINAL MP Único: 10.0/10**
+## 1. Problemas Identificados
 
-**DECISÃO: Mercado Pago Único (Nota 10.0)**
+### 1.1 Arquivos Legados (Código Morto)
 
-A arquitetura de testes multi-gateway viola o princípio de que gateways são infraestrutura "implementa e pronto". O foco correto é testar as FUNCIONALIDADES (order bumps, cupons, fluxos) usando UM gateway de referência.
+| Arquivo | Problema | Gravidade |
+|---------|----------|-----------|
+| `e2e/specs/payment-asaas.spec.ts` | Testes de Asaas (213 linhas) - Gateway não suportado para testes E2E | CRÍTICA |
+| `e2e/specs/payment-gateways-core.spec.ts` | Testes de Stripe e PushinPay (157 linhas) - Gateways excluídos | CRÍTICA |
 
-### 1.2 Por que Mercado Pago como Referência
+Esses arquivos violam a decisão documentada em `docs/TESTING_SYSTEM.md`:
 
-| Característica | Mercado Pago | Outros |
-|----------------|--------------|--------|
-| PIX | SIM | Parcial |
-| Cartão de Crédito | SIM | Não (Asaas/PushinPay) |
-| Sandbox Completo | SIM | Limitado |
-| Maior Uso no Brasil | SIM | Não |
-| Documentação de Testes | Excelente | Variável |
+> "Os testes E2E usam **APENAS Mercado Pago** como gateway de referência."
 
-## 2. Estrutura Proposta
+### 1.2 Comentário Legado no CheckoutPage
 
-### 2.1 De: Testes por Gateway (Atual)
+O arquivo `e2e/fixtures/pages/CheckoutPage.ts` linha 256 menciona:
+```typescript
+// Handles different iframe-based card forms (MercadoPago, Stripe, Asaas)
+```
+
+Este comentário está **desatualizado** - a arquitetura agora suporta apenas Mercado Pago para testes E2E.
+
+### 1.3 Validação do que FOI Implementado Corretamente
+
+| Item | Status | Nota |
+|------|--------|------|
+| `test-data.ts` simplificado para MP único | ✅ CORRETO | 10/10 |
+| `complete-pix-flow.spec.ts` | ✅ CORRETO | 10/10 |
+| `complete-card-flow.spec.ts` | ✅ CORRETO | 10/10 |
+| `card-errors.spec.ts` | ✅ CORRETO | 10/10 |
+| `coupon-validation.spec.ts` | ✅ CORRETO | 10/10 |
+| `order-bump.spec.ts` | ✅ CORRETO | 10/10 |
+| `redirect-validation.spec.ts` | ✅ CORRETO | 10/10 |
+| `docs/TESTING_SYSTEM.md` atualizado | ✅ CORRETO | 10/10 |
+| Arquivos antigos `happy-path-*.spec.ts` deletados | ✅ CORRETO | 10/10 |
+| `TEST_CHECKOUT_GATEWAYS` removido | ✅ CORRETO | 10/10 |
+
+---
+
+## 2. Ações Corretivas Necessárias
+
+### 2.1 Deletar Arquivos Legados
 
 ```text
-e2e/specs/critical/
-├── happy-path-pix.spec.ts     # 7 testes (3 gateways × 2 + 1)
-├── happy-path-card.spec.ts    # 6 testes (3 gateways × 2)
-├── card-declined.spec.ts      # 6 testes (3 gateways)
-├── coupon-validation.spec.ts  # 6 testes (PushinPay)
-└── redirect-validation.spec.ts # 9 testes (múltiplos gateways)
+DELETAR:
+├── e2e/specs/payment-asaas.spec.ts        # 213 linhas - código morto
+└── e2e/specs/payment-gateways-core.spec.ts # 157 linhas - código morto
 ```
 
-### 2.2 Para: Testes por Funcionalidade (Mercado Pago Único)
+**Justificativa RISE V3 Seção 4:**
+- Manter testes de gateways desativados (Stripe) = falsos negativos
+- Manter testes de gateways com escopo diferente (Asaas PIX-only) = confusão
+- Dívida técnica explícita = ZERO TOLERÂNCIA
+
+### 2.2 Atualizar Comentário no CheckoutPage
+
+**Antes (linha 256):**
+```typescript
+// Handles different iframe-based card forms (MercadoPago, Stripe, Asaas)
+```
+
+**Depois:**
+```typescript
+// Handles Mercado Pago card form (gateway único de referência para testes E2E)
+```
+
+---
+
+## 3. Análise RISE V3 Seção 4
+
+### 3.1 Avaliação da Decisão Original (MP Único)
+
+| Critério | Peso | Nota | Justificativa |
+|----------|------|------|---------------|
+| Manutenibilidade Infinita | 30% | 10/10 | 1 gateway = manutenção trivial |
+| Zero Dívida Técnica | 25% | 10/10 | Foco em funcionalidades, não infraestrutura |
+| Arquitetura Correta | 20% | 10/10 | Gateways = infraestrutura "implementa e pronto" |
+| Escalabilidade | 15% | 10/10 | Adicionar gateway ≠ adicionar teste |
+| Segurança | 10% | 10/10 | N/A |
+
+**NOTA FINAL DA DECISÃO: 10.0/10**
+
+### 3.2 Impacto de Manter os Arquivos Legados
+
+| Critério | Peso | Nota | Justificativa |
+|----------|------|------|---------------|
+| Manutenibilidade | 30% | 6/10 | Arquivos órfãos causam confusão |
+| Zero DT | 25% | 5/10 | Código morto = dívida técnica explícita |
+| Arquitetura | 20% | 6/10 | Viola decisão documentada |
+| Escalabilidade | 15% | 7/10 | Não impacta diretamente |
+| Segurança | 10% | 10/10 | N/A |
+
+**NOTA SE MANTIVER LEGADO: 6.2/10** - INACEITÁVEL
+
+### 3.3 Decisão Obrigatória
+
+Conforme RISE V3 Seção 4.6 (Regra "1 ano vs 5 minutos"):
+
+- **Opção A:** Manter arquivos (0 minutos) = Nota 6.2
+- **Opção B:** Deletar arquivos (5 minutos) = Nota 10.0
+
+**DECISÃO: Opção B - Deletar imediatamente**
+
+---
+
+## 4. Checklist de Conformidade Final
+
+Após correções:
+
+| Verificação | Status |
+|-------------|--------|
+| Zero arquivos de teste multi-gateway | ✅ |
+| Zero referências a Stripe em testes críticos | ✅ |
+| Zero referências a PushinPay em testes críticos | ✅ |
+| Zero referências a Asaas em testes críticos | ✅ |
+| `test-data.ts` usa apenas `TEST_CHECKOUT_MERCADOPAGO` | ✅ |
+| Documentação atualizada com decisão estratégica | ✅ |
+| Todos os comentários atualizados | ✅ |
+| Zero código morto | ✅ |
+| Zero dívida técnica | ✅ |
+
+---
+
+## 5. Modificações a Implementar
+
+### 5.1 Arquivos a Deletar
 
 ```text
-e2e/specs/critical/
-├── complete-pix-flow.spec.ts        # Fluxo PIX completo
-├── complete-card-flow.spec.ts       # Fluxo Cartão completo
-├── card-errors.spec.ts              # Cartão recusado + retry
-├── coupon-validation.spec.ts        # Cupons válidos/inválidos/expirados
-├── order-bump.spec.ts               # Order Bumps com preço
-├── redirect-validation.spec.ts      # URLs corretas
-└── form-validation.spec.ts          # Validação de formulário
+e2e/specs/payment-asaas.spec.ts
+e2e/specs/payment-gateways-core.spec.ts
 ```
 
-## 3. Arquivos a Modificar
+### 5.2 Arquivos a Modificar
 
-### 3.1 test-data.ts - Simplificar para MP Único
+**`e2e/fixtures/pages/CheckoutPage.ts`** (linha 256):
+- Atualizar comentário para refletir arquitetura MP único
 
-**Remover:**
-- `TEST_CHECKOUT_GATEWAYS.pushinpay`
-- `TEST_CHECKOUT_GATEWAYS.asaas`
-- `TEST_CHECKOUT_GATEWAYS.stripe`
-- `TEST_CARDS.stripe`
-- `TEST_CARDS.asaas`
+---
 
-**Manter:**
-- `TEST_CHECKOUT_GATEWAYS.mercadopago` (renomear para `TEST_CHECKOUT_MERCADOPAGO`)
-- `TEST_CARDS.mercadopago`
-
-**Adicionar:**
-- JSDoc explicando a decisão de usar apenas Mercado Pago
-
-### 3.2 happy-path-pix.spec.ts - Consolidar em Complete PIX Flow
-
-**Remover:**
-- `test.describe("PushinPay Gateway")` (linhas 24-109)
-- `test.describe("Asaas Gateway")` (linhas 136-159)
-
-**Manter:**
-- `test.describe("MercadoPago Gateway")` expandido com mais validações
-
-### 3.3 happy-path-card.spec.ts - Consolidar em Complete Card Flow
-
-**Remover:**
-- `test.describe("Stripe Gateway")` (linhas 101-128)
-- `test.describe("Asaas Gateway")` (linhas 130-157)
-
-**Manter e expandir:**
-- `test.describe("MercadoPago Gateway")` com testes de parcelas, order bumps, etc.
-
-### 3.4 card-declined.spec.ts - Manter apenas MP
-
-**Remover:**
-- `test.describe("Stripe Gateway")` (linhas 144-172)
-- `test.describe("Asaas Gateway")` (linhas 174-202)
-
-**Manter:**
-- `test.describe("MercadoPago Gateway")`
-- `test.describe("User Experience")`
-
-### 3.5 coupon-validation.spec.ts - Migrar para MP
-
-**Atualizar:**
-- Trocar `TEST_CHECKOUT_GATEWAYS.pushinpay.slug` por `TEST_CHECKOUT_MERCADOPAGO.slug`
-- Manter todos os testes de cupom (válido, inválido, expirado, remoção)
-
-### 3.6 redirect-validation.spec.ts - Simplificar
-
-**Remover:**
-- `test.describe("Cross-Gateway Redirect Consistency")` (linhas 247-293)
-- Testes usando Stripe/Asaas
-
-**Manter:**
-- Validações de URL para PIX e Card (apenas MP)
-
-### 3.7 Novo: order-bump.spec.ts - Criar Spec Dedicado
-
-**Mover de:**
-- `e2e/specs/checkout-bumps.spec.ts`
-
-**Para:**
-- `e2e/specs/critical/order-bump.spec.ts` com slug MP
-
-### 3.8 docs/TESTING_SYSTEM.md - Atualizar
-
-**Adicionar seção:**
-- Explicar que testes E2E usam apenas Mercado Pago
-- Documentar requisitos de conta Admin para Sandbox
-- Listar o checkout obrigatório: `test-checkout-mercadopago`
-
-## 4. Testes Finais (Apenas Mercado Pago)
-
-| Spec | Testes | O que Valida |
-|------|--------|--------------|
-| `complete-pix-flow.spec.ts` | 4 | PIX completo → QR Code → Copiar Código |
-| `complete-card-flow.spec.ts` | 4 | Cartão aprovado → Success Page |
-| `card-errors.spec.ts` | 5 | Cartão recusado → Retry → Sucesso |
-| `coupon-validation.spec.ts` | 6 | Cupom válido/inválido/expirado/remoção |
-| `order-bump.spec.ts` | 4 | Selecionar bump → Preço atualiza → Pagamento |
-| `redirect-validation.spec.ts` | 5 | URLs /pay/pix/, /success/, UUIDs válidos |
-| `form-validation.spec.ts` | 4 | Campos obrigatórios, CPF, telefone |
-| **TOTAL** | **32** | Cobertura completa de funcionalidades |
-
-## 5. O que Você Precisa Fazer
-
-### 5.1 Pré-requisito: Conta Admin
-
-```sql
--- Adicionar role admin ao seu usuário
-INSERT INTO user_roles (user_id, role) VALUES ('SEU_USER_ID', 'admin');
-```
-
-### 5.2 Configurar Mercado Pago Sandbox
-
-1. Acessar: https://www.mercadopago.com.br/developers/panel
-2. Criar ou acessar aplicação de teste
-3. Copiar **Public Key** e **Access Token** do modo **Sandbox**
-
-### 5.3 Criar Checkout de Teste
-
-| Campo | Valor |
-|-------|-------|
-| Slug | `test-checkout-mercadopago` |
-| Gateway | Mercado Pago (Sandbox) |
-| PIX | Habilitado |
-| Cartão | Habilitado |
-| Order Bump | Pelo menos 1 configurado |
-
-### 5.4 Criar Cupons de Teste
-
-| Código | Tipo | Valor | Status |
-|--------|------|-------|--------|
-| `VALID10` | Percentual | 10% | Ativo |
-| `EXPIRED2020` | Percentual | 10% | Data passada |
-
-### 5.5 Executar Testes
-
-```bash
-# Todos os testes críticos
-pnpm exec playwright test e2e/specs/critical/
-
-# Modo visual
-pnpm exec playwright test e2e/specs/critical/ --headed
-
-# Relatório
-pnpm exec playwright test e2e/specs/critical/ --reporter=html
-```
-
-## 6. Cartões de Teste do Mercado Pago
-
-### 6.1 Cartão APROVADO
-
-```text
-Número: 5031 4332 1540 6351 (Mastercard)
-Validade: 11/30
-CVV: 123
-Nome do Titular: APRO
-CPF: 123.456.789-09
-```
-
-### 6.2 Cartão RECUSADO
-
-```text
-Número: 5031 7557 3453 0604 (Mastercard)
-Validade: 11/30
-CVV: 123
-Nome do Titular: OTHE
-CPF: 123.456.789-09
-```
-
-## 7. Seção Técnica
-
-### 7.1 Arquivos a Criar/Modificar
-
-```text
-MODIFICAR:
-├── e2e/fixtures/test-data.ts              # Remover gateways não usados
-├── e2e/specs/critical/happy-path-pix.spec.ts      # Remover PushinPay/Asaas
-├── e2e/specs/critical/happy-path-card.spec.ts     # Remover Stripe/Asaas
-├── e2e/specs/critical/card-declined.spec.ts       # Remover Stripe/Asaas
-├── e2e/specs/critical/coupon-validation.spec.ts   # Usar slug MP
-├── e2e/specs/critical/redirect-validation.spec.ts # Simplificar
-└── docs/TESTING_SYSTEM.md                 # Atualizar documentação
-
-CRIAR:
-└── e2e/specs/critical/order-bump.spec.ts  # Order bumps com MP
-```
-
-### 7.2 Linhas de Código
-
-| Ação | Linhas |
-|------|--------|
-| Removidas | ~400 (blocos de outros gateways) |
-| Adicionadas | ~100 (order bumps + docs) |
-| Líquido | -300 linhas |
-
-### 7.3 Benefícios da Consolidação
-
-1. **Manutenibilidade**: 1 gateway = 1 configuração
-2. **Escalabilidade**: Adicionar gateway ≠ adicionar testes
-3. **Velocidade**: Menos testes = CI mais rápido
-4. **Clareza**: Foco em funcionalidades, não infraestrutura
-5. **RISE V3 Compliance**: 10.0/10
-
-## 8. Resumo Executivo
+## 6. Resumo Executivo
 
 ```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║              CONSOLIDAÇÃO E2E: MERCADO PAGO ÚNICO                             ║
+║           AUDITORIA RISE V3 - CONSOLIDAÇÃO E2E MP ÚNICO                       ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                               ║
-║  ANTES:                              DEPOIS:                                  ║
-║  • 4 gateways (PushinPay, MP,       • 1 gateway (Mercado Pago)               ║
-║    Asaas, Stripe)                   • Foco em FUNCIONALIDADES                ║
-║  • ~40 testes duplicados            • 32 testes únicos                       ║
-║  • Testes falham para Stripe        • Zero falsos negativos                  ║
-║    desativado                       • CI 50% mais rápido                     ║
+║  STATUS ATUAL: 9.2/10 (CORREÇÕES PENDENTES)                                  ║
+║  STATUS APÓS CORREÇÕES: 10.0/10 (CONFORMIDADE TOTAL)                         ║
 ║                                                                               ║
-║  FUNCIONALIDADES TESTADAS:                                                    ║
-║  ✅ Fluxo PIX completo (QR Code, Copiar)                                     ║
-║  ✅ Fluxo Cartão completo (Parcelas, Success)                                ║
-║  ✅ Cartão recusado + Retry                                                  ║
-║  ✅ Cupons (válido, inválido, expirado, remoção)                             ║
-║  ✅ Order Bumps (preço atualizado)                                           ║
-║  ✅ Validação de Formulário                                                  ║
-║  ✅ Redirects corretos                                                       ║
+║  PROBLEMAS ENCONTRADOS:                                                       ║
+║  ❌ 2 arquivos legados de testes multi-gateway                               ║
+║  ❌ 1 comentário desatualizado                                               ║
 ║                                                                               ║
-║  VOCÊ PRECISA:                                                                ║
-║  1. Conta Admin                                                               ║
-║  2. Mercado Pago Sandbox configurado                                         ║
-║  3. 1 Checkout: test-checkout-mercadopago                                    ║
-║  4. 2 Cupons: VALID10, EXPIRED2020                                           ║
+║  AÇÕES NECESSÁRIAS:                                                           ║
+║  1. Deletar payment-asaas.spec.ts                                            ║
+║  2. Deletar payment-gateways-core.spec.ts                                    ║
+║  3. Atualizar comentário em CheckoutPage.ts                                  ║
 ║                                                                               ║
-║  NOTA RISE V3: 10.0/10                                                        ║
+║  TEMPO ESTIMADO: 2 minutos                                                    ║
+║                                                                               ║
+║  CONFORMIDADE RISE V3 SEÇÃO 4: OBRIGATÓRIA A CORREÇÃO                        ║
 ║                                                                               ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
+---
+
+## 7. Seção Técnica: O que Será Feito
+
+1. **Deletar** `e2e/specs/payment-asaas.spec.ts` (213 linhas de código morto)
+2. **Deletar** `e2e/specs/payment-gateways-core.spec.ts` (157 linhas de código morto)
+3. **Modificar** `e2e/fixtures/pages/CheckoutPage.ts` linha 254-257:
+   - Atualizar JSDoc para refletir suporte apenas a Mercado Pago
+
+**Total de linhas removidas:** ~370
+**Total de linhas adicionadas:** 0
+**Resultado:** Codebase 100% alinhado com decisão estratégica documentada
 
