@@ -8,7 +8,11 @@
  * 
  * Flow: Checkout → Apply Coupon → Verify Discount
  * 
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
+ * 
  * @module e2e/specs/critical/coupon-validation.spec
+ * @version 2.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -18,8 +22,6 @@ import {
   TEST_CHECKOUT,
   TEST_CHECKOUT_GATEWAYS,
   TEST_COUPONS,
-  ERROR_MESSAGES,
-  TIMEOUTS,
   generateTestEmail,
 } from "../../fixtures/test-data";
 
@@ -168,7 +170,8 @@ test.describe("Coupon Validation - Application Flow", () => {
 
       // Remove coupon
       await checkoutPage.removeCoupon();
-      await page.waitForTimeout(500); // Allow UI to update
+      // ASSERTIVE: Wait for UI to update after coupon removal
+      await checkoutPage.waitForCouponRemoval();
 
       // Price should return to original
       const finalPrice = await checkoutPage.getTotalPrice();

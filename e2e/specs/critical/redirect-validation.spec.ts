@@ -6,7 +6,11 @@
  * Tests correct redirects for success and error scenarios.
  * Validates URL structure and state preservation.
  * 
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
+ * 
  * @module e2e/specs/critical/redirect-validation.spec
+ * @version 2.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -17,7 +21,6 @@ import {
   TEST_CHECKOUT,
   TEST_CHECKOUT_GATEWAYS,
   TEST_CARDS,
-  TIMEOUTS,
   generateTestEmail,
 } from "../../fixtures/test-data";
 
@@ -58,7 +61,8 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();
@@ -82,7 +86,8 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();
@@ -139,7 +144,8 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.declined);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submit();
@@ -173,8 +179,11 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       await checkoutPage.selectPaymentPix();
       await checkoutPage.submit();
 
-      // Wait for error handling
-      await page.waitForTimeout(3000);
+      // ASSERTIVE: Wait for error state OR timeout via error message
+      const errorIndicator = page.locator('[role="alert"], .error-message, :has-text("erro")').first();
+      await errorIndicator.waitFor({ state: "visible", timeout: 10000 }).catch(() => {
+        // Network error may show different states - verify we stayed on checkout
+      });
 
       // Should still be on checkout
       const url = page.url();
@@ -222,7 +231,8 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();
@@ -271,7 +281,8 @@ test.describe("Redirect Validation - Navigation Flow", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
       await checkoutPage.fillCardForm(TEST_CARDS.stripe.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();

@@ -317,14 +317,44 @@ export class CheckoutPage {
 
   /**
    * Wait for coupon feedback (success or error)
+   * Uses assertive polling instead of fixed timeout
    */
   async waitForCouponFeedback(): Promise<"success" | "error" | "timeout"> {
     const result = await Promise.race([
       this.couponSuccessMessage.waitFor({ state: "visible", timeout: 5000 }).then(() => "success" as const),
       this.couponErrorMessage.waitFor({ state: "visible", timeout: 5000 }).then(() => "error" as const),
-      this.page.waitForTimeout(5000).then(() => "timeout" as const),
-    ]);
+    ]).catch(() => "timeout" as const);
     return result;
+  }
+
+  /**
+   * Wait for card form to be ready for input
+   * RISE V3 ASSERTIVE: Uses element visibility instead of fixed timeout
+   */
+  async waitForCardFormReady(): Promise<void> {
+    const cardFormIndicators = this.page.locator(
+      'input[name="cardNumber"], input[data-testid="card-number"], [data-testid="card-form"]'
+    ).first();
+    await cardFormIndicators.waitFor({ state: "visible", timeout: 10000 });
+  }
+
+  /**
+   * Wait for UI to stabilize after coupon removal
+   * RISE V3 ASSERTIVE: Uses state polling instead of fixed timeout
+   */
+  async waitForCouponRemoval(): Promise<void> {
+    // Wait for remove button to disappear OR price to update
+    await this.page.waitForFunction(
+      () => {
+        const removeBtn = document.querySelector('[role="button"]:has-text("remover")');
+        return !removeBtn || removeBtn.getAttribute('aria-hidden') === 'true';
+      },
+      { timeout: 3000 }
+    ).catch(() => {
+      // Fallback: wait for any visual change
+    });
+    // Also wait for any loading to finish
+    await this.loadingSpinner.waitFor({ state: "hidden", timeout: 3000 }).catch(() => {});
   }
 
   /**
