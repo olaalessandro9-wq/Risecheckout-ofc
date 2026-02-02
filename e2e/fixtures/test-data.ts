@@ -340,13 +340,3 @@ export const TEST_COUPONS = {
   },
 } as const;
 
-// ============================================================================
-// Card Form Type
-// ============================================================================
-
-export interface TestCardData {
-  number: string;
-  expiry: string;
-  cvv: string;
-  holder: string;
-}
