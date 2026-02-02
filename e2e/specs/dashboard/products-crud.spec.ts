@@ -103,9 +103,20 @@ test.describe("Product Creation", () => {
     const saveButton = productsPage.saveButton;
     await expect(saveButton).toBeVisible();
     
-    // Form validation should indicate required field
+    // ASSERTIVE: Validate form state through UI indicators
     const isFormValid = await productsPage.isFormValid();
-    expect(typeof isFormValid).toBe("boolean");
+    
+    if (!isFormValid) {
+      // Form is invalid - should show error indicator for required field
+      const errorIndicator = page.locator('.text-destructive, [data-error], .error, [aria-invalid="true"]');
+      const hasErrorIndicator = await errorIndicator.count() > 0;
+      // Either error indicator visible OR save button disabled
+      const isButtonDisabled = await saveButton.isDisabled();
+      expect(hasErrorIndicator || isButtonDisabled).toBe(true);
+    } else {
+      // Form valid - save button should be enabled
+      await expect(saveButton).toBeEnabled();
+    }
   });
 
   test("product can be created with basic info", async ({ page }) => {
