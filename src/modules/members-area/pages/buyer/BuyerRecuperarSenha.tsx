@@ -98,9 +98,9 @@ export default function BuyerRecuperarSenha() {
             <div className="lg:hidden flex justify-center mb-8">
               <Link to="/" className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
-                  <span className="font-bold text-white">R</span>
+                  <span className="font-bold text-[hsl(var(--auth-text-primary))]">R</span>
                 </div>
-                <span className="font-bold text-lg text-white">RiseCheckout</span>
+                <span className="font-bold text-lg text-[hsl(var(--auth-text-primary))]">RiseCheckout</span>
               </Link>
             </div>
 
@@ -116,7 +116,7 @@ export default function BuyerRecuperarSenha() {
                 >
                   {/* Header */}
                   <div className="space-y-2">
-                    <h1 className="text-2xl font-bold text-white">Recuperar Senha</h1>
+                    <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">Recuperar Senha</h1>
                     <p className="text-[hsl(var(--auth-text-secondary))]">
                       Digite o e-mail vinculado à sua conta no espaço abaixo e em seguida enviaremos um link para redefinir a sua senha.
                     </p>
@@ -133,7 +133,7 @@ export default function BuyerRecuperarSenha() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="seu@email.com"
                         disabled={viewState === "loading"}
-                        className="h-12 bg-[hsl(var(--auth-input-bg))] border-[hsl(var(--auth-border))] text-white placeholder:text-[hsl(var(--auth-text-muted))] focus:border-[hsl(var(--auth-accent)/0.5)] focus:ring-[hsl(var(--auth-accent)/0.2)]"
+                        className="h-12 bg-[hsl(var(--auth-input-bg))] border-[hsl(var(--auth-border))] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-text-muted))] focus:border-[hsl(var(--auth-accent)/0.5)] focus:ring-[hsl(var(--auth-accent)/0.2)]"
                       />
                       {errorMessage && viewState === "form" && (
                         <p className="text-sm text-[hsl(var(--auth-error))]">{errorMessage}</p>
@@ -143,7 +143,7 @@ export default function BuyerRecuperarSenha() {
                     <Button
                       type="submit"
                       disabled={viewState === "loading"}
-                      className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 hover:scale-[1.02] transition-all text-white font-semibold shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]"
+                      className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 hover:scale-[1.02] transition-all text-[hsl(var(--auth-text-primary))] font-semibold shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]"
                     >
                       {viewState === "loading" ? (
                         <>
@@ -161,7 +161,7 @@ export default function BuyerRecuperarSenha() {
                     <button
                       onClick={handleCancel}
                       disabled={viewState === "loading"}
-                      className="text-sm text-[hsl(var(--auth-text-secondary))] hover:text-white transition-colors disabled:opacity-50"
+                      className="text-sm text-[hsl(var(--auth-text-secondary))] hover:text-[hsl(var(--auth-text-primary))] transition-colors disabled:opacity-50"
                     >
                       Cancelar
                     </button>
@@ -187,17 +187,17 @@ export default function BuyerRecuperarSenha() {
 
                   {/* Message */}
                   <div className="space-y-4">
-                    <h1 className="text-2xl font-bold text-white">E-mail enviado!</h1>
+                    <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">E-mail enviado!</h1>
                     <div className="space-y-2 text-[hsl(var(--auth-text-secondary))]">
                       <p>Se o email existir em nossa base, você receberá um link para</p>
-                      <p className="text-white font-medium">{email}</p>
+                      <p className="text-[hsl(var(--auth-text-primary))] font-medium">{email}</p>
                       <p className="text-sm">Verifique sua caixa de entrada e spam.</p>
                     </div>
                   </div>
 
                   {/* Action */}
                   <Link to="/minha-conta">
-                    <Button className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 hover:scale-[1.02] transition-all text-white font-semibold shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
+                    <Button className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 hover:scale-[1.02] transition-all text-[hsl(var(--auth-text-primary))] font-semibold shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
                       Voltar ao login
                     </Button>
                   </Link>
@@ -222,7 +222,7 @@ export default function BuyerRecuperarSenha() {
 
                   {/* Message */}
                   <div className="space-y-4">
-                    <h1 className="text-2xl font-bold text-white">E-mail não encontrado</h1>
+                    <h1 className="text-2xl font-bold text-[hsl(var(--auth-text-primary))]">E-mail não encontrado</h1>
                     <div className="space-y-2 text-[hsl(var(--auth-text-secondary))]">
                       <p>O e-mail informado não está cadastrado em nossa base de dados.</p>
                       <p className="text-sm">Verifique se digitou corretamente ou entre em contato com o suporte.</p>
@@ -233,13 +233,13 @@ export default function BuyerRecuperarSenha() {
                   <div className="space-y-3">
                     <Button 
                       onClick={handleTryAgain}
-                      className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 hover:scale-[1.02] transition-all text-white font-semibold shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]"
+                      className="w-full h-12 bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] hover:opacity-90 hover:scale-[1.02] transition-all text-[hsl(var(--auth-text-primary))] font-semibold shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]"
                     >
                       Tentar novamente
                     </Button>
                     <button
                       onClick={handleCancel}
-                      className="text-sm text-[hsl(var(--auth-text-secondary))] hover:text-white transition-colors"
+                      className="text-sm text-[hsl(var(--auth-text-secondary))] hover:text-[hsl(var(--auth-text-primary))] transition-colors"
                     >
                       Cancelar
                     </button>
@@ -256,9 +256,9 @@ export default function BuyerRecuperarSenha() {
           <div className="relative z-10">
             <Link to="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
-                <span className="font-bold text-white text-xl">R</span>
+                <span className="font-bold text-[hsl(var(--auth-text-primary))] text-xl">R</span>
               </div>
-              <span className="font-bold text-xl text-white tracking-tight">RiseCheckout</span>
+              <span className="font-bold text-xl text-[hsl(var(--auth-text-primary))] tracking-tight">RiseCheckout</span>
             </Link>
           </div>
 
@@ -270,7 +270,7 @@ export default function BuyerRecuperarSenha() {
               transition={{ delay: 0.2 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-bold text-white leading-tight">
+              <h2 className="text-4xl font-bold text-[hsl(var(--auth-text-primary))] leading-tight">
                 Recupere seu acesso <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]">
                   de forma simples
