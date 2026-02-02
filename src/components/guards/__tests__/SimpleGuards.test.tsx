@@ -12,8 +12,7 @@ import { MarketplaceRoute } from "../MarketplaceRoute";
 import * as ReactRouterDOM from "react-router-dom";
 import * as UseUnifiedAuth from "@/hooks/useUnifiedAuth";
 import * as UsePermissions from "@/hooks/usePermissions";
-import type { AppRole, Permissions } from "@/hooks/usePermissions";
-import type { UnifiedUser } from "@/hooks/useUnifiedAuth";
+import { createMockAuthState, createMockPermissions, ProtectedContent } from "./test-helpers.tsx";
 
 // ============================================================================
 // MOCKS
@@ -45,104 +44,29 @@ vi.mock("lucide-react", () => ({
 }));
 
 // ============================================================================
-// TYPE-SAFE FACTORIES
-// ============================================================================
-
-function createMockUser(overrides: Partial<UnifiedUser> = {}): UnifiedUser {
-  return {
-    id: "test-user-id",
-    email: "test@example.com",
-    name: "Test User",
-    timezone: "America/Sao_Paulo",
-    ...overrides,
-  };
-}
-
-function createMockAuthState(config: {
-  isAuthenticated: boolean;
-  isAuthLoading: boolean;
-  activeRole?: AppRole | "buyer";
-}) {
-  const activeRole = config.activeRole ?? "user";
-  return {
-    isAuthenticated: config.isAuthenticated,
-    isAuthLoading: config.isAuthLoading,
-    isSyncing: false,
-    isLoading: config.isAuthLoading,
-    isRefetching: false,
-    activeRole: activeRole as AppRole | "buyer" | null,
-    user: config.isAuthenticated ? createMockUser() : null,
-    roles: [] as AppRole[],
-    expiresIn: null,
-    isProducer: activeRole !== "buyer",
-    isBuyer: activeRole === "buyer",
-    canSwitchToProducer: true,
-    canSwitchToBuyer: true,
-    login: vi.fn(),
-    logout: vi.fn(),
-    register: vi.fn(),
-    switchContext: vi.fn(),
-    switchToProducer: vi.fn(),
-    switchToBuyer: vi.fn(),
-    refresh: vi.fn(),
-    refreshSession: vi.fn(),
-    invalidate: vi.fn(),
-    isLoggingIn: false,
-    isLoggingOut: false,
-    isSwitching: false,
-    loginError: null as string | null,
-  };
-}
-
-function createMockPermissions(
-  role: AppRole,
-  overrides: Partial<Permissions> = {}
-): Permissions {
-  return {
-    role,
-    isLoading: false,
-    error: null,
-    canHaveAffiliates: role === "owner",
-    canManageUsers: role === "owner",
-    canAccessMarketplace: true,
-    canBecomeAffiliate: true,
-    canAccessAdminPanel: role === "owner" || role === "admin",
-    canViewSecurityLogs: role === "owner",
-    canManageProducts: true,
-    ...overrides,
-  };
-}
-
-// ============================================================================
 // TEST HELPERS
 // ============================================================================
 
-function mockAuth(config: {
-  isAuthenticated: boolean;
-  isAuthLoading: boolean;
-  activeRole?: AppRole | "buyer";
-}) {
+function mockAuth(config: Parameters<typeof createMockAuthState>[0]) {
   vi.mocked(UseUnifiedAuth.useUnifiedAuth).mockReturnValue(createMockAuthState(config));
 }
 
-const ProtectedContent = () => <div data-testid="protected-content">Protected Content</div>;
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(ReactRouterDOM.useLocation).mockReturnValue({
+    pathname: "/test",
+    search: "",
+    hash: "",
+    state: null,
+    key: "test",
+  });
+});
 
 // ============================================================================
 // TESTS
 // ============================================================================
 
-describe("Simple Guards", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(ReactRouterDOM.useLocation).mockReturnValue({
-      pathname: "/test",
-      search: "",
-      hash: "",
-      state: null,
-      key: "default",
-    });
-  });
-
+describe("SimpleGuards", () => {
   describe("BuyerRoute", () => {
     it("should render children when authenticated as buyer", () => {
       mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "buyer" });

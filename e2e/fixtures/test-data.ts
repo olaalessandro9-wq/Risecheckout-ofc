@@ -139,6 +139,22 @@ export const TEST_SELECTORS = {
     lessonItem: '[data-testid="buyer-lesson-item"]',
     progressIndicator: '[data-testid="buyer-progress"]',
   },
+  
+  // Members area (advanced features)
+  membersArea: {
+    certificateButton: '[data-testid="certificate-button"]',
+    certificatePreview: '[data-testid="certificate-preview"]',
+    certificateDownload: '[data-testid="certificate-download"]',
+    quizContainer: '[data-testid="quiz-container"]',
+    quizQuestion: '[data-testid="quiz-question"]',
+    quizOption: '[data-testid="quiz-option"]',
+    quizSubmit: '[data-testid="quiz-submit"]',
+    quizResults: '[data-testid="quiz-results"]',
+    progressBar: '[data-testid="progress-bar"]',
+    progressPercentage: '[data-testid="progress-percentage"]',
+    lockedLesson: '[data-testid="locked-lesson"]',
+    completedLesson: '[data-testid="completed-lesson"]',
+  },
 } as const;
 
 // ============================================================================
@@ -165,6 +181,9 @@ export const ROUTES = {
   // Buyer routes
   buyerLogin: "/minha-conta",
   buyerDashboard: "/minha-conta/dashboard",
+  buyerHistory: "/minha-conta/historico",
+  courseHome: (productId: string) => `/minha-conta/produto/${productId}`,
+  lessonViewer: (productId: string, contentId: string) => `/minha-conta/produto/${productId}/aula/${contentId}`,
   setupAccess: (token: string) => `/setup-access/${token}`,
   
   // Dashboard routes (producer)
