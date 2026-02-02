@@ -1,11 +1,40 @@
-import { createLovableConfig } from "lovable-agent-playwright-config/config";
+/**
+ * Playwright Configuration
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * E2E testing configuration for RiseCheckout platform.
+ * 
+ * @module playwright.config
+ */
 
-export default createLovableConfig({
-	// Tests should be placed in the 'e2e' folder (default)
-	// Add your custom playwright configuration overrides here
-	// Example:
-	// timeout: 60000,
-	// use: {
-	//   baseURL: 'http://localhost:3000',
-	// },
-});
+import { defineConfig, devices } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "./e2e",
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: "html",
+  
+  use: {
+    baseURL: process.env.BASE_URL || "http://localhost:5173",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+  },
+
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+  ],
+
+  webServer: {
+    command: "pnpm dev",
+    url: "http://localhost:5173",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+  },
+});;
