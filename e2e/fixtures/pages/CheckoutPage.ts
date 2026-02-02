@@ -262,7 +262,7 @@ export class CheckoutPage {
     cvv: string;
     holder: string;
   }): Promise<void> {
-    // Try direct inputs first (Asaas-style)
+    // Try direct inputs first (standard HTML inputs)
     const cardNumber = this.page.locator('input[name="cardNumber"], input[data-testid="card-number"]');
     const cardExpiry = this.page.locator('input[name="cardExpiry"], input[data-testid="card-expiry"]');
     const cardCvv = this.page.locator('input[name="cardCvv"], input[data-testid="card-cvv"], input[name="securityCode"]');
