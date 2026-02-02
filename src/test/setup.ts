@@ -98,13 +98,16 @@ Object.defineProperty(window, "scrollTo", {
  * Mock navigator.clipboard
  * Required for copy-to-clipboard functionality
  */
-Object.defineProperty(navigator, "clipboard", {
-  writable: true,
-  value: {
-    writeText: vi.fn().mockResolvedValue(undefined),
-    readText: vi.fn().mockResolvedValue(""),
-  },
-});
+if (!navigator.clipboard) {
+  Object.defineProperty(navigator, "clipboard", {
+    writable: true,
+    configurable: true,
+    value: {
+      writeText: vi.fn().mockResolvedValue(undefined),
+      readText: vi.fn().mockResolvedValue(""),
+    },
+  });
+}
 
 // ============================================================================
 // Console Suppression (Optional - Enable for cleaner test output)
