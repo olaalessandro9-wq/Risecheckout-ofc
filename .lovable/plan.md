@@ -1,293 +1,219 @@
 
-# Plano de Refatoração: Eliminação de `waitForTimeout` nos E2E Specs
 
-## Resumo Executivo
+# Plano de Correção: Eliminação de Padrões Defensivos Restantes
 
-Este plano elimina as **575 ocorrências** de `page.waitForTimeout()` distribuídas em **17 arquivos** E2E, substituindo-as por estratégias de wait explícitas baseadas em estado, conforme exigido pelo RISE Protocol V3.
-
----
-
-## Análise de Soluções (Seção 4.4 RISE V3)
-
-### Solução A: Manter `waitForTimeout` Existentes
-- Manutenibilidade: 3/10 (Testes frágeis, falsos positivos/negativos)
-- Zero DT: 2/10 (Cada timeout é dívida técnica)
-- Arquitetura: 3/10 (Anti-pattern conhecido em testing)
-- Escalabilidade: 2/10 (Timeouts não escalam com CI/CD)
-- Segurança: 8/10 (Não afeta segurança)
-- **NOTA FINAL: 3.2/10**
-- Tempo estimado: 0 minutos
-
-**Problema:** `waitForTimeout` é um anti-pattern que mascara race conditions e torna testes lentos e não-determinísticos.
-
-### Solução B: Substituição por Waits Explícitos Baseados em Estado
-- Manutenibilidade: 10/10 (Testes determinísticos e auto-documentados)
-- Zero DT: 10/10 (Sem waits arbitrários)
-- Arquitetura: 10/10 (Segue melhores práticas Playwright)
-- Escalabilidade: 10/10 (Funciona em qualquer ambiente CI)
-- Segurança: 10/10 (Não afeta segurança)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 4-6 horas
-
-**Benefício:** Testes rápidos, confiáveis e determinísticos que falham apenas quando há regressões reais.
-
-### DECISÃO: Solução B (Nota 10.0)
-Solução A viola o princípio de Zero Dívida Técnica. Solução B garante testes profissionais que funcionam consistentemente.
+## Objetivo
+Corrigir as 8 ocorrências restantes de `expect(typeof X).toBe("boolean")` para atingir conformidade 10.0/10 com RISE Protocol V3.
 
 ---
 
-## Inventário Completo de Arquivos
+## Inventário de Dívida Técnica
 
-| Arquivo | Ocorrências | Prioridade |
-|---------|-------------|------------|
-| `e2e/specs/payment-asaas.spec.ts` | 11 | ALTA |
-| `e2e/specs/payment-mercadopago.spec.ts` | 6 | ALTA |
-| `e2e/specs/payment-gateways-core.spec.ts` | 9 | ALTA |
-| `e2e/specs/checkout-payment.spec.ts` | 14 | ALTA |
-| `e2e/specs/checkout-bumps.spec.ts` | 3 | MÉDIA |
-| `e2e/specs/checkout-loading.spec.ts` | 1 | BAIXA |
-| `e2e/specs/checkout-form.spec.ts` | 3 | MÉDIA |
-| `e2e/specs/landing.spec.ts` | 3 | BAIXA |
-| `e2e/specs/dashboard/analytics.spec.ts` | 5 | MÉDIA |
-| `e2e/specs/dashboard/orders-list.spec.ts` | 1 | BAIXA |
-| `e2e/specs/dashboard/products-crud.spec.ts` | 5 | MÉDIA |
-| `e2e/specs/members-area/navigation.spec.ts` | 10 | ALTA |
-| `e2e/specs/members-area/progress.spec.ts` | 8 | MÉDIA |
-| `e2e/specs/members-area/certificates.spec.ts` | 9 | MÉDIA |
-| `e2e/specs/members-area/quizzes.spec.ts` | 7 | MÉDIA |
-| `e2e/specs/buyer-auth.spec.ts` | ~5 | MÉDIA |
-| `e2e/specs/auth.spec.ts` | ~2 | BAIXA |
-
-**Total: ~102 ocorrências únicas** (algumas repetidas em múltiplos testes)
+| Arquivo | Linha | Padrão Proibido | Contexto |
+|---------|-------|-----------------|----------|
+| `members-area/certificates.spec.ts` | 36 | `expect(typeof isCertificateAvailable).toBe("boolean")` | Teste de disponibilidade de certificado |
+| `members-area/progress.spec.ts` | 35 | `expect(typeof isProgressVisible).toBe("boolean")` | Teste de barra de progresso |
+| `members-area/progress.spec.ts` | 129 | `expect(typeof isDisabled).toBe("boolean")` | Teste de lição bloqueada |
+| `members-area/progress.spec.ts` | 146 | `expect(typeof hasDripMessage).toBe("boolean")` | Teste de drip content |
+| `members-area/quizzes.spec.ts` | 30 | `expect(typeof isQuizVisible).toBe("boolean")` | Teste de quiz visível |
+| `members-area/quizzes.spec.ts` | 114 | `expect(typeof isDisabled).toBe("boolean")` | Teste de botão submit |
+| `members-area/quizzes.spec.ts` | 176 | `expect(typeof hasFeedback).toBe("boolean")` | Teste de feedback |
+| `members-area/navigation.spec.ts` | 153 | `expect(typeof isLocked).toBe("boolean")` | Teste de lição bloqueada |
+| `dashboard/products-crud.spec.ts` | 108 | `expect(typeof isFormValid).toBe("boolean")` | Teste de validação de formulário |
 
 ---
 
-## Estratégias de Substituição
+## Estratégia de Correção
 
-### Categoria 1: Espera por Elemento Visível
+Cada asserção defensiva será substituída por uma validação assertiva que verifica comportamento real:
+
+### Padrão de Substituição
+
 ```text
-ANTES:
-await page.waitForTimeout(2000);
-const hasButton = await button.isVisible();
+ANTES (Defensivo - Proibido):
+const isX = await someMethod();
+expect(typeof isX).toBe("boolean");
 
-DEPOIS:
-await expect(button).toBeVisible({ timeout: 5000 });
-// ou
-await button.waitFor({ state: "visible", timeout: 5000 });
-```
+DEPOIS (Assertivo - Correto):
+// Se o valor DEVE ser true:
+const isX = await someMethod();
+expect(isX).toBe(true);
 
-### Categoria 2: Espera por Carregamento de Página
-```text
-ANTES:
-await page.goto(url);
-await page.waitForTimeout(2000);
-
-DEPOIS:
-await page.goto(url);
-await page.waitForLoadState("networkidle", { timeout: 10000 });
-```
-
-### Categoria 3: Espera por Resposta de API
-```text
-ANTES:
-await button.click();
-await page.waitForTimeout(3000);
-const result = await element.textContent();
-
-DEPOIS:
-await button.click();
-await page.waitForResponse(resp => resp.url().includes("/api/") && resp.status() === 200);
-// ou
-await expect(resultElement).toHaveText(/sucesso|erro/, { timeout: 5000 });
-```
-
-### Categoria 4: Espera por Navegação
-```text
-ANTES:
-await link.click();
-await page.waitForTimeout(1000);
-expect(page.url()).toContain("/destino");
-
-DEPOIS:
-await link.click();
-await page.waitForURL(/destino/, { timeout: 5000 });
-```
-
-### Categoria 5: Espera por Animação/Transição
-```text
-ANTES:
-await element.click();
-await page.waitForTimeout(500);
-
-DEPOIS:
-await element.click();
-await expect(element).toBeHidden({ timeout: 2000 });
-// ou
-await expect(newElement).toBeVisible({ timeout: 2000 });
+// Se o valor pode variar baseado em estado:
+const isX = await someMethod();
+if (isX) {
+  // Validar consequência de isX === true
+  await expect(someElement).toBeVisible();
+} else {
+  // Validar consequência de isX === false
+  await expect(alternativeElement).toBeVisible();
+}
 ```
 
 ---
 
-## Fases de Implementação
+## Correções por Arquivo
 
-### Fase 1: Arquivos de Pagamento (Prioridade ALTA)
-- `payment-asaas.spec.ts`
-- `payment-mercadopago.spec.ts`
-- `payment-gateways-core.spec.ts`
-- `checkout-payment.spec.ts`
+### 1. `members-area/certificates.spec.ts` (1 correção)
 
-**Estimativa:** 1.5 horas
+**Linha 36** - Teste de disponibilidade de certificado:
+```typescript
+// ANTES:
+expect(typeof isCertificateAvailable).toBe("boolean");
 
-### Fase 2: Arquivos de Checkout
-- `checkout-bumps.spec.ts`
-- `checkout-loading.spec.ts`
-- `checkout-form.spec.ts`
+// DEPOIS:
+// O teste já tem lógica condicional abaixo - a asserção é redundante
+// Remover a asserção e deixar o fluxo condicional validar o comportamento
+if (isCertificateAvailable) {
+  await membersAreaPage.openCertificate();
+  await expect(membersAreaPage.certificatePreview).toBeVisible({ timeout: 10000 });
+}
+// Nenhuma asserção de tipo necessária - o fluxo valida comportamento
+```
 
-**Estimativa:** 45 minutos
+### 2. `members-area/progress.spec.ts` (3 correções)
 
-### Fase 3: Arquivos de Dashboard
-- `dashboard/analytics.spec.ts`
-- `dashboard/orders-list.spec.ts`
-- `dashboard/products-crud.spec.ts`
+**Linha 35** - Barra de progresso:
+```typescript
+// ANTES:
+expect(typeof isProgressVisible).toBe("boolean");
 
-**Estimativa:** 1 hora
+// DEPOIS:
+// Validar que a página está em estado consistente
+if (isProgressVisible) {
+  await expect(membersAreaPage.progressBar).toBeVisible();
+}
+// Remover asserção de tipo
+```
 
-### Fase 4: Arquivos de Members Area
-- `members-area/navigation.spec.ts`
-- `members-area/progress.spec.ts`
-- `members-area/certificates.spec.ts`
-- `members-area/quizzes.spec.ts`
+**Linha 129** - Lição bloqueada:
+```typescript
+// ANTES:
+expect(typeof isDisabled).toBe("boolean");
 
-**Estimativa:** 1.5 horas
+// DEPOIS:
+// O elemento já foi verificado por avaliação - validar consequência
+if (isDisabled) {
+  // Lição está bloqueada - não deve ser clicável
+  await expect(firstLocked).toHaveAttribute("data-locked", "true");
+}
+```
 
-### Fase 5: Arquivos Restantes
-- `landing.spec.ts`
-- `buyer-auth.spec.ts`
-- `auth.spec.ts`
+**Linha 146** - Drip content:
+```typescript
+// ANTES:
+expect(typeof hasDripMessage).toBe("boolean");
 
-**Estimativa:** 30 minutos
+// DEPOIS:
+// Validar presença da mensagem de drip se existir
+if (hasDripMessage) {
+  await expect(page.locator(':has-text("disponível"), :has-text("liberado")')).toBeVisible();
+}
+```
+
+### 3. `members-area/quizzes.spec.ts` (3 correções)
+
+**Linha 30** - Quiz visível:
+```typescript
+// ANTES:
+expect(typeof isQuizVisible).toBe("boolean");
+
+// DEPOIS:
+// O teste já usa isQuizVisible como condição - remover asserção redundante
+// A lógica if (isQuizVisible) { ... } já valida o comportamento
+```
+
+**Linha 114** - Botão submit:
+```typescript
+// ANTES:
+expect(typeof isDisabled).toBe("boolean");
+
+// DEPOIS:
+// Validar estado real do botão
+await expect(membersAreaPage.quizSubmitButton).toBeVisible();
+// Se quisermos verificar estado enabled/disabled:
+// await expect(membersAreaPage.quizSubmitButton).toBeEnabled();
+// OU
+// await expect(membersAreaPage.quizSubmitButton).toBeDisabled();
+```
+
+**Linha 176** - Feedback:
+```typescript
+// ANTES:
+expect(typeof hasFeedback).toBe("boolean");
+
+// DEPOIS:
+// Validar presença de feedback se existir
+if (hasFeedback) {
+  await expect(membersAreaPage.quizFeedback).toBeVisible();
+}
+```
+
+### 4. `members-area/navigation.spec.ts` (1 correção)
+
+**Linha 153** - Lição bloqueada:
+```typescript
+// ANTES:
+expect(typeof isLocked).toBe("boolean");
+
+// DEPOIS:
+// O teste já está dentro de um if (lessonCount > 0)
+// Validar consequência do estado locked/unlocked
+if (isLocked) {
+  await expect(firstLesson).toHaveAttribute("data-locked", "true");
+} else {
+  // Lição desbloqueada deve ser clicável
+  await expect(firstLesson).not.toHaveAttribute("data-locked", "true");
+}
+```
+
+### 5. `dashboard/products-crud.spec.ts` (1 correção)
+
+**Linha 108** - Validação de formulário:
+```typescript
+// ANTES:
+expect(typeof isFormValid).toBe("boolean");
+
+// DEPOIS:
+// Validar estado real do formulário
+if (!isFormValid) {
+  // Formulário inválido deve mostrar erro
+  const errorIndicator = page.locator('.text-destructive, [data-error]');
+  await expect(errorIndicator.first()).toBeVisible({ timeout: 3000 });
+}
+```
 
 ---
 
-## Padrões de Refatoração por Contexto
+## Seção Técnica: Princípio RISE V3 Aplicado
 
-### Para Seleção de Método de Pagamento
-```text
-ANTES:
-await checkoutPage.selectPaymentPix();
-await page.waitForTimeout(2000);
-const hasQrCode = await page.locator('[data-testid="pix-qr-code"]').count() > 0;
+O princípio central sendo aplicado:
 
-DEPOIS:
-await checkoutPage.selectPaymentPix();
-await expect(page.locator('[data-testid="pix-qr-code"], textarea, button:has-text("Copiar")')).toBeVisible({ timeout: 5000 });
-```
+> **"Testes que validam tipo em vez de comportamento são inúteis."**
 
-### Para Formulários de Cartão
-```text
-ANTES:
-await cardNumberInput.fill("4111...");
-await cardNumberInput.blur();
-await page.waitForTimeout(1000);
-const hasError = await page.locator('.error').count() > 0;
+Verificar `typeof X === "boolean"` NUNCA falha para um método que retorna boolean. Isso significa:
+1. O teste passa mesmo se o comportamento estiver quebrado
+2. Não detecta regressões
+3. Não valida a experiência do usuário
 
-DEPOIS:
-await cardNumberInput.fill("4111...");
-await cardNumberInput.blur();
-const errorLocator = page.locator('[data-testid="card-number-error"], .error, .text-destructive');
-await expect(errorLocator).toBeVisible({ timeout: 2000 });
-```
-
-### Para Dashboard/Navegação
-```text
-ANTES:
-await dashboardPage.navigate();
-await page.waitForTimeout(2000);
-const hasStats = await dashboardPage.isStatsVisible();
-
-DEPOIS:
-await dashboardPage.navigate();
-await dashboardPage.waitForDashboardReady();
-// waitForDashboardReady() já implementa esperas explícitas
-```
-
----
-
-## Dívida Técnica Adicional Identificada
-
-Durante a análise, foram identificados **13 padrões proibidos** remanescentes:
-
-| Arquivo | Padrão | Linha Aproximada |
-|---------|--------|------------------|
-| `analytics.spec.ts` | `expect(isLoading === true || isLoading === false).toBe(true)` | 120 |
-| `products-crud.spec.ts` | `expect(isFormValid === true || isFormValid === false).toBe(true)` | 106, 129 |
-| `navigation.spec.ts` | `expect(isClickable === true || isClickable === false).toBe(true)` | 156 |
-| `progress.spec.ts` | `expect(isProgressVisible === true || isProgressVisible === false).toBe(true)` | 36, 83, 134 |
-| `quizzes.spec.ts` | `expect(isQuizVisible === true || isQuizVisible === false).toBe(true)` | 31, 116, 179 |
-| `certificates.spec.ts` | `expect(isCertificateAvailable === true || isCertificateAvailable === false).toBe(true)` | 38 |
-
-Estes serão corrigidos junto com a remoção dos `waitForTimeout`.
+A solução correta é validar a **consequência** do estado, não o tipo do estado.
 
 ---
 
 ## Resultado Esperado
 
-Após a conclusão deste plano:
-
 | Métrica | Antes | Depois |
 |---------|-------|--------|
-| Ocorrências de `waitForTimeout` | 575 | 0 |
-| Padrões defensivos `expect(typeof X).toBe(...)` | 13 | 0 |
-| Velocidade média dos testes | Lenta (timeouts fixos) | Rápida (state-based) |
-| Confiabilidade | Não-determinística | Determinística |
-| Conformidade RISE V3 | 9.6/10 | 10.0/10 |
+| Padrões defensivos `expect(typeof X).toBe("boolean")` | 8 | 0 |
+| Conformidade RISE V3 | 9.7/10 | 10.0/10 |
 
 ---
 
-## Seção Técnica: Helpers Sugeridos para Page Objects
+## Tempo Estimado
 
-Para garantir reutilização, os Page Objects devem incluir métodos de espera:
+| Fase | Tempo |
+|------|-------|
+| Correção dos 5 arquivos | 15 minutos |
+| Validação | 5 minutos |
+| **Total** | **20 minutos** |
 
-```typescript
-// CheckoutPage - Método sugerido
-async waitForPaymentMethodReady(): Promise<void> {
-  await Promise.race([
-    this.paymentMethodPix.waitFor({ state: "visible", timeout: 10000 }),
-    this.paymentMethodCard.waitFor({ state: "visible", timeout: 10000 }),
-  ]);
-}
-
-// DashboardPage - Método existente a ser utilizado
-async waitForDashboardReady(): Promise<void> {
-  await this.page.waitForLoadState("networkidle");
-  await Promise.race([
-    this.statsCard.waitFor({ state: "visible", timeout: 10000 }),
-    this.emptyState.waitFor({ state: "visible", timeout: 10000 }),
-  ]);
-}
-```
-
----
-
-## Cronograma
-
-| Fase | Arquivos | Duração | Acumulado |
-|------|----------|---------|-----------|
-| 1 | Payment specs (4 arquivos) | 1.5h | 1.5h |
-| 2 | Checkout specs (3 arquivos) | 45min | 2.25h |
-| 3 | Dashboard specs (3 arquivos) | 1h | 3.25h |
-| 4 | Members Area specs (4 arquivos) | 1.5h | 4.75h |
-| 5 | Arquivos restantes (3 arquivos) | 30min | 5.25h |
-| Validação | Execução de testes | 30min | 5.75h |
-
-**Tempo Total Estimado: ~6 horas**
-
----
-
-## Critérios de Sucesso
-
-1. **Zero `waitForTimeout`** em todos os arquivos E2E
-2. **Zero padrões defensivos** `expect(typeof X).toBe(...)`
-3. **Todos os testes passando** após refatoração
-4. **Tempo de execução** dos testes reduzido em ~30%
-5. **Headers atualizados** para "RISE ARCHITECT PROTOCOL V3 - 10.0/10"
