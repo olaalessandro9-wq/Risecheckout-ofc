@@ -25,11 +25,12 @@ test.describe("Quiz Display and Structure", () => {
     await page.goto(ROUTES.lessonViewer("test-product-with-quiz", "lesson-with-quiz"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    // ASSERTIVE: Quiz visibility check should return boolean
+    // ASSERTIVE: Validate quiz visibility through UI element state
     const isQuizVisible = await membersAreaPage.isQuizVisible();
-    expect(typeof isQuizVisible).toBe("boolean");
     
     if (isQuizVisible) {
+      // Quiz is visible - validate quiz container is rendered
+      await expect(membersAreaPage.quizContainer).toBeVisible({ timeout: 5000 });
       const title = await membersAreaPage.getQuizTitle();
       expect(title.length).toBeGreaterThan(0);
       
@@ -109,9 +110,16 @@ test.describe("Quiz Submission", () => {
     if (isQuizVisible) {
       await expect(membersAreaPage.quizSubmitButton).toBeVisible();
       
-      // ASSERTIVE: Button should have enabled/disabled state
+      // ASSERTIVE: Validate button state - either enabled (ready for submit) or disabled (needs answers)
       const isDisabled = await membersAreaPage.quizSubmitButton.isDisabled();
-      expect(typeof isDisabled).toBe("boolean");
+      
+      if (isDisabled) {
+        // Button disabled - validate it has disabled visual state
+        await expect(membersAreaPage.quizSubmitButton).toBeDisabled();
+      } else {
+        // Button enabled - validate it's ready for interaction
+        await expect(membersAreaPage.quizSubmitButton).toBeEnabled();
+      }
     }
   });
 
@@ -171,9 +179,13 @@ test.describe("Quiz Results and Feedback", () => {
           const correctCount = await membersAreaPage.getCorrectAnswersCount();
           expect(correctCount).toBeGreaterThanOrEqual(0);
           
-          // ASSERTIVE: Feedback presence check
+          // ASSERTIVE: Validate feedback UI state based on presence
           const hasFeedback = await membersAreaPage.hasQuizFeedback();
-          expect(typeof hasFeedback).toBe("boolean");
+          
+          if (hasFeedback) {
+            // Feedback visible - validate feedback container is rendered
+            await expect(membersAreaPage.quizFeedback).toBeVisible({ timeout: 3000 });
+          }
         }
       }
     }

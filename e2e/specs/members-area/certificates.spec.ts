@@ -29,11 +29,17 @@ test.describe("Certificate Availability", () => {
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    // ASSERTIVE: Certificate availability check should return boolean
+    // ASSERTIVE: Check certificate availability and validate UI state accordingly
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
-    // Certificate may or may not be available depending on course completion
-    expect(typeof isCertificateAvailable).toBe("boolean");
+    // Validate that UI reflects certificate state - button visible OR not-available message shown
+    if (isCertificateAvailable) {
+      await expect(membersAreaPage.certificateButton).toBeVisible({ timeout: 5000 });
+    } else {
+      // Certificate not available - page should not show certificate button
+      const buttonCount = await membersAreaPage.certificateButton.count();
+      expect(buttonCount).toBe(0);
+    }
   });
 
   test("certificate not available message shows for incomplete course", async ({ page }) => {

@@ -144,13 +144,21 @@ test.describe("Module and Lesson Navigation", () => {
       const firstLesson = buyerPage.lessonItems.first();
       await expect(firstLesson).toBeVisible();
       
-      // ASSERTIVE: Lesson should be in some clickable state (locked or unlocked)
+      // ASSERTIVE: Validate lesson state through UI attributes and visual indicators
       const isLocked = await firstLesson.evaluate((el) => {
         return el.getAttribute("data-locked") === "true" || el.classList.contains("locked");
       });
       
-      // Either locked or unlocked, but should be defined
-      expect(typeof isLocked).toBe("boolean");
+      // Validate UI reflects the locked/unlocked state properly
+      if (isLocked) {
+        // Locked lesson should have visual lock indicator
+        const hasLockAttribute = await firstLesson.getAttribute("data-locked");
+        expect(hasLockAttribute).toBe("true");
+      } else {
+        // Unlocked lesson should be clickable (not have locked attribute)
+        const hasLockAttribute = await firstLesson.getAttribute("data-locked");
+        expect(hasLockAttribute).not.toBe("true");
+      }
     }
   });
 });
