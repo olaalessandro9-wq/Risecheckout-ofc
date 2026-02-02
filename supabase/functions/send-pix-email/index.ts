@@ -1,10 +1,12 @@
 /**
  * Send PIX Email
  * 
- * Envia email com dados do PIX para pagamento
+ * Envia email com dados do PIX para pagamento via Resend.
+ * Inclui código copia-cola e instruções de pagamento.
  * 
  * @category Email
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

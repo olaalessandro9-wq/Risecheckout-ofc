@@ -1,10 +1,12 @@
 /**
  * Encrypt Token
  * 
- * Criptografa tokens e dados sensíveis
+ * Criptografa e descriptografa tokens e dados sensíveis usando AES-GCM.
+ * Requer ENCRYPTION_KEY configurada nos secrets.
  * 
  * @category Security
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
