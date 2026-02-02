@@ -51,7 +51,11 @@ describe("useAddProduct", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockApiCall.mockResolvedValue(mockProductCreateSuccess);
-    (apiModule.api as { call: typeof mockApiCall }).call = mockApiCall;
+    Object.defineProperty(apiModule.api, 'call', {
+      value: mockApiCall,
+      writable: true,
+      configurable: true,
+    });
   });
 
   describe("Initial State", () => {

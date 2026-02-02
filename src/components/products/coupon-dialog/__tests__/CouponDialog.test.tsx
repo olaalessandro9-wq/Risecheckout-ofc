@@ -66,6 +66,7 @@ describe("CouponDialog", () => {
     open: true,
     onOpenChange: mockOnOpenChange,
     onSave: mockOnSave,
+    coupon: null,
   };
 
   beforeEach(() => {

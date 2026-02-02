@@ -55,7 +55,7 @@ describe("OrderDetailsDialog", () => {
     productName: "Produto Teste",
     productImageUrl: "https://example.com/image.jpg",
     amount: "R$ 99,00",
-    status: "approved" as const,
+    status: "Pago" as const,
     createdAt: "2026-01-01T10:00:00Z",
   };
 
@@ -120,7 +120,7 @@ describe("OrderDetailsDialog", () => {
     });
 
     it("handles different order statuses", () => {
-      const approvedOrder = { ...mockOrderData, status: "approved" as const };
+      const approvedOrder = { ...mockOrderData, status: "Pago" as const };
       render(<OrderDetailsDialog {...defaultProps} orderData={approvedOrder} />);
       
       expect(screen.getByTestId("order-header")).toBeInTheDocument();

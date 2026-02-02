@@ -61,7 +61,7 @@ describe("ContextAwareProtectedRoute", () => {
       mockAuth({ isAuthenticated: false, isAuthLoading: true });
 
       render(
-        <ContextAwareProtectedRoute>
+        <ContextAwareProtectedRoute requiredContext="producer">
           <ProtectedContent />
         </ContextAwareProtectedRoute>
       );
@@ -75,7 +75,7 @@ describe("ContextAwareProtectedRoute", () => {
       mockAuth({ isAuthenticated: false, isAuthLoading: false });
 
       render(
-        <ContextAwareProtectedRoute>
+        <ContextAwareProtectedRoute requiredContext="producer">
           <ProtectedContent />
         </ContextAwareProtectedRoute>
       );
@@ -83,11 +83,11 @@ describe("ContextAwareProtectedRoute", () => {
       expect(screen.getByTestId("navigate-to")).toHaveTextContent("/auth");
     });
 
-    it("should allow access when authenticated with any role by default", () => {
+    it("should allow access when authenticated with correct context", () => {
       mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "user" });
 
       render(
-        <ContextAwareProtectedRoute>
+        <ContextAwareProtectedRoute requiredContext="producer">
           <ProtectedContent />
         </ContextAwareProtectedRoute>
       );
@@ -97,11 +97,11 @@ describe("ContextAwareProtectedRoute", () => {
   });
 
   describe("Role-based Access", () => {
-    it("should allow access when user has required role", () => {
-      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "admin" });
+    it("should allow access when user has producer context", () => {
+      mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "user" });
 
       render(
-        <ContextAwareProtectedRoute requiredContext="admin">
+        <ContextAwareProtectedRoute requiredContext="producer">
           <ProtectedContent />
         </ContextAwareProtectedRoute>
       );
@@ -109,7 +109,7 @@ describe("ContextAwareProtectedRoute", () => {
       expect(screen.getByTestId("protected-content")).toBeInTheDocument();
     });
 
-    it("should redirect to /dashboard when user has wrong role", () => {
+    it("should redirect to /minha-conta/dashboard when buyer tries producer route", () => {
       mockAuth({ isAuthenticated: true, isAuthLoading: false, activeRole: "buyer" });
 
       render(
