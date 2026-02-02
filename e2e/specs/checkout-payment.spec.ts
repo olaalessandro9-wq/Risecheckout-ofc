@@ -252,32 +252,23 @@ test.describe("Checkout Payment Error Handling", () => {
 
   test("should show error for declined card", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    
     if (await checkoutPage.paymentMethodCard.isVisible()) {
       await checkoutPage.selectPaymentCard();
-      
-      // Fill with test declined card (if supported)
       const cardNumberInput = page.locator('input[name="cardNumber"]');
       if (await cardNumberInput.isVisible()) {
-        await cardNumberInput.fill("4000000000000002"); // Test declined card
-        
+        await cardNumberInput.fill("4000000000000002");
         const expiryInput = page.locator('input[name="cardExpiry"]');
         if (await expiryInput.isVisible()) {
           await expiryInput.fill("12/30");
         }
-        
         const cvvInput = page.locator('input[name="cardCvv"]');
         if (await cvvInput.isVisible()) {
           await cvvInput.fill("123");
         }
-        
-        // Try to submit (if submit button exists)
         const submitButton = page.locator('button[type="submit"]:has-text("Finalizar"), button:has-text("Pagar")');
         if (await submitButton.isVisible()) {
           await submitButton.click();
-          
           await page.waitForTimeout(3000);
-          
           const hasError = await page.locator('[data-testid="payment-error"], .error, :has-text("recusado"), :has-text("declined")').count() > 0;
           expect(typeof hasError).toBe("boolean");
         }
@@ -286,16 +277,11 @@ test.describe("Checkout Payment Error Handling", () => {
   });
 
   test("should handle network errors gracefully", async ({ page }) => {
-    // Simulate network failure
     await page.route('**/api/payments/**', route => route.abort());
-    
     const checkoutPage = new CheckoutPage(page);
-    
     if (await checkoutPage.paymentMethodPix.isVisible()) {
       await checkoutPage.selectPaymentPix();
-      
       await page.waitForTimeout(3000);
-      
       const hasError = await page.locator('[data-testid="network-error"], :has-text("erro"), :has-text("error")').count() > 0;
       expect(typeof hasError).toBe("boolean");
     }
