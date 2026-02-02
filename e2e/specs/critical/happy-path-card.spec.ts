@@ -8,7 +8,11 @@
  * 
  * Flow: Checkout → Fill Form → Select Card → Fill Card → Submit → Success Page
  * 
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
+ * 
  * @module e2e/specs/critical/happy-path-card.spec
+ * @version 2.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -18,7 +22,6 @@ import {
   TEST_CHECKOUT,
   TEST_CHECKOUT_GATEWAYS,
   TEST_CARDS,
-  TIMEOUTS,
   generateTestEmail,
 } from "../../fixtures/test-data";
 
@@ -46,8 +49,8 @@ test.describe("Happy Path Card - Complete Purchase Flow", () => {
       await expect(checkoutPage.paymentMethodCard).toBeVisible();
       await checkoutPage.selectPaymentCard();
 
-      // 5. Wait for card form to appear
-      await page.waitForTimeout(1000); // Allow form to render
+      // 5. ASSERTIVE: Wait for card form to be ready
+      await checkoutPage.waitForCardFormReady();
 
       // 6. Fill card form with approved test card
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
@@ -81,7 +84,8 @@ test.describe("Happy Path Card - Complete Purchase Flow", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();
@@ -111,7 +115,8 @@ test.describe("Happy Path Card - Complete Purchase Flow", () => {
 
       await expect(checkoutPage.paymentMethodCard).toBeVisible();
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       await checkoutPage.fillCardForm(TEST_CARDS.stripe.approved);
       await checkoutPage.selectInstallments(1);
@@ -139,7 +144,8 @@ test.describe("Happy Path Card - Complete Purchase Flow", () => {
 
       await expect(checkoutPage.paymentMethodCard).toBeVisible();
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       await checkoutPage.fillCardForm(TEST_CARDS.asaas.approved);
       await checkoutPage.selectInstallments(1);
@@ -165,7 +171,8 @@ test.describe("Happy Path Card - Complete Purchase Flow", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submitAndWaitForSuccess();
@@ -191,7 +198,8 @@ test.describe("Happy Path Card - Complete Purchase Flow", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.approved);
 
       // Try to select different installment options

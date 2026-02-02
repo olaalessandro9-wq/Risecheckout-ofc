@@ -8,7 +8,11 @@
  * 
  * Flow: Checkout → Fill Form → Declined Card → Error Message → Stay on Page
  * 
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
+ * 
  * @module e2e/specs/critical/card-declined.spec
+ * @version 2.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -17,8 +21,6 @@ import {
   TEST_CHECKOUT,
   TEST_CHECKOUT_GATEWAYS,
   TEST_CARDS,
-  ERROR_MESSAGES,
-  TIMEOUTS,
   generateTestEmail,
 } from "../../fixtures/test-data";
 
@@ -42,7 +44,8 @@ test.describe("Card Declined - Error Handling", () => {
       // 3. Select Card payment method
       await expect(checkoutPage.paymentMethodCard).toBeVisible();
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       // 4. Fill card form with DECLINED test card
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.declined);
@@ -79,7 +82,8 @@ test.describe("Card Declined - Error Handling", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       // First attempt with declined card
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.declined);
@@ -120,7 +124,8 @@ test.describe("Card Declined - Error Handling", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       // Submit with declined card
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.declined);
@@ -152,7 +157,8 @@ test.describe("Card Declined - Error Handling", () => {
 
       await expect(checkoutPage.paymentMethodCard).toBeVisible();
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       await checkoutPage.fillCardForm(TEST_CARDS.stripe.declined);
       await checkoutPage.selectInstallments(1);
@@ -181,7 +187,8 @@ test.describe("Card Declined - Error Handling", () => {
 
       await expect(checkoutPage.paymentMethodCard).toBeVisible();
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       await checkoutPage.fillCardForm(TEST_CARDS.asaas.declined);
       await checkoutPage.selectInstallments(1);
@@ -209,14 +216,15 @@ test.describe("Card Declined - Error Handling", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.declined);
       await checkoutPage.selectInstallments(1);
       await checkoutPage.submit();
 
-      // Wait for response
-      await page.waitForTimeout(5000);
+      // ASSERTIVE: Wait for error OR loading to finish
+      await checkoutPage.waitForPaymentError();
 
       // Loading spinner should not be visible anymore
       const isLoading = await checkoutPage.isLoading();
@@ -237,7 +245,8 @@ test.describe("Card Declined - Error Handling", () => {
       });
 
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for card form visibility
+      await checkoutPage.waitForCardFormReady();
 
       await checkoutPage.fillCardForm(TEST_CARDS.mercadopago.declined);
       await checkoutPage.selectInstallments(1);
