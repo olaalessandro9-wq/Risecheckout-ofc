@@ -53,9 +53,6 @@ describe("OrderBumpFormFields", () => {
       product_id: "product-1",
       product_name: "Produto 1",
       price: 9900,
-      is_default: true,
-      member_group_id: null,
-      member_group_name: null,
     },
   ];
 

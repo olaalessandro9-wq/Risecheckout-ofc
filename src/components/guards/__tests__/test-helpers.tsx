@@ -35,6 +35,9 @@ export function createMockAuthState(config: {
     isSyncing: false,
     isLoading: config.isAuthLoading,
     isRefetching: false,
+    isLoggingIn: false,
+    isLoggingOut: false,
+    isSwitching: false,
     activeRole: activeRole as AppRole | "buyer" | null,
     user: config.isAuthenticated ? createMockUser() : null,
     roles: [] as AppRole[],
@@ -43,11 +46,19 @@ export function createMockAuthState(config: {
     isBuyer: activeRole === "buyer",
     canSwitchToProducer: true,
     canSwitchToBuyer: true,
-    switchToProducer: async () => {},
-    switchToBuyer: async () => {},
+    switchToProducer: async () => ({ success: true }),
+    switchToBuyer: async () => ({ success: true }),
     logout: async () => {},
     refreshSession: async () => {},
     updateUserMetadata: async () => {},
+    login: async () => ({ success: true }),
+    switchContext: async () => ({ success: true }),
+    refresh: async () => ({ valid: true }),
+    invalidate: () => {},
+    clearError: () => {},
+    setActiveRole: () => {},
+    loginWithMagicLink: async () => {},
+    loginError: "",
   };
 }
 
@@ -57,18 +68,15 @@ export function createMockPermissions(
 ): Permissions {
   const basePermissions: Permissions = {
     role,
-    canAccessAdmin: role === "admin" || role === "owner",
-    canManageUsers: role === "admin" || role === "owner",
-    canManageProducts: role !== "buyer",
-    canManageOrders: role !== "buyer",
-    canAccessFinancial: role !== "buyer",
-    canHaveAffiliates: role === "seller" || role === "admin" || role === "owner",
-    canAccessMarketplace: role === "admin" || role === "owner",
-    canManageGateways: role === "owner",
+    canHaveAffiliates: role === "owner",
+    canManageProducts: true,
+    canAccessMarketplace: true,
+    canBecomeAffiliate: role !== "owner",
+    canAccessAdminPanel: role === "owner" || role === "admin",
+    canViewSecurityLogs: role === "owner" || role === "admin",
+    canManageUsers: role === "owner" || role === "admin",
     isLoading: false,
-    isError: false,
     error: null,
-    refetch: async () => ({ data: undefined }),
   };
 
   return {

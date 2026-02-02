@@ -17,7 +17,12 @@ import * as apiModule from "@/lib/api";
  */
 export function setupMocks() {
   const mockApiCall = vi.fn().mockResolvedValue(mockProductCreateSuccess);
-  (apiModule.api as { call: typeof mockApiCall }).call = mockApiCall;
+  // Use Object.defineProperty to avoid type errors
+  Object.defineProperty(apiModule.api, 'call', {
+    value: mockApiCall,
+    writable: true,
+    configurable: true,
+  });
   
   return { mockApiCall };
 }
