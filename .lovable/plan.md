@@ -1,110 +1,104 @@
 
+# Plano: Integrar Vercel Analytics e Speed Insights
 
-# Plano: Corrigir Erro 404 nas Rotas do React (SPA na Vercel)
+## Resumo Executivo
 
-## Diagnóstico
-
-**Erro:** Ao acessar `risecheckout.com/c/d9bc95_300_1f`, a Vercel retorna 404 NOT_FOUND.
-
-**Causa Raiz:** O `vercel.json` atual contém apenas headers de segurança. Falta a configuração de `rewrites` que instrui a Vercel a direcionar todas as rotas para `index.html`, permitindo que o React Router gerencie as rotas do lado do cliente.
-
-**Arquivo `public/_redirects`:** Este arquivo usa sintaxe do Netlify e é ignorado pela Vercel.
+Integração dos componentes de monitoramento da Vercel no projeto React/Vite para coletar métricas de visitantes, page views e Core Web Vitals.
 
 ---
 
 ## Análise de Soluções
 
-### Solução A: Adicionar rewrites ao vercel.json existente
-- Manutenibilidade: 10/10 (configuração centralizada)
-- Zero DT: 10/10 (resolve o problema definitivamente)
-- Arquitetura: 10/10 (padrão oficial da Vercel para SPAs)
-- Escalabilidade: 10/10 (suporta qualquer rota futura)
-- Segurança: 10/10 (mantém headers de segurança)
+### Solução A: Import direto no App.tsx
+- Manutenibilidade: 10/10 - Componentes da Vercel são self-contained
+- Zero DT: 10/10 - Implementação oficial documentada
+- Arquitetura: 10/10 - Componentes ficam no nível mais alto da árvore
+- Escalabilidade: 10/10 - Sem impacto de performance
+- Segurança: 10/10 - Nenhum dado sensível exposto
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 5 minutos
-
-### Solução B: Usar configuração via Vercel Dashboard
-- Manutenibilidade: 6/10 (configuração fora do código)
-- Zero DT: 7/10 (não versionada no Git)
-- Arquitetura: 5/10 (separa config de código)
-- Escalabilidade: 6/10
-- Segurança: 8/10
-- **NOTA FINAL: 6.4/10**
-- Tempo estimado: 3 minutos
+- Tempo estimado: 2 minutos
 
 ### DECISÃO: Solução A (Nota 10.0)
-
-Configuração via código (Infrastructure as Code) é sempre superior a configurações manuais no dashboard.
+Única solução viável e oficialmente documentada pela Vercel.
 
 ---
 
 ## Implementação
 
-### Passo 1: Atualizar vercel.json
+### Passo 1: Instalação dos Pacotes
 
-Adicionar a configuração `rewrites` que direciona todas as rotas para `index.html`:
+```bash
+npm i @vercel/analytics @vercel/speed-insights
+```
 
-```json
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
-    // ... headers existentes mantidos
-  ]
+### Passo 2: Modificação do App.tsx
+
+Adicionar os imports corretos para **React** (não Next.js):
+
+```typescript
+// Vercel Monitoring (React/Vite)
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
+```
+
+### Passo 3: Adicionar Componentes
+
+Os componentes serão adicionados dentro do `App()`, após o `RouterProvider`:
+
+```tsx
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <HelmetProvider>
+        <AppErrorBoundary>
+          <BusyProvider>
+            <TooltipProvider>
+              <RouterProvider router={router} />
+            </TooltipProvider>
+          </BusyProvider>
+        </AppErrorBoundary>
+      </HelmetProvider>
+      
+      {/* Vercel Monitoring - Apenas em produção na Vercel */}
+      <Analytics />
+      <SpeedInsights />
+    </QueryClientProvider>
+  );
 }
 ```
 
-### Passo 2: Remover arquivo obsoleto (opcional)
+---
 
-O arquivo `public/_redirects` pode ser removido pois é sintaxe do Netlify e não funciona na Vercel.
+## Arquivos Modificados
+
+```
+src/
+└── App.tsx          ← Adicionar imports + componentes
+```
 
 ---
 
-## Arquivos Afetados
+## Detalhes Técnicos
 
-| Arquivo | Ação |
-|---------|------|
-| `vercel.json` | ATUALIZAR (adicionar rewrites) |
-| `public/_redirects` | DELETAR (opcional - sintaxe Netlify) |
+| Item | Valor |
+|------|-------|
+| Pacotes | `@vercel/analytics`, `@vercel/speed-insights` |
+| Import Analytics | `@vercel/analytics/react` (NÃO `/next`) |
+| Import Speed | `@vercel/speed-insights/react` (NÃO `/next`) |
+| Posição | Após `RouterProvider`, dentro do `QueryClientProvider` |
+
+---
+
+## Comportamento
+
+- **Em desenvolvimento (localhost)**: Componentes são injetados mas não enviam dados
+- **Em produção (Vercel)**: Dados são coletados automaticamente
+- **Fora da Vercel**: Componentes são ignorados silenciosamente
 
 ---
 
 ## Resultado Esperado
 
-Após deploy:
-1. Acessar `risecheckout.com/c/slug` carregará o `index.html`
-2. React Router assumirá e renderizará `PaymentLinkRedirect`
-3. Todas as rotas dinâmicas funcionarão (checkout, pagamentos, etc.)
-
----
-
-## Seção Técnica
-
-### Por que SPAs precisam de rewrites?
-
-Single Page Applications usam client-side routing. O servidor (Vercel) não conhece rotas como `/c/slug` - elas só existem no JavaScript do React Router. Sem rewrites:
-
-```
-Usuário acessa: /c/d9bc95_300_1f
-Vercel procura: dist/c/d9bc95_300_1f/index.html
-Resultado: 404 NOT_FOUND
-```
-
-Com rewrites:
-
-```
-Usuário acessa: /c/d9bc95_300_1f
-Vercel rewrite: → /index.html
-React Router: renderiza <PaymentLinkRedirect />
-```
-
-### Ordem de prioridade no vercel.json
-
-A Vercel processa na ordem:
-1. **Arquivos estáticos existentes** (JS, CSS, imagens)
-2. **Rewrites** (redireciona para index.html se não for arquivo)
-
-Isso garante que assets estáticos são servidos normalmente, e apenas rotas "virtuais" são redirecionadas.
-
+Após o deploy:
+1. **Analytics Tab** → Mostrará Visitors, Page Views, Bounce Rate
+2. **Speed Insights Tab** → Mostrará LCP, FID, CLS, TTFB por rota
