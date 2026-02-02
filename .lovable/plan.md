@@ -1,389 +1,145 @@
 
-# Fase 5: Validação Final e Documentação - RISE Protocol V3
+# Plano de Refatoração: checkout-submit.spec.ts
 
-## Contexto e Objetivos
-
-A **Fase 4 (Refatoração de Arquivos Gigantes)** foi concluída com sucesso. 30 arquivos monolíticos `index.test.ts` foram modularizados em aproximadamente 110 arquivos menores, seguindo o padrão:
-
-```text
-function-name/
-├── tests/
-│   ├── _shared.ts           # Constantes, Mocks, Type Guards
-│   ├── authentication.test.ts
-│   ├── validation.test.ts
-│   ├── [domain].test.ts
-│   └── error-handling.test.ts
-```
-
-A **Fase 5** é a fase final de **Validação e Certificação**, garantindo que:
-1. Todos os testes executam corretamente
-2. Zero código morto ou legado permanece
-3. Documentação está 100% atualizada
-4. Conformidade total com RISE Protocol V3 Seção 4
+## Objetivo
+Eliminar os 2 padrões defensivos `expect(typeof X).toBe("boolean")` e substituí-los por asserções assertivas que validam o comportamento real da UI, em conformidade com o RISE Protocol V3.
 
 ---
 
-## Análise de Soluções (RISE V3 Seção 4.4)
+## Análise de Soluções (Seção 4.4 RISE V3)
 
-### Solução A: Validação Básica
+### Solução A: Manter Padrão Defensivo
+- Manutenibilidade: 0/10
+- Zero DT: 0/10
+- Arquitetura: 0/10
+- Escalabilidade: 0/10
+- Segurança: 5/10
+- **NOTA FINAL: 0.5/10**
+- Tempo estimado: 0 minutos
 
-- Manutenibilidade: 6/10
-- Zero DT: 5/10
-- Arquitetura: 5/10
-- Escalabilidade: 6/10
-- Segurança: 7/10
-- **NOTA FINAL: 5.8/10**
-- Tempo estimado: 30 minutos
+**Problema:** Violação direta do RISE Protocol V3. Testes que apenas verificam tipo não validam comportamento.
 
-Descrição: Executar testes, corrigir erros óbvios, marcar como concluído.
-
-### Solução B: Validação Completa com Auditoria Automatizada
-
-- Manutenibilidade: 9/10
-- Zero DT: 9/10
-- Arquitetura: 9/10
-- Escalabilidade: 9/10
-- Segurança: 9/10
-- **NOTA FINAL: 9.0/10**
-- Tempo estimado: 2 horas
-
-Descrição: Execução de testes + scripts de linting + atualização de documentação + relatório de auditoria.
-
-### Solução C: Validação Enterprise com Certificação Formal
-
+### Solução B: Asserções Assertivas com Expectativa de Estado
 - Manutenibilidade: 10/10
 - Zero DT: 10/10
 - Arquitetura: 10/10
 - Escalabilidade: 10/10
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 4-6 horas
+- Tempo estimado: 15 minutos
 
-Descrição: Validação completa + criação de scripts de auditoria permanentes + atualização de TODOS os documentos afetados + relatório final certificado + contagem precisa de testes.
+**Benefício:** Testes validam comportamentos reais da UI. Se o loading spinner ou success indicator não aparecerem, o teste falha assertivamente.
 
-### DECISÃO: Solução C (Nota 10.0)
-
-Justificativa: As soluções A e B são inferiores porque:
-- **Solução A** deixa dívida técnica invisível (termos proibidos, código morto)
-- **Solução B** não cria infraestrutura permanente de validação
-- **Solução C** garante que futuras refatorações sejam automaticamente validadas
+### DECISÃO: Solução B (Nota 10.0)
+Solução A é uma violação direta do protocolo. Solução B garante que os testes validam comportamento real.
 
 ---
 
-## Plano de Execução - Solução C
+## Problemas Identificados
 
-### 5.1 Execução Completa de Testes
-
-**Objetivo:** Validar que todas as 110+ test suites executam sem erros.
-
-**Ações:**
-1. Executar `cd supabase/functions && ./run-tests.sh`
-2. Documentar qualquer falha encontrada
-3. Corrigir falhas (se houver)
-4. Reexecutar até 100% de sucesso
-
-**Critério de Sucesso:** 0 falhas, 550+ testes passando
+| Linha | Padrão Proibido | Contexto |
+|-------|-----------------|----------|
+| 59 | `expect(typeof isLoading).toBe("boolean")` | Teste de loading state durante submit |
+| 81 | `expect(typeof isSuccessful).toBe("boolean")` | Teste de success indicator na página de sucesso |
 
 ---
 
-### 5.2 Auditoria de Conformidade RISE V3
+## Alterações Técnicas
 
-**Objetivo:** Garantir zero violações do protocolo.
+### Arquivo: `e2e/specs/checkout-submit.spec.ts`
 
-#### 5.2.1 Termos Proibidos
+#### 1. Teste "should show loading state during submission" (linhas 37-62)
 
-**Ação:** Buscar e analisar ocorrências de termos na lista de proibição:
-
-| Termo | Status Atual | Ação Necessária |
-|-------|--------------|-----------------|
-| `workaround` | 0 ocorrências | ✅ Nenhuma |
-| `gambiarra` | 0 ocorrências | ✅ Nenhuma |
-| `quick fix` | 0 ocorrências | ✅ Nenhuma |
-| `temporary` | 0 ocorrências | ✅ Nenhuma |
-| `legacy` | 395 matches (15 arquivos) | ⚠️ Analisar contexto |
-
-**Análise de "legacy":** As ocorrências encontradas são LEGÍTIMAS:
-- `cookie-helper.ts`: Variáveis para limpar cookies legados durante logout (necessário para migração)
-- `kms/index.ts`: Documentação de formato de encriptação (ENCRYPTION_PREFIX, LEGACY_VERSION)
-- `password-utils.ts`: Comentário documentando eliminação do SHA-256
-- `unified-auth/handlers`: Comentários documentando que não há fallback legado
-
-**Decisão:** Manter como está - são referências documentais, não código legado.
-
-#### 5.2.2 Type Safety em Testes
-
-**Objetivo:** Zero `as any` ou `as never` em uso real (apenas em comentários de versão).
-
-**Status Atual:** 25 matches em 5 arquivos - TODOS são comentários de versão:
+**Antes:**
 ```typescript
-@version 2.0.0 - Type-safe factories (zero 'as never')
+if (await checkoutPage.submitButton.isVisible()) {
+  await checkoutPage.submit();
+  
+  await page.waitForTimeout(200);
+  const isLoading = await checkoutPage.isLoading();
+  
+  expect(typeof isLoading).toBe("boolean");
+}
 ```
 
-**Decisão:** ✅ Conformidade total - são documentação, não código.
+**Depois:**
+```typescript
+// Aguardar submit button estar pronto
+await expect(checkoutPage.submitButton).toBeVisible({ timeout: 5000 });
+await expect(checkoutPage.submitButton).toBeEnabled();
 
-#### 5.2.3 Limite de 300 Linhas
+// Preencher formulário com dados válidos
+await checkoutPage.fillEmail(TEST_CHECKOUT.customer.email);
+if (await checkoutPage.nameInput.isVisible()) {
+  await checkoutPage.fillName(TEST_CHECKOUT.customer.name);
+}
+if (await checkoutPage.paymentMethodPix.isVisible()) {
+  await checkoutPage.selectPaymentPix();
+}
 
-**Ação:** Verificar que todos os arquivos de teste estão abaixo do limite.
+// Submeter e verificar comportamento de loading
+await checkoutPage.submit();
 
-**Critério:** Cada arquivo `*.test.ts` deve ter < 300 linhas.
+// Verificar que o botão muda para estado de loading OU navega
+const loadingOrNavigation = await Promise.race([
+  checkoutPage.loadingSpinner.waitFor({ state: "visible", timeout: 2000 }).then(() => "loading"),
+  page.waitForURL(/pix|success/, { timeout: 5000 }).then(() => "navigated")
+]).catch(() => "timeout");
 
----
-
-### 5.3 Limpeza de Código Morto
-
-**Objetivo:** Remover imports não utilizados e comentários obsoletos.
-
-**Ações:**
-1. Executar busca por imports não utilizados em arquivos `_shared.ts`
-2. Verificar se há funções exportadas mas nunca importadas
-3. Remover comentários TODO/FIXME resolvidos
-
----
-
-### 5.4 Atualização de Documentação
-
-#### 5.4.1 TESTING_SYSTEM.md
-
-**Atualizações Necessárias:**
-
-| Seção | Atualização |
-|-------|-------------|
-| Contagem de Testes | Atualizar F5 de "463+" para contagem real (estimada 550+) |
-| Estrutura de Arquivos | Adicionar seção sobre `tests/` directory pattern |
-| Nova Seção | "Fase 4.1: Modularização de Testes Gigantes" |
-| Total | Atualizar de "1105+" para contagem corrigida |
-
-**Conteúdo Novo:**
-
-```markdown
-## Fase 4.1: Modularização de Testes de Edge Functions
-
-### Padrão de Diretório tests/
-
-Arquivos de teste monolíticos (`index.test.ts`) foram substituídos por:
-
-| Arquivo | Propósito |
-|---------|-----------|
-| `tests/_shared.ts` | Constantes, tipos, mock factories, type guards |
-| `tests/authentication.test.ts` | Testes de autenticação e sessão |
-| `tests/validation.test.ts` | Testes de validação de payload |
-| `tests/[domain].test.ts` | Testes específicos de domínio |
-| `tests/error-handling.test.ts` | Testes de edge cases e erros |
-
-### Funções Modularizadas
-
-| Função | Arquivos | Testes |
-|--------|----------|--------|
-| webhook-crud | 7 | 45+ |
-| pixel-management | 6 | 40+ |
-| trigger-webhooks | 10 | 50+ |
-| dashboard-analytics | 7 | 35+ |
-| ... (30 funções total) | ~110 | ~550 |
+expect(["loading", "navigated"]).toContain(loadingOrNavigation);
 ```
 
-#### 5.4.2 EDGE_FUNCTIONS_REGISTRY.md
+**Justificativa:** Em vez de apenas verificar que `isLoading()` retorna boolean, o teste agora valida que:
+1. O formulário pode ser preenchido
+2. O submit pode ser executado
+3. O sistema responde com loading spinner OU navegação
 
-**Atualizações:**
-- Atualizar data de última modificação para "2026-02-02"
-- Adicionar nota sobre nova estrutura de testes
+#### 2. Teste "success page should show success indicator" (linhas 73-82)
 
----
+**Antes:**
+```typescript
+const isSuccessful = await successPage.isSuccessful();
 
-### 5.5 Criação de Scripts de Validação Permanente
-
-**Objetivo:** Infraestrutura para validação contínua.
-
-#### 5.5.1 lint-tests.sh
-
-Novo script para validar conformidade de testes:
-
-```bash
-#!/bin/bash
-# ============================================================================
-# lint-tests.sh - RISE Protocol V3 Test Validator
-# ============================================================================
-
-set -e
-
-echo "🔍 RISE V3 - Validando testes de Edge Functions..."
-
-# 1. Verificar arquivos index.test.ts (devem estar em tests/)
-VIOLATIONS=$(find . -name "index.test.ts" -type f | grep -v "node_modules" || true)
-if [ -n "$VIOLATIONS" ]; then
-  echo "❌ VIOLAÇÃO: Arquivos index.test.ts encontrados (devem estar em tests/)"
-  echo "$VIOLATIONS"
-  exit 1
-fi
-
-# 2. Verificar limite de 300 linhas
-for file in $(find . -name "*.test.ts" -type f); do
-  LINES=$(wc -l < "$file")
-  if [ "$LINES" -gt 300 ]; then
-    echo "❌ VIOLAÇÃO: $file tem $LINES linhas (máximo: 300)"
-    exit 1
-  fi
-done
-
-# 3. Verificar presença de _shared.ts em diretórios tests/
-for dir in $(find . -type d -name "tests"); do
-  if [ ! -f "$dir/_shared.ts" ]; then
-    echo "⚠️  AVISO: $dir não tem _shared.ts"
-  fi
-done
-
-echo "✅ Todas as validações passaram!"
+expect(typeof isSuccessful).toBe("boolean");
 ```
 
----
+**Depois:**
+```typescript
+// Aguardar página de sucesso carregar completamente
+await successPage.waitForSuccess();
 
-### 5.6 Relatório Final de Certificação
+// Verificar que indicadores de sucesso estão visíveis
+const hasSuccessIcon = await successPage.successIcon.isVisible();
+const hasSuccessTitle = await successPage.successTitle.isVisible();
 
-**Objetivo:** Documento formal atestando conclusão da Fase 4+5.
-
-**Arquivo:** `docs/TESTING_MODULARIZATION_REPORT.md`
-
-**Conteúdo:**
-
-```markdown
-# Relatório de Modularização de Testes - RISE V3
-
-**Data:** 2026-02-02
-**Score:** 10.0/10
-**Status:** CERTIFICADO
-
-## Métricas Finais
-
-| Métrica | Antes | Depois | Melhoria |
-|---------|-------|--------|----------|
-| Arquivos monolíticos | 30 | 0 | -100% |
-| Arquivos modularizados | 0 | ~110 | +100% |
-| Linhas por arquivo (média) | 600+ | <150 | -75% |
-| Tempo de debug | Alto | Baixo | -80% |
-| Manutenibilidade | 5/10 | 10/10 | +100% |
-
-## Funções Refatoradas
-
-[Lista completa das 30 funções]
-
-## Padrão Implementado
-
-[Diagrama da estrutura]
-
-## Conformidade RISE V3
-
-- ✅ Zero arquivos > 300 linhas
-- ✅ Zero termos proibidos em código
-- ✅ Zero `as any` / `as never`
-- ✅ Type Guards explícitos
-- ✅ Mock Factories tipadas
-- ✅ Single Responsibility
-
-## Certificação
-
-Este relatório certifica que a modularização de testes
-segue 100% o RISE Architect Protocol V3.
+// Pelo menos um indicador de sucesso DEVE estar presente
+expect(hasSuccessIcon || hasSuccessTitle).toBe(true);
 ```
 
----
-
-## Sequência de Implementação
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                     FASE 5: EXECUÇÃO                         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│   ETAPA 1: Executar Testes                                   │
-│   - ./run-tests.sh                                           │
-│   - Documentar resultados                                    │
-│   - Corrigir falhas (se houver)                             │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│   ETAPA 2: Auditoria de Conformidade                         │
-│   - Verificar termos proibidos                               │
-│   - Verificar limite de linhas                               │
-│   - Verificar type safety                                    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│   ETAPA 3: Limpeza de Código Morto                           │
-│   - Imports não utilizados                                   │
-│   - Funções órfãs                                            │
-│   - Comentários obsoletos                                    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│   ETAPA 4: Atualização de Documentação                       │
-│   - TESTING_SYSTEM.md                                        │
-│   - EDGE_FUNCTIONS_REGISTRY.md                               │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│   ETAPA 5: Criação de Scripts Permanentes                    │
-│   - lint-tests.sh                                            │
-│   - Integração com CI/CD                                     │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│   ETAPA 6: Relatório Final                                   │
-│   - TESTING_MODULARIZATION_REPORT.md                         │
-│   - Certificação formal                                      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│              ✅ FASE 5 COMPLETA                              │
-│           RISE V3 CERTIFIED 10.0/10                          │
-└─────────────────────────────────────────────────────────────┘
-```
+**Justificativa:** Em vez de apenas verificar tipo, agora o teste:
+1. Usa o helper `waitForSuccess()` que já existe no Page Object
+2. Verifica que elementos visuais de sucesso estão presentes
+3. Falha assertivamente se nenhum indicador existir
 
 ---
 
-## Seção Técnica
+## Melhorias Adicionais
 
-### Arquivos a Criar
+### Remoção de `waitForTimeout` desnecessários
+Os `page.waitForTimeout(2000)` serão substituídos por waits explícitos baseados em estado, tornando os testes mais rápidos e confiáveis.
 
-| Arquivo | Linhas Est. | Propósito |
-|---------|-------------|-----------|
-| `supabase/functions/lint-tests.sh` | 50 | Validação permanente de testes |
-| `docs/TESTING_MODULARIZATION_REPORT.md` | 150 | Relatório de certificação |
-
-### Arquivos a Atualizar
-
-| Arquivo | Alterações |
-|---------|------------|
-| `docs/TESTING_SYSTEM.md` | Contagem atualizada, nova seção Fase 4.1 |
-| `docs/EDGE_FUNCTIONS_REGISTRY.md` | Data de atualização |
-| `.github/workflows/ci.yml` | Adicionar lint-tests.sh (opcional) |
-
-### Contagem Estimada de Testes
-
-| Categoria | Quantidade |
-|-----------|------------|
-| Edge Functions (modularizadas) | ~550 |
-| Edge Functions (_shared) | ~129 |
-| Frontend (Vitest) | ~330 |
-| E2E (Playwright) | ~43 |
-| UI Components | ~179 |
-| **TOTAL** | **~1231** |
+### Simplificação do fluxo
+O teste de submit será reestruturado para:
+1. Usar `expect().toBeVisible()` em vez de `if (await X.isVisible())`
+2. Remover condicionais aninhados que mascaravam falhas
+3. Garantir que o teste falha se os elementos esperados não existirem
 
 ---
 
-## Critérios de Aceitação
+## Resultado Final
 
-| Critério | Verificação |
-|----------|-------------|
-| Todos os testes passam | ./run-tests.sh exit 0 |
-| Zero index.test.ts remanescentes | find retorna vazio |
-| Todos arquivos < 300 linhas | lint-tests.sh exit 0 |
-| Documentação atualizada | TESTING_SYSTEM.md atualizado |
-| Relatório criado | TESTING_MODULARIZATION_REPORT.md existe |
-| Script de validação criado | lint-tests.sh funcional |
+O arquivo terá:
+- 0 padrões defensivos `expect(typeof X).toBe("boolean")`
+- 0 `waitForTimeout` arbitrários
+- 100% conformidade com RISE Protocol V3
+- Testes que validam comportamento real da UI
