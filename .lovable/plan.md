@@ -13,39 +13,20 @@
 
 ---
 
-## Problema 1: CSS Violando RISE Protocol
+## ✅ Problema 1: CSS Violando RISE Protocol - RESOLVIDO
 
-### Causa Raiz
+### Arquivos corrigidos:
 
-Os seguintes arquivos usam `text-white` hardcoded ao invés de design tokens semânticos:
-
-| Arquivo | Linhas com violação |
-|---------|---------------------|
+| Arquivo | Linhas corrigidas |
+|---------|-------------------|
 | `ResetPasswordLayout.tsx` | 34, 36, 50, 52, 64 |
 | `BuyerRecuperarSenha.tsx` | 101, 103, 119, 136, 146, 164, 190, 193, 200, 225, 236, 241, 259, 261, 273 |
 
-### Solução
-
-Substituir TODAS as ocorrências de `text-white` por `text-[hsl(var(--auth-text-primary))]` para garantir consistência com o design system.
-
-**Arquivos a modificar:**
-
-```text
-src/components/auth/reset-password/ResetPasswordLayout.tsx
-├── Linha 34: text-white → text-[hsl(var(--auth-text-primary))]
-├── Linha 36: text-white → text-[hsl(var(--auth-text-primary))]
-├── Linha 50: text-white → text-[hsl(var(--auth-text-primary))]
-├── Linha 52: text-white → text-[hsl(var(--auth-text-primary))]
-└── Linha 64: text-white → text-[hsl(var(--auth-text-primary))]
-
-src/modules/members-area/pages/buyer/BuyerRecuperarSenha.tsx
-├── Todas as ocorrências de text-white → text-[hsl(var(--auth-text-primary))]
-└── Isso inclui: logo, títulos, labels, botões, links
-```
+Todas as ocorrências de `text-white` foram substituídas por `text-[hsl(var(--auth-text-primary))]`.
 
 ---
 
-## Problema 2: Erro 401 do ZeptoMail
+## ⏳ Problema 2: Erro 401 do ZeptoMail - AÇÃO DO USUÁRIO NECESSÁRIA
 
 ### Diagnóstico (logs confirmados)
 
@@ -96,18 +77,6 @@ Onde:
 
 ---
 
-## Arquivos a Modificar (Código)
-
-```text
-1. src/components/auth/reset-password/ResetPasswordLayout.tsx
-   └── 5 substituições de text-white
-
-2. src/modules/members-area/pages/buyer/BuyerRecuperarSenha.tsx
-   └── ~15 substituições de text-white
-```
-
----
-
 ## Checklist de Configuração (Supabase Secrets)
 
 | Secret | Valor Esperado | Status |
@@ -122,9 +91,9 @@ Onde:
 
 ## Próximos Passos
 
-1. **Você verifica e atualiza os secrets** no Supabase Dashboard
-2. **Eu implemento as correções de CSS** nos arquivos identificados
-3. **Testamos o fluxo** de recuperação de senha em risecheckout.com
+1. ✅ **Correções de CSS implementadas**
+2. ⏳ **Você verifica e atualiza os secrets** no Supabase Dashboard
+3. ⏳ **Testamos o fluxo** de recuperação de senha em risecheckout.com
 
 ---
 
@@ -153,4 +122,3 @@ O log mostra:
 ```
 
 Isso significa que algum secret de remetente nunca foi configurado com valor real. Mesmo que não cause o erro 401 (que é do token), causará falha de entrega se o domínio não estiver verificado.
-

@@ -31,9 +31,9 @@ export function ResetPasswordLayout({ config, children }: ResetPasswordLayoutPro
             <div className="lg:hidden flex justify-center mb-8">
               <Link to="/" className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
-                  <span className="font-bold text-white">R</span>
+                  <span className="font-bold text-[hsl(var(--auth-text-primary))]">R</span>
                 </div>
-                <span className="font-bold text-lg text-white">RiseCheckout</span>
+                <span className="font-bold text-lg text-[hsl(var(--auth-text-primary))]">RiseCheckout</span>
               </Link>
             </div>
 
@@ -47,9 +47,9 @@ export function ResetPasswordLayout({ config, children }: ResetPasswordLayoutPro
           <div className="relative z-10">
             <Link to="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
-                <span className="font-bold text-white text-xl">R</span>
+                <span className="font-bold text-[hsl(var(--auth-text-primary))] text-xl">R</span>
               </div>
-              <span className="font-bold text-xl text-white tracking-tight">RiseCheckout</span>
+              <span className="font-bold text-xl text-[hsl(var(--auth-text-primary))] tracking-tight">RiseCheckout</span>
             </Link>
           </div>
 
@@ -61,7 +61,7 @@ export function ResetPasswordLayout({ config, children }: ResetPasswordLayoutPro
               transition={{ delay: 0.2 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-bold text-white leading-tight">
+              <h2 className="text-4xl font-bold text-[hsl(var(--auth-text-primary))] leading-tight">
                 Crie uma nova senha <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]">
                   segura
