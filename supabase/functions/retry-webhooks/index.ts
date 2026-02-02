@@ -1,11 +1,12 @@
 /**
  * Retry Webhooks
  * 
- * Reenvia webhooks que falharam
- * Deve ser executado via cron job
+ * Reenvia webhooks que falharam (até MAX_RETRIES tentativas).
+ * Deve ser executado via cron job (pg_cron ou scheduler externo).
  * 
  * @category Webhooks
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

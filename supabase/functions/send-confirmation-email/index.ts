@@ -1,10 +1,12 @@
 /**
  * Send Confirmation Email
  * 
- * Envia email de confirmação de compra
+ * Envia email de confirmação de compra via Resend.
+ * Disparado após confirmação de pagamento.
  * 
  * @category Email
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

@@ -1,10 +1,12 @@
 /**
  * PushinPay Stats
  * 
- * Retorna estatísticas de pagamentos PIX via PushinPay
+ * Retorna estatísticas de pagamentos PIX via PushinPay.
+ * Requer autenticação do vendor para filtrar por vendor_id.
  * 
  * @category Payments - PushinPay
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

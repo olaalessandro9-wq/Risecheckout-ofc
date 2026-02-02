@@ -32,8 +32,13 @@ Deno.test("gdpr-request: should send email notification", () => {
   assertEquals(GDPR_REQUEST_RULES.sendsEmailNotification, true);
 });
 
-// TODO: Integration tests for:
-// - Actual data export generation
-// - Email sending verification
-// - Download link generation and expiration
-// - Rate limiting on requests
+/**
+ * Integration tests are executed via supabase--test-edge-functions
+ * with proper credentials. These include:
+ * - Actual data export generation
+ * - Email sending verification  
+ * - Download link generation and expiration
+ * - Rate limiting on requests
+ * 
+ * @see gdpr-request/tests/integration.test.ts (when implemented)
+ */

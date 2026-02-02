@@ -1,10 +1,12 @@
 /**
  * Checkout Heartbeat
  * 
- * Registra heartbeat de sessões de checkout para tracking de abandono
+ * Registra heartbeat de sessões de checkout para tracking de abandono.
+ * Chamado periodicamente pelo frontend durante o processo de checkout.
  * 
  * @category Tracking
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

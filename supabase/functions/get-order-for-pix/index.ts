@@ -1,10 +1,12 @@
 /**
  * Get Order for PIX
  * 
- * Retorna dados do pedido para exibição na tela de PIX
+ * Retorna dados do pedido para exibição na tela de PIX.
+ * Inclui QR code, código copia-cola e status de expiração.
  * 
  * @category Orders
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";

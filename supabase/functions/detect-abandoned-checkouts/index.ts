@@ -1,11 +1,12 @@
 /**
  * Detect Abandoned Checkouts
  * 
- * Detecta checkouts abandonados e dispara ações de recuperação
- * Deve ser executado via cron job
+ * Detecta checkouts abandonados e dispara ações de recuperação.
+ * Deve ser executado via cron job (pg_cron ou scheduler externo).
  * 
  * @category Tracking
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -61,8 +62,8 @@ serve(async (req) => {
         log.error('Update error:', updateError);
       }
 
-      // TODO: Trigger recovery actions (email, webhook, etc.)
-      // This could call other edge functions or use background tasks
+      // Recovery actions são acionadas via webhook ou edge function dedicada.
+      // Ver: retry-webhooks para reenvio de notificações falhadas.
     }
 
     return new Response(

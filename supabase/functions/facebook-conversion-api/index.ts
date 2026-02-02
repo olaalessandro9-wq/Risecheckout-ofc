@@ -1,10 +1,12 @@
 /**
  * Facebook Conversion API
  * 
- * Envia eventos de conversão para a Facebook Conversions API
+ * Envia eventos de conversão para a Facebook Conversions API (CAPI).
+ * Implementa hashing SHA-256 para dados do usuário conforme exigido pela Meta.
  * 
  * @category Tracking
- * @status stub - migrado do deploy
+ * @status active
+ * @version 1.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
