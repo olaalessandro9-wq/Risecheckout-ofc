@@ -1,8 +1,77 @@
 # Documentação do Sistema de Testes - RiseCheckout
 
-**Status:** ✅ FASES 1-8 + MODULARIZAÇÃO COMPLETAS (100% RISE V3)  
+**Status:** ✅ FASES 1-8 + CONSOLIDAÇÃO MP COMPLETAS (100% RISE V3)  
 **Última atualização:** 2 de Fevereiro de 2026  
 **RISE V3 Score:** 10.0/10
+
+---
+
+## 🎯 Arquitetura de Testes E2E: Gateway Único (Mercado Pago)
+
+### Decisão Estratégica (02/02/2026)
+
+Os testes E2E usam **APENAS Mercado Pago** como gateway de referência. Esta decisão segue o princípio RISE V3:
+
+| Critério | Multi-Gateway | MP Único | Justificativa |
+|----------|---------------|----------|---------------|
+| Manutenibilidade | 6/10 | 10/10 | 100 gateways = impossível manter |
+| Escalabilidade | 3/10 | 10/10 | Adicionar gateway ≠ adicionar teste |
+| Zero Dívida Técnica | 5/10 | 10/10 | Sem testes falsos para gateways desativados |
+
+**Filosofia:** Gateways são "infraestrutura" - implementa e pronto, não precisa testar cada um. O foco é testar **FUNCIONALIDADES** (cupons, order bumps, fluxos) usando UM gateway de referência.
+
+### Requisitos para Executar Testes E2E
+
+⚠️ **IMPORTANTE:** Somente contas com role `admin` podem configurar gateways em modo Sandbox.
+
+#### 1. Conta Admin
+
+```sql
+-- Adicionar role admin ao seu usuário
+INSERT INTO user_roles (user_id, role) VALUES ('SEU_USER_ID', 'admin');
+```
+
+#### 2. Mercado Pago Sandbox
+
+1. Acessar: https://www.mercadopago.com.br/developers/panel
+2. Copiar **Public Key** e **Access Token** do modo **Sandbox**
+3. Configurar no sistema: Financeiro > Integrações > Mercado Pago > Ambiente: Sandbox
+
+#### 3. Checkout de Teste
+
+| Campo | Valor Obrigatório |
+|-------|-------------------|
+| Slug | `test-checkout-mercadopago` |
+| Gateway PIX | Mercado Pago (Sandbox) |
+| Gateway Cartão | Mercado Pago (Sandbox) |
+| Order Bump | Pelo menos 1 configurado |
+
+#### 4. Cupons de Teste
+
+| Código | Tipo | Valor | Status |
+|--------|------|-------|--------|
+| `VALID10` | Percentual | 10% | Ativo, sem expiração |
+| `EXPIRED2020` | Percentual | 10% | Data de expiração no passado |
+
+#### 5. Cartões de Teste do Mercado Pago
+
+**Cartão APROVADO:**
+```
+Número: 5031 4332 1540 6351
+Validade: 11/30
+CVV: 123
+Nome: APRO
+CPF: 123.456.789-09
+```
+
+**Cartão RECUSADO:**
+```
+Número: 5031 7557 3453 0604
+Validade: 11/30
+CVV: 123
+Nome: OTHE
+CPF: 123.456.789-09
+```
 
 ---
 
@@ -14,7 +83,7 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
               ▲
              /│\
             / │ \
-           / E2E \           ~10% (Playwright - 63+ testes)
+           / E2E \           ~10% (Playwright - 32 testes críticos)
           /───────\
          /         \
         / Integração\        ~20% (Vitest + MSW - 66 testes)
@@ -24,7 +93,7 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
     /───────────────────\
 ```
 
-**Total: 1251+ testes**
+**Total: 1200+ testes**
 
 ---
 
@@ -34,90 +103,27 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
 risecheckout/
 ├── vitest.config.ts           # Configuração principal Vitest
 ├── playwright.config.ts       # Configuração Playwright
-├── playwright-fixture.ts      # Re-export de fixtures
-├── src/test/
-│   ├── setup.ts               # Setup global (DOM mocks, MSW)
-│   ├── utils.tsx              # Render helpers, test utilities
-│   ├── infrastructure.test.ts # Testes de validação da infra
-│   ├── mocks/
-│   │   ├── handlers.ts        # MSW request handlers
-│   │   └── server.ts          # MSW server instance
-│   └── factories/             # Type-Safe Mock Factories (RISE V3)
-│       ├── index.ts           # Barrel export
-│       ├── xstate.ts          # XState mocks (createMockUseMachine, etc.)
-│       ├── productContext.ts  # ProductContext factories
-│       ├── generalTab.ts      # GeneralTab hook factories
-│       ├── productTabsContext.ts # Tab-specific factories
-│       ├── webhooksContext.ts # Webhooks factories
-│       ├── webhooksContext.test-helpers.ts # Webhooks mocks
-│       └── ... (15+ factory files)
-├── src/components/ui/__tests__/  # Fase 8: Testes UI Components
-│   ├── button.test.tsx        # 18 testes
-│   ├── input.test.tsx         # 14 testes
-│   ├── card.test.tsx          # 15 testes
-│   ├── badge.test.tsx         # 10 testes
-│   ├── alert.test.tsx         # 12 testes
-│   ├── checkbox.test.tsx      # 10 testes
-│   ├── switch.test.tsx        # 10 testes
-│   ├── textarea.test.tsx      # 8 testes
-│   ├── label.test.tsx         # 7 testes
-│   ├── progress.test.tsx      # 10 testes
-│   ├── separator.test.tsx     # 10 testes
-│   ├── skeleton.test.tsx      # 6 testes
-│   ├── avatar.test.tsx        # 8 testes
-│   ├── select.test.tsx        # 16 testes
-│   ├── dialog-core.test.tsx   # 11 testes (Dialog, Trigger, Content)
-│   ├── dialog-parts.test.tsx  # 8 testes (Header, Footer, Title, Description)
-│   └── form-controls.test.tsx # 16 testes (Toggle, ToggleGroup, RadioGroup)
+├── src/test/                  # Setup e utilities de teste
 ├── e2e/                       # Testes E2E (Playwright)
 │   ├── fixtures/
-│   │   ├── test-data.ts       # Dados centralizados
+│   │   ├── test-data.ts       # Dados centralizados (MP único)
 │   │   └── pages/             # Page Objects
-│   │       ├── AuthPage.ts
-│   │       ├── CadastroPage.ts
-│   │       ├── LandingPage.ts
-│   │       ├── CheckoutPage.ts    # +8 métodos (Fase Critical)
+│   │       ├── CheckoutPage.ts
 │   │       ├── PixPaymentPage.ts
 │   │       ├── SuccessPage.ts
-│   │       └── BuyerPage.ts
+│   │       └── ...
 │   ├── specs/
-│   │   ├── critical/                     # NOVO - Happy Path E2E (Fase Critical)
-│   │   │   ├── happy-path-pix.spec.ts    # 4 testes - Fluxo PIX completo
-│   │   │   ├── happy-path-card.spec.ts   # 4 testes - Fluxo Cartão completo
-│   │   │   ├── card-declined.spec.ts     # 4 testes - Erros de cartão
-│   │   │   ├── coupon-validation.spec.ts # 4 testes - Validação de cupons
-│   │   │   └── redirect-validation.spec.ts # 4 testes - Navegação correta
-│   │   ├── smoke.spec.ts           # 10 testes
-│   │   ├── auth.spec.ts            # 9 testes
-│   │   ├── checkout-loading.spec.ts    # 2 testes (Single Responsibility)
-│   │   ├── checkout-form.spec.ts       # 3 testes (Single Responsibility)
-│   │   ├── checkout-payment.spec.ts    # 5 testes (Single Responsibility)
-│   │   ├── checkout-bumps.spec.ts      # 2 testes (Single Responsibility)
-│   │   ├── checkout-submit.spec.ts     # 4 testes (Single Responsibility)
-│   │   ├── landing.spec.ts         # 8 testes
-│   │   └── buyer-auth.spec.ts      # 8 testes
-│   ├── members-area-flicker.spec.ts  # 6 testes
-│   └── README.md
-├── .github/workflows/
-│   └── ci.yml                 # Pipeline CI/CD (Fase 7)
+│   │   ├── critical/                        # Testes Críticos (MP único)
+│   │   │   ├── complete-pix-flow.spec.ts    # 4 testes - Fluxo PIX
+│   │   │   ├── complete-card-flow.spec.ts   # 4 testes - Fluxo Cartão
+│   │   │   ├── card-errors.spec.ts          # 5 testes - Erros + Retry
+│   │   │   ├── coupon-validation.spec.ts    # 9 testes - Cupons
+│   │   │   ├── order-bump.spec.ts           # 4 testes - Order Bumps
+│   │   │   └── redirect-validation.spec.ts  # 9 testes - Navegação
+│   │   ├── smoke.spec.ts           # Smoke tests
+│   │   ├── auth.spec.ts            # Autenticação
+│   │   └── ...
 └── supabase/functions/        # Testes Edge Functions (Deno)
-    ├── run-tests.sh           # Test runner com --reporter=dot
-    ├── deno.json              # Config de test e coverage
-    └── _shared/
-        ├── password-policy.test.ts
-        ├── rate-limiting/
-        │   ├── service.test.ts
-        │   └── configs.test.ts
-        └── validators/        # Modularizado RISE V3
-            ├── validators-uuid.test.ts        # 16 testes
-            ├── validators-email.test.ts       # 11 testes
-            ├── validators-cpf.test.ts         # 8 testes
-            ├── validators-phone.test.ts       # 8 testes
-            ├── validators-string.test.ts      # 10 testes
-            ├── validators-order-input.test.ts # 10 testes
-            ├── validators-auth.test.ts        # 7 testes
-            ├── validators-password.test.ts    # 5 testes
-            └── validators-edge-cases.test.ts  # 5 testes
 ```
 
 ---

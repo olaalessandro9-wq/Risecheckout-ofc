@@ -1,15 +1,12 @@
 /**
- * Coupon Validation - Coupon Application E2E Tests
+ * Coupon Validation - Mercado Pago Reference Gateway
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Tests the coupon application flow on checkout.
- * Validates valid, invalid, and expired coupons.
+ * Testa aplicação de cupons usando Mercado Pago como gateway único.
+ * Valida cupons válidos, inválidos, expirados e remoção.
  * 
  * Flow: Checkout → Apply Coupon → Verify Discount
- * 
- * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
- * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/critical/coupon-validation.spec
  * @version 2.0.0
@@ -19,19 +16,19 @@ import { test, expect } from "@playwright/test";
 import { CheckoutPage } from "../../fixtures/pages/CheckoutPage";
 import { PixPaymentPage } from "../../fixtures/pages/PixPaymentPage";
 import {
-  TEST_CHECKOUT,
-  TEST_CHECKOUT_GATEWAYS,
+  TEST_CHECKOUT_MERCADOPAGO,
   TEST_COUPONS,
+  TEST_CUSTOMER,
   generateTestEmail,
 } from "../../fixtures/test-data";
 
-test.describe("Coupon Validation - Application Flow", () => {
+test.describe("Coupon Validation - Mercado Pago", () => {
   test.describe("Valid Coupon", () => {
     test("should apply valid coupon and show discount", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
       // 1. Navigate to checkout
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // 2. Get initial price
@@ -53,7 +50,7 @@ test.describe("Coupon Validation - Application Flow", () => {
     test("should show discount amount after applying coupon", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // Apply valid coupon
@@ -62,7 +59,6 @@ test.describe("Coupon Validation - Application Flow", () => {
 
       // Verify discount amount is visible
       const discountAmount = await checkoutPage.getAppliedCouponDiscount();
-      // Either discount amount is shown or coupon success message
       const hasDiscount = discountAmount.length > 0 || await checkoutPage.hasCouponSuccess();
       expect(hasDiscount).toBe(true);
     });
@@ -71,7 +67,7 @@ test.describe("Coupon Validation - Application Flow", () => {
       const checkoutPage = new CheckoutPage(page);
       const pixPaymentPage = new PixPaymentPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // Apply coupon first
@@ -80,10 +76,10 @@ test.describe("Coupon Validation - Application Flow", () => {
 
       // Fill customer form
       await checkoutPage.fillCustomerForm({
-        name: TEST_CHECKOUT.customer.name,
+        name: TEST_CUSTOMER.name,
         email: generateTestEmail("coupon-pix"),
-        phone: TEST_CHECKOUT.customer.phone,
-        cpf: TEST_CHECKOUT.customer.cpf,
+        phone: TEST_CUSTOMER.phone,
+        cpf: TEST_CUSTOMER.cpf,
       });
 
       // Select PIX and submit
@@ -100,7 +96,7 @@ test.describe("Coupon Validation - Application Flow", () => {
     test("should show error for invalid coupon", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // Apply invalid coupon
@@ -118,7 +114,7 @@ test.describe("Coupon Validation - Application Flow", () => {
     test("should not apply discount for invalid coupon", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // Get initial price
@@ -138,7 +134,7 @@ test.describe("Coupon Validation - Application Flow", () => {
     test("should show error for expired coupon", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // Apply expired coupon
@@ -158,7 +154,7 @@ test.describe("Coupon Validation - Application Flow", () => {
     test("should allow removing applied coupon", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // Get initial price
@@ -170,7 +166,6 @@ test.describe("Coupon Validation - Application Flow", () => {
 
       // Remove coupon
       await checkoutPage.removeCoupon();
-      // ASSERTIVE: Wait for UI to update after coupon removal
       await checkoutPage.waitForCouponRemoval();
 
       // Price should return to original
@@ -183,7 +178,7 @@ test.describe("Coupon Validation - Application Flow", () => {
     test("should have coupon input visible on checkout", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // Verify coupon input is visible
@@ -193,7 +188,7 @@ test.describe("Coupon Validation - Application Flow", () => {
     test("should have apply button functional", async ({ page }) => {
       const checkoutPage = new CheckoutPage(page);
 
-      await checkoutPage.navigate(TEST_CHECKOUT_GATEWAYS.pushinpay.slug);
+      await checkoutPage.navigate(TEST_CHECKOUT_MERCADOPAGO.slug);
       await checkoutPage.waitForCheckoutReady();
 
       // Fill coupon input
