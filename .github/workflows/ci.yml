@@ -9,6 +9,9 @@
 # Architecture:
 #   install → [unit-tests, e2e-tests, edge-functions] → quality-gate
 # 
+# NOTE: pnpm-lock.yaml is not synced from Lovable to GitHub.
+# The lockfile is generated on first run and cached for subsequent runs.
+# 
 # @module .github/workflows/ci
 # =============================================================================
 
@@ -58,14 +61,19 @@ jobs:
         id: cache
         uses: actions/cache@v4
         with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          path: |
+            node_modules
+            pnpm-lock.yaml
+          key: deps-${{ runner.os }}-${{ hashFiles('package.json') }}
           restore-keys: |
-            node-modules-${{ runner.os }}-
+            deps-${{ runner.os }}-
 
       - name: 📥 Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: pnpm install --frozen-lockfile
+        run: |
+          echo "📦 Installing dependencies and generating lockfile..."
+          pnpm install
+          echo "✅ Dependencies installed successfully"
 
   # ===========================================================================
   # Job 2: Unit & Integration Tests with Coverage
@@ -89,14 +97,25 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
-      - name: 💾 Restore node_modules cache
+      - name: 💾 Restore dependencies cache
         uses: actions/cache@v4
         with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          path: |
+            node_modules
+            pnpm-lock.yaml
+          key: deps-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: |
+            deps-${{ runner.os }}-
 
       - name: 📥 Install dependencies (if cache miss)
-        run: pnpm install --frozen-lockfile
+        run: |
+          if [ ! -f pnpm-lock.yaml ]; then
+            echo "📦 Cache miss - generating lockfile..."
+            pnpm install
+          else
+            echo "✅ Using cached dependencies"
+            pnpm install --frozen-lockfile
+          fi
 
       - name: 🧪 Run tests with coverage
         run: pnpm vitest run --coverage --reporter=json --outputFile=test-results.json
@@ -151,20 +170,31 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
-      - name: 💾 Restore node_modules cache
+      - name: 💾 Restore dependencies cache
         uses: actions/cache@v4
         with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          path: |
+            node_modules
+            pnpm-lock.yaml
+          key: deps-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: |
+            deps-${{ runner.os }}-
 
       - name: 📥 Install dependencies (if cache miss)
-        run: pnpm install --frozen-lockfile
+        run: |
+          if [ ! -f pnpm-lock.yaml ]; then
+            echo "📦 Cache miss - generating lockfile..."
+            pnpm install
+          else
+            echo "✅ Using cached dependencies"
+            pnpm install --frozen-lockfile
+          fi
 
       - name: 💾 Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('package.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
