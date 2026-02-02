@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
   server: {
@@ -8,7 +9,10 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     allowedHosts: [".manusvm.computer", ".manus.computer"],
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    mode === 'development' && componentTagger(),
+  ].filter(Boolean),
   // Remove console.log/warn/debug e debugger statements em produção
   esbuild: {
     drop: mode === 'production' ? ['console', 'debugger'] : [],
