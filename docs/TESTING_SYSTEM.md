@@ -14,7 +14,7 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
               ▲
              /│\
             / │ \
-           / E2E \           ~10% (Playwright - 43+ testes)
+           / E2E \           ~10% (Playwright - 63+ testes)
           /───────\
          /         \
         / Integração\        ~20% (Vitest + MSW - 66 testes)
@@ -24,7 +24,7 @@ O RiseCheckout implementa uma **Pirâmide de Testes Enterprise** seguindo o RISE
     /───────────────────\
 ```
 
-**Total: 1231+ testes**
+**Total: 1251+ testes**
 
 ---
 
@@ -76,11 +76,17 @@ risecheckout/
 │   │       ├── AuthPage.ts
 │   │       ├── CadastroPage.ts
 │   │       ├── LandingPage.ts
-│   │       ├── CheckoutPage.ts
+│   │       ├── CheckoutPage.ts    # +8 métodos (Fase Critical)
 │   │       ├── PixPaymentPage.ts
 │   │       ├── SuccessPage.ts
 │   │       └── BuyerPage.ts
 │   ├── specs/
+│   │   ├── critical/                     # NOVO - Happy Path E2E (Fase Critical)
+│   │   │   ├── happy-path-pix.spec.ts    # 4 testes - Fluxo PIX completo
+│   │   │   ├── happy-path-card.spec.ts   # 4 testes - Fluxo Cartão completo
+│   │   │   ├── card-declined.spec.ts     # 4 testes - Erros de cartão
+│   │   │   ├── coupon-validation.spec.ts # 4 testes - Validação de cupons
+│   │   │   └── redirect-validation.spec.ts # 4 testes - Navegação correta
 │   │   ├── smoke.spec.ts           # 10 testes
 │   │   ├── auth.spec.ts            # 9 testes
 │   │   ├── checkout-loading.spec.ts    # 2 testes (Single Responsibility)
@@ -247,7 +253,7 @@ test("should login successfully", async ({ page }) => {
 | `AuthPage` | /auth | `login()`, `navigate()`, `waitForLoginComplete()` |
 | `CadastroPage` | /cadastro | `register()`, `fillEmail()`, `acceptTerms()` |
 | `LandingPage` | / | `clickLogin()`, `scrollToFeatures()`, `getCtaCount()` |
-| `CheckoutPage` | /pay/:slug | `fillCustomerForm()`, `selectPaymentPix()`, `applyCoupon()` |
+| `CheckoutPage` | /pay/:slug | `fillCustomerForm()`, `selectPaymentPix()`, `applyCoupon()`, `fillCardForm()`, `selectInstallments()`, `waitForPaymentError()`, `hasPaymentError()`, `waitForCouponFeedback()`, `waitForCardFormReady()`, `waitForCouponRemoval()`, `removeCoupon()` |
 | `BuyerPage` | /minha-conta | `login()`, `selectCourse()`, `markLessonComplete()` |
 | `PixPaymentPage` | /pay/pix/:id | `copyPixCode()`, `waitForQrCode()` |
 | `SuccessPage` | /success/:id | `isSuccessful()`, `getOrderId()` |
@@ -347,7 +353,7 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 - [x] **Fase 3:** Testes unitários frontend (lib) - ✅ 150+ testes
 - [x] **Fase 4:** Testes de integração (hooks) - ✅ 66 testes
 - [x] **Fase 5:** Testes de Edge Functions - ✅ 550+ testes (modularizados)
-- [x] **Fase 6:** Testes E2E (Playwright) - ✅ 43+ testes
+- [x] **Fase 6:** Testes E2E (Playwright) - ✅ 63+ testes (inclui Happy Path críticos)
 - [x] **Fase 7:** CI/CD Bloqueante - ✅ Pipeline completo
 - [x] **Fase 8:** Testes UI Components - ✅ 179 testes
 - [x] **Fase 4.1:** Modularização de Testes Gigantes - ✅ 30 funções refatoradas
@@ -363,8 +369,9 @@ Após deploy, configurar no GitHub → Settings → Branches → main:
 | F4 | Hooks integração | 66 |
 | F5 | Edge Functions (modularizados) | 550+ |
 | F6 | E2E Playwright | 43+ |
+| F6.1 | E2E Critical (Happy Path) | 20+ |
 | F8 | UI Components | 179 |
-| **TOTAL** | | **1231+** |
+| **TOTAL** | | **1251+** |
 
 ---
 
@@ -416,7 +423,7 @@ cd supabase/functions && ./lint-tests.sh
 
 ### RISE V3 Certified 10.0/10
 
-✅ 1231+ testes automatizados  
+✅ 1251+ testes automatizados  
 ✅ 60%+ coverage thresholds  
 ✅ CI/CD bloqueante com quality gate  
 ✅ Jobs paralelos e cache otimizado  
