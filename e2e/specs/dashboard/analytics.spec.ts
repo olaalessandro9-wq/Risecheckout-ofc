@@ -9,11 +9,11 @@
  * - Loading states
  * - Empty states
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/dashboard/analytics.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -115,9 +115,13 @@ test.describe("Dashboard Loading States", () => {
     
     await dashboardPage.navigate();
     
-    // ASSERTIVE: isLoading should return a boolean value
-    const isLoading = await dashboardPage.isLoading();
-    expect(isLoading === true || isLoading === false).toBe(true);
+    // ASSERTIVE: Dashboard should eventually be ready (loading state is transient)
+    await dashboardPage.waitForDashboardReady();
+    
+    // After loading, dashboard should be in a stable state
+    const hasStats = await dashboardPage.isStatsVisible();
+    const hasEmptyState = await dashboardPage.hasEmptyState();
+    expect(hasStats || hasEmptyState).toBe(true);
   });
 
   test("loading state disappears after data loads", async ({ page }) => {
@@ -131,8 +135,7 @@ test.describe("Dashboard Loading States", () => {
     await dashboardPage.navigate();
     await dashboardPage.waitForDashboardReady();
     
-    await page.waitForTimeout(2000);
-    
+    // ASSERTIVE: After dashboard is ready, loading should be false
     const isLoading = await dashboardPage.isLoading();
     expect(isLoading).toBe(false);
   });
@@ -148,7 +151,7 @@ test.describe("Dashboard Navigation", () => {
     await authPage.waitForLoginComplete();
     
     await dashboardPage.navigate();
-    await page.waitForTimeout(2000);
+    await dashboardPage.waitForDashboardReady();
     
     // ASSERTIVE: Navigation link should be visible or dashboard should have navigation
     const productsLinkVisible = await dashboardPage.productsLink.isVisible().catch(() => false);
@@ -166,7 +169,7 @@ test.describe("Dashboard Navigation", () => {
     await authPage.waitForLoginComplete();
     
     await dashboardPage.navigate();
-    await page.waitForTimeout(2000);
+    await dashboardPage.waitForDashboardReady();
     
     // ASSERTIVE: Financial link should be visible or dashboard should have navigation
     const financialLinkVisible = await dashboardPage.financialLink.isVisible().catch(() => false);
@@ -184,7 +187,7 @@ test.describe("Dashboard Navigation", () => {
     await authPage.waitForLoginComplete();
     
     await dashboardPage.navigate();
-    await page.waitForTimeout(2000);
+    await dashboardPage.waitForDashboardReady();
     
     // ASSERTIVE: Affiliates link should be visible or dashboard should have navigation
     const affiliatesLinkVisible = await dashboardPage.affiliatesLink.isVisible().catch(() => false);
@@ -204,7 +207,7 @@ test.describe("Dashboard Quick Actions", () => {
     await authPage.waitForLoginComplete();
     
     await dashboardPage.navigate();
-    await page.waitForTimeout(2000);
+    await dashboardPage.waitForDashboardReady();
     
     // ASSERTIVE: Create product button or navigation to products should exist
     const createButtonVisible = await dashboardPage.createProductButton.isVisible().catch(() => false);
@@ -222,7 +225,7 @@ test.describe("Dashboard Quick Actions", () => {
     await authPage.waitForLoginComplete();
     
     await dashboardPage.navigate();
-    await page.waitForTimeout(2000);
+    await dashboardPage.waitForDashboardReady();
     
     // ASSERTIVE: View products button or navigation should exist
     const viewButtonVisible = await dashboardPage.viewProductsButton.isVisible().catch(() => false);

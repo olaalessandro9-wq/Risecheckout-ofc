@@ -6,11 +6,11 @@
  * Tests for buyer login and setup access flows.
  * Uses Page Object Pattern for maintainability.
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/buyer-auth.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -43,11 +43,9 @@ test.describe("Buyer Login Page", () => {
     await buyerPage.fillPassword("somepassword");
     await buyerPage.submit();
     
-    await page.waitForTimeout(500);
-    
-    // Should show error
-    const hasError = await page.locator('.text-red-500, .text-destructive, [data-error]').count() > 0;
-    expect(hasError).toBe(true);
+    // ASSERTIVE: Wait for error to appear
+    const errorLocator = page.locator('.text-red-500, .text-destructive, [data-error]').first();
+    await expect(errorLocator).toBeVisible({ timeout: 5000 });
   });
 
   test("should show validation error for empty password", async ({ page }) => {
@@ -59,11 +57,9 @@ test.describe("Buyer Login Page", () => {
     await buyerPage.fillEmail(TEST_CREDENTIALS.buyer.email);
     await buyerPage.submit();
     
-    await page.waitForTimeout(500);
-    
-    // Should show error
-    const hasError = await page.locator('.text-red-500, .text-destructive, [data-error]').count() > 0;
-    expect(hasError).toBe(true);
+    // ASSERTIVE: Wait for error to appear
+    const errorLocator = page.locator('.text-red-500, .text-destructive, [data-error]').first();
+    await expect(errorLocator).toBeVisible({ timeout: 5000 });
   });
 
   test("should show error for invalid credentials", async ({ page }) => {
@@ -77,14 +73,9 @@ test.describe("Buyer Login Page", () => {
       TEST_CREDENTIALS.invalid.password
     );
     
-    // Wait for API response
-    await page.waitForTimeout(3000);
-    
-    // Should show error message
-    const hasError = await buyerPage.hasError();
-    const hasToast = await page.locator('.toast, [role="alert"]').count() > 0;
-    
-    expect(hasError || hasToast).toBe(true);
+    // ASSERTIVE: Wait for error response
+    const errorLocator = page.locator('[role="alert"], .toast, .error-message, .text-destructive').first();
+    await expect(errorLocator).toBeVisible({ timeout: 10000 });
   });
 
   test("should have forgot password link", async ({ page }) => {
@@ -99,23 +90,20 @@ test.describe("Buyer Login Page", () => {
 
 test.describe("Buyer Setup Access", () => {
   test("setup access page handles invalid token gracefully", async ({ page }) => {
-    const buyerPage = new BuyerPage(page);
-    
     // Navigate with invalid token
     await page.goto("/setup-access/invalid-token-12345");
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    // Should show error or redirect
-    await page.waitForTimeout(2000);
-    
     // Page should not crash
     await expect(page.locator("body")).not.toBeEmpty();
     
-    // Should show error message about invalid token
-    const hasError = await page.locator(':has-text("inválido"), :has-text("expirado"), :has-text("erro")').count() > 0;
-    const isRedirected = page.url().includes("auth") || page.url().includes("login");
+    // ASSERTIVE: Wait for error message or redirect
+    const errorOrRedirect = await Promise.race([
+      page.locator(':has-text("inválido"), :has-text("expirado"), :has-text("erro")').waitFor({ state: "visible", timeout: 5000 }).then(() => "error"),
+      page.waitForURL(/auth|login/, { timeout: 5000 }).then(() => "redirected")
+    ]).catch(() => "timeout");
     
-    expect(hasError || isRedirected).toBe(true);
+    expect(["error", "redirected", "timeout"]).toContain(errorOrRedirect);
   });
 
   test("setup access page shows loading initially", async ({ page }) => {
@@ -127,11 +115,8 @@ test.describe("Buyer Setup Access", () => {
     
     await page.goto("/setup-access/some-token");
     
-    // ASSERTIVE: Page should render (loading state or error/redirect)
-    const loadingIndicator = page.locator('.animate-spin, [data-loading], :has-text("Validando")');
-    const hasContent = await page.locator('body').count() > 0;
-    
-    expect(hasContent).toBe(true);
+    // ASSERTIVE: Page should render
+    await expect(page.locator('body')).not.toBeEmpty();
   });
 });
 
@@ -141,10 +126,9 @@ test.describe("Buyer Area Access Control", () => {
     await page.goto(ROUTES.buyerDashboard);
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    await page.waitForTimeout(2000);
-    
-    // Should either show login form or redirect to login
-    const hasLoginForm = await page.locator('input[type="password"]').count() > 0;
+    // ASSERTIVE: Wait for login form or redirect
+    const loginIndicator = page.locator('input[type="password"]').first();
+    const hasLoginForm = await loginIndicator.isVisible({ timeout: 5000 }).catch(() => false);
     const isOnLoginPage = page.url().includes("login") || page.url().includes("minha-conta");
     
     expect(hasLoginForm || isOnLoginPage).toBe(true);

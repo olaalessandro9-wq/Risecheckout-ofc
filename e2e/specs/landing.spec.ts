@@ -6,12 +6,15 @@
  * Tests for landing page navigation, sections, and call-to-action buttons.
  * Uses Page Object Pattern for maintainability.
  * 
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
+ * 
  * @module e2e/specs/landing.spec
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
 import { LandingPage } from "../fixtures/pages/LandingPage";
-import { ROUTES, TIMEOUTS } from "../fixtures/test-data";
 
 test.describe("Landing Page Structure", () => {
   test("should display hero section", async ({ page }) => {
@@ -60,11 +63,11 @@ test.describe("Landing Page Navigation", () => {
     await landingPage.navigate();
     
     // Click login button
-    if (await landingPage.loginButton.isVisible()) {
+    if (await landingPage.loginButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await landingPage.clickLogin();
       
       // Should be on auth page
-      await expect(page).toHaveURL(/auth/);
+      await page.waitForURL(/auth/, { timeout: 10000 });
     }
   });
 
@@ -78,8 +81,9 @@ test.describe("Landing Page Navigation", () => {
     if (ctaCount > 0) {
       await landingPage.heroCta.click();
       
-      // Should navigate to auth or cadastro
-      await page.waitForTimeout(1000);
+      // ASSERTIVE: Wait for navigation to auth or cadastro
+      await page.waitForURL(/auth|cadastro/, { timeout: 10000 });
+      
       const url = page.url();
       const isAuthPage = url.includes("auth") || url.includes("cadastro");
       expect(isAuthPage).toBe(true);
@@ -105,7 +109,9 @@ test.describe("Landing Page Scroll Behavior", () => {
     
     // Scroll to features
     await landingPage.scrollToFeatures();
-    await page.waitForTimeout(500);
+    
+    // ASSERTIVE: Wait for scroll animation to complete
+    await page.waitForFunction(() => window.scrollY > 0, { timeout: 5000 });
     
     // Page should have scrolled (viewport position changed)
     const scrollY = await page.evaluate(() => window.scrollY);
@@ -118,9 +124,11 @@ test.describe("Landing Page Scroll Behavior", () => {
     
     // Scroll to footer
     await landingPage.scrollToFooter();
-    await page.waitForTimeout(500);
     
-    // Footer should be in viewport
+    // ASSERTIVE: Wait for footer to be in viewport
+    await expect(landingPage.footer).toBeInViewport({ timeout: 5000 });
+    
+    // Footer should be visible
     const isFooterVisible = await landingPage.isFooterVisible();
     expect(isFooterVisible).toBe(true);
   });
@@ -167,7 +175,6 @@ test.describe("Landing Page Responsiveness", () => {
     expect(isHeroVisible).toBe(true);
     
     // Login button should be visible (not hamburger)
-    const loginVisible = await landingPage.loginButton.isVisible();
-    expect(loginVisible).toBe(true);
+    await expect(landingPage.loginButton).toBeVisible();
   });
 });

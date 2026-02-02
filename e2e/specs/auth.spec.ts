@@ -6,7 +6,11 @@
  * Tests for producer login, registration, and password recovery flows.
  * Uses Page Object Pattern for maintainability.
  * 
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
+ * 
  * @module e2e/specs/auth.spec
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -14,11 +18,8 @@ import { AuthPage } from "../fixtures/pages/AuthPage";
 import { CadastroPage } from "../fixtures/pages/CadastroPage";
 import { 
   TEST_CREDENTIALS, 
-  generateTestEmail, 
-  generateTestName,
-  ERROR_MESSAGES,
-  ROUTES,
-  TIMEOUTS 
+  generateTestEmail,
+  ROUTES
 } from "../fixtures/test-data";
 
 test.describe("Producer Login", () => {
@@ -40,14 +41,9 @@ test.describe("Producer Login", () => {
     await authPage.fillPassword("somepassword");
     await authPage.submit();
     
-    // Should show error (either field validation or form error)
-    await page.waitForTimeout(500); // Wait for validation
-    
-    // Check for any error indicator
-    const hasFieldError = await page.locator('.text-red-500, .text-destructive, [data-error]').count() > 0;
-    const hasFormError = await authPage.hasError();
-    
-    expect(hasFieldError || hasFormError).toBe(true);
+    // ASSERTIVE: Wait for error to appear
+    const errorLocator = page.locator('.text-red-500, .text-destructive, [data-error]').first();
+    await expect(errorLocator).toBeVisible({ timeout: 5000 });
   });
 
   test("should show validation error for empty password", async ({ page }) => {
@@ -58,13 +54,9 @@ test.describe("Producer Login", () => {
     await authPage.fillEmail(TEST_CREDENTIALS.producer.email);
     await authPage.submit();
     
-    // Should show error
-    await page.waitForTimeout(500);
-    
-    const hasFieldError = await page.locator('.text-red-500, .text-destructive, [data-error]').count() > 0;
-    const hasFormError = await authPage.hasError();
-    
-    expect(hasFieldError || hasFormError).toBe(true);
+    // ASSERTIVE: Wait for error to appear
+    const errorLocator = page.locator('.text-red-500, .text-destructive, [data-error]').first();
+    await expect(errorLocator).toBeVisible({ timeout: 5000 });
   });
 
   test("should show error for invalid credentials", async ({ page }) => {
@@ -77,16 +69,9 @@ test.describe("Producer Login", () => {
       TEST_CREDENTIALS.invalid.password
     );
     
-    // Wait for API response
-    await page.waitForTimeout(2000);
-    
-    // Should show error message
-    const hasError = await authPage.hasError();
-    const errorText = await page.locator('[role="alert"], .toast, .error-message, .text-destructive').textContent();
-    
-    // Either has error element or error toast
-    const hasErrorIndicator = hasError || errorText !== null;
-    expect(hasErrorIndicator).toBe(true);
+    // ASSERTIVE: Wait for error response
+    const errorLocator = page.locator('[role="alert"], .toast, .error-message, .text-destructive').first();
+    await expect(errorLocator).toBeVisible({ timeout: 10000 });
   });
 
   test("should navigate to registration page", async ({ page }) => {
@@ -97,7 +82,7 @@ test.describe("Producer Login", () => {
     await authPage.registerLink.click();
     
     // Should be on registration page
-    await expect(page).toHaveURL(/cadastro/);
+    await page.waitForURL(/cadastro/, { timeout: 10000 });
   });
 
   test("should navigate to password recovery page", async ({ page }) => {
@@ -108,7 +93,7 @@ test.describe("Producer Login", () => {
     await authPage.forgotPasswordLink.click();
     
     // Should be on password recovery page
-    await expect(page).toHaveURL(/recuperar-senha/);
+    await page.waitForURL(/recuperar-senha/, { timeout: 10000 });
   });
 });
 
@@ -132,11 +117,9 @@ test.describe("Producer Registration", () => {
     await cadastroPage.fillPassword("ValidPass123!");
     await cadastroPage.submit();
     
-    // Should show email validation error
-    await page.waitForTimeout(500);
-    
-    const hasError = await page.locator('.text-red-500, .text-destructive, [data-error]').count() > 0;
-    expect(hasError).toBe(true);
+    // ASSERTIVE: Wait for error to appear
+    const errorLocator = page.locator('.text-red-500, .text-destructive, [data-error]').first();
+    await expect(errorLocator).toBeVisible({ timeout: 5000 });
   });
 
   test("should show validation for weak password", async ({ page }) => {
@@ -148,11 +131,9 @@ test.describe("Producer Registration", () => {
     await cadastroPage.fillPassword(TEST_CREDENTIALS.malformed.password);
     await cadastroPage.submit();
     
-    // Should show password validation error
-    await page.waitForTimeout(500);
-    
-    const hasError = await page.locator('.text-red-500, .text-destructive, [data-error]').count() > 0;
-    expect(hasError).toBe(true);
+    // ASSERTIVE: Wait for error to appear
+    const errorLocator = page.locator('.text-red-500, .text-destructive, [data-error]').first();
+    await expect(errorLocator).toBeVisible({ timeout: 5000 });
   });
 
   test("should have link to login page", async ({ page }) => {
@@ -164,7 +145,7 @@ test.describe("Producer Registration", () => {
     
     // Click and verify navigation
     await cadastroPage.loginLink.click();
-    await expect(page).toHaveURL(/auth/);
+    await page.waitForURL(/auth/, { timeout: 10000 });
   });
 });
 
@@ -193,11 +174,9 @@ test.describe("Password Recovery", () => {
     await emailInput.fill(TEST_CREDENTIALS.malformed.email);
     await submitButton.click();
     
-    // Should show validation error
-    await page.waitForTimeout(500);
-    
-    const hasError = await page.locator('.text-red-500, .text-destructive, [data-error]').count() > 0;
-    expect(hasError).toBe(true);
+    // ASSERTIVE: Wait for error to appear
+    const errorLocator = page.locator('.text-red-500, .text-destructive, [data-error]').first();
+    await expect(errorLocator).toBeVisible({ timeout: 5000 });
   });
 
   test("should have link back to login", async ({ page }) => {

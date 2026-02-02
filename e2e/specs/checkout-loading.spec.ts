@@ -6,7 +6,11 @@
  * Tests for checkout page loading, invalid slug handling, and initial states.
  * Single Responsibility: Only tests related to page loading and initialization.
  * 
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
+ * 
  * @module e2e/specs/checkout-loading.spec
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -22,14 +26,14 @@ test.describe("Checkout Page Loading", () => {
     const checkoutPage = new CheckoutPage(page);
     await checkoutPage.navigate(TEST_CHECKOUT.invalidSlug);
     
-    await page.waitForTimeout(2000);
+    // ASSERTIVE: Wait for error message or redirect
+    const errorOrRedirect = await Promise.race([
+      page.locator(':has-text("não encontrado"), :has-text("erro"), :has-text("not found")').waitFor({ state: "visible", timeout: 5000 }).then(() => "error"),
+      page.waitForURL(url => !url.toString().includes(TEST_CHECKOUT.invalidSlug), { timeout: 5000 }).then(() => "redirected")
+    ]).catch(() => "timeout");
     
     await expect(page.locator("body")).not.toBeEmpty();
-    
-    const hasError = await page.locator(':has-text("não encontrado"), :has-text("erro"), :has-text("not found")').count() > 0;
-    const isRedirected = !page.url().includes(TEST_CHECKOUT.invalidSlug);
-    
-    expect(hasError || isRedirected).toBe(true);
+    expect(["error", "redirected"]).toContain(errorOrRedirect);
   });
 
   test("should show loading state while fetching checkout data", async ({ page }) => {
@@ -40,9 +44,11 @@ test.describe("Checkout Page Loading", () => {
     
     await page.goto(ROUTES.checkout(TEST_CHECKOUT.validSlug));
     
-    const loadingIndicator = page.locator('.animate-spin, [data-loading], .loading');
-    const hasLoading = await loadingIndicator.count() > 0;
+    // ASSERTIVE: Loading indicator may flash quickly - check if page eventually loads
+    await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    expect(true).toBe(true);
+    // Page should be ready after loading
+    const pageReady = page.locator('[data-testid*="payment"], button:has-text("PIX"), button:has-text("Cartão"), :has-text("erro")').first();
+    await expect(pageReady).toBeVisible({ timeout: 10000 });
   });
 });

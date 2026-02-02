@@ -9,11 +9,11 @@
  * - Order details view
  * - Order status updates
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/dashboard/orders-list.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -83,12 +83,13 @@ test.describe("Orders Navigation", () => {
     await authPage.waitForLoginComplete();
     
     await dashboardPage.navigate();
-    await page.waitForTimeout(2000);
+    await dashboardPage.waitForDashboardReady();
     
     const ordersLinkVisible = await dashboardPage.ordersLink.isVisible().catch(() => false);
     
     if (ordersLinkVisible) {
       await dashboardPage.navigateToOrders();
+      await page.waitForURL(/pedidos/, { timeout: 10000 });
       expect(page.url()).toContain("/pedidos");
     }
   });
@@ -110,8 +111,7 @@ test.describe("Order Details", () => {
     
     if (ordersCount > 0) {
       const firstOrder = dashboardPage.recentOrderItem.first();
-      const isClickable = await firstOrder.isVisible();
-      expect(isClickable).toBe(true);
+      await expect(firstOrder).toBeVisible();
     }
   });
 

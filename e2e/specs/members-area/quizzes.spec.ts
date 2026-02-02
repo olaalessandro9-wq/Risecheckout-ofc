@@ -7,11 +7,11 @@
  * - Quiz display, questions rendering, and answer selection
  * - Quiz submission and results display with feedback
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/members-area/quizzes.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -24,11 +24,10 @@ test.describe("Quiz Display and Structure", () => {
     
     await page.goto(ROUTES.lessonViewer("test-product-with-quiz", "lesson-with-quiz"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     // ASSERTIVE: Quiz visibility check should return boolean
     const isQuizVisible = await membersAreaPage.isQuizVisible();
-    expect(isQuizVisible === true || isQuizVisible === false).toBe(true);
+    expect(typeof isQuizVisible).toBe("boolean");
     
     if (isQuizVisible) {
       const title = await membersAreaPage.getQuizTitle();
@@ -44,7 +43,6 @@ test.describe("Quiz Display and Structure", () => {
     
     await page.goto(ROUTES.lessonViewer("test-product-with-quiz", "lesson-with-quiz"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const isQuizVisible = await membersAreaPage.isQuizVisible();
     
@@ -72,7 +70,6 @@ test.describe("Answer Selection", () => {
     
     await page.goto(ROUTES.lessonViewer("test-product-with-quiz", "lesson-with-quiz"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const isQuizVisible = await membersAreaPage.isQuizVisible();
     
@@ -81,15 +78,17 @@ test.describe("Answer Selection", () => {
       
       if (questionCount > 0) {
         await membersAreaPage.selectQuizOption(0, 0);
-        await page.waitForTimeout(500);
         
         const firstQuestion = membersAreaPage.quizQuestions.first();
         const selectedOption = firstQuestion.locator('input[type="radio"]:checked, [data-selected="true"], .selected');
+        
+        // Wait for selection to be applied
+        await expect(selectedOption.first()).toBeVisible({ timeout: 3000 }).catch(() => {});
+        
         const hasSelection = await selectedOption.count() > 0;
         expect(hasSelection).toBe(true);
         
         await membersAreaPage.selectQuizOption(0, 1);
-        await page.waitForTimeout(300);
         
         const selectedCount = await firstQuestion.locator('input[type="radio"]:checked, [data-selected="true"]').count();
         expect(selectedCount).toBeLessThanOrEqual(1);
@@ -104,16 +103,15 @@ test.describe("Quiz Submission", () => {
     
     await page.goto(ROUTES.lessonViewer("test-product-with-quiz", "lesson-with-quiz"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const isQuizVisible = await membersAreaPage.isQuizVisible();
     
     if (isQuizVisible) {
       await expect(membersAreaPage.quizSubmitButton).toBeVisible();
       
-      // ASSERTIVE: Disabled state should be boolean
-      const isInitiallyDisabled = await membersAreaPage.quizSubmitButton.isDisabled();
-      expect(isInitiallyDisabled === true || isInitiallyDisabled === false).toBe(true);
+      // ASSERTIVE: Button should have enabled/disabled state
+      const isDisabled = await membersAreaPage.quizSubmitButton.isDisabled();
+      expect(typeof isDisabled).toBe("boolean");
     }
   });
 
@@ -122,7 +120,6 @@ test.describe("Quiz Submission", () => {
     
     await page.goto(ROUTES.lessonViewer("test-product-with-quiz", "lesson-with-quiz"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const isQuizVisible = await membersAreaPage.isQuizVisible();
     
@@ -132,13 +129,12 @@ test.describe("Quiz Submission", () => {
       if (questionCount > 0) {
         const answers = Array(questionCount).fill(0);
         await membersAreaPage.answerQuiz(answers);
-        await page.waitForTimeout(500);
         
         const isDisabled = await membersAreaPage.quizSubmitButton.isDisabled();
         
         if (!isDisabled) {
           await membersAreaPage.submitQuiz();
-          await expect(membersAreaPage.quizResults).toBeVisible();
+          await expect(membersAreaPage.quizResults).toBeVisible({ timeout: 10000 });
         }
       }
     }
@@ -151,7 +147,6 @@ test.describe("Quiz Results and Feedback", () => {
     
     await page.goto(ROUTES.lessonViewer("test-product-with-quiz", "lesson-with-quiz"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const isQuizVisible = await membersAreaPage.isQuizVisible();
     
@@ -161,12 +156,14 @@ test.describe("Quiz Results and Feedback", () => {
       if (questionCount > 0) {
         const answers = Array(questionCount).fill(0);
         await membersAreaPage.answerQuiz(answers);
-        await page.waitForTimeout(500);
         
         const isDisabled = await membersAreaPage.quizSubmitButton.isDisabled();
         
         if (!isDisabled) {
           await membersAreaPage.submitQuiz();
+          
+          // Wait for results to appear
+          await expect(membersAreaPage.quizResults).toBeVisible({ timeout: 10000 });
           
           const score = await membersAreaPage.getQuizScore();
           expect(score.length).toBeGreaterThan(0);
@@ -174,9 +171,9 @@ test.describe("Quiz Results and Feedback", () => {
           const correctCount = await membersAreaPage.getCorrectAnswersCount();
           expect(correctCount).toBeGreaterThanOrEqual(0);
           
-          // ASSERTIVE: Feedback presence should be boolean
+          // ASSERTIVE: Feedback presence check
           const hasFeedback = await membersAreaPage.hasQuizFeedback();
-          expect(hasFeedback === true || hasFeedback === false).toBe(true);
+          expect(typeof hasFeedback).toBe("boolean");
         }
       }
     }
