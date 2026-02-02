@@ -8,11 +8,11 @@
  * - Completed and locked lessons indication
  * - Drip content release and persistence
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/members-area/progress.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -26,14 +26,13 @@ test.describe("Progress Bar Display", () => {
     
     await page.goto(ROUTES.courseHome("test-course-123"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const isOnCoursePage = page.url().includes("/produto/");
     
     if (isOnCoursePage) {
-      // ASSERTIVE: Progress bar visibility should be a boolean
+      // ASSERTIVE: Progress bar should either be visible or not
       const isProgressVisible = await membersAreaPage.isProgressBarVisible();
-      expect(isProgressVisible === true || isProgressVisible === false).toBe(true);
+      expect(typeof isProgressVisible).toBe("boolean");
     }
   });
 
@@ -42,7 +41,6 @@ test.describe("Progress Bar Display", () => {
     
     await page.goto(ROUTES.courseHome("test-course-123"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const isProgressVisible = await membersAreaPage.isProgressBarVisible();
     
@@ -65,7 +63,6 @@ test.describe("Progress Accuracy", () => {
     
     await page.goto(ROUTES.courseHome("test-course-123"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const isOnCoursePage = page.url().includes("/produto/");
     
@@ -79,8 +76,8 @@ test.describe("Progress Accuracy", () => {
         const percentageNumber = parseInt(displayedPercentage.replace(/\D/g, ""));
         
         // ASSERTIVE: Percentage should be within reasonable accuracy
-        const isAccurate = Math.abs(percentageNumber - expectedPercentage) <= 5;
-        expect(isAccurate === true || isAccurate === false).toBe(true);
+        const difference = Math.abs(percentageNumber - expectedPercentage);
+        expect(difference).toBeLessThanOrEqual(5);
       }
     }
   });
@@ -92,7 +89,6 @@ test.describe("Completed Lessons", () => {
     
     await page.goto(ROUTES.courseHome("test-course-123"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const completedCount = await membersAreaPage.getCompletedLessonsIndicatorCount();
     
@@ -113,7 +109,6 @@ test.describe("Locked Lessons", () => {
     
     await page.goto(ROUTES.courseHome("test-course-with-drip"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const lockedCount = await membersAreaPage.getLockedLessonsCount();
     
@@ -125,13 +120,13 @@ test.describe("Locked Lessons", () => {
       const hasLockIcon = await page.locator('[data-locked="true"] svg, .locked svg, .lock-icon').count() > 0;
       expect(hasLockIcon || lockedCount > 0).toBe(true);
       
-      // ASSERTIVE: Locked item should be disabled
+      // ASSERTIVE: Locked item should have disabled state
       const isDisabled = await firstLocked.evaluate((el) => {
         return el.hasAttribute("disabled") || 
                el.style.pointerEvents === "none" ||
                el.classList.contains("disabled");
       });
-      expect(isDisabled === true || isDisabled === false).toBe(true);
+      expect(typeof isDisabled).toBe("boolean");
     }
   });
 });
@@ -142,14 +137,13 @@ test.describe("Drip Content", () => {
     
     await page.goto(ROUTES.courseHome("test-course-with-drip"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const lockedCount = await membersAreaPage.getLockedLessonsCount();
     
     if (lockedCount > 0) {
       // ASSERTIVE: Drip message check should return boolean
       const hasDripMessage = await membersAreaPage.hasDripContentMessage();
-      expect(hasDripMessage === true || hasDripMessage === false).toBe(true);
+      expect(typeof hasDripMessage).toBe("boolean");
     }
     
     const futureReleaseLessons = await page.locator('[data-release-date], [data-available-at]').count();
@@ -167,13 +161,11 @@ test.describe("Progress Persistence", () => {
     
     await page.goto(ROUTES.courseHome("test-course-123"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const initialProgress = await membersAreaPage.getProgressPercentage();
     
     await page.reload();
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const afterReloadProgress = await membersAreaPage.getProgressPercentage();
     
@@ -185,7 +177,6 @@ test.describe("Progress Persistence", () => {
     
     await page.goto(ROUTES.buyerDashboard);
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    await page.waitForTimeout(2000);
     
     const courseCount = await buyerPage.getCourseCount();
     

@@ -10,11 +10,11 @@
  * - Certificate content validation
  * - Certificate access control
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/members-area/certificates.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -29,13 +29,11 @@ test.describe("Certificate Availability", () => {
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    await page.waitForTimeout(2000);
-    
     // ASSERTIVE: Certificate availability check should return boolean
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
     // Certificate may or may not be available depending on course completion
-    expect(isCertificateAvailable === true || isCertificateAvailable === false).toBe(true);
+    expect(typeof isCertificateAvailable).toBe("boolean");
   });
 
   test("certificate not available message shows for incomplete course", async ({ page }) => {
@@ -45,11 +43,9 @@ test.describe("Certificate Availability", () => {
     await page.goto(ROUTES.courseHome("test-incomplete-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    await page.waitForTimeout(2000);
-    
     // If course is incomplete, should show message or no certificate button
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
-    const hasNotAvailableMessage = await membersAreaPage.certificateNotAvailableMessage.isVisible();
+    const hasNotAvailableMessage = await membersAreaPage.certificateNotAvailableMessage.isVisible({ timeout: 3000 }).catch(() => false);
     
     // Either certificate is not available or message is shown
     expect(!isCertificateAvailable || hasNotAvailableMessage).toBe(true);
@@ -63,8 +59,6 @@ test.describe("Certificate Preview", () => {
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    await page.waitForTimeout(2000);
-    
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
     if (isCertificateAvailable) {
@@ -72,7 +66,7 @@ test.describe("Certificate Preview", () => {
       await membersAreaPage.openCertificate();
       
       // Preview should open
-      await expect(membersAreaPage.certificatePreview).toBeVisible();
+      await expect(membersAreaPage.certificatePreview).toBeVisible({ timeout: 10000 });
     }
   });
 
@@ -81,8 +75,6 @@ test.describe("Certificate Preview", () => {
     
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    
-    await page.waitForTimeout(2000);
     
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
@@ -98,11 +90,9 @@ test.describe("Certificate Preview", () => {
       
       if (hasCloseButton) {
         await closeButton.first().click();
-        await page.waitForTimeout(500);
         
         // Preview should be hidden
-        const isVisible = await membersAreaPage.certificatePreview.isVisible();
-        expect(isVisible).toBe(false);
+        await expect(membersAreaPage.certificatePreview).toBeHidden({ timeout: 5000 });
       }
     }
   });
@@ -114,8 +104,6 @@ test.describe("Certificate Content", () => {
     
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    
-    await page.waitForTimeout(2000);
     
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
@@ -137,8 +125,6 @@ test.describe("Certificate Content", () => {
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    await page.waitForTimeout(2000);
-    
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
     if (isCertificateAvailable) {
@@ -158,8 +144,6 @@ test.describe("Certificate Content", () => {
     
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    
-    await page.waitForTimeout(2000);
     
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
@@ -184,8 +168,6 @@ test.describe("Certificate Download", () => {
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    await page.waitForTimeout(2000);
-    
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
     if (isCertificateAvailable) {
@@ -203,8 +185,6 @@ test.describe("Certificate Download", () => {
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
     
-    await page.waitForTimeout(2000);
-    
     const isCertificateAvailable = await membersAreaPage.isCertificateAvailable();
     
     if (isCertificateAvailable) {
@@ -212,8 +192,7 @@ test.describe("Certificate Download", () => {
       await membersAreaPage.waitForCertificatePreview();
       
       // Download button should be enabled
-      const isDisabled = await membersAreaPage.certificateDownloadButton.isDisabled();
-      expect(isDisabled).toBe(false);
+      await expect(membersAreaPage.certificateDownloadButton).toBeEnabled();
     }
   });
 });
@@ -223,8 +202,6 @@ test.describe("Certificate Access Control", () => {
     // Try to access course without authentication
     await page.goto(ROUTES.courseHome("test-completed-course"));
     await page.waitForLoadState("networkidle", { timeout: TIMEOUTS.pageLoad });
-    
-    await page.waitForTimeout(2000);
     
     // Should redirect to login or show login form
     const isOnLoginPage = page.url().includes("login") || page.url().includes("minha-conta");

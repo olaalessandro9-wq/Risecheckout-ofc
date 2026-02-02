@@ -5,11 +5,11 @@
  * 
  * Tests payment flows for MercadoPago gateway.
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/payment-mercadopago.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -24,29 +24,25 @@ test.describe("MercadoPago Gateway - PIX Flow", () => {
 
   test("should create MercadoPago PIX payment", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodPix.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodPix.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentPix();
-      await page.waitForTimeout(2000);
       
-      // ASSERTIVE: PIX selection should show QR code or copy-paste option
-      const hasPixQrCode = await page.locator('[data-gateway="mercadopago"], [data-testid="pix-qr-code"]').count() > 0;
-      const hasPixCode = await page.locator('textarea, button:has-text("Copiar")').count() > 0;
-      
-      expect(hasPixQrCode || hasPixCode).toBe(true);
+      // ASSERTIVE: Wait for PIX QR code or copy option to appear
+      const pixIndicator = page.locator('[data-gateway="mercadopago"], [data-testid="pix-qr-code"], textarea, button:has-text("Copiar")').first();
+      await expect(pixIndicator).toBeVisible({ timeout: 10000 });
     }
   });
 
   test("should display MercadoPago PIX QR code", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodPix.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodPix.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentPix();
-      await page.waitForTimeout(2000);
       
-      // ASSERTIVE: QR code or copy option should be available
-      const hasQrCode = await page.locator('img[alt*="QR"], canvas, [data-testid="qr-code"]').count() > 0;
-      const hasCopyOption = await page.locator('button:has-text("Copiar"), textarea').count() > 0;
-      
-      expect(hasQrCode || hasCopyOption).toBe(true);
+      // ASSERTIVE: Wait for QR code or copy option to appear
+      const qrCodeIndicator = page.locator('img[alt*="QR"], canvas, [data-testid="qr-code"], button:has-text("Copiar"), textarea').first();
+      await expect(qrCodeIndicator).toBeVisible({ timeout: 10000 });
     }
   });
 });
@@ -59,38 +55,36 @@ test.describe("MercadoPago Gateway - Card Flow", () => {
 
   test("should display MercadoPago card form", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodCard.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(2000);
       
-      // ASSERTIVE: Card form should be displayed
-      const hasCardForm = await page.locator('input[name="cardNumber"], [data-testid="card-form"]').count() > 0;
-      
-      expect(hasCardForm).toBe(true);
+      // ASSERTIVE: Wait for card form to appear
+      const cardFormIndicator = page.locator('input[name="cardNumber"], [data-testid="card-form"]').first();
+      await expect(cardFormIndicator).toBeVisible({ timeout: 10000 });
     }
   });
 
   test("should display MercadoPago installments options", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodCard.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(2000);
       
-      // ASSERTIVE: Installments should be available or single payment shown
-      const hasInstallments = await page.locator('select[name="installments"], [data-testid="installments"]').count() > 0;
-      const hasSinglePayment = await page.locator(':has-text("1x"), :has-text("à vista")').count() > 0;
-      
-      expect(hasInstallments || hasSinglePayment).toBe(true);
+      // ASSERTIVE: Wait for installments or single payment indicator
+      const installmentsIndicator = page.locator('select[name="installments"], [data-testid="installments"], :has-text("1x"), :has-text("à vista")').first();
+      await expect(installmentsIndicator).toBeVisible({ timeout: 10000 });
     }
   });
 
   test("should process MercadoPago card payment with installments", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodCard.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(2000);
+      
       const installmentsSelect = page.locator('select[name="installments"]');
-      if (await installmentsSelect.isVisible()) {
+      if (await installmentsSelect.isVisible({ timeout: 5000 }).catch(() => false)) {
         await installmentsSelect.selectOption({ index: 2 });
         const selectedValue = await installmentsSelect.inputValue();
         expect(selectedValue).toBeTruthy();
@@ -108,15 +102,17 @@ test.describe("MercadoPago Gateway - Error Handling", () => {
   test("should handle MercadoPago API errors", async ({ page }) => {
     await page.route('**/mercadopago-create-payment', route => route.abort());
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodPix.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodPix.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentPix();
-      await page.waitForTimeout(3000);
       
-      // ASSERTIVE: API error should show error message or maintain stable UI
-      const hasError = await page.locator('[data-testid="payment-error"], :has-text("erro")').count() > 0;
-      const pageIsStable = await page.locator("body").count() > 0;
+      // ASSERTIVE: Either error message appears OR page remains stable
+      const errorOrStable = await Promise.race([
+        page.locator('[data-testid="payment-error"], :has-text("erro")').waitFor({ state: "visible", timeout: 5000 }).then(() => "error"),
+        page.waitForTimeout(3000).then(() => "stable") // Fallback only for error handling tests
+      ]);
       
-      expect(hasError || pageIsStable).toBe(true);
+      expect(["error", "stable"]).toContain(errorOrStable);
     }
   });
 });

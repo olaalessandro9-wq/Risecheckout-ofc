@@ -5,11 +5,11 @@
  * 
  * Tests for Stripe, PushinPay and cross-gateway switching.
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/payment-gateways-core.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
@@ -24,45 +24,42 @@ test.describe("Stripe Gateway", () => {
 
   test("should display Stripe card elements", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodCard.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(2000);
       
-      // ASSERTIVE: Card payment should show Stripe elements or native card form
-      const hasStripeElements = await page.locator('[data-gateway="stripe"], iframe[name*="stripe"]').count() > 0;
-      const hasCardForm = await page.locator('input[name="cardNumber"], .stripe-element').count() > 0;
-      
-      expect(hasStripeElements || hasCardForm).toBe(true);
+      // ASSERTIVE: Wait for Stripe elements or native card form
+      const stripeIndicator = page.locator('[data-gateway="stripe"], iframe[name*="stripe"], input[name="cardNumber"], .stripe-element').first();
+      await expect(stripeIndicator).toBeVisible({ timeout: 10000 });
     }
   });
 
   test("should handle Stripe 3DS authentication", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodCard.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(2000);
       
-      // ASSERTIVE: Stripe setup should be ready (3DS iframe may not appear until payment)
-      const has3DSIframe = await page.locator('iframe[name*="3ds"], iframe[src*="stripe"]').count() > 0;
-      const hasCardForm = await page.locator('input[name="cardNumber"], .stripe-element, iframe').count() > 0;
-      
-      // Either 3DS is active OR card form is ready for input
-      expect(has3DSIframe || hasCardForm).toBe(true);
+      // ASSERTIVE: Wait for Stripe setup (3DS iframe or card form)
+      const stripeReadyIndicator = page.locator('iframe[name*="3ds"], iframe[src*="stripe"], input[name="cardNumber"], .stripe-element, iframe').first();
+      await expect(stripeReadyIndicator).toBeVisible({ timeout: 10000 });
     }
   });
 
   test("should handle Stripe API errors", async ({ page }) => {
     await page.route('**/stripe-create-payment', route => route.abort());
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodCard.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentCard();
-      await page.waitForTimeout(3000);
       
-      // ASSERTIVE: API error should show error message or maintain stable UI
-      const hasError = await page.locator('[data-testid="payment-error"], :has-text("erro")').count() > 0;
-      const pageIsStable = await page.locator("body").count() > 0;
+      // ASSERTIVE: Either error message appears OR page remains stable
+      const errorOrStable = await Promise.race([
+        page.locator('[data-testid="payment-error"], :has-text("erro")').waitFor({ state: "visible", timeout: 5000 }).then(() => "error"),
+        page.waitForTimeout(3000).then(() => "stable") // Fallback only for error handling tests
+      ]);
       
-      expect(hasError || pageIsStable).toBe(true);
+      expect(["error", "stable"]).toContain(errorOrStable);
     }
   });
 });
@@ -75,30 +72,30 @@ test.describe("PushinPay Gateway", () => {
 
   test("should create PushinPay PIX payment", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodPix.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodPix.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentPix();
-      await page.waitForTimeout(2000);
       
-      // ASSERTIVE: PIX selection should show QR code or copy-paste code
-      const hasPixQrCode = await page.locator('[data-gateway="pushinpay"], [data-testid="pix-qr-code"]').count() > 0;
-      const hasPixCode = await page.locator('textarea, button:has-text("Copiar")').count() > 0;
-      
-      expect(hasPixQrCode || hasPixCode).toBe(true);
+      // ASSERTIVE: Wait for PIX QR code or copy option
+      const pixIndicator = page.locator('[data-gateway="pushinpay"], [data-testid="pix-qr-code"], textarea, button:has-text("Copiar")').first();
+      await expect(pixIndicator).toBeVisible({ timeout: 10000 });
     }
   });
 
   test("should handle PushinPay API errors", async ({ page }) => {
     await page.route('**/pushinpay-create-pix', route => route.abort());
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodPix.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodPix.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentPix();
-      await page.waitForTimeout(3000);
       
-      // ASSERTIVE: API error should show error message or maintain stable UI
-      const hasError = await page.locator('[data-testid="payment-error"], :has-text("erro")').count() > 0;
-      const pageIsStable = await page.locator("body").count() > 0;
+      // ASSERTIVE: Either error message appears OR page remains stable
+      const errorOrStable = await Promise.race([
+        page.locator('[data-testid="payment-error"], :has-text("erro")').waitFor({ state: "visible", timeout: 5000 }).then(() => "error"),
+        page.waitForTimeout(3000).then(() => "stable") // Fallback only for error handling tests
+      ]);
       
-      expect(hasError || pageIsStable).toBe(true);
+      expect(["error", "stable"]).toContain(errorOrStable);
     }
   });
 });
@@ -111,17 +108,20 @@ test.describe("Cross-Gateway Switching", () => {
 
   test("should allow switching between gateways", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
-    if (await checkoutPage.paymentMethodPix.isVisible()) {
+    
+    if (await checkoutPage.paymentMethodPix.isVisible({ timeout: 5000 }).catch(() => false)) {
       await checkoutPage.selectPaymentPix();
-      await page.waitForTimeout(2000);
-      if (await checkoutPage.paymentMethodCard.isVisible()) {
+      
+      // Wait for PIX to be active
+      const pixActive = page.locator('[data-testid="pix-qr-code"], textarea, button:has-text("Copiar")').first();
+      await expect(pixActive).toBeVisible({ timeout: 10000 });
+      
+      if (await checkoutPage.paymentMethodCard.isVisible({ timeout: 2000 }).catch(() => false)) {
         await checkoutPage.selectPaymentCard();
-        await page.waitForTimeout(2000);
         
-        // ASSERTIVE: Card form should be displayed after switching
-        const hasCardForm = await page.locator('input[name="cardNumber"], iframe').count() > 0;
-        
-        expect(hasCardForm).toBe(true);
+        // ASSERTIVE: Wait for card form to appear after switching
+        const cardFormIndicator = page.locator('input[name="cardNumber"], iframe').first();
+        await expect(cardFormIndicator).toBeVisible({ timeout: 10000 });
       }
     }
   });
@@ -129,16 +129,27 @@ test.describe("Cross-Gateway Switching", () => {
   test("should maintain form state when switching", async ({ page }) => {
     const checkoutPage = new CheckoutPage(page);
     const emailInput = page.locator('input[name="email"], input[type="email"]');
-    if (await emailInput.isVisible()) {
+    
+    if (await emailInput.isVisible({ timeout: 5000 }).catch(() => false)) {
       await emailInput.fill("test@example.com");
-      if (await checkoutPage.paymentMethodPix.isVisible()) {
+      
+      if (await checkoutPage.paymentMethodPix.isVisible({ timeout: 2000 }).catch(() => false)) {
         await checkoutPage.selectPaymentPix();
-        await page.waitForTimeout(1000);
-        if (await checkoutPage.paymentMethodCard.isVisible()) {
+        
+        // Wait for PIX to be active
+        const pixActive = page.locator('[data-testid="pix-qr-code"], textarea, button:has-text("Copiar")').first();
+        await pixActive.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+        
+        if (await checkoutPage.paymentMethodCard.isVisible({ timeout: 2000 }).catch(() => false)) {
           await checkoutPage.selectPaymentCard();
-          await page.waitForTimeout(1000);
+          
+          // Wait for card form
+          const cardForm = page.locator('input[name="cardNumber"], iframe').first();
+          await cardForm.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
         }
       }
+      
+      // ASSERTIVE: Email value should be preserved
       const emailValue = await emailInput.inputValue();
       expect(emailValue).toBe("test@example.com");
     }

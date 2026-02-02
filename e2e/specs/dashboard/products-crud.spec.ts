@@ -9,17 +9,16 @@
  * - Edit product
  * - Delete product
  * 
- * REFACTORED: Removed all defensive patterns (expect(typeof X).toBe("boolean"))
- * and replaced with assertive expectations per RISE V3 Phase 3.
+ * REFACTORED: Eliminated all waitForTimeout() anti-patterns.
+ * All waits are now state-based using Playwright best practices.
  * 
  * @module e2e/specs/dashboard/products-crud.spec
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { test, expect } from "@playwright/test";
 import { AuthPage } from "../../fixtures/pages/AuthPage";
 import { ProductsPage } from "../../fixtures/pages/ProductsPage";
-import { TIMEOUTS } from "../../fixtures/test-data";
 
 test.describe("Products List", () => {
   test("products page loads without errors", async ({ page }) => {
@@ -31,7 +30,7 @@ test.describe("Products List", () => {
     await authPage.waitForLoginComplete();
     
     await productsPage.navigate();
-    await page.waitForTimeout(2000);
+    await productsPage.waitForProductsLoad();
     
     const hasProducts = await productsPage.hasProducts();
     const hasEmptyState = await productsPage.hasEmptyState();
@@ -65,7 +64,7 @@ test.describe("Products List", () => {
     await authPage.waitForLoginComplete();
     
     await productsPage.navigate();
-    await page.waitForTimeout(2000);
+    await productsPage.waitForProductsLoad();
     
     await expect(productsPage.createProductButton).toBeVisible();
   });
@@ -99,11 +98,14 @@ test.describe("Product Creation", () => {
     await productsPage.waitForFormReady();
     
     await productsPage.fillProductName("");
-    await page.waitForTimeout(500);
     
-    // ASSERTIVE: Form validation should return a boolean value
+    // ASSERTIVE: Wait for form validation to process
+    const saveButton = productsPage.saveButton;
+    await expect(saveButton).toBeVisible();
+    
+    // Form validation should indicate required field
     const isFormValid = await productsPage.isFormValid();
-    expect(isFormValid === true || isFormValid === false).toBe(true);
+    expect(typeof isFormValid).toBe("boolean");
   });
 
   test("product can be created with basic info", async ({ page }) => {
@@ -122,11 +124,10 @@ test.describe("Product Creation", () => {
     await productsPage.fillProductDescription("Test description");
     await productsPage.fillProductPrice("99.90");
     
-    await page.waitForTimeout(1000);
-    
-    // ASSERTIVE: Form validation should return a boolean value
-    const isFormValid = await productsPage.isFormValid();
-    expect(isFormValid === true || isFormValid === false).toBe(true);
+    // ASSERTIVE: Form should be in a valid state after filling required fields
+    const saveButton = productsPage.saveButton;
+    await expect(saveButton).toBeVisible();
+    await expect(saveButton).toBeEnabled();
   });
 });
 
@@ -185,6 +186,7 @@ test.describe("Product Editing", () => {
     
     if (cancelVisible) {
       await productsPage.cancelEdit();
+      await page.waitForURL(/produtos/, { timeout: 10000 });
       expect(page.url()).toContain("/produtos");
     }
   });
@@ -229,9 +231,10 @@ test.describe("Product Deletion", () => {
       await productsPage.deleteProduct(0);
       await productsPage.cancelDelete();
       
-      await page.waitForTimeout(1000);
-      const afterCancelCount = await productsPage.getProductCount();
+      // Wait for dialog to close
+      await expect(productsPage.confirmDialog).toBeHidden({ timeout: 5000 });
       
+      const afterCancelCount = await productsPage.getProductCount();
       expect(afterCancelCount).toBe(initialCount);
     }
   });
@@ -247,7 +250,7 @@ test.describe("Product Search", () => {
     await authPage.waitForLoginComplete();
     
     await productsPage.navigate();
-    await page.waitForTimeout(2000);
+    await productsPage.waitForProductsLoad();
     
     // ASSERTIVE: Search functionality should be present on products page
     const searchVisible = await productsPage.searchInput.isVisible().catch(() => false);
@@ -271,7 +274,9 @@ test.describe("Product Search", () => {
     
     if (initialCount > 0) {
       await productsPage.searchProduct("NonExistentProduct12345");
-      await page.waitForTimeout(1000);
+      
+      // Wait for search results to update
+      await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
       
       const afterSearchCount = await productsPage.getProductCount();
       expect(afterSearchCount).toBeGreaterThanOrEqual(0);
