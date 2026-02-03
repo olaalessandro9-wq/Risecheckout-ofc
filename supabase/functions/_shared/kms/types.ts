@@ -120,6 +120,7 @@ export interface TableRotationConfig {
 // DEFAULT ROTATION CONFIG
 // ============================================================================
 
+// RISE V3: Configuração de rotação usando tabela users (SSOT)
 export const DEFAULT_ROTATION_CONFIG: RotationConfig = {
   batchSize: 100,
   delayBetweenBatches: 100,
@@ -131,7 +132,8 @@ export const DEFAULT_ROTATION_CONFIG: RotationConfig = {
       primaryKey: 'id',
     },
     {
-      tableName: 'buyer_profiles',
+      // RISE V3: Substituído buyer_profiles por users (SSOT única)
+      tableName: 'users',
       encryptedColumns: ['document_encrypted'],
       primaryKey: 'id',
     },

@@ -109,54 +109,58 @@ async function anonymizeOrders(
     fields_anonymized: ["customer_email", "customer_name", "customer_phone", "customer_document", "customer_ip"]
   };
 }
-
 /**
- * Anonimiza registros na tabela buyer_profiles
+ * RISE V3: Anonimiza registros na tabela users (SSOT)
+ * Substitui a função legada que usava buyer_profiles
  */
-async function anonymizeBuyerProfiles(
+async function anonymizeUsers(
   supabase: SupabaseClient,
   email: string,
   anonymizedEmail: string
 ): Promise<AnonymizationResult> {
-  const { data: profiles, error: fetchError } = await supabase
-    .from("buyer_profiles")
+  // RISE V3: Buscar na tabela users (SSOT única)
+  const { data: users, error: fetchError } = await supabase
+    .from("users")
     .select("id")
     .eq("email", email);
 
-  if (fetchError || !profiles || profiles.length === 0) {
-    return { table: "buyer_profiles", records_affected: 0, fields_anonymized: [] };
+  if (fetchError || !users || users.length === 0) {
+    return { table: "users", records_affected: 0, fields_anonymized: [] };
   }
 
-  const profileIds = profiles.map(p => p.id);
+  const userIds = users.map(u => u.id);
 
+  // Anonimizar dados pessoais
   const { error: updateError } = await supabase
-    .from("buyer_profiles")
+    .from("users")
     .update({
       email: anonymizedEmail,
       name: ANONYMIZED_NAME,
       phone: null,
+      cpf_cnpj: null,
       document_hash: null,
       document_encrypted: null,
       password_hash: "ANONYMIZED",
-      is_active: false
+      is_active: false,
+      updated_at: new Date().toISOString()
     })
-    .in("id", profileIds);
+    .in("id", userIds);
 
   if (updateError) {
-    log.error("Erro ao anonimizar buyer_profiles:", updateError);
-    throw new Error(`Falha ao anonimizar buyer_profiles: ${updateError.message}`);
+    log.error("Erro ao anonimizar users:", updateError);
+    throw new Error(`Falha ao anonimizar users: ${updateError.message}`);
   }
 
-  // RISE V3: Invalidar todas as sessões na tabela unificada `sessions`
+  // Invalidar todas as sessões
   await supabase
     .from("sessions")
     .update({ is_valid: false })
-    .in("user_id", profileIds);
+    .in("user_id", userIds);
 
   return {
-    table: "buyer_profiles",
-    records_affected: profiles.length,
-    fields_anonymized: ["email", "name", "phone", "document_hash", "document_encrypted", "password_hash"]
+    table: "users",
+    records_affected: users.length,
+    fields_anonymized: ["email", "name", "phone", "cpf_cnpj", "document_hash", "document_encrypted", "password_hash"]
   };
 }
 
@@ -476,9 +480,9 @@ serve(async (req: Request) => {
       const ordersResult = await anonymizeOrders(supabase, email, anonymizedEmail);
       results.push(ordersResult);
 
-      // Buyer Profiles
-      const profilesResult = await anonymizeBuyerProfiles(supabase, email, anonymizedEmail);
-      results.push(profilesResult);
+      // RISE V3: Users (SSOT) - substitui buyer_profiles legado
+      const usersResult = await anonymizeUsers(supabase, email, anonymizedEmail);
+      results.push(usersResult);
 
       // Sessions (tabela unificada - RISE V3)
       const sessionsResult = await anonymizeSessions(supabase, email);
