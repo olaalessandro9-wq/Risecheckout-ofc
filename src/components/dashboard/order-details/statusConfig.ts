@@ -26,6 +26,13 @@ export function getStatusConfig(status: CustomerDisplayStatus): StatusConfig {
         iconColor: "text-amber-600",
         gradient: "from-amber-500/5 to-transparent"
       };
+    case "Recusado":
+      return {
+        color: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+        icon: XCircle,
+        iconColor: "text-orange-600",
+        gradient: "from-orange-500/5 to-transparent"
+      };
     case "Reembolso":
       return {
         color: "bg-blue-500/10 text-blue-700 border-blue-500/20",

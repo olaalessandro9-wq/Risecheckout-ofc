@@ -107,6 +107,7 @@ export interface ChartDataPoint {
 export type CustomerDisplayStatus = 
   | "Pago" 
   | "Pendente" 
+  | "Recusado"
   | "Reembolso" 
   | "Chargeback";
 
