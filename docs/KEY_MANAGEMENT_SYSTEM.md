@@ -178,7 +178,7 @@ curl -X POST https://your-project.supabase.co/functions/v1/key-rotation-executor
 
 | Tabela | Colunas Criptografadas | Primary Key |
 |--------|------------------------|-------------|
-| `buyer_profiles` | `document_encrypted` | `id` |
+| `users` | `document_encrypted` | `id` |
 
 Para adicionar novas tabelas, edite `DEFAULT_ROTATION_CONFIG` em `types.ts`.
 

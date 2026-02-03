@@ -285,8 +285,8 @@ O sistema de autenticação unificado é complementado por **Context Guards** qu
 
 ### Single Source of Truth (SSOT)
 
-> **Migração concluída em 29/01/2026**: Todas as Foreign Keys de tabelas de vendedores agora 
-> referenciam `public.users(id)` em vez de `auth.users(id)` ou `profiles(id)`.
+> **Migração concluída em 03/02/2026**: Todas as Foreign Keys de todas as tabelas agora 
+> referenciam `public.users(id)`. Tabelas legadas `profiles` e `buyer_profiles` foram removidas.
 
 | Tabela | FK Antiga | FK Nova (SSOT) |
 |--------|-----------|----------------|
@@ -295,9 +295,12 @@ O sistema de autenticação unificado é complementado por **Context Guards** qu
 | `vendor_integrations` | `auth.users(id)` | `users(id)` |
 | `oauth_states` | `profiles(id)` | `users(id)` |
 | `notifications` | `profiles(id)` | `users(id)` |
-| + 10 outras tabelas | ⬅️ | ✅ |
+| `buyer_product_access` | `buyer_profiles(id)` | `users(id)` |
+| `buyer_content_access` | `buyer_profiles(id)` | `users(id)` |
+| `certificates` | `buyer_profiles(id)` | `users(id)` |
+| + 15 outras tabelas | ⬅️ | ✅ |
 
-**Resultado:** Usuários criados pelo sistema unificado podem criar produtos, conectar gateways e realizar todas as operações sem erros de FK.
+**Resultado:** Sistema de identidade totalmente unificado. `users` é a única fonte de verdade para toda informação de usuário (producers e buyers).
 
 ### Tabela: `users`
 

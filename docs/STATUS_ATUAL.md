@@ -1,14 +1,14 @@
 # 📊 Status Atual - RiseCheckout
 
-**Data:** 24 de Janeiro de 2026  
-**Versão:** 3.7.0
+**Data:** 03 de Fevereiro de 2026  
+**Versão:** 3.8.0
 **Status:** ✅ PRODUÇÃO - 100% Completo | RISE V3 10.0/10
 
 ---
 
 ## 🎯 Resumo
 
-O RiseCheckout está **100% completo** e em **conformidade total com o RISE ARCHITECT PROTOCOL V3** (nota 10.0/10). Todas as funcionalidades planejadas foram implementadas e a eliminação completa de código legado foi concluída com sucesso.
+O RiseCheckout está **100% completo** e em **conformidade total com o RISE ARCHITECT PROTOCOL V3** (nota 10.0/10). Todas as funcionalidades planejadas foram implementadas, a eliminação completa de código legado foi concluída, e a migração SSOT para `users` está 100% finalizada.
 
 ---
 
@@ -58,6 +58,23 @@ O RiseCheckout está **100% completo** e em **conformidade total com o RISE ARCH
 
 ## 🧹 Eliminação de Código Legado - 100% ✅
 
+### Tabelas Legadas Removidas (DROP CASCADE)
+
+| Tabela | Data DROP |
+|--------|-----------|
+| `producer_sessions` | 23/01/2026 |
+| `buyer_sessions` | 23/01/2026 |
+| `profiles` | 03/02/2026 |
+| `buyer_profiles` | 03/02/2026 |
+
+### Compatibility Layers Removidos
+
+| Arquivo | Data DELETE |
+|---------|-------------|
+| `_shared/http-client.ts` | 03/02/2026 |
+| `_shared/payment-validation.ts` | 03/02/2026 |
+| `_shared/webhook-idempotency.ts` | 03/02/2026 |
+
 ### Arquivos/Diretórios Deletados
 
 | Item | Tipo | Status |
@@ -69,19 +86,6 @@ O RiseCheckout está **100% completo** e em **conformidade total com o RISE ARCH
 | `src/lib/phone-mask-helper.ts` | Utilitário | ✅ Deletado |
 | `supabase/functions/_shared/password-hasher.ts` | Shared | ✅ Deletado |
 | `src/modules/products/context/reducer/` | Diretório | ✅ Deletado |
-
-### Constantes/Funções Legado Removidas
-
-| Item | Arquivo Original | Status |
-|------|------------------|--------|
-| `HASH_VERSION_SHA256` | buyer-auth-types.ts | ✅ Removido |
-| `HASH_VERSION_BCRYPT` | buyer-auth-types.ts | ✅ Removido |
-| `hashPasswordLegacy()` | buyer-auth-password.ts | ✅ Removido |
-| `LegacyComponentEditor` | editors/legacy/ | ✅ Removido |
-| `legacyCallbacks` | TrackingManager.types.ts | ✅ Removido |
-| `LegacyUTMifyIntegration` | upsell/ | ✅ Removido |
-| `productFormReducer` | context/reducer/ | ✅ Removido |
-| `ProductFormAction` | formActions.types.ts | ✅ Removido |
 
 ### No-ops Removidos do ProductContext
 
@@ -277,9 +281,12 @@ O RiseCheckout está **100% completo** e em **conformidade total com o RISE ARCH
 |---------|-------|
 | Edge Functions | 106 |
 | Código Legado | 0 linhas |
+| Compatibility Layers | 0 |
+| Tabelas Legadas | 0 |
 | No-ops | 0 |
 | Dívida Técnica | Zero |
 | Context Guards | ✅ Implementado |
+| SSOT `users` | ✅ 100% Migrado |
 | Nota RISE V3 | **10.0/10** |
 
 ---
@@ -298,4 +305,10 @@ O RiseCheckout está **100% completo** e em **conformidade total com o RISE ARCH
 
 O projeto está **100% completo** com **conformidade total ao RISE ARCHITECT PROTOCOL V3** (10.0/10).
 
-**Última atualização:** 24 de Janeiro de 2026
+- ✅ Zero tabelas legadas (`profiles`, `buyer_profiles` removidas)
+- ✅ Zero compatibility layers (imports migrados para módulos definitivos)
+- ✅ Zero código morto
+- ✅ `users` é a única fonte de verdade (SSOT) para identidade
+- ✅ Documentação 100% atualizada
+
+**Última atualização:** 03 de Fevereiro de 2026

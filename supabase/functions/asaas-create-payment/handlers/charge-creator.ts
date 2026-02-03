@@ -6,7 +6,7 @@
 
 import { AsaasSplitRule } from "./split-builder.ts";
 import { createLogger } from "../../_shared/logger.ts";
-import { fetchWithTimeout } from "../../_shared/http-client.ts";
+import { fetchWithTimeout } from "../../_shared/http/index.ts";
 
 const log = createLogger("asaas-create-payment");
 const API_TIMEOUT = 15000; // 15 segundos
