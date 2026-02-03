@@ -121,12 +121,22 @@ export function createBackendError(error: string, backendReason?: string) {
 }
 
 /**
- * Creates a NETWORK_ERROR error
+ * Creates a NETWORK_ERROR error with defensive handling.
+ * Handles ProgressEvent, Error, string, and other unknown types gracefully.
  */
 export function createNetworkError(error: unknown) {
+  let message = "Erro de rede";
+  
+  if (error instanceof Error) {
+    message = error.message || "Erro de rede";
+  } else if (typeof error === 'string' && error.trim()) {
+    message = error;
+  }
+  // ProgressEvent and other objects without message property fall through to default
+  
   return {
     reason: 'NETWORK_ERROR' as const,
-    message: String(error) || "Erro de rede",
+    message,
   };
 }
 
