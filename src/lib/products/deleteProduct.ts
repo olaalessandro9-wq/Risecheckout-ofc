@@ -36,7 +36,12 @@ export async function deleteProductCascade(_supabaseClient: SupabaseClient, rawP
   });
 
   if (error) {
-    log.error("Edge function error:", error);
+    log.error("Edge function error:", { 
+      productId, 
+      message: error.message,
+      code: error.code,
+      error 
+    });
     throw new Error(`Erro ao excluir produto: ${error.message}`);
   }
 
