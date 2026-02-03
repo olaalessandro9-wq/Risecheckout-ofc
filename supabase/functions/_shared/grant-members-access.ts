@@ -14,6 +14,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "./logger.ts";
+import { buildSiteUrl } from "./site-urls.ts";
 
 const log = createLogger("GrantMembersAccess");
 
@@ -278,14 +279,12 @@ export async function grantMembersAccess(
       // Não é erro fatal
     } else {
       inviteToken = rawToken;
-      const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
-      accessUrl = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
+      accessUrl = buildSiteUrl(`/minha-conta/setup-acesso?token=${rawToken}`, 'members');
       log.info('Invite token criado', { buyerId, productId });
     }
   } else {
     // Buyer já tem senha, link direto para login
-    const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
-    accessUrl = `${baseUrl}/minha-conta`;
+    accessUrl = buildSiteUrl('/minha-conta', 'members');
   }
 
   // ========================================================================

@@ -27,6 +27,7 @@ import {
   type PurchaseConfirmationData 
 } from './email-templates.ts';
 import { createLogger } from "./logger.ts";
+import { buildSiteUrl } from "./site-urls.ts";
 
 const log = createLogger("SendOrderEmails");
 
@@ -104,12 +105,10 @@ function getDeliveryUrl(
   productId: string,
   deliveryUrl: string | null
 ): string | null {
-  const siteUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
-  
   switch (deliveryType) {
     case 'members_area':
-      // Link automático para área de membros
-      return `${siteUrl}/minha-conta/produtos/${productId}`;
+      // Link automático para área de membros (usando contexto 'members' para subdomínio correto)
+      return buildSiteUrl(`/minha-conta/produtos/${productId}`, 'members');
     
     case 'external':
       // Sem link (vendedor faz entrega)
