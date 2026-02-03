@@ -1,172 +1,249 @@
 
+# Plano RISE V3: Corrigir Erros de Console no Checkout Público
 
-# Plano: Corrigir Validação de Order Bumps no create-order
+## Sumário Executivo
 
-## Diagnóstico do Problema
-
-### Erro Identificado
-O checkout com order bump selecionado falha com erro 400:
-```
-[ERROR] [bump-processor] Bumps inválidos: {"requested":1,"found":0}
-```
-
-### Causa Raiz (CONFIRMADA VIA LOGS + DADOS)
-
-O `bump-processor.ts` valida order bumps usando `checkout_id`:
-
-```typescript
-// LINHA 108 - PROBLEMA
-.eq("checkout_id", checkout_id)
-```
-
-Porém, os order bumps são vinculados por `parent_product_id`, não por `checkout_id`:
-
-| Campo no Bump | Valor Real |
-|---------------|------------|
-| `id` | `b08db6c9-eb28-4044-b82d-a9e2ee906414` |
-| `checkout_id` | **NULL** |
-| `parent_product_id` | `a9547038-b10b-442b-8b99-6331739a8730` |
-
-**Inconsistência Crítica:**
-- Frontend (resolve-and-load-handler.ts): Carrega bumps por `parent_product_id` ✅
-- Backend (bump-processor.ts): Valida bumps por `checkout_id` ❌
-
-Resultado: O frontend exibe o bump corretamente, mas quando o usuário tenta pagar, o backend não encontra o bump porque a query usa o campo errado.
+Investiguei profundamente os 4 tipos de erros reportados no console do checkout público. Este plano corrige todos os problemas seguindo o RISE Protocol V3 com nota 10.0/10.
 
 ---
 
-## Análise de Soluções (RISE Protocol V3 Seção 4.4)
+## 1. Diagnóstico Detalhado dos Erros
 
-### Solução A: Usar parent_product_id na Validação
+### Erro 1: Violações de CSP (Content-Security-Policy)
+**Causa:** A meta tag CSP no `index.html` está bloqueando recursos necessários pelo SDK do Mercado Pago.
 
-Modificar a query no `bump-processor.ts` para usar `parent_product_id` ao invés de `checkout_id`, alinhando com a arquitetura do frontend.
+**Domínios Faltando:**
+| Diretiva | Domínio Ausente | Uso |
+|----------|-----------------|-----|
+| `script-src` | `https://http2.mlstatic.com` | SDK principal do MP |
+| `connect-src` | `https://http2.mlstatic.com` | APIs de fingerprint |
+| `connect-src` | `https://events.mercadopago.com` | Telemetria/anti-fraude |
+| `frame-src` | `https://www.mercadopago.com.br` | iframes de pagamento |
+| `script-src` | `https://analytics.tiktok.com` | TikTok Pixel |
+| `script-src` | `https://kpx.alicdn.com` | Kwai Pixel |
 
-- Manutenibilidade: 10/10 (alinha backend com frontend)
-- Zero DT: 10/10 (resolve problema definitivamente)
-- Arquitetura: 10/10 (SSOT - Single Source of Truth)
-- Escalabilidade: 10/10 (suporta bumps com checkout_id NULL)
-- Segurança: 10/10 (valida ownership via parent_product_id)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 15 minutos
+### Erro 2: TypeError "Cannot read properties of undefined (reading 'message')"
+**Causa Provável:** Acesso a `error.message` sem verificação defensiva.
 
-### Solução B: Manter checkout_id + Adicionar Fallback parent_product_id
+**Localização Identificada:**
+- `src/modules/checkout-public/machines/checkoutPublicMachine.actions.ts` linha 129: `String(error)` pode retornar `"undefined"` se error for undefined.
 
-Usar OR na query: `.or(\`checkout_id.eq.${checkout_id},parent_product_id.eq.${product_id}\`)`
+### Erro 3: Tracking Failures ([object ProgressEvent])
+**Causa:** Quando a CSP bloqueia o script de tracking, o evento de erro do XMLHttpRequest é um `ProgressEvent` que não tem `message`. O logger tenta logar como string e aparece `[object ProgressEvent]`.
 
-- Manutenibilidade: 7/10 (lógica complexa desnecessária)
-- Zero DT: 8/10 (mantém código legado)
-- Arquitetura: 6/10 (duplica lógica de ownership)
-- Escalabilidade: 7/10 (confuso para novos devs)
+**Solução:** Corrigir CSP (item 1) + melhorar tratamento de erro no logger.
+
+### Erro 4: postMessage Mismatch
+**Causa:** Comunicação entre iframes de SDK de pagamento (MP/Stripe) e janela principal. 
+
+**Análise:** Este erro é **esperado e inofensivo** - são mensagens internas dos SDKs que não precisam de tratamento. Não há código nosso que escuta estas mensagens específicas.
+
+---
+
+## 2. Análise de Soluções (RISE Protocol V3 Seção 4.4)
+
+### Solução A: Correção Parcial (Apenas CSP)
+
+- Manutenibilidade: 7/10 (não corrige TypeError)
+- Zero DT: 6/10 (deixa código frágil)
+- Arquitetura: 6/10 (tratamento de erro incompleto)
+- Escalabilidade: 8/10
 - Segurança: 10/10
-- **NOTA FINAL: 7.6/10**
-- Tempo estimado: 15 minutos
+- **NOTA FINAL: 7.4/10**
 
-### DECISÃO: Solução A (Nota 10.0)
+### Solução B: Correção Completa (CSP + Tratamento de Erro + Documentação)
 
-O `parent_product_id` é o campo correto de relacionamento. O `checkout_id` em order_bumps é **legado** e está sendo descontinuado (ver comentário no `create-handler.ts` linha 71).
+1. Atualizar CSP em `index.html` e `vercel.json`
+2. Melhorar tratamento de erro em actions
+3. Documentar erros de postMessage como "esperados"
+
+- Manutenibilidade: 10/10
+- Zero DT: 10/10
+- Arquitetura: 10/10
+- Escalabilidade: 10/10
+- Segurança: 10/10
+- **NOTA FINAL: 10.0/10**
+
+### DECISÃO: Solução B (Nota 10.0)
 
 ---
 
-## Plano de Correção
+## 3. Plano de Correção
 
-### Arquivo a Modificar
+### Arquivos a Modificar
 
 ```text
-supabase/functions/create-order/handlers/bump-processor.ts
+index.html                                                    # CSP principal
+vercel.json                                                   # CSP de produção
+src/modules/checkout-public/machines/checkoutPublicMachine.actions.ts  # Tratamento de erro
 ```
 
-### Alteração
+---
 
-**Linha 108:**
+## 4. Alterações Detalhadas
 
-```typescript
-// ANTES (usa checkout_id que pode ser NULL):
-.eq("checkout_id", checkout_id)
+### 4.1 index.html - CSP Atualizada
 
-// DEPOIS (usa parent_product_id - campo correto de relacionamento):
-.eq("parent_product_id", product_id)
-```
+A meta tag CSP (linhas 14-28) será atualizada com os seguintes domínios adicionais:
 
-### Código Completo da Seção (linhas 102-109)
+**script-src (adicionar):**
+- `https://http2.mlstatic.com` - Mercado Pago SDK core
+- `https://analytics.tiktok.com` - TikTok Pixel
+- `https://kpx.alicdn.com` - Kwai Pixel
+
+**connect-src (adicionar):**
+- `https://http2.mlstatic.com` - MP fingerprint/resources
+- `https://events.mercadopago.com` - MP telemetry/anti-fraud
+
+**frame-src (já existe):**
+- Verificar se `https://*.mercadopago.com` cobre todos os casos
+
+### 4.2 vercel.json - CSP de Produção Sincronizada
+
+Atualizar a CSP no header de produção para manter paridade com index.html:
+- Adicionar mesmos domínios que foram adicionados em index.html
+- Garantir que `*.mlstatic.com` esteja em connect-src
+- Adicionar `events.mercadopago.com` em connect-src
+
+### 4.3 checkoutPublicMachine.actions.ts - Tratamento Robusto
+
+Linha 126-131 - função `createNetworkError`:
 
 ```typescript
 // ANTES:
-// Validar bumps (ownership + status)
-const { data: bumps, error: bumpsError } = await supabase
-  .from("order_bumps")
-  .select("id, product_id, active, custom_title, discount_enabled, original_price, offer_id")
-  .in("id", order_bump_ids)
-  .eq("checkout_id", checkout_id)  // ❌ PROBLEMA
-  .eq("active", true);
+export function createNetworkError(error: unknown) {
+  return {
+    reason: 'NETWORK_ERROR' as const,
+    message: String(error) || "Erro de rede",
+  };
+}
 
 // DEPOIS:
-// Validar bumps (ownership via parent_product_id - RISE V3)
-const { data: bumps, error: bumpsError } = await supabase
-  .from("order_bumps")
-  .select("id, product_id, active, custom_title, discount_enabled, original_price, offer_id")
-  .in("id", order_bump_ids)
-  .eq("parent_product_id", product_id)  // ✅ Campo correto
-  .eq("active", true);
+export function createNetworkError(error: unknown) {
+  let message = "Erro de rede";
+  
+  if (error instanceof Error) {
+    message = error.message || "Erro de rede";
+  } else if (typeof error === 'string' && error.trim()) {
+    message = error;
+  }
+  // ProgressEvent e outros objetos sem message caem no default
+  
+  return {
+    reason: 'NETWORK_ERROR' as const,
+    message,
+  };
+}
 ```
 
 ---
 
-## Seção Técnica
-
-### Fluxo de Dados Corrigido
+## 5. CSP Completa Proposta
 
 ```text
-Frontend (checkout público)
-    │
-    └── Carrega bumps via resolve-and-load
-        └── .eq("parent_product_id", productId)  ✅
-    │
-    ▼
-Usuario seleciona bump + clica "Pagar com PIX"
-    │
-    └── XState envia: { order_bump_ids: ["b08db6c9-..."], product_id: "a9547038-..." }
-    │
-    ▼
-Backend (create-order → bump-processor.ts)
-    │
-    └── Valida bumps
-        └── .eq("parent_product_id", product_id)  ✅ (APÓS CORREÇÃO)
-    │
-    ▼
-Bump encontrado → Pedido criado → PIX gerado
+default-src 'self';
+script-src 'self' 'unsafe-inline' 'unsafe-eval' 
+  https://challenges.cloudflare.com 
+  https://js.stripe.com 
+  https://sdk.mercadopago.com 
+  https://http2.mlstatic.com 
+  https://www.googletagmanager.com 
+  https://www.google-analytics.com 
+  https://connect.facebook.net 
+  https://analytics.tiktok.com 
+  https://kpx.alicdn.com;
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src 'self' https://fonts.gstatic.com data:;
+img-src 'self' data: https: blob:;
+connect-src 'self' 
+  https://api.risecheckout.com 
+  https://*.supabase.co 
+  wss://*.supabase.co 
+  https://*.mercadopago.com 
+  https://*.mercadolibre.com 
+  https://*.mlstatic.com 
+  https://http2.mlstatic.com 
+  https://events.mercadopago.com 
+  https://api.stripe.com 
+  https://challenges.cloudflare.com 
+  https://www.google-analytics.com 
+  https://api.utmify.com.br 
+  https://graph.facebook.com 
+  https://analytics.tiktok.com 
+  https://kpx.alicdn.com 
+  https://*.sentry.io 
+  https://*.ingest.us.sentry.io;
+frame-src 'self' 
+  https://js.stripe.com 
+  https://challenges.cloudflare.com 
+  https://*.mercadopago.com 
+  https://*.mercadolibre.com 
+  https://www.mercadopago.com.br 
+  https://www.youtube.com 
+  https://player.vimeo.com;
+media-src 'self' https: blob:;
+worker-src 'self' blob:;
+object-src 'none';
+base-uri 'self';
+form-action 'self';
+upgrade-insecure-requests;
 ```
-
-### Por que checkout_id Existe no order_bumps?
-
-O campo `checkout_id` é **legado** - foi o design original antes da migração para `parent_product_id`. O comentário no `create-handler.ts` (linha 71) confirma:
-
-```typescript
-checkout_id: payload.checkout_id || null, // Deprecated, kept for compatibility
-```
-
-A arquitetura RISE V3 usa `parent_product_id` como campo de relacionamento, e o frontend já foi migrado para isso. O backend estava desalinhado.
 
 ---
 
-## Resultado Esperado
+## 6. Sobre os Erros de postMessage
 
-| Cenário | Antes | Depois |
-|---------|-------|--------|
-| Checkout sem bump | ✅ Funciona | ✅ Funciona |
-| Checkout com bump (checkout_id = NULL) | ❌ Erro 400 | ✅ Funciona |
-| Checkout com bump (checkout_id preenchido) | ✅ Funciona | ✅ Funciona |
+Os erros de postMessage são **comportamento esperado** dos SDKs de pagamento:
+- Mercado Pago SDK usa postMessage internamente para comunicação entre iframes
+- Stripe SDK tem comportamento similar
+- Não há código no projeto que dependa dessas mensagens
+
+**Decisão:** Não tratar - são logs informativos internos dos SDKs que não afetam funcionalidade.
 
 ---
 
-## Conformidade RISE V3
+## 7. Resultado Esperado
+
+| Erro | Antes | Depois |
+|------|-------|--------|
+| CSP blocking MP fingerprint | Erro no console | Silencioso |
+| CSP blocking TikTok/Kwai | Erro no console | Silencioso |
+| TypeError message undefined | Crash potencial | Tratado graciosamente |
+| postMessage mismatch | Log de aviso | Mesmo (esperado) |
+| Mercado Pago SDK | Parcialmente bloqueado | Funcionando 100% |
+
+---
+
+## 8. Conformidade RISE V3
 
 | Critério | Status |
 |----------|--------|
-| Manutenibilidade Infinita | Frontend e Backend alinhados |
-| Zero Dívida Técnica | Removida dependência de campo legado |
-| Arquitetura Correta | SSOT via parent_product_id |
-| Escalabilidade | Suporta todos os cenários de order bumps |
-| Segurança | Validação de ownership mantida |
+| Manutenibilidade Infinita | CSP documentada e extensível |
+| Zero Dívida Técnica | Todos os SDKs autorizados |
+| Arquitetura Correta | Tratamento de erro defensivo |
+| Escalabilidade | Fácil adicionar novos pixels |
+| Segurança | CSP restritiva mas funcional |
 
 **RISE V3 Score: 10.0/10**
 
+---
+
+## 9. Seção Técnica
+
+### Por que CSP em dois lugares?
+
+1. **index.html (meta tag):** Aplica-se no desenvolvimento local e em qualquer host
+2. **vercel.json (HTTP header):** Aplica-se na produção Vercel com precedência sobre meta tag
+
+Ambos precisam estar sincronizados para evitar inconsistências.
+
+### Domínios do Mercado Pago SDK
+
+O SDK do Mercado Pago carrega recursos de múltiplos domínios:
+- `sdk.mercadopago.com` - SDK JavaScript principal
+- `http2.mlstatic.com` - Recursos estáticos, fingerprinting
+- `events.mercadopago.com` - Telemetria e anti-fraude
+- `*.mercadopago.com` - iframes de formulário seguro
+- `*.mercadolibre.com` - Infraestrutura compartilhada
+
+Todos esses domínios são necessários para funcionamento completo do SDK.
