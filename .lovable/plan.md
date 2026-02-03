@@ -1,285 +1,243 @@
 
-# Plano RISE V3: Adicionar Status "Recusado" para Cartões Recusados
+# Plano RISE V3: Corrigir Testes Unitários do Status "Recusado"
 
 ## Diagnóstico
 
-### Problema Atual
+### Problema Identificado
 
-Quando um cliente tenta pagar com cartão e é **recusado** (CVV inválido, limite, etc):
+Os testes unitários em `src/lib/order-status/__tests__/service.test.ts` estão **desatualizados** após a implementação do status "Recusado". O código atual mapeia `failed`, `rejected`, `declined` para `'refused'`, mas os testes ainda esperam `'pending'`.
 
-1. Backend (`mercadopago-create-payment`) recebe `status: 'rejected'` do MercadoPago
-2. Adapter mapeia para `refused` e retorna `success: false`
-3. Edge Function **retorna erro HTTP 400 SEM ATUALIZAR A ORDER**
-4. Order permanece com `status: 'pending'`
-5. Vendedor vê "Pendente" e não sabe que houve tentativa de cartão recusado
+### Impacto
 
-### Referência Visual (Cakto)
-
-Conforme a imagem que você enviou, a Cakto usa:
-- **"Recusado!"** (vermelho) = Cartão de crédito que falhou
-- **"Pago"** (verde) = Pagamento aprovado
-- **"Pendente"** (amarelo) = PIX aguardando
-- **"Chargeback"** = Contestação
+- Testes falharão se executados
+- Inconsistência entre código e documentação
+- Viola RISE V3 Seção 4: Zero Dívida Técnica
 
 ---
 
 ## Análise de Soluções (RISE Protocol V3 Seção 4.4)
 
-### Solução A: Adicionar "Recusado" como Status Canônico
+### Solução A: Atualizar Todos os Testes Afetados
 
-Adicionar `'refused'` como 5º status canônico, específico para cartões recusados:
-- Modificar `CANONICAL_STATUSES` para incluir `'refused'`
-- Backend atualiza order para `status: 'refused'` quando cartão é recusado
-- Dashboard exibe "Recusado" em vermelho
-- Separação clara: PIX = Pendente, Cartão Recusado = Recusado
+Corrigir todos os testes para refletir o novo comportamento com status `'refused'`.
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 10/10 | Status canônico explícito, semântica clara |
-| Zero DT | 10/10 | Solução definitiva, igual Cakto |
-| Arquitetura | 10/10 | Separação correta entre PIX e Cartão |
-| Escalabilidade | 10/10 | Funciona para qualquer gateway de cartão |
+| Manutenibilidade | 10/10 | Testes documentam comportamento real |
+| Zero DT | 10/10 | Testes sincronizados com código |
+| Arquitetura | 10/10 | Cobertura completa do novo status |
+| Escalabilidade | 10/10 | Base sólida para testes futuros |
 | Segurança | 10/10 | Não afeta segurança |
 
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 4-6 horas
+- Tempo estimado: 30-45 minutos
 
-### Solução B: Usar technical_status sem novo status canônico
+### Solução B: Desabilitar Testes Afetados Temporariamente
 
-Manter 4 status canônicos e usar `technical_status = 'card_declined'`:
-- Order fica `status: 'pending'`, `technical_status: 'card_declined'`
-- Dashboard mostra badge adicional "⚠️ Cartão Recusado" ao lado de "Pendente"
+Marcar testes como `it.skip()` até corrigir depois.
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 7/10 | Mistura conceitos (pendente + recusado) |
-| Zero DT | 8/10 | Funciona, mas não segue padrão Cakto |
-| Arquitetura | 6/10 | Confunde PIX pendente com cartão recusado |
-| Escalabilidade | 8/10 | Funciona, mas semanticamente incorreto |
+| Manutenibilidade | 3/10 | Testes desabilitados = dívida |
+| Zero DT | 0/10 | Cria dívida técnica explícita |
+| Arquitetura | 2/10 | Viola boas práticas |
+| Escalabilidade | 2/10 | Problemas escondidos |
 | Segurança | 10/10 | Não afeta segurança |
 
-- **NOTA FINAL: 7.6/10**
-- Tempo estimado: 3-4 horas
+- **NOTA FINAL: 2.8/10**
+- Tempo estimado: 5 minutos
 
 ### DECISÃO: Solução A (Nota 10.0/10)
 
-**Justificativa**: "Pendente" é para PIX aguardando pagamento. "Recusado" é para cartão que foi negado. São conceitos **completamente diferentes** e devem ter status **separados**. A Cakto (imagem de referência) faz exatamente isso.
+A Solução B viola diretamente o mandamento "Podemos melhorar depois..." que está PROIBIDO pelo Protocolo RISE V3.
 
 ---
 
 ## Plano de Implementação
 
-### Fase 1: Backend - Atualizar Order Quando Cartão é Recusado
-
-**Arquivo**: `supabase/functions/mercadopago-create-payment/index.ts`
-
-**Alteração**: Antes de retornar erro HTTP 400, atualizar a order com `status: 'refused'`:
-
-```typescript
-// NOVO: Quando cartão é recusado, atualizar a order ANTES de retornar erro
-if (!result.success && result.status === 'refused') {
-  await supabase.from('orders').update({
-    status: 'refused',
-    gateway: 'mercadopago',
-    gateway_payment_id: result.transaction_id || null,
-    payment_method: 'credit_card',
-    updated_at: new Date().toISOString()
-  }).eq('id', orderId);
-}
-```
-
-### Fase 2: Frontend - Adicionar "Recusado" ao Modelo de Status
-
-**Arquivos a modificar**:
-
-1. **`src/lib/order-status/types.ts`**
-   - Adicionar `'refused'` aos `CANONICAL_STATUSES`
-   - Adicionar display label: `refused: 'Recusado'`
-   - Adicionar cores: vermelho (igual chargeback)
-
-2. **`src/lib/order-status/service.ts`**
-   - Mapear status `rejected`, `refused`, `declined` → `'refused'`
-
-3. **`src/modules/dashboard/types/dashboard.types.ts`**
-   - Adicionar `"Recusado"` ao tipo `CustomerDisplayStatus`
-
-4. **`src/components/dashboard/order-details/statusConfig.ts`**
-   - Adicionar configuração para status "Recusado"
-
-5. **`src/components/dashboard/recent-customers/CustomerTableRow.tsx`**
-   - Adicionar estilo para status "Recusado"
-
-### Fase 3: Filtro no Dashboard
-
-**Arquivo**: `src/modules/dashboard/components/RecentCustomersSection.tsx` (ou similar)
-
-Adicionar aba "Recusados" igual a imagem da Cakto:
-- Aprovadas | Reembolsadas | Chargeback | MED | **Recusados** | Todas
-
----
-
-## Alterações Detalhadas
-
-### 1. src/lib/order-status/types.ts
-
-```typescript
-// ANTES
-export const CANONICAL_STATUSES = [
-  'paid',
-  'pending',
-  'refunded',
-  'chargeback',
-] as const;
-
-// DEPOIS
-export const CANONICAL_STATUSES = [
-  'paid',
-  'pending',
-  'refused',      // NOVO: Cartão recusado
-  'refunded',
-  'chargeback',
-] as const;
-
-// Display Map
-export const STATUS_DISPLAY_MAP = {
-  paid: 'Pago',
-  pending: 'Pendente',
-  refused: 'Recusado',  // NOVO
-  refunded: 'Reembolso',
-  chargeback: 'Chargeback',
-} as const;
-
-// Cores
-export const STATUS_COLORS = {
-  // ... existentes ...
-  refused: {
-    bg: 'bg-orange-500/10',
-    text: 'text-orange-500',
-    border: 'border-orange-500/20',
-    dot: 'bg-orange-500',
-  },
-};
-```
-
-### 2. src/lib/order-status/service.ts
-
-```typescript
-// Adicionar mapeamentos
-const GATEWAY_STATUS_MAP = {
-  // ... existentes ...
-  
-  // NOVO: Cartão recusado → 'refused' (NÃO mais pending)
-  rejected: 'refused',
-  refused: 'refused',
-  declined: 'refused',
-  card_declined: 'refused',
-  cc_rejected: 'refused',
-};
-```
-
-### 3. src/modules/dashboard/types/dashboard.types.ts
-
-```typescript
-// ANTES
-export type CustomerDisplayStatus = 
-  | "Pago" 
-  | "Pendente" 
-  | "Reembolso" 
-  | "Chargeback";
-
-// DEPOIS
-export type CustomerDisplayStatus = 
-  | "Pago" 
-  | "Pendente" 
-  | "Recusado"    // NOVO
-  | "Reembolso" 
-  | "Chargeback";
-```
-
-### 4. Backend - mercadopago-create-payment/index.ts
-
-```typescript
-// Linha ~237-240, ANTES de retornar erro:
-if (!result.success) {
-  // NOVO: Registrar recusa no banco
-  if (result.status === 'refused') {
-    await supabase.from('orders').update({
-      status: 'refused',
-      gateway: 'mercadopago',
-      gateway_payment_id: result.transaction_id || null,
-      payment_method: 'credit_card',
-      updated_at: new Date().toISOString()
-    }).eq('id', orderId);
-  }
-  
-  return createErrorResponse(...);
-}
-```
-
-### 5. CustomerTableRow.tsx - Adicionar estilo para Recusado
-
-```typescript
-<Badge
-  className={cn(
-    customer.status === "Pago" 
-      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-      : customer.status === "Pendente"
-      ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
-      : customer.status === "Recusado"  // NOVO
-      ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
-      : // Reembolso e Chargeback
-        "bg-red-500/10 text-red-500 border-red-500/20"
-  )}
->
-```
-
----
-
-## Fluxo Corrigido
+### Arquivo a Modificar
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                   PAGAMENTO COM CARTÃO                       │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│  MercadoPago retorna status                                  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-         'approved'      'pending'       'rejected'
-              │               │               │
-              ▼               ▼               ▼
-    ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-    │ Order:      │   │ Order:      │   │ Order:      │
-    │ status=paid │   │ status=     │   │ status=     │
-    │             │   │ pending     │   │ refused     │
-    └─────────────┘   └─────────────┘   └─────────────┘
-              │               │               │
-              ▼               ▼               ▼
-    ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-    │ Dashboard:  │   │ Dashboard:  │   │ Dashboard:  │
-    │ "Pago"      │   │ "Pendente"  │   │ "Recusado"  │
-    │ (verde)     │   │ (amarelo)   │   │ (laranja)   │
-    └─────────────┘   └─────────────┘   └─────────────┘
+src/lib/order-status/__tests__/service.test.ts
+```
+
+### Alterações Detalhadas
+
+#### 1. Adicionar teste para `getDisplayLabel("refused")`
+
+```typescript
+it("should return 'Recusado' for refused status (cartão recusado)", () => {
+  expect(orderStatusService.getDisplayLabel("refused")).toBe("Recusado");
+});
+```
+
+#### 2. Corrigir teste da linha 57-58
+
+**Antes:**
+```typescript
+it("should return 'Pendente' for failed status (padrão mercado)", () => {
+  expect(orderStatusService.getDisplayLabel("failed")).toBe("Pendente");
+});
+```
+
+**Depois:**
+```typescript
+it("should return 'Recusado' for failed status (cartão recusado)", () => {
+  expect(orderStatusService.getDisplayLabel("failed")).toBe("Recusado");
+});
+```
+
+#### 3. Adicionar teste para cores do status "refused"
+
+```typescript
+it("should return orange scheme for refused", () => {
+  const colors = orderStatusService.getColorScheme("refused");
+  expect(colors.bg).toContain("orange");
+  expect(colors.text).toContain("orange");
+});
+```
+
+#### 4. Corrigir seção "Failed/Rejected mappings" (linhas 154-159)
+
+**Antes:**
+```typescript
+describe("Failed/Rejected mappings → pending (padrão mercado)", () => {
+  const failedStatuses = ["failed", "rejected", "error", "declined"];
+  
+  it.each(failedStatuses)("should map %s to pending (padrão mercado)", (status) => {
+    expect(orderStatusService.normalize(status)).toBe("pending");
+  });
+});
+```
+
+**Depois:**
+```typescript
+describe("Failed/Rejected mappings → refused (cartão recusado)", () => {
+  const failedStatuses = ["failed", "rejected", "error", "declined", "refused", "card_declined", "cc_rejected"];
+  
+  it.each(failedStatuses)("should map %s to refused", (status) => {
+    expect(orderStatusService.normalize(status)).toBe("refused");
+  });
+});
+```
+
+#### 5. Corrigir teste `isPending("failed")` (linha 226-227)
+
+**Antes:**
+```typescript
+it("should return true for failed (padrão mercado)", () => {
+  expect(orderStatusService.isPending("failed")).toBe(true);
+});
+```
+
+**Depois:**
+```typescript
+it("should return false for failed (cartão recusado não é pending)", () => {
+  expect(orderStatusService.isPending("failed")).toBe(false);
+});
+```
+
+#### 6. Adicionar seção completa para `isRefused()`
+
+```typescript
+// ========== IS REFUSED ==========
+
+describe("isRefused", () => {
+  it("should return true for refused", () => {
+    expect(orderStatusService.isRefused("refused")).toBe(true);
+  });
+
+  it("should return true for rejected (gateway)", () => {
+    expect(orderStatusService.isRefused("rejected")).toBe(true);
+  });
+
+  it("should return true for declined (gateway)", () => {
+    expect(orderStatusService.isRefused("declined")).toBe(true);
+  });
+
+  it("should return true for failed (gateway)", () => {
+    expect(orderStatusService.isRefused("failed")).toBe(true);
+  });
+
+  it("should return true for card_declined (gateway)", () => {
+    expect(orderStatusService.isRefused("card_declined")).toBe(true);
+  });
+
+  it("should return false for paid", () => {
+    expect(orderStatusService.isRefused("paid")).toBe(false);
+  });
+
+  it("should return false for pending", () => {
+    expect(orderStatusService.isRefused("pending")).toBe(false);
+  });
+
+  it("should return false for null", () => {
+    expect(orderStatusService.isRefused(null)).toBe(false);
+  });
+
+  it("should return false for undefined", () => {
+    expect(orderStatusService.isRefused(undefined)).toBe(false);
+  });
+});
+```
+
+#### 7. Corrigir `getAllStatuses` (linha 307)
+
+**Antes:**
+```typescript
+expect(statuses).toHaveLength(4);
+```
+
+**Depois:**
+```typescript
+expect(statuses).toHaveLength(5);
+```
+
+#### 8. Corrigir `getStatusOptions` (linha 317)
+
+**Antes:**
+```typescript
+expect(options).toHaveLength(4);
+```
+
+**Depois:**
+```typescript
+expect(options).toHaveLength(5);
+```
+
+#### 9. Adicionar teste para label do status "refused"
+
+```typescript
+it("should have correct label for refused status", () => {
+  const options = orderStatusService.getStatusOptions();
+  expect(options.find(o => o.value === "refused")?.label).toBe("Recusado");
+});
+```
+
+#### 10. Atualizar comentário do service.ts (linha 38)
+
+**Antes:**
+```typescript
+* - Apenas 4 status canônicos: paid, pending, refunded, chargeback
+```
+
+**Depois:**
+```typescript
+* - 5 status canônicos: paid, pending, refused, refunded, chargeback
 ```
 
 ---
 
-## Impacto na UI (Igual Cakto)
+## Validação Pós-Correção
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  Últimos Clientes                                           │
-├─────────────────────────────────────────────────────────────┤
-│  João Silva    joao@email.com    R$ 97,00   [Recusado]     │
-│  Maria Santos  maria@email.com   R$ 197,00  [Pago]         │
-│  Pedro Lima    pedro@email.com   R$ 47,00   [Pendente]     │
-│  Ana Costa     ana@email.com     R$ 127,00  [Recusado]     │
-└─────────────────────────────────────────────────────────────┘
-```
+Após as correções:
+
+| Verificação | Critério |
+|-------------|----------|
+| Testes passam | `npm test -- service.test.ts` deve passar 100% |
+| Cobertura de `refused` | Todos os métodos testados com status "refused" |
+| Comentários atualizados | Documentação reflete 5 status |
+| Consistência | Código e testes em sincronia |
 
 ---
 
@@ -287,24 +245,26 @@ if (!result.success) {
 
 | Critério | Status |
 |----------|--------|
-| Manutenibilidade Infinita | Status canônico explícito, semântica clara |
-| Zero Dívida Técnica | Separação correta: PIX ≠ Cartão Recusado |
-| Arquitetura Correta | Igual padrão Cakto (referência do usuário) |
-| Escalabilidade | Aplicável a todos os gateways de cartão |
-| Segurança | Não expõe dados sensíveis |
+| Manutenibilidade Infinita | Testes documentam comportamento |
+| Zero Dívida Técnica | Testes sincronizados com código |
+| Arquitetura Correta | Cobertura completa |
+| Escalabilidade | Base para testes futuros |
+| Segurança | Não afetada |
 
 **RISE V3 Score: 10.0/10**
 
 ---
 
-## Arquivos a Modificar (Resumo)
+## Resumo das Correções
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/lib/order-status/types.ts` | Adicionar `'refused'` aos status canônicos |
-| `src/lib/order-status/service.ts` | Mapear `rejected` → `'refused'` |
-| `src/modules/dashboard/types/dashboard.types.ts` | Adicionar `"Recusado"` ao CustomerDisplayStatus |
-| `src/components/dashboard/order-details/statusConfig.ts` | Adicionar config para "Recusado" |
-| `src/components/dashboard/recent-customers/CustomerTableRow.tsx` | Adicionar estilo para "Recusado" |
-| `supabase/functions/mercadopago-create-payment/index.ts` | Atualizar order para `refused` quando cartão recusado |
-| `supabase/functions/asaas-create-payment/index.ts` | Mesmo tratamento (se existir) |
+| Local | Alteração |
+|-------|-----------|
+| Linha 57-58 | `failed` → `"Recusado"` |
+| Linha 96-111 (getColorScheme) | Adicionar teste para `refused` → orange |
+| Linhas 154-159 | `failed/rejected/declined` → `refused` (não `pending`) |
+| Linhas 226-227 | `isPending("failed")` → `false` |
+| Após linha 241 | Nova seção `isRefused()` com 9 testes |
+| Linha 307 | `toHaveLength(5)` |
+| Linha 317 | `toHaveLength(5)` |
+| Linhas 322-329 | Adicionar teste para label "Recusado" |
+| `service.ts` linha 38 | Comentário: "5 status canônicos" |
