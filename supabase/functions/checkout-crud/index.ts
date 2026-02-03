@@ -26,6 +26,7 @@ import {
 } from "../_shared/checkout-crud-helpers.ts";
 import { managePaymentLink } from "../_shared/checkout-link-handlers.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { getSiteBaseUrl } from "../_shared/site-urls.ts";
 
 const log = createLogger("checkout-crud");
 
@@ -95,7 +96,7 @@ serve(withSentry("checkout-crud", async (req) => {
     } catch {
       return unauthorizedResponse(corsHeaders);
     }
-    const baseUrl = req.headers.get("origin") || "https://risecheckout.com";
+    const baseUrl = req.headers.get("origin") || getSiteBaseUrl('default');
 
     log.info(`Action: ${action}, Producer: ${producerId}`);
 

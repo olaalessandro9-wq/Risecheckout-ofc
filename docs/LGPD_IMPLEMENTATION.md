@@ -191,8 +191,10 @@ Auditoria de todas as ações LGPD:
 ### Variáveis de Ambiente Necessárias
 
 ```bash
-# URL pública do site (para links no email)
-PUBLIC_SITE_URL=https://risecheckout.com
+# Domínio base da plataforma (SSOT para URLs e emails)
+# IMPORTANTE: Use SITE_BASE_DOMAIN (obrigatório desde RISE V3)
+# NÃO use PUBLIC_SITE_URL (legado, removido)
+SITE_BASE_DOMAIN=risecheckout.com
 
 # API Key do ZeptoMail para envio de emails
 ZEPTOMAIL_API_KEY=<sua_chave_api>
@@ -202,7 +204,8 @@ ZEPTOMAIL_API_KEY=<sua_chave_api>
 
 1. Acesse o dashboard do Supabase
 2. Vá em **Settings > Edge Functions > Secrets**
-3. Adicione `PUBLIC_SITE_URL` e `ZEPTOMAIL_API_KEY`
+3. Adicione `SITE_BASE_DOMAIN` e `ZEPTOMAIL_API_KEY`
+4. (Opcional) Adicione ao Vault para uso em triggers SQL
 
 ## Segurança
 

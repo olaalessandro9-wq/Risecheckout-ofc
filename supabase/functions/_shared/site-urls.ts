@@ -50,31 +50,23 @@ let cachedBaseDomain: string | null = null;
 
 /**
  * Loads the base domain from environment.
- * Priority:
- * 1. SITE_BASE_DOMAIN (new, preferred) - just domain, e.g. "risecheckout.com"
- * 2. PUBLIC_SITE_URL (legacy) - full URL, protocol stripped automatically
- * 3. Fallback: "risecheckout.com"
+ * 
+ * RISE V3: SITE_BASE_DOMAIN is now REQUIRED.
+ * No legacy fallbacks - ensures explicit configuration.
+ * 
+ * @throws Error if SITE_BASE_DOMAIN is not configured
  */
 function getBaseDomain(): string {
   if (cachedBaseDomain) return cachedBaseDomain;
   
-  // Try new secret first
-  let domain = Deno.env.get("SITE_BASE_DOMAIN");
+  const domain = Deno.env.get("SITE_BASE_DOMAIN");
   
-  // Fallback to legacy PUBLIC_SITE_URL
   if (!domain) {
-    const legacyUrl = Deno.env.get("PUBLIC_SITE_URL");
-    if (legacyUrl) {
-      domain = legacyUrl;
-    }
+    log.error("SITE_BASE_DOMAIN not configured - this is required");
+    throw new Error("SITE_BASE_DOMAIN environment variable is required");
   }
   
-  // Final fallback
-  if (!domain) {
-    domain = "risecheckout.com";
-  }
-  
-  // Clean up: remove protocol and trailing slash
+  // Clean up: remove protocol and trailing slash if accidentally included
   cachedBaseDomain = domain
     .replace(/^https?:\/\//, '')
     .replace(/\/$/, '');
