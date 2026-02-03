@@ -25,11 +25,30 @@ const mockOnViewDetails = vi.fn();
 const createMockProduct = (overrides: Partial<MarketplaceProduct> = {}): MarketplaceProduct => ({
   id: "prod-123",
   name: "Produto Teste",
+  description: "Test description",
   price: 10000, // R$ 100,00 em centavos
-  commission_percentage: 30,
   image_url: "https://example.com/image.jpg",
+  status: "active",
+  user_id: "user-123",
+  producer_id: "user-123",
+  category: "Test",
+  marketplace_category: "Test",
+  marketplace_enabled: true,
+  marketplace_description: "Test",
+  marketplace_tags: [],
+  marketplace_views: 0,
+  marketplace_clicks: 0,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+  commission_percentage: 30,
+  requires_manual_approval: false,
+  has_order_bump_commission: false,
+  affiliate_enabled: true,
+  vendor_name: "Test Vendor",
+  producer_name: "Test Vendor",
+  vendor_email: "test@example.com",
   ...overrides,
-} as MarketplaceProduct);
+});
 
 // ============================================
 // TESTS: RENDERING - BASIC
