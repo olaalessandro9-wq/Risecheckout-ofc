@@ -24,7 +24,7 @@ describe("pixel-management - Authentication", () => {
     mockProducer = createDefaultProducer();
   });
 
-  it("should require producer_session cookie", async () => {
+  it("should require __Secure-rise_access cookie", async () => {
     const mockRequest = createMockRequestWithoutCookie({ action: "list" });
     const cookie = mockRequest.headers.get("Cookie");
     assertEquals(cookie, null);
@@ -41,7 +41,7 @@ describe("pixel-management - Authentication", () => {
     const mockRequest = createMockRequest({ action: "list" });
     const cookie = mockRequest.headers.get("Cookie");
     assertExists(cookie);
-    assertEquals(cookie?.includes("producer_session="), true);
+    assertEquals(cookie?.includes("__Secure-rise_access="), true);
   });
 
   it("should extract producer ID from valid session", async () => {
