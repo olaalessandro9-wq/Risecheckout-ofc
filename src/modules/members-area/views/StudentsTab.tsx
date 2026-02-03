@@ -1,6 +1,7 @@
 /**
  * StudentsTab - Aba de gestão de alunos
- * Uses Edge Function for listing (bypasses RLS on buyer_profiles)
+ * Uses Edge Function for listing (bypasses RLS on users)
+ * SSOT: users table
  * 
  * @see RISE ARCHITECT PROTOCOL - Refactored to ~110 lines (compliance: 300-line limit)
  */

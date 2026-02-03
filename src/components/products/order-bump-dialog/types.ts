@@ -30,7 +30,7 @@ export interface EditOrderBump {
   id: string;
   /** RISE V3: The product that owns this order bump */
   parent_product_id?: string;
-  /** @deprecated Use parent_product_id */
+  /** Legacy field kept for database compatibility - use parent_product_id in new code */
   checkout_id?: string | null;
   product_id: string;
   offer_id?: string | null;
@@ -39,7 +39,7 @@ export interface EditOrderBump {
   discount_enabled?: boolean | null;
   /** MARKETING price - for strikethrough display only, never used for billing */
   original_price?: number | null;
-  /** @deprecated Use original_price instead */
+  /** Legacy field kept for database compatibility - use original_price in new code */
   discount_price?: number | null;
   call_to_action?: string | null;
   custom_title?: string | null;
