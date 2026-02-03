@@ -120,6 +120,41 @@ export const CheckoutSchema = z.object({
 export type CheckoutData = z.infer<typeof CheckoutSchema>;
 
 // ============================================================================
+// PRODUCT PIXELS SCHEMA (Phase 2 - BFF Unified)
+// ============================================================================
+
+export const ProductPixelSchema = z.object({
+  id: z.string(),
+  platform: z.string(),
+  pixel_id: z.string(),
+  access_token: z.string().nullable(),
+  conversion_label: z.string().nullable(),
+  domain: z.string().nullable(),
+  is_active: z.boolean(),
+  fire_on_initiate_checkout: z.boolean(),
+  fire_on_purchase: z.boolean(),
+  fire_on_pix: z.boolean(),
+  fire_on_card: z.boolean(),
+  fire_on_boleto: z.boolean(),
+  custom_value_percent: z.number().nullable(),
+});
+
+export type ProductPixelData = z.infer<typeof ProductPixelSchema>;
+
+// ============================================================================
+// VENDOR INTEGRATION SCHEMA (Phase 2 - UTMify)
+// ============================================================================
+
+export const VendorIntegrationSchema = z.object({
+  id: z.string(),
+  vendor_id: z.string(),
+  active: z.boolean(),
+  config: z.unknown().nullable(),
+}).nullable();
+
+export type VendorIntegrationData = z.infer<typeof VendorIntegrationSchema>;
+
+// ============================================================================
 // FULL RESPONSE SCHEMA
 // ============================================================================
 
@@ -131,6 +166,9 @@ export const ResolveAndLoadResponseSchema = z.object({
     offer: OfferSchema,
     orderBumps: z.array(OrderBumpSchema),
     affiliate: AffiliateSchema,
+    // Phase 2 additions
+    productPixels: z.array(ProductPixelSchema).optional().default([]),
+    vendorIntegration: VendorIntegrationSchema.optional().nullable(),
   }),
 });
 
