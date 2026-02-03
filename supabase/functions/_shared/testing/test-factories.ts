@@ -495,7 +495,7 @@ export function createAuthenticatedRequest(
   const authHeaders: Record<string, string> = { ...headers };
 
   if (sessionToken) {
-    authHeaders["x-producer-session-token"] = sessionToken;
+    authHeaders["Cookie"] = `__Secure-rise_access=${sessionToken}`;
   }
 
   if (bearerToken) {
