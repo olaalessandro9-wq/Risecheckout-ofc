@@ -18,14 +18,15 @@
 /**
  * Canonical order statuses stored in the database
  * 
- * MODELO DE MERCADO (Hotmart/Kiwify):
- * - pending: Aguardando pagamento (PIX gerado, boleto emitido)
+ * MODELO DE MERCADO (Hotmart/Kiwify/Cakto):
  * - paid: Pagamento confirmado
+ * - pending: Aguardando pagamento (PIX gerado, boleto emitido)
+ * - refused: Cartão recusado (CVV inválido, limite, etc)
  * - refunded: Reembolso efetuado
  * - chargeback: Contestação no cartão
  * 
- * NOTA: 'cancelled' e 'failed' foram REMOVIDOS.
- * Vendas expiradas/canceladas pelo gateway continuam como 'pending'.
+ * NOTA: 'cancelled' foi REMOVIDO (PIX expirado → pending).
+ * 'failed/rejected' agora mapeia para 'refused' (cartão recusado).
  * O campo 'technical_status' guarda o status técnico real para relatórios.
  */
 export const CANONICAL_STATUSES = [
