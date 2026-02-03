@@ -19,6 +19,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { buildSiteUrl, getSiteBaseUrl } from "../_shared/site-urls.ts";
 
 // Handlers
 import { exchangeCodeForToken } from "./handlers/token-exchange.ts";
@@ -35,13 +36,6 @@ const ALLOWED_REDIRECT_DOMAINS = [
   'www.risecheckout.com',
   'lovable.app',
 ];
-
-function getAppBaseUrl(): string {
-  // Preferência: variável de ambiente, fallback para produção
-  const envUrl = Deno.env.get('APP_BASE_URL');
-  if (envUrl) return envUrl;
-  return 'https://risecheckout.com';
-}
 
 function isAllowedRedirectDomain(url: string): boolean {
   try {
@@ -70,7 +64,8 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const baseUrl = getAppBaseUrl();
+  // Use centralized site-urls.ts (SSOT)
+  const baseUrl = getSiteBaseUrl('default');
   
   // Validar que baseUrl é seguro
   if (!isAllowedRedirectDomain(baseUrl)) {

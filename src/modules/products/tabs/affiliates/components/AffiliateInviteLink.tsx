@@ -2,19 +2,22 @@
  * AffiliateInviteLink - Seção de link de convite
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Modularização
+ * @version 2.0.0 - Uses centralized URL builder
  */
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { buildUrl } from "@/lib/urls";
 
 interface AffiliateInviteLinkProps {
   productId: string;
 }
 
 export function AffiliateInviteLink({ productId }: AffiliateInviteLinkProps) {
-  const inviteUrl = `https://risecheckout.com/afiliar/${productId}`;
+  // Use centralized URL builder (SSOT) - replaces hardcoded risecheckout.com
+  const inviteUrl = buildUrl(`/afiliar/${productId}`, 'default');
   
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteUrl);

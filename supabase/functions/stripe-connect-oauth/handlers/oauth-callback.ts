@@ -10,6 +10,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { saveCredentialsToVault } from "../../_shared/vault-credentials.ts";
 import { createLogger } from "../../_shared/logger.ts";
+import { buildSiteUrl } from "../../_shared/site-urls.ts";
 
 const log = createLogger("stripe-oauth-callback");
 
@@ -131,9 +132,11 @@ export async function processOAuthCallback(
 
     log.info('✅ Integração salva com sucesso');
 
-    // Construir URL de redirect
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://risecheckout.com";
-    const redirectUrl = `${frontendUrl}/dashboard/financeiro?stripe_success=true&account=${stripeAccountId}`;
+    // Construir URL de redirect usando site-urls.ts (SSOT) - replaces FRONTEND_URL secret
+    const redirectUrl = buildSiteUrl(
+      `/dashboard/financeiro?stripe_success=true&account=${stripeAccountId}`,
+      'default'
+    );
 
     return {
       success: true,
