@@ -4099,8 +4099,10 @@ export type Database = {
           stripe_account_id: string | null
           stripe_connected_at: string | null
           test_mode_enabled: boolean | null
+          test_public_key: string | null
           timezone: string | null
           updated_at: string | null
+          user_type: string | null
           utmify_token: string | null
         }
         Insert: {
@@ -4136,8 +4138,10 @@ export type Database = {
           stripe_account_id?: string | null
           stripe_connected_at?: string | null
           test_mode_enabled?: boolean | null
+          test_public_key?: string | null
           timezone?: string | null
           updated_at?: string | null
+          user_type?: string | null
           utmify_token?: string | null
         }
         Update: {
@@ -4173,8 +4177,10 @@ export type Database = {
           stripe_account_id?: string | null
           stripe_connected_at?: string | null
           test_mode_enabled?: boolean | null
+          test_public_key?: string | null
           timezone?: string | null
           updated_at?: string | null
+          user_type?: string | null
           utmify_token?: string | null
         }
         Relationships: []
