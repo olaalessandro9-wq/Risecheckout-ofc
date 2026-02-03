@@ -217,12 +217,8 @@ export async function getProducerAffiliatesRpc(searchTerm: string) {
   );
 }
 
-/**
- * Gets user email by user_id
- */
-export async function getUserEmailRpc(userId: string) {
-  return invokeRpc<string>("get_user_email", { user_id: userId }, "producer");
-}
+// RISE V3: Removido getUserEmailRpc - usava auth.users abandonada
+// Emails agora vêm direto da tabela 'users' via getUsersWithMetrics
 
 /**
  * Gets system health summary (admin only)

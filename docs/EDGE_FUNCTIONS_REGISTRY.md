@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-02-02 (RISE V3 - Fase 5 Validação Final + Modularização de Testes)  
+> Última atualização: 2026-02-03 (RISE V3 - Eliminação completa de código legado auth.users)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,10 +10,11 @@
 
 ```
 ╔═══════════════════════════════════════════════════════════════╗
-║  ✅ RISE PROTOCOL V3 - 10.0/10 - TESTS MODULARIZED           ║
-║     106 Edge Functions | 214 RLS Policies | Zero Legacy      ║
-║     ACCESS_TOKEN: 4h | REFRESH_THRESHOLD: 30m | LOCK: 30s    ║
-║     ~110 Test Files | ~550+ Edge Tests | Zero Monoliths      ║
+║  ✅ RISE PROTOCOL V3 - 10.0/10 - ZERO AUTH.USERS LEGACY       ║
+║     105 Edge Functions | 214 RLS Policies | Zero Legacy       ║
+║     ACCESS_TOKEN: 4h | REFRESH_THRESHOLD: 30m | LOCK: 30s     ║
+║     ~110 Test Files | ~550+ Edge Tests | Zero Monoliths       ║
+║     SSOT: 'users' table | auth.users: ABANDONED               ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
 
@@ -27,8 +28,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 106 |
-| **No código local** | 106 |
+| **Total de Funções** | 105 |
+| **No código local** | 105 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
@@ -70,7 +71,6 @@
 | **User Management** | | | |
 | `manage-user-role` | sessions | false | unified-auth-v2, owner only |
 | `manage-user-status` | sessions | false | unified-auth-v2, admin+ |
-| `get-users-with-emails` | sessions | false | unified-auth-v2, owner only |
 | `unified-auth` | public | false | SSOT - Login/Register/Refresh/Request-Refresh endpoint |
 | **Security & Crypto** | | | |
 | `decrypt-customer-data` | sessions | false | unified-auth-v2, owner check |
@@ -341,7 +341,6 @@
 
 | Nome | URL | No Repo? | Auth |
 |------|-----|----------|------|
-| `get-users-with-emails` | `.../get-users-with-emails` | ✅ | sessions |
 | `manage-user-role` | `.../manage-user-role` | ✅ | sessions |
 | `manage-user-status` | `.../manage-user-status` | ✅ | sessions |
 | `unified-auth` | `.../unified-auth` | ✅ | public |

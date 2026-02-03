@@ -44,28 +44,20 @@ function formatCentsToBRL(cents: number): string {
 // ============================================================================
 
 export async function fetchUsers(
-  role: AppRole,
+  _role: AppRole,
   send: SendFn
 ): Promise<void> {
   try {
-    const [usersRes, emailsRes] = await Promise.all([
-      api.call<{ users: UserWithRole[] }>("admin-data", { action: "users-with-metrics" }),
-      role === "owner"
-        ? api.call<{ emails: Record<string, string> }>("get-users-with-emails", {})
-        : Promise.resolve({ data: { emails: {} }, error: null }),
-    ]);
+    // RISE V3: Email agora vem direto da tabela users via getUsersWithMetrics
+    // Eliminado: get-users-with-emails (consultava auth.users abandonada)
+    const usersRes = await api.call<{ users: UserWithRole[] }>("admin-data", { action: "users-with-metrics" });
 
     if (usersRes.error) throw new Error(usersRes.error.message);
 
     const users = usersRes.data?.users ?? [];
-    const emails = emailsRes.data?.emails ?? {};
 
-    const usersWithEmails = users.map(user => ({
-      ...user,
-      email: emails[user.user_id] || user.email,
-    }));
-
-    send({ type: "USERS_LOADED", data: { users: usersWithEmails, emails } });
+    // RISE V3: emails já estão incluídos no objeto user
+    send({ type: "USERS_LOADED", data: { users, emails: {} } });
   } catch (error) {
     send({ type: "USERS_ERROR", error: error instanceof Error ? error.message : "Erro ao carregar usuários" });
   }
