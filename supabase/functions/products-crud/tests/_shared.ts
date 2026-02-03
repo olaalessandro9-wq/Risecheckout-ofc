@@ -16,7 +16,7 @@ export function isValidEntityAction(action: string): action is EntityAction {
   return ["offers", "order-bumps", "coupons", "checkouts", "payment-links", "all"].includes(action);
 }
 
-// get-users-with-emails pagination
+// Generic pagination utilities
 export function calculatePagination(total: number, page: number, limit: number) {
   const offset = (page - 1) * limit;
   const totalPages = Math.ceil(total / limit);
