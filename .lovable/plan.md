@@ -1,230 +1,264 @@
 
-# Plano de Correção: Feedback Visual e Erro de Exclusão de Produtos
+# Plano de Correção: Erro "Failed to fetch dynamically imported module"
 
-## Resumo Executivo
+## Resumo do Problema
 
-Identificados **3 problemas** no fluxo de exclusão de produtos:
-1. **Falta de toast de sucesso** após exclusão
-2. **Erro 500 para usuário específico** (possível problema de sessão)
-3. **Feedback visual insuficiente** durante o processo
+O usuário `maiconmiranda1528@gmail.com` está recebendo o erro:
+```
+Failed to fetch dynamically imported module: 
+https://www.risecheckout.com/assets/duplicateCheckout-DEPN83uz.js
+```
+
+### Análise da Causa Raiz
+
+Este **NÃO é um problema de sessão/cookies**. É um problema de **carregamento de módulo JavaScript** causado por:
+
+1. **Cache desatualizado do browser**: O browser tem uma versão antiga do HTML/JS principal em cache, mas o chunk `duplicateCheckout-DEPN83uz.js` foi renomeado após um novo deploy (hash diferente)
+2. **Dynamic import sem proteção**: O `CheckoutTab.tsx` usa dynamic import diretamente sem retry automático
+
+### Evidências
+
+| Item | Valor |
+|------|-------|
+| Sessão do usuário | **VÁLIDA** (is_valid: true, expires: 2026-03-05) |
+| Edge Function | Nenhum erro nos logs |
+| Tipo de erro | Erro de browser, não de backend |
+| Pattern do erro | Comum em apps Vite após deploys |
 
 ---
 
 ## Análise de Soluções (RISE V3 Seção 4.4)
 
-### Solução A: Correção Cirúrgica com Optimistic UI e Logs Detalhados
+### Solução A: Dynamic Import com Retry + Fallback Estático
 
-- Manutenibilidade: 10/10 (Código limpo, padrão React Query)
-- Zero DT: 10/10 (Resolve todos os 3 problemas de uma vez)
-- Arquitetura: 10/10 (Segue padrão existente de `duplicateMutation`)
-- Escalabilidade: 10/10 (Pattern reutilizável)
-- Segurança: 10/10 (Adiciona logs para investigação)
+- Manutenibilidade: 10/10 (Utility reutilizável para todas as funções)
+- Zero DT: 10/10 (Resolve problema na raiz + previne futuros)
+- Arquitetura: 10/10 (Consistente com lazyWithRetry existente)
+- Escalabilidade: 10/10 (Pattern aplicável a todos dynamic imports)
+- Segurança: 10/10 (Sem impacto)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 20 minutos
+- Tempo estimado: 30 minutos
 
-### Solução B: Apenas Adicionar Toast
+### Solução B: Remover Dynamic Import (Import Estático)
 
-- Manutenibilidade: 7/10 (Resolve sintoma, não a causa)
-- Zero DT: 6/10 (Não investiga erro 500)
-- Arquitetura: 7/10 (Inconsistente com duplicateMutation)
-- Escalabilidade: 7/10 (Não melhora observabilidade)
-- Segurança: 6/10 (Sem logs para debugging)
+- Manutenibilidade: 9/10 (Funciona, mas aumenta bundle inicial)
+- Zero DT: 8/10 (Resolve sintoma, não melhora resiliência)
+- Arquitetura: 7/10 (Contraria code-splitting best practice)
+- Escalabilidade: 7/10 (Bundle maior = carregamento inicial lento)
+- Segurança: 10/10 (Sem impacto)
+- **NOTA FINAL: 8.2/10**
+
+### Solução C: Apenas Detectar e Recarregar Página
+
+- Manutenibilidade: 6/10 (UX ruim - recarrega página inteira)
+- Zero DT: 7/10 (Resolve, mas de forma bruta)
+- Arquitetura: 5/10 (Não é solução elegante)
+- Escalabilidade: 5/10 (Cada erro = reload completo)
+- Segurança: 10/10 (Sem impacto)
 - **NOTA FINAL: 6.6/10**
 
 ### DECISÃO: Solução A (Nota 10.0)
 
-A Solução B é inferior porque não resolve o erro 500 do usuário e não adiciona observabilidade para futuros problemas.
-
----
-
-## Diagnóstico Detalhado
-
-### Problema 1: Falta de Toast de Sucesso
-
-**Localização:** `src/components/products/products-table/useProductsTable.ts` linhas 105-126
-
-**Código Atual:**
-```typescript
-const deleteMutation = useMutation({
-  // ...
-  onSuccess: async () => {
-    await qc.invalidateQueries({ queryKey: productQueryKeys.all });
-    // ❌ FALTA: toast.success()
-  },
-  onError: (err: Error) => {
-    // ✅ TEM: toast.error()
-  },
-});
-```
-
-**Problema:** O `onSuccess` invalida o cache mas não exibe mensagem de sucesso.
-
-### Problema 2: Erro 500 para Usuário Específico
-
-**Análise dos Dados:**
-- Usuário: `maiconmiranda1528@gmail.com` (ID: `28aa5872-34e2-4a65-afec-0fdfca68b5d6`)
-- Seus produtos existem e estão ativos no banco
-- Erro visível no print: `500 (Internal Server Error)`
-- Mensagem: "Falha ao excluir: Erro ao excluir produto: Erro ao excluir produto"
-
-**Diagnóstico Provável:**
-1. **Sessão expirada/inválida** - O cookie httpOnly pode ter expirado
-2. **Problema de constraint** - FK constraint no delete (improvável pois hard delete funcionou nos logs)
-3. **Erro transitório** - O backend pode ter tido um erro temporário
-
-**Solução:** Adicionar logs mais detalhados e melhor tratamento de erro para identificar a causa raiz.
-
-### Problema 3: Feedback Visual
-
-**Análise:**
-- `ConfirmDelete.tsx` **JÁ TEM** spinner quando `busy === true` (linha 280-284)
-- O problema é que o spinner só aparece **dentro do dialog**
-- Após clicar "Excluir", o dialog fecha imediatamente antes da operação completar
-
-**Localização do Problema:** `useProductsTable.ts` linha 145-148
-```typescript
-onConfirm: async () => {
-  deleteMutation.mutate(productId);  // ❌ ASSÍNCRONO - não espera!
-},
-```
-
-O `mutate()` é chamado sem `await`, então o dialog fecha antes da operação completar.
+As outras são inferiores porque:
+- **Solução B**: Aumenta o bundle inicial desnecessariamente
+- **Solução C**: Experiência de usuário degradada (reload completo)
 
 ---
 
 ## Plano de Implementação
 
-### Arquivo 1: `src/components/products/products-table/useProductsTable.ts`
+### Fase 1: Criar Utility para Dynamic Import com Retry
 
-**Alterações:**
+**Novo Arquivo:** `src/lib/dynamicImportWithRetry.ts`
 
-1. **Adicionar toast de sucesso no onSuccess** (linha 110-111):
-```typescript
-onSuccess: async () => {
-  toast.success("Produto excluído com sucesso!");
-  await qc.invalidateQueries({ queryKey: productQueryKeys.all });
-},
-```
-
-2. **Usar mutateAsync em handleDelete** (linha 140-149):
-Alterar de `mutate()` para `mutateAsync()` para que o dialog aguarde a conclusão.
+Criar uma utility similar ao `lazyWithRetry`, mas para dynamic imports de funções (não componentes React):
 
 ```typescript
-const handleDelete = useCallback(async (productId: string, productName: string) => {
-  await confirm({
-    resourceType: "Produto",
-    resourceName: productName,
-    requireTypeToConfirm: true,
-    onConfirm: async () => {
-      await deleteMutation.mutateAsync(productId);  // ✅ Aguarda conclusão
-    },
+/**
+ * dynamicImportWithRetry - Dynamic Import com Retry Automático
+ * 
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Para funções e módulos (não componentes React).
+ * Usa mesma lógica de isNetworkError do lazyWithRetry.
+ */
+
+import { isNetworkError } from "./lazyWithRetry";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("dynamicImportWithRetry");
+
+interface RetryOptions {
+  maxRetries?: number;
+  retryDelay?: number;
+}
+
+const DEFAULT_OPTIONS: Required<RetryOptions> = {
+  maxRetries: 3,
+  retryDelay: 1000,
+};
+
+/**
+ * Wrapper para dynamic import com retry automático
+ * 
+ * @example
+ * const { duplicateCheckout } = await dynamicImportWithRetry(
+ *   () => import("@/lib/checkouts/duplicateCheckout")
+ * );
+ */
+export async function dynamicImportWithRetry<T>(
+  importFn: () => Promise<T>,
+  options?: RetryOptions
+): Promise<T> {
+  const { maxRetries, retryDelay } = { ...DEFAULT_OPTIONS, ...options };
+  
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await importFn();
+    } catch (error) {
+      lastError = error;
+
+      // Só faz retry se for erro de rede/chunk
+      if (!isNetworkError(error)) {
+        throw error;
+      }
+
+      log.warn(`Dynamic import failed (attempt ${attempt}/${maxRetries})`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // Última tentativa? Não espera
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+      }
+    }
+  }
+
+  log.error("All dynamic import attempts failed", {
+    attempts: maxRetries,
+    error: lastError instanceof Error ? lastError.message : String(lastError),
   });
-}, [confirm, deleteMutation]);
+
+  throw lastError;
+}
 ```
 
-3. **Melhorar mensagens de erro** (linhas 113-125):
-Adicionar detecção de erro de autenticação para orientar o usuário.
+### Fase 2: Atualizar CheckoutTab.tsx
+
+**Arquivo:** `src/modules/products/tabs/CheckoutTab.tsx`
+
+Substituir o dynamic import direto pela utility com retry:
 
 ```typescript
-onError: (err: Error) => {
-  log.error("Delete product error:", err);
+// ANTES (linha 104)
+const { duplicateCheckout } = await import("@/lib/checkouts/duplicateCheckout");
+
+// DEPOIS
+import { dynamicImportWithRetry } from "@/lib/dynamicImportWithRetry";
+
+// No handleDuplicateCheckout:
+const { duplicateCheckout } = await dynamicImportWithRetry(
+  () => import("@/lib/checkouts/duplicateCheckout")
+);
+```
+
+### Fase 3: Atualizar useAffiliatesTab.ts (Mesmo Pattern)
+
+**Arquivo:** `src/modules/products/tabs/affiliates/useAffiliatesTab.ts`
+
+Aplicar o mesmo pattern para consistência:
+
+```typescript
+// ANTES (linha 146)
+const { api } = await import("@/lib/api");
+
+// DEPOIS
+import { dynamicImportWithRetry } from "@/lib/dynamicImportWithRetry";
+
+const { api } = await dynamicImportWithRetry(
+  () => import("@/lib/api")
+);
+```
+
+### Fase 4: Melhorar Mensagem de Erro para Usuário
+
+**Arquivo:** `src/modules/products/tabs/CheckoutTab.tsx`
+
+Adicionar detecção específica de erro de chunk no catch:
+
+```typescript
+import { isChunkLoadError } from "@/lib/lazyWithRetry";
+
+// No catch do handleDuplicateCheckout:
+} catch (error: unknown) {
+  log.error('Erro ao duplicar checkout', error);
   
-  let errorMessage = "Erro ao excluir produto";
-  
-  if (err?.message?.includes('autorizado') || err?.message?.includes('401')) {
-    errorMessage = "Sua sessão expirou. Faça login novamente.";
-  } else if (err?.message?.includes('pedido')) {
-    errorMessage = err.message;
-  } else if (err?.message?.includes('foreign key')) {
-    errorMessage = "Este produto possui dados vinculados e não pode ser excluído.";
-  } else if (err?.message) {
-    errorMessage = `Falha ao excluir: ${err.message}`;
+  // RISE V3: Mensagem específica para erro de carregamento de módulo
+  if (error instanceof Error && isChunkLoadError(error)) {
+    toast.error("Erro de conexão. Por favor, recarregue a página e tente novamente.");
+    return;
   }
   
-  toast.error(errorMessage);
-},
-```
-
-### Arquivo 2: `src/lib/products/deleteProduct.ts`
-
-**Alterações:**
-
-Adicionar log mais detalhado para debugging:
-
-```typescript
-if (error) {
-  log.error("Edge function error:", { 
-    error, 
-    productId, 
-    status: error.status,
-    message: error.message 
-  });
-  throw new Error(`Erro ao excluir produto: ${error.message}`);
+  const message = getRpcErrorMessage(error, "Não foi possível duplicar o checkout");
+  toast.error(message);
 }
 ```
 
 ---
 
-## Detalhes Técnicos
+## Arquivos a Criar/Modificar
 
-### Por que usar `mutateAsync` em vez de `mutate`?
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `src/lib/dynamicImportWithRetry.ts` | CRIAR | Utility para dynamic imports com retry |
+| `src/modules/products/tabs/CheckoutTab.tsx` | EDITAR | Usar utility + mensagem de erro específica |
+| `src/modules/products/tabs/affiliates/useAffiliatesTab.ts` | EDITAR | Usar utility para consistência |
+| `src/lib/__tests__/dynamicImportWithRetry.test.ts` | CRIAR | Testes unitários |
 
-| Aspecto | `mutate()` | `mutateAsync()` |
-|---------|-----------|-----------------|
-| Retorno | `void` | `Promise<T>` |
-| Pode aguardar? | Não | Sim (`await`) |
-| Spinner do Dialog | Não funciona | Funciona |
-| Tratamento de erro | Só no `onError` | Pode usar try/catch também |
+---
 
-O `ConfirmDelete.tsx` já tem o spinner implementado, mas só funciona se o `onConfirm` retornar uma Promise que pode ser aguardada.
-
-### Fluxo Corrigido
+## Fluxo Corrigido
 
 ```text
-1. Usuário clica "Excluir" no dropdown
-2. Dialog de confirmação abre
-3. Usuário digita "EXCLUIR" e clica no botão
-4. ✅ Spinner aparece no botão "Excluir"
-5. ✅ API é chamada e aguarda resposta
-6. ✅ Sucesso: Dialog fecha + Toast "Produto excluído com sucesso!"
-7. ✅ Erro: Dialog mostra toast de erro + mantém aberto para retry
-8. Lista é atualizada automaticamente via invalidateQueries
+1. Usuário clica em "Duplicar Checkout"
+2. dynamicImportWithRetry tenta carregar o módulo
+3. Se falhar (chunk antigo/rede):
+   a. Aguarda 1 segundo
+   b. Tenta novamente (até 3x)
+4. Se todas tentativas falharem:
+   a. Toast: "Erro de conexão. Recarregue a página."
+5. Se sucesso:
+   a. duplicateCheckout() é chamado
+   b. Toast: "Checkout duplicado com sucesso!"
 ```
 
 ---
 
-## Investigação do Erro 500
+## Por que isso afeta só alguns usuários?
 
-### Dados do Usuário Afetado
+| Cenário | Resultado |
+|---------|-----------|
+| Usuário com cache limpo | Carrega chunk correto (funciona) |
+| Usuário com cache antigo | Tenta carregar chunk com hash antigo (FALHA) |
+| Usuário após Ctrl+F5 | Cache limpo, funciona |
 
-| Campo | Valor |
-|-------|-------|
-| Email | maiconmiranda1528@gmail.com |
-| ID | 28aa5872-34e2-4a65-afec-0fdfca68b5d6 |
-| Produtos | 4 ativos (koemenu, up, Order 1, Maicon) |
-| Pedidos | 9 pedidos no produto "Maicon" |
-
-### Possíveis Causas
-
-1. **Sessão expirada**: Cookie `__Secure-rise_access` expirou ou está inválido
-2. **Rate limiting**: Muitas tentativas de exclusão seguidas
-3. **Erro transitório do banco**: Timeout ou lock
-
-### Ação Recomendada
-
-Após implementar os logs melhorados, solicitar que o usuário:
-1. Faça logout e login novamente (renova sessão)
-2. Tente excluir novamente
-3. Se falhar, verificar os logs da Edge Function
+O seu amigo provavelmente:
+1. Acessou o app antes do último deploy
+2. Manteve a aba aberta ou browser em background
+3. Tentou usar uma feature que carrega chunk dinâmico
+4. O hash do chunk mudou → erro
 
 ---
 
-## Resumo das Alterações
+## Ação Imediata para o Usuário Afetado
 
-| Arquivo | Tipo | Descrição |
-|---------|------|-----------|
-| `src/components/products/products-table/useProductsTable.ts` | Edição | Toast de sucesso + mutateAsync + logs |
-| `src/lib/products/deleteProduct.ts` | Edição | Logs detalhados para debugging |
+Enquanto eu implemento a correção, peça para seu amigo:
+
+1. **Pressionar Ctrl+Shift+R** (ou Cmd+Shift+R no Mac) para hard reload
+2. Ou ir em **DevTools → Network → Disable cache** → Recarregar
+3. Ou **limpar cache do browser** para risecheckout.com
 
 ---
 
@@ -232,11 +266,10 @@ Após implementar os logs melhorados, solicitar que o usuário:
 
 | Teste | Como Validar |
 |-------|--------------|
-| Spinner durante exclusão | Clicar Excluir → Spinner deve aparecer no botão |
-| Toast de sucesso | Após exclusão → "Produto excluído com sucesso!" |
-| Toast de erro | Simular erro → Mensagem específica aparece |
-| Lista atualiza | Após exclusão → Produto some da lista |
-| Erro de sessão | Testar com sessão expirada → Mensagem orienta relogin |
+| Retry funciona | Simular falha de rede → Deve tentar 3x |
+| Mensagem correta | Após 3 falhas → "Erro de conexão. Recarregue a página." |
+| Fluxo normal | Com conexão boa → Duplicar checkout funciona |
+| Consistência | Verificar se useAffiliatesTab também está protegido |
 
 ---
 
