@@ -8,6 +8,7 @@
  */
 
 import { api } from "@/lib/api";
+import { createRpcError } from "./errors";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("RpcProxy");
@@ -49,12 +50,14 @@ export async function invokeRpc<T>(
 
     if (error) {
       log.error(`Error invoking ${rpcName}:`, error);
-      return { data: null, error: new Error(error.message) };
+      // RISE V3: Preservar código de erro para tratamento adequado
+      return { data: null, error: createRpcError(error.code, error.message) };
     }
 
     // The rpc-proxy returns { data: <result> } on success
     if (data?.error) {
-      return { data: null, error: new Error(data.error) };
+      // RISE V3: Erros internos tratados como INTERNAL_ERROR
+      return { data: null, error: createRpcError("INTERNAL_ERROR", data.error) };
     }
 
     return { data: data?.data as T, error: null };
