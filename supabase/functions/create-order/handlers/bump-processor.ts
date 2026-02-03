@@ -99,13 +99,13 @@ export async function processBumps(
     return { allOrderItems, totalAmount };
   }
 
-  // Validar bumps (ownership + status)
+  // Validar bumps (ownership via parent_product_id - RISE V3)
   // NOTE: original_price is fetched but IGNORED for billing - only for logging
   const { data: bumps, error: bumpsError } = await supabase
     .from("order_bumps")
     .select("id, product_id, active, custom_title, discount_enabled, original_price, offer_id")
     .in("id", order_bump_ids)
-    .eq("checkout_id", checkout_id)
+    .eq("parent_product_id", product_id)
     .eq("active", true);
 
   if (bumpsError || !bumps || bumps.length !== order_bump_ids.length) {
