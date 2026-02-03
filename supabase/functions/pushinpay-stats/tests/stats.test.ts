@@ -10,7 +10,7 @@ import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
 import { createMockRequest, isValidAction, type StatsPayload } from "./_shared.ts";
 
 describe("pushinpay-stats - Authentication", () => {
-  it("should require producer_session cookie", () => {
+  it("should require __Secure-rise_access cookie", () => {
     const mockRequest = createMockRequest({ action: "get-stats" });
     assertEquals(mockRequest.headers.has("Cookie"), true);
   });

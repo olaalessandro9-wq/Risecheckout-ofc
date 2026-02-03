@@ -10,7 +10,7 @@ import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
 import { createMockRequest, createTestPayload, hasValidUrl } from "./_shared.ts";
 
 describe("send-webhook-test - Authentication", () => {
-  it("should require producer_session cookie", () => {
+  it("should require __Secure-rise_access cookie", () => {
     const mockRequest = createMockRequest({ url: "https://example.com/webhook" });
     assertEquals(mockRequest.headers.has("Cookie"), true);
   });

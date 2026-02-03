@@ -25,7 +25,7 @@ describe("webhook-crud - Authentication", () => {
     mockProducer = createDefaultProducer();
   });
 
-  it("should require producer_session cookie", async () => {
+  it("should require __Secure-rise_access cookie", async () => {
     const mockRequest = createMockRequestWithoutCookie({ action: "list" });
     const hasCookie = mockRequest.headers.has("Cookie");
     assertEquals(hasCookie, false);
