@@ -1,147 +1,285 @@
 
-# Plano RISE V3: Corrigir Navegação Após Pagamento com Cartão
+# Plano RISE V3: Adicionar Status "Recusado" para Cartões Recusados
 
 ## Diagnóstico
 
-### Problema Identificado
+### Problema Atual
 
-O usuário reporta que após pagamento com cartão aprovado:
-1. O spinner roda e para
-2. Cliente permanece na tela de checkout
-3. Acessos são enviados (emails funcionam)
-4. Não há redirecionamento para `/success/{orderId}`
+Quando um cliente tenta pagar com cartão e é **recusado** (CVV inválido, limite, etc):
 
-### Causa Raiz
+1. Backend (`mercadopago-create-payment`) recebe `status: 'rejected'` do MercadoPago
+2. Adapter mapeia para `refused` e retorna `success: false`
+3. Edge Function **retorna erro HTTP 400 SEM ATUALIZAR A ORDER**
+4. Order permanece com `status: 'pending'`
+5. Vendedor vê "Pendente" e não sabe que houve tentativa de cartão recusado
 
-**Arquivo:** `src/modules/checkout-public/machines/checkoutPublicMachine.ts`
-**Linha:** 52-53
+### Referência Visual (Cakto)
 
-```typescript
-// IMPLEMENTAÇÃO ATUAL (INCORRETA)
-isCardApproved: (_, params: { output?: { navigationData?: NavigationData } }) => 
-  params?.output?.navigationData?.type === 'card' && params.output.navigationData.status === 'approved',
-```
-
-**Problema:** O guard tenta acessar `params.output`, mas:
-1. `params` é o SEGUNDO argumento do guard
-2. Quando o guard é chamado como string `"isCardApproved"` (linha 231), NÃO são passados params
-3. Em XState v5, o output do actor resolvido está em `event.output` (primeiro argumento)
-
-### Fluxo do Bug
-
-```text
-1. Cartão aprovado pelo gateway
-2. processCardPaymentActor retorna { success: true, navigationData: { type: 'card', status: 'approved' } }
-3. XState dispara evento onDone com event.output = { success: true, navigationData: {...} }
-4. Guard isCardApproved é chamado com:
-   - Primeiro argumento: { context, event }  (event contém output)
-   - Segundo argumento: undefined (nenhum params passado)
-5. Guard tenta acessar params?.output => undefined?.output => undefined
-6. Guard retorna false
-7. XState pula para próxima transição que também falha
-8. Máquina fica travada em "processingCard"
-9. UI mostra spinner eternamente
-```
+Conforme a imagem que você enviou, a Cakto usa:
+- **"Recusado!"** (vermelho) = Cartão de crédito que falhou
+- **"Pago"** (verde) = Pagamento aprovado
+- **"Pendente"** (amarelo) = PIX aguardando
+- **"Chargeback"** = Contestação
 
 ---
 
 ## Análise de Soluções (RISE Protocol V3 Seção 4.4)
 
-### Solução A: Corrigir Assinatura do Guard
+### Solução A: Adicionar "Recusado" como Status Canônico
 
-Alterar o guard `isCardApproved` para acessar corretamente `event.output`.
+Adicionar `'refused'` como 5º status canônico, específico para cartões recusados:
+- Modificar `CANONICAL_STATUSES` para incluir `'refused'`
+- Backend atualiza order para `status: 'refused'` quando cartão é recusado
+- Dashboard exibe "Recusado" em vermelho
+- Separação clara: PIX = Pendente, Cartão Recusado = Recusado
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 10/10 | Correção simples em uma linha, segue padrão XState v5 |
-| Zero DT | 10/10 | Remove bug sem criar novos problemas |
-| Arquitetura | 10/10 | Alinha com documentação oficial do XState v5 |
-| Escalabilidade | 10/10 | Padrão correto para todos os guards futuros |
+| Manutenibilidade | 10/10 | Status canônico explícito, semântica clara |
+| Zero DT | 10/10 | Solução definitiva, igual Cakto |
+| Arquitetura | 10/10 | Separação correta entre PIX e Cartão |
+| Escalabilidade | 10/10 | Funciona para qualquer gateway de cartão |
 | Segurança | 10/10 | Não afeta segurança |
 
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 5 minutos
+- Tempo estimado: 4-6 horas
 
-### Solução B: Remover Guard Nomeado e Usar Inline
+### Solução B: Usar technical_status sem novo status canônico
 
-Substituir o guard nomeado por um guard inline diretamente na transição.
+Manter 4 status canônicos e usar `technical_status = 'card_declined'`:
+- Order fica `status: 'pending'`, `technical_status: 'card_declined'`
+- Dashboard mostra badge adicional "⚠️ Cartão Recusado" ao lado de "Pendente"
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade | 7/10 | Guards inline são menos testáveis e reutilizáveis |
-| Zero DT | 10/10 | Resolve o bug |
-| Arquitetura | 6/10 | Viola princípio de separação de concerns |
-| Escalabilidade | 7/10 | Dificulta reutilização em outras transições |
+| Manutenibilidade | 7/10 | Mistura conceitos (pendente + recusado) |
+| Zero DT | 8/10 | Funciona, mas não segue padrão Cakto |
+| Arquitetura | 6/10 | Confunde PIX pendente com cartão recusado |
+| Escalabilidade | 8/10 | Funciona, mas semanticamente incorreto |
 | Segurança | 10/10 | Não afeta segurança |
 
-- **NOTA FINAL: 7.8/10**
-- Tempo estimado: 5 minutos
+- **NOTA FINAL: 7.6/10**
+- Tempo estimado: 3-4 horas
 
 ### DECISÃO: Solução A (Nota 10.0/10)
 
-A Solução B viola separação de concerns e dificulta testes unitários. A Solução A mantém o guard nomeado (testável, reutilizável) e apenas corrige a assinatura.
+**Justificativa**: "Pendente" é para PIX aguardando pagamento. "Recusado" é para cartão que foi negado. São conceitos **completamente diferentes** e devem ter status **separados**. A Cakto (imagem de referência) faz exatamente isso.
 
 ---
 
 ## Plano de Implementação
 
-### Arquivo a Modificar
+### Fase 1: Backend - Atualizar Order Quando Cartão é Recusado
 
-```text
-src/modules/checkout-public/machines/checkoutPublicMachine.ts
-```
+**Arquivo**: `supabase/functions/mercadopago-create-payment/index.ts`
 
-### Alteração Detalhada
+**Alteração**: Antes de retornar erro HTTP 400, atualizar a order com `status: 'refused'`:
 
-**Antes (linha 52-53):**
 ```typescript
-isCardApproved: (_, params: { output?: { navigationData?: NavigationData } }) => 
-  params?.output?.navigationData?.type === 'card' && params.output.navigationData.status === 'approved',
+// NOVO: Quando cartão é recusado, atualizar a order ANTES de retornar erro
+if (!result.success && result.status === 'refused') {
+  await supabase.from('orders').update({
+    status: 'refused',
+    gateway: 'mercadopago',
+    gateway_payment_id: result.transaction_id || null,
+    payment_method: 'credit_card',
+    updated_at: new Date().toISOString()
+  }).eq('id', orderId);
+}
 ```
 
-**Depois:**
+### Fase 2: Frontend - Adicionar "Recusado" ao Modelo de Status
+
+**Arquivos a modificar**:
+
+1. **`src/lib/order-status/types.ts`**
+   - Adicionar `'refused'` aos `CANONICAL_STATUSES`
+   - Adicionar display label: `refused: 'Recusado'`
+   - Adicionar cores: vermelho (igual chargeback)
+
+2. **`src/lib/order-status/service.ts`**
+   - Mapear status `rejected`, `refused`, `declined` → `'refused'`
+
+3. **`src/modules/dashboard/types/dashboard.types.ts`**
+   - Adicionar `"Recusado"` ao tipo `CustomerDisplayStatus`
+
+4. **`src/components/dashboard/order-details/statusConfig.ts`**
+   - Adicionar configuração para status "Recusado"
+
+5. **`src/components/dashboard/recent-customers/CustomerTableRow.tsx`**
+   - Adicionar estilo para status "Recusado"
+
+### Fase 3: Filtro no Dashboard
+
+**Arquivo**: `src/modules/dashboard/components/RecentCustomersSection.tsx` (ou similar)
+
+Adicionar aba "Recusados" igual a imagem da Cakto:
+- Aprovadas | Reembolsadas | Chargeback | MED | **Recusados** | Todas
+
+---
+
+## Alterações Detalhadas
+
+### 1. src/lib/order-status/types.ts
+
 ```typescript
-isCardApproved: ({ event }: { event: { output?: { navigationData?: NavigationData } } }) => 
-  event.output?.navigationData?.type === 'card' && event.output.navigationData?.status === 'approved',
+// ANTES
+export const CANONICAL_STATUSES = [
+  'paid',
+  'pending',
+  'refunded',
+  'chargeback',
+] as const;
+
+// DEPOIS
+export const CANONICAL_STATUSES = [
+  'paid',
+  'pending',
+  'refused',      // NOVO: Cartão recusado
+  'refunded',
+  'chargeback',
+] as const;
+
+// Display Map
+export const STATUS_DISPLAY_MAP = {
+  paid: 'Pago',
+  pending: 'Pendente',
+  refused: 'Recusado',  // NOVO
+  refunded: 'Reembolso',
+  chargeback: 'Chargeback',
+} as const;
+
+// Cores
+export const STATUS_COLORS = {
+  // ... existentes ...
+  refused: {
+    bg: 'bg-orange-500/10',
+    text: 'text-orange-500',
+    border: 'border-orange-500/20',
+    dot: 'bg-orange-500',
+  },
+};
 ```
 
-### Explicação Técnica
+### 2. src/lib/order-status/service.ts
 
-| Aspecto | Antes (Incorreto) | Depois (Correto) |
-|---------|-------------------|------------------|
-| Acesso ao output | `params.output` | `event.output` |
-| Posição do argumento | Segundo (`params`) | Primeiro (`{ event }`) |
-| Conformidade XState v5 | Violado | Correto |
-| Tipagem | Incorreta | Explícita e correta |
+```typescript
+// Adicionar mapeamentos
+const GATEWAY_STATUS_MAP = {
+  // ... existentes ...
+  
+  // NOVO: Cartão recusado → 'refused' (NÃO mais pending)
+  rejected: 'refused',
+  refused: 'refused',
+  declined: 'refused',
+  card_declined: 'refused',
+  cc_rejected: 'refused',
+};
+```
+
+### 3. src/modules/dashboard/types/dashboard.types.ts
+
+```typescript
+// ANTES
+export type CustomerDisplayStatus = 
+  | "Pago" 
+  | "Pendente" 
+  | "Reembolso" 
+  | "Chargeback";
+
+// DEPOIS
+export type CustomerDisplayStatus = 
+  | "Pago" 
+  | "Pendente" 
+  | "Recusado"    // NOVO
+  | "Reembolso" 
+  | "Chargeback";
+```
+
+### 4. Backend - mercadopago-create-payment/index.ts
+
+```typescript
+// Linha ~237-240, ANTES de retornar erro:
+if (!result.success) {
+  // NOVO: Registrar recusa no banco
+  if (result.status === 'refused') {
+    await supabase.from('orders').update({
+      status: 'refused',
+      gateway: 'mercadopago',
+      gateway_payment_id: result.transaction_id || null,
+      payment_method: 'credit_card',
+      updated_at: new Date().toISOString()
+    }).eq('id', orderId);
+  }
+  
+  return createErrorResponse(...);
+}
+```
+
+### 5. CustomerTableRow.tsx - Adicionar estilo para Recusado
+
+```typescript
+<Badge
+  className={cn(
+    customer.status === "Pago" 
+      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+      : customer.status === "Pendente"
+      ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+      : customer.status === "Recusado"  // NOVO
+      ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
+      : // Reembolso e Chargeback
+        "bg-red-500/10 text-red-500 border-red-500/20"
+  )}
+>
+```
 
 ---
 
 ## Fluxo Corrigido
 
 ```text
-1. Cartão aprovado pelo gateway
-2. processCardPaymentActor retorna { success: true, navigationData: { type: 'card', status: 'approved' } }
-3. XState dispara evento onDone com event.output = { success: true, navigationData: {...} }
-4. Guard isCardApproved é chamado com:
-   - Primeiro argumento: { context, event }
-5. Guard acessa event.output.navigationData
-6. Guard retorna TRUE (status === 'approved')
-7. Transição para estado "success" é executada
-8. navigationData é atribuído ao contexto
-9. Componente React detecta isSuccess === true
-10. useEffect dispara navigate('/success/{orderId}')
-11. Cliente vê página de obrigado
+┌─────────────────────────────────────────────────────────────┐
+│                   PAGAMENTO COM CARTÃO                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  MercadoPago retorna status                                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+         'approved'      'pending'       'rejected'
+              │               │               │
+              ▼               ▼               ▼
+    ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+    │ Order:      │   │ Order:      │   │ Order:      │
+    │ status=paid │   │ status=     │   │ status=     │
+    │             │   │ pending     │   │ refused     │
+    └─────────────┘   └─────────────┘   └─────────────┘
+              │               │               │
+              ▼               ▼               ▼
+    ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+    │ Dashboard:  │   │ Dashboard:  │   │ Dashboard:  │
+    │ "Pago"      │   │ "Pendente"  │   │ "Recusado"  │
+    │ (verde)     │   │ (amarelo)   │   │ (laranja)   │
+    └─────────────┘   └─────────────┘   └─────────────┘
 ```
 
 ---
 
-## Validação Pós-Correção
+## Impacto na UI (Igual Cakto)
 
-Após a correção:
-1. O estado da máquina deve transicionar para `success` quando `status === 'approved'`
-2. O contexto `navigationData` deve conter os dados do pagamento
-3. O componente `CheckoutPublicContent` deve detectar `isSuccess === true`
-4. O `useEffect` na linha 101-118 deve disparar a navegação
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  Últimos Clientes                                           │
+├─────────────────────────────────────────────────────────────┤
+│  João Silva    joao@email.com    R$ 97,00   [Recusado]     │
+│  Maria Santos  maria@email.com   R$ 197,00  [Pago]         │
+│  Pedro Lima    pedro@email.com   R$ 47,00   [Pendente]     │
+│  Ana Costa     ana@email.com     R$ 127,00  [Recusado]     │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -149,56 +287,24 @@ Após a correção:
 
 | Critério | Status |
 |----------|--------|
-| Manutenibilidade Infinita | Guard nomeado, testável, reutilizável |
-| Zero Dívida Técnica | Corrige bug sem workarounds |
-| Arquitetura Correta | Segue documentação XState v5 |
-| Escalabilidade | Padrão aplicável a todos os guards |
-| Segurança | Não afetada |
+| Manutenibilidade Infinita | Status canônico explícito, semântica clara |
+| Zero Dívida Técnica | Separação correta: PIX ≠ Cartão Recusado |
+| Arquitetura Correta | Igual padrão Cakto (referência do usuário) |
+| Escalabilidade | Aplicável a todos os gateways de cartão |
+| Segurança | Não expõe dados sensíveis |
 
 **RISE V3 Score: 10.0/10**
 
 ---
 
-## Seção Técnica
+## Arquivos a Modificar (Resumo)
 
-### XState v5 Guard Signature
-
-De acordo com a documentação oficial (`node_modules/xstate/dist/declarations/src/guards.d.ts`):
-
-```typescript
-export interface GuardArgs<TContext, TExpressionEvent> {
-    context: TContext;
-    event: TExpressionEvent;
-}
-
-export type GuardPredicate<...> = {
-    (args: GuardArgs<TContext, TExpressionEvent>, params: TParams): boolean;
-};
-```
-
-- **Primeiro argumento:** `{ context, event }` - sempre disponível
-- **Segundo argumento:** `params` - só disponível se definido com `guard: { type: 'name', params: {...} }`
-
-### Por que o Bug Não Apareceu Antes?
-
-Em pagamentos PIX, o guard usado é inline (linha 208-209):
-```typescript
-guard: ({ event }) => event.output.success === true,
-```
-
-Apenas o guard `isCardApproved` (cartão) tinha a assinatura incorreta.
-
-### Impacto em Outros Guards
-
-Verificação dos outros guards no arquivo:
-
-| Guard | Assinatura | Status |
-|-------|------------|--------|
-| `canRetry` | `({ context })` | CORRETO |
-| `isDataValid` | `({ context })` | CORRETO |
-| `hasRequiredFormFields` | `({ context })` | CORRETO |
-| `isPixPayment` | `({ context })` | CORRETO |
-| `isCardPayment` | `({ context })` | CORRETO |
-| `isCardApproved` | `(_, params)` | INCORRETO |
-
-Apenas `isCardApproved` precisa de correção.
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/lib/order-status/types.ts` | Adicionar `'refused'` aos status canônicos |
+| `src/lib/order-status/service.ts` | Mapear `rejected` → `'refused'` |
+| `src/modules/dashboard/types/dashboard.types.ts` | Adicionar `"Recusado"` ao CustomerDisplayStatus |
+| `src/components/dashboard/order-details/statusConfig.ts` | Adicionar config para "Recusado" |
+| `src/components/dashboard/recent-customers/CustomerTableRow.tsx` | Adicionar estilo para "Recusado" |
+| `supabase/functions/mercadopago-create-payment/index.ts` | Atualizar order para `refused` quando cartão recusado |
+| `supabase/functions/asaas-create-payment/index.ts` | Mesmo tratamento (se existir) |
