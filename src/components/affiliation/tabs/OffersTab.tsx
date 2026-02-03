@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { AffiliationDetails } from "@/hooks/useAffiliationDetails";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { api } from "@/lib/api";
+import { buildUrl } from "@/lib/urls";
 
 import { createLogger } from "@/lib/logger";
 
@@ -69,9 +70,10 @@ export function OffersTab({ affiliation }: OffersTabProps) {
     checkUserGateway();
   }, [user?.id]);
 
+  // Use centralized URL builder (SSOT) - replaces hardcoded risecheckout.com
   const getAffiliateLink = (paymentLinkSlug: string | null) => {
     if (!paymentLinkSlug) return null;
-    return `https://risecheckout.com/pay/${paymentLinkSlug}?ref=${affiliate_code}`;
+    return buildUrl(`/pay/${paymentLinkSlug}?ref=${affiliate_code}`, 'checkout');
   };
 
   const copyLink = (link: string | null) => {

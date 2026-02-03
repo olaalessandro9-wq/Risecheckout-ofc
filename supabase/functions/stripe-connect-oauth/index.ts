@@ -116,11 +116,13 @@ serve(async (req) => {
 
       // Verificar se houve erro no OAuth
       if (error) {
-        const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://risecheckout.com";
-        return Response.redirect(
-          `${frontendUrl}/dashboard/financeiro?stripe_error=${encodeURIComponent(errorDescription || error)}`,
-          302
+        // Use centralized site-urls.ts (SSOT) - replaces FRONTEND_URL secret
+        const { buildSiteUrl } = await import("../_shared/site-urls.ts");
+        const errorRedirectUrl = buildSiteUrl(
+          `/dashboard/financeiro?stripe_error=${encodeURIComponent(errorDescription || error)}`,
+          'default'
         );
+        return Response.redirect(errorRedirectUrl, 302);
       }
 
       if (!code || !state) {

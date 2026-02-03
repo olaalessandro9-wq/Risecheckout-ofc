@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatCentsToBRL as formatBRL } from "@/lib/money";
+import { toProductionUrl } from "@/lib/urls";
 
 export interface PaymentLink {
   id: string;
@@ -47,11 +48,9 @@ export function LinksTable({ links, onToggleStatus }: LinksTableProps) {
     link.slug.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Transforma a URL para usar sempre o domínio de produção
+  // Use centralized URL builder (SSOT) - replaces hardcoded risecheckout.com
   const getCorrectUrl = (originalUrl: string): string => {
-    const siteUrl = "https://risecheckout.com";
-    const urlWithoutDomain = originalUrl.replace(/^https?:\/\/[^/]+/, "");
-    return `${siteUrl}${urlWithoutDomain}`;
+    return toProductionUrl(originalUrl, 'checkout');
   };
 
   const copyToClipboard = (url: string) => {

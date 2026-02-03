@@ -143,6 +143,20 @@ export const SECRETS_MANIFEST: Record<string, SecretDefinition> = {
     description: 'API Key do ZeptoMail para envio de emails transacionais',
     required: false,
   },
+
+  // ========================================================================
+  // URLs E DOMÍNIOS
+  // ========================================================================
+  SITE_BASE_DOMAIN: {
+    name: 'SITE_BASE_DOMAIN',
+    description: 'Domínio base da plataforma (ex: risecheckout.com). Usado por site-urls.ts e cors-v2.ts. Fallback: PUBLIC_SITE_URL',
+    required: false, // Opcional pois PUBLIC_SITE_URL funciona como fallback
+  },
+  CORS_ALLOWED_ORIGINS: {
+    name: 'CORS_ALLOWED_ORIGINS',
+    description: 'Origins permitidas para CORS, separadas por vírgula. Usado por cors-v2.ts',
+    required: false, // Opcional, cors-v2.ts tem fallbacks
+  },
 };
 
 // ========================================================================

@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
+import { buildUrl } from "@/lib/urls";
 
 const log = createLogger("useProductOffers");
 
@@ -69,6 +70,7 @@ export function useProductOffers({
 
       const offersData = data?.offers || [];
       if (offersData.length > 0) {
+        // Use centralized URL builder (SSOT) - replaces window.location.origin
         const mappedOffers: Offer[] = offersData.map((offer) => {
           const commission = (offer.price * commissionPercentage) / 100;
           return {
@@ -77,7 +79,7 @@ export function useProductOffers({
             type: offer.is_default ? "one_time" : "secondary",
             price: offer.price || 0,
             commission: commission,
-            checkoutUrl: `${window.location.origin}/checkout/${offer.id}`,
+            checkoutUrl: buildUrl(`/checkout/${offer.id}`, 'checkout'),
           };
         });
 
