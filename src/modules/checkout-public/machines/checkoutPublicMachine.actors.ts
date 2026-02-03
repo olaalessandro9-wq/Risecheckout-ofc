@@ -45,13 +45,16 @@ export const fetchCheckoutDataActor = fromPromise<FetchCheckoutOutput, FetchChec
       };
     }
 
-    // Use resilientApi for checkout-optimized retry settings
+    // Use resilientApi with resolve-universal for Zero Latency Architecture
+    // This accepts BOTH checkout_slug AND payment_link_slug, eliminating
+    // the need for a separate PaymentLinkRedirect step.
     const { data, error } = await resilientApi.checkout<{
       success: boolean;
       data?: unknown;
       error?: string;
+      reason?: string;
     }>("checkout-public-data", {
-      action: "resolve-and-load",
+      action: "resolve-universal",
       slug,
       affiliateCode,
     });

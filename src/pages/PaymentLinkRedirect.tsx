@@ -1,17 +1,16 @@
 /**
  * PaymentLinkRedirect
  * 
- * MIGRATED: Uses Edge Function instead of supabase.from()
+ * @deprecated This page is DEPRECATED as of Zero Latency Architecture.
  * 
- * Esta página processa links de pagamento no formato /c/:slug
- * e redireciona para o checkout apropriado.
+ * The route /c/:slug now goes directly to PublicCheckoutV2 which uses
+ * resolve-universal BFF to accept both checkout_slug and payment_link_slug.
  * 
- * Fluxo:
- * 1. Recebe slug do link de pagamento
- * 2. Busca o link via Edge Function
- * 3. Verifica se o link está ativo
- * 4. Verifica se o produto está ativo
- * 5. Redireciona para /pay/:slug (usando o slug do payment_link)
+ * This file is kept for backwards compatibility only.
+ * New implementations should NOT use this page.
+ * 
+ * @see src/modules/checkout-public/components/CheckoutPublicLoader.tsx
+ * @see supabase/functions/checkout-public-data/handlers/resolve-universal-handler.ts
  */
 
 import { useEffect, useState } from "react";
@@ -21,6 +20,9 @@ import { Loader2 } from "lucide-react";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("PaymentLinkRedirect");
+
+// @deprecated - Use PublicCheckoutV2 directly with resolve-universal action
+console.warn("[DEPRECATED] PaymentLinkRedirect is deprecated. Use /pay/:slug route directly.");
 
 // Interface para tipagem do linkData retornado
 interface PaymentLinkWithOffers {

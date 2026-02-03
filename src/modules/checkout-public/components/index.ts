@@ -11,6 +11,7 @@ export { CheckoutPublicContent } from "./CheckoutPublicContent";
 export { CheckoutErrorDisplay } from "./CheckoutErrorDisplay";
 export { CheckoutErrorBoundary } from "./CheckoutErrorBoundary";
 export { OfflineIndicator, useOnlineStatus } from "./OfflineIndicator";
+export { CheckoutSkeleton } from "./CheckoutSkeleton";
 
 // Layout components (lightweight, no @dnd-kit)
 export { CheckoutPublicLayout, PublicComponentRenderer, PublicComponentList } from "./layout";

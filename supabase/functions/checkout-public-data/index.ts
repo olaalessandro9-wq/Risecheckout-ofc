@@ -38,6 +38,7 @@ import { handleProductPixels } from "./handlers/pixels-handler.ts";
 import { handleOrderByToken, handleCheckOrderPaymentStatus, handleGetCheckoutSlugByOrder } from "./handlers/order-handler.ts";
 import { handlePaymentLinkData } from "./handlers/payment-link-handler.ts";
 import { handleResolveAndLoad, handleAll } from "./handlers/resolve-and-load-handler.ts";
+import { handleResolveUniversal } from "./handlers/resolve-universal-handler.ts";
 
 import type { RequestBody, HandlerContext } from "./types.ts";
 
@@ -113,6 +114,9 @@ serve(async (req) => {
 
       case "resolve-and-load":
         return handleResolveAndLoad(ctx);
+
+      case "resolve-universal":
+        return handleResolveUniversal(ctx);
 
       case "all":
         return handleAll(ctx);

@@ -6,20 +6,22 @@
  * This is the main entry point for the public checkout page.
  * It uses the XState state machine to manage all state transitions.
  * 
- * PHASE 2: Integrated with CheckoutErrorBoundary and OfflineIndicator
- * for maximum resilience and user feedback.
+ * ZERO LATENCY ARCHITECTURE:
+ * - Shows CheckoutSkeleton INSTANTLY (0ms perceived latency)
+ * - Uses resolve-universal BFF (single HTTP call)
+ * - Accepts both checkout_slug and payment_link_slug
  * 
  * @module checkout-public/components
  */
 
 import React from "react";
 import { useParams } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { useCheckoutPublicMachine } from "../hooks";
 import { CheckoutErrorDisplay } from "./CheckoutErrorDisplay";
 import { CheckoutPublicContent } from "./CheckoutPublicContent";
 import { CheckoutErrorBoundary } from "./CheckoutErrorBoundary";
 import { OfflineIndicator } from "./OfflineIndicator";
+import { CheckoutSkeleton } from "./CheckoutSkeleton";
 
 export const CheckoutPublicLoader: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -45,15 +47,14 @@ export const CheckoutPublicLoader: React.FC = () => {
     design,
   } = machine;
 
-  // Loading state (initial load only)
+  // ZERO LATENCY: Show skeleton INSTANTLY during loading states
+  // This eliminates the "Processing payment link..." and "Loading checkout..." screens
   if (isIdle || isLoading || isValidating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Carregando checkout...</p>
-        </div>
-      </div>
+      <>
+        <OfflineIndicator />
+        <CheckoutSkeleton />
+      </>
     );
   }
 
