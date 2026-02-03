@@ -20,7 +20,7 @@ const Cadastro = lazyWithRetry(() => import("@/pages/Cadastro"));
 const RecuperarSenha = lazyWithRetry(() => import("@/pages/RecuperarSenha"));
 const RedefinirSenha = lazyWithRetry(() => import("@/pages/RedefinirSenha"));
 const PublicCheckoutV2 = lazyWithRetry(() => import("@/pages/PublicCheckoutV2"));
-const PaymentLinkRedirect = lazyWithRetry(() => import("@/pages/PaymentLinkRedirect"));
+
 const PixPaymentPage = lazyWithRetry(() => import("@/pages/PixPaymentPage"));
 const MercadoPagoPayment = lazyWithRetry(() => import("@/pages/MercadoPagoPayment").then(m => ({ default: m.MercadoPagoPayment })));
 const PaymentSuccessPage = lazyWithRetry(() => import("@/pages/PaymentSuccessPage"));

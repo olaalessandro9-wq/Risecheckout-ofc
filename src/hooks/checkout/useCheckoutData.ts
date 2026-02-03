@@ -1,11 +1,22 @@
 /**
- * Hook: useCheckoutData (V3 - REFATORADO)
+ * @deprecated Este hook foi substituído pela Zero Latency Architecture.
  * 
- * Orquestrador que usa helpers modulares para buscar dados do checkout.
+ * Use o módulo checkout-public com XState machine:
+ * - src/modules/checkout-public/machine/checkoutPublicMachine.ts
+ * - src/modules/checkout-public/hooks/useCheckoutPublicLoader.ts
  * 
- * REFATORAÇÃO (RISE ARCHITECT PROTOCOL):
- * - Lógica de fetch extraída para helpers individuais
- * - Este arquivo agora tem ~120 linhas (antes: 430)
+ * A action "resolve-and-load" foi substituída por "resolve-universal" que
+ * aceita tanto checkout_slug quanto payment_link_slug em uma única chamada.
+ * 
+ * @see docs/CHECKOUT_PUBLIC_MODULE_ARCHITECTURE.md
+ * @see supabase/functions/checkout-public-data/handlers/resolve-universal-handler.ts
+ * 
+ * Hook: useCheckoutData (LEGACY - NÃO UTILIZAR)
+ * 
+ * RISE ARCHITECT PROTOCOL V3:
+ * - Status: DEPRECATED
+ * - Substituído por: Zero Latency Architecture (Fevereiro 2026)
+ * - Motivo: Arquitetura antiga com múltiplas chamadas HTTP
  */
 
 import { useState, useEffect } from "react";
