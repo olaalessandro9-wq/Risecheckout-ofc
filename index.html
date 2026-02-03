@@ -10,22 +10,7 @@
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     
-    <!-- Content Security Policy - Proteção avançada contra XSS -->
-    <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://js.stripe.com https://sdk.mercadopago.com https://http2.mlstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://analytics.tiktok.com https://kpx.alicdn.com;
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      font-src 'self' https://fonts.gstatic.com data:;
-      img-src 'self' data: https: blob:;
-      connect-src 'self' https://api.risecheckout.com https://*.supabase.co wss://*.supabase.co https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://http2.mlstatic.com https://events.mercadopago.com https://api.stripe.com https://challenges.cloudflare.com https://www.google-analytics.com https://api.utmify.com.br https://graph.facebook.com https://analytics.tiktok.com https://kpx.alicdn.com https://*.sentry.io https://*.ingest.us.sentry.io;
-      frame-src 'self' https://js.stripe.com https://challenges.cloudflare.com https://*.mercadopago.com https://*.mercadolibre.com https://www.mercadopago.com.br https://www.youtube.com https://player.vimeo.com;
-      media-src 'self' https: blob:;
-      worker-src 'self' blob:;
-      object-src 'none';
-      base-uri 'self';
-      form-action 'self';
-      upgrade-insecure-requests;
-    ">
+    <!-- CSP definida via HTTP header no vercel.json (fonte única de verdade) -->
     <title>Risecheckout</title>
     <meta name="description" content="Plataforma completa para gestão e venda de produtos digitais com sistema de afiliados">
     <meta name="author" content="RiseCheckout" />
