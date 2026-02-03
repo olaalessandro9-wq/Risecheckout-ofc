@@ -13,7 +13,7 @@ import * as UTMify from "@/integrations/tracking/utmify";
 import * as GoogleAds from "@/integrations/tracking/google-ads";
 import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
-import type { CheckoutPixel } from "@/hooks/checkout/useCheckoutProductPixels";
+import type { CheckoutPixel } from "@/types/checkout-pixels.types";
 import type { UTMifyIntegration } from "@/integrations/tracking/utmify/types";
 
 // ============================================================================
