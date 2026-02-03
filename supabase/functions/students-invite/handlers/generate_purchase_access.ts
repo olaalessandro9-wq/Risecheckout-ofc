@@ -7,6 +7,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { hashToken } from "../helpers/hash.ts";
 import { generateToken } from "../helpers/token.ts";
 import { jsonResponse } from "../helpers/response.ts";
+import { buildSiteUrl } from "../../_shared/site-urls.ts";
 import type { ProductData } from "../types.ts";
 
 export async function handleGeneratePurchaseAccess(
@@ -77,7 +78,6 @@ export async function handleGeneratePurchaseAccess(
     granted_at: new Date().toISOString(),
   }, { onConflict: "buyer_id,product_id" });
 
-  const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
   const needsPasswordSetup = !passwordHash || passwordHash === "PENDING_PASSWORD_SETUP";
 
   if (needsPasswordSetup) {
@@ -95,8 +95,16 @@ export async function handleGeneratePurchaseAccess(
       expires_at: expiresAt.toISOString(),
     });
 
-    return jsonResponse({ success: true, needsPasswordSetup: true, accessUrl: `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}` }, 200, corsHeaders);
+    return jsonResponse({ 
+      success: true, 
+      needsPasswordSetup: true, 
+      accessUrl: buildSiteUrl(`/minha-conta/setup-acesso?token=${rawToken}`, 'members')
+    }, 200, corsHeaders);
   }
 
-  return jsonResponse({ success: true, needsPasswordSetup: false, accessUrl: `${baseUrl}/minha-conta` }, 200, corsHeaders);
+  return jsonResponse({ 
+    success: true, 
+    needsPasswordSetup: false, 
+    accessUrl: buildSiteUrl('/minha-conta', 'members')
+  }, 200, corsHeaders);
 }

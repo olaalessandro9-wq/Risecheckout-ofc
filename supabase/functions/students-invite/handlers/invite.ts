@@ -11,6 +11,7 @@ import { generateToken } from "../helpers/token.ts";
 import { jsonResponse } from "../helpers/response.ts";
 import { sendEmail } from "../../_shared/zeptomail.ts";
 import { createLogger } from "../../_shared/logger.ts";
+import { buildSiteUrl } from "../../_shared/site-urls.ts";
 import type { ProductData } from "../types.ts";
 
 const log = createLogger("students-invite-handler");
@@ -86,8 +87,7 @@ export async function handleInvite(
   // RISE V3: Use users.id for student_invite_tokens
   await supabase.from("student_invite_tokens").insert({ token_hash: tokenHash, buyer_id: userId, product_id: productId, invited_by: producerId, expires_at: expiresAt.toISOString() });
 
-  const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
-  const accessLink = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
+  const accessLink = buildSiteUrl(`/minha-conta/setup-acesso?token=${rawToken}`, 'members');
 
   // RISE V3: Use 'users' table as SSOT for producer name
   const { data: producerUser } = await supabase.from("users").select("name").eq("id", producerId).single();

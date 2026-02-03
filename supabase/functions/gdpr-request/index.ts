@@ -14,6 +14,7 @@ import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, getClientIP, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { sendEmail } from "../_shared/zeptomail.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { buildSiteUrl } from "../_shared/site-urls.ts";
 
 const log = createLogger("gdpr-request");
 
@@ -256,9 +257,8 @@ serve(async (req: Request) => {
       );
     }
 
-    // 9. Construir URL de verificação
-    const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
-    const verificationUrl = `${publicSiteUrl}/lgpd/confirmar?token=${verificationToken}`;
+    // 9. Construir URL de verificação usando helper centralizado
+    const verificationUrl = buildSiteUrl(`/lgpd/confirmar?token=${verificationToken}`, 'default');
 
     // 10. Enviar email de confirmação
     const emailResult = await sendEmail({

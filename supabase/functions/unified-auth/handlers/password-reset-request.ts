@@ -14,6 +14,7 @@ import { rateLimitMiddleware, getClientIP, RATE_LIMIT_CONFIGS } from "../../_sha
 import { sendEmail } from "../../_shared/zeptomail.ts";
 import { sanitizeEmail } from "../../_shared/sanitizer.ts";
 import { RESET_TOKEN_EXPIRY_HOURS } from "../../_shared/auth-constants.ts";
+import { buildSiteUrl } from "../../_shared/site-urls.ts";
 
 // Email templates inline
 function getPasswordResetEmailHtml(name: string | null, resetLink: string): string {
@@ -114,9 +115,8 @@ export async function handlePasswordResetRequest(
       return errorResponse("Erro ao processar solicitação", corsHeaders, 500);
     }
 
-    // Build reset link
-    const siteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
-    const resetLink = `${siteUrl}/redefinir-senha?token=${resetToken}`;
+    // Build reset link using centralized URL builder
+    const resetLink = buildSiteUrl(`/redefinir-senha?token=${resetToken}`, 'default');
 
     // Send email
     const emailResult = await sendEmail({
