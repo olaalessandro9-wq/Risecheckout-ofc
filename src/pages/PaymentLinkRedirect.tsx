@@ -21,9 +21,6 @@ import { createLogger } from "@/lib/logger";
 
 const log = createLogger("PaymentLinkRedirect");
 
-// @deprecated - Use PublicCheckoutV2 directly with resolve-universal action
-console.warn("[DEPRECATED] PaymentLinkRedirect is deprecated. Use /pay/:slug route directly.");
-
 // Interface para tipagem do linkData retornado
 interface PaymentLinkWithOffers {
   id: string;

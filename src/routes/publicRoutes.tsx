@@ -70,6 +70,7 @@ export const publicRoutes: RouteObject[] = [
   // Checkout & Payments
   // ZERO LATENCY ARCHITECTURE: Both /c/:slug and /pay/:slug use the same component
   // The resolve-universal BFF accepts both checkout_slug and payment_link_slug
+  // @see supabase/functions/checkout-public-data/handlers/resolve-universal-handler.ts
   { 
     path: "/c/:slug", 
     element: <Suspense fallback={<PageLoader />}><PublicCheckoutV2 /></Suspense> 

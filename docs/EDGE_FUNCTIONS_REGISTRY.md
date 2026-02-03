@@ -176,7 +176,7 @@
 | `vendor-integrations` | sessions | false | unified-auth-v2 |
 | **Public Endpoints** | | | |
 | `affiliation-public` | public | false | Dados públicos de afiliação |
-| `checkout-public-data` | public | false | BFF Modular (11 handlers) |
+| `checkout-public-data` | public | false | BFF Modular (12 handlers) - Zero Latency |
 | `marketplace-public` | public | false | Endpoints públicos marketplace |
 
 ---
