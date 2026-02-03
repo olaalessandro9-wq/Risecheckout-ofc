@@ -235,7 +235,21 @@ serve(async (req) => {
     }
 
     if (!result.success) {
-      log.error('Adapter returned error', { error: result.error_message });
+      log.error('Adapter returned error', { error: result.error_message, status: result.status });
+      
+      // RISE V3: Registrar cartão recusado no banco ANTES de retornar erro
+      if (paymentMethod === 'credit_card' && result.status === 'refused') {
+        await supabase.from('orders').update({
+          status: 'refused',
+          gateway: 'mercadopago',
+          gateway_payment_id: result.transaction_id || null,
+          payment_method: 'credit_card',
+          updated_at: new Date().toISOString()
+        }).eq('id', orderId);
+        
+        log.info('Order updated to refused status', { orderId });
+      }
+      
       return createErrorResponse(ERROR_CODES.GATEWAY_API_ERROR, result.error_message || 'Erro ao processar pagamento', 400, corsHeaders);
     }
 

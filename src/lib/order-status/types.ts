@@ -31,6 +31,7 @@
 export const CANONICAL_STATUSES = [
   'paid',
   'pending',
+  'refused',      // Cartão recusado (CVV inválido, limite, etc)
   'refunded',
   'chargeback',
 ] as const;
@@ -69,6 +70,7 @@ export type TechnicalOrderStatus = typeof TECHNICAL_STATUSES[number];
 export const STATUS_DISPLAY_MAP: Readonly<Record<CanonicalOrderStatus, string>> = {
   paid: 'Pago',
   pending: 'Pendente',
+  refused: 'Recusado',
   refunded: 'Reembolso',
   chargeback: 'Chargeback',
 } as const;
@@ -104,6 +106,12 @@ export const STATUS_COLORS: Readonly<Record<CanonicalOrderStatus, StatusColorSch
     border: 'border-amber-500/20',
     dot: 'bg-amber-500',
   },
+  refused: {
+    bg: 'bg-orange-500/10',
+    text: 'text-orange-500',
+    border: 'border-orange-500/20',
+    dot: 'bg-orange-500',
+  },
   refunded: {
     bg: 'bg-blue-500/10',
     text: 'text-blue-500',
@@ -128,8 +136,10 @@ export const STATUS_COLORS: Readonly<Record<CanonicalOrderStatus, StatusColorSch
 export const STATUS_CATEGORIES = {
   /** Successfully completed payments */
   success: ['paid'] as const,
-  /** Payments awaiting confirmation (includes expired - padrão mercado) */
+  /** Payments awaiting confirmation (PIX aguardando) */
   pending: ['pending'] as const,
+  /** Card payments that were refused */
+  refused: ['refused'] as const,
   /** Payments that were reversed */
   reversed: ['refunded', 'chargeback'] as const,
 } as const;

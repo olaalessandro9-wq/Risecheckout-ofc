@@ -73,12 +73,15 @@ const GATEWAY_STATUS_MAP: Readonly<Record<string, CanonicalOrderStatus>> = {
   expired_pix: 'pending',
   abandoned: 'pending',
   
-  // ===== FAILED/REJECTED (→ pending, padrão mercado) =====
-  // Erros de gateway = venda continua pendente
-  failed: 'pending',
-  rejected: 'pending',
-  error: 'pending',
-  declined: 'pending',
+  // ===== FAILED/REJECTED (→ refused) =====
+  // Cartão recusado = status próprio "refused"
+  failed: 'refused',
+  rejected: 'refused',
+  error: 'refused',
+  declined: 'refused',
+  refused: 'refused',
+  card_declined: 'refused',
+  cc_rejected: 'refused',
   
   // ===== REFUND/CHARGEBACK =====
   dispute: 'chargeback',
@@ -178,6 +181,13 @@ class OrderStatusService {
    */
   isPending(status: string | null | undefined): boolean {
     return this.normalize(status) === 'pending';
+  }
+
+  /**
+   * Check if a status is considered "refused" (card declined)
+   */
+  isRefused(status: string | null | undefined): boolean {
+    return this.normalize(status) === 'refused';
   }
 
   /**
