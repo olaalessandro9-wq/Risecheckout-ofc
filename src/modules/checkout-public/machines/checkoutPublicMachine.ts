@@ -49,8 +49,10 @@ export const checkoutPublicMachine = setup({
     hasRequiredFormFields,
     isPixPayment: ({ context }) => context.selectedPaymentMethod === 'pix',
     isCardPayment: ({ context }) => context.selectedPaymentMethod === 'credit_card',
-    isCardApproved: (_, params: { output?: { navigationData?: NavigationData } }) => 
-      params?.output?.navigationData?.type === 'card' && params.output.navigationData.status === 'approved',
+    isCardApproved: ({ event }) => {
+      const output = (event as { output?: { navigationData?: NavigationData } }).output;
+      return output?.navigationData?.type === 'card' && output.navigationData?.status === 'approved';
+    },
   },
 }).createMachine({
   id: "checkoutPublic",
