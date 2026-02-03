@@ -234,6 +234,9 @@ export const mockInitialContext: CheckoutPublicContext = {
     mercadoPagoPublicKey: null,
     stripePublicKey: null,
   },
+  // Phase 2: BFF Unified Data
+  productPixels: [],
+  vendorIntegration: null,
   formData: {
     name: "",
     email: "",

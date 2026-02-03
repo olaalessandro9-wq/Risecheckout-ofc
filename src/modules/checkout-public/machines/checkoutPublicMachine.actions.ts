@@ -38,6 +38,9 @@ export function getValidatedContextData(context: CheckoutPublicContext): Partial
     affiliate: mapped.affiliate,
     design: mapped.design,
     resolvedGateways: mapped.resolvedGateways,
+    // Phase 2: BFF Unified Data
+    productPixels: mapped.productPixels,
+    vendorIntegration: mapped.vendorIntegration,
     selectedPaymentMethod: mapped.product.default_payment_method,
     loadedAt: Date.now(),
     retryCount: 0,

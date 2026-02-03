@@ -129,6 +129,33 @@ export interface CheckoutError {
 }
 
 // ============================================================================
+// PRODUCT PIXELS AND VENDOR INTEGRATION TYPES (Phase 2)
+// ============================================================================
+
+export interface ProductPixelData {
+  id: string;
+  platform: string;
+  pixel_id: string;
+  access_token?: string | null;
+  conversion_label?: string | null;
+  domain?: string | null;
+  is_active: boolean;
+  fire_on_initiate_checkout: boolean;
+  fire_on_purchase: boolean;
+  fire_on_pix: boolean;
+  fire_on_card: boolean;
+  fire_on_boleto: boolean;
+  custom_value_percent: number;
+}
+
+export interface VendorIntegrationData {
+  id: string;
+  vendor_id: string;
+  active: boolean;
+  config: unknown;
+}
+
+// ============================================================================
 // CONTEXT
 // ============================================================================
 
@@ -146,6 +173,10 @@ export interface CheckoutPublicContext {
   affiliate: AffiliateUIModel | null;
   design: ThemePreset | null;
   resolvedGateways: ResolvedGateways;
+  
+  // === Phase 2: BFF Unified Data ===
+  productPixels: ProductPixelData[];
+  vendorIntegration: VendorIntegrationData | null;
   
   // === Form State ===
   formData: FormData;

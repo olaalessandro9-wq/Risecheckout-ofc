@@ -34,6 +34,10 @@ export const initialCheckoutContext: CheckoutPublicContext = {
     stripePublicKey: null,
   },
   
+  // === Phase 2: BFF Unified Data ===
+  productPixels: [],
+  vendorIntegration: null,
+  
   // === Form State ===
   formData: { 
     name: '', 

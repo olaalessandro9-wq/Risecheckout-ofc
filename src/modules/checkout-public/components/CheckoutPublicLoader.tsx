@@ -6,16 +6,23 @@
  * This is the main entry point for the public checkout page.
  * It uses the XState state machine to manage all state transitions.
  * 
+ * PHASE 2: Integrated with CheckoutErrorBoundary and OfflineIndicator
+ * for maximum resilience and user feedback.
+ * 
  * @module checkout-public/components
  */
 
 import React from "react";
+import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useCheckoutPublicMachine } from "../hooks";
 import { CheckoutErrorDisplay } from "./CheckoutErrorDisplay";
 import { CheckoutPublicContent } from "./CheckoutPublicContent";
+import { CheckoutErrorBoundary } from "./CheckoutErrorBoundary";
+import { OfflineIndicator } from "./OfflineIndicator";
 
 export const CheckoutPublicLoader: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>();
   const machine = useCheckoutPublicMachine();
   
   const {
@@ -53,14 +60,17 @@ export const CheckoutPublicLoader: React.FC = () => {
   // Error state (machine error, not payment error)
   if (isError) {
     return (
-      <CheckoutErrorDisplay
-        errorReason={errorReason}
-        errorMessage={errorMessage}
-        canRetry={canRetry}
-        retryCount={retryCount}
-        onRetry={retry}
-        onGiveUp={giveUp}
-      />
+      <>
+        <OfflineIndicator />
+        <CheckoutErrorDisplay
+          errorReason={errorReason}
+          errorMessage={errorMessage}
+          canRetry={canRetry}
+          retryCount={retryCount}
+          onRetry={retry}
+          onGiveUp={giveUp}
+        />
+      </>
     );
   }
 
@@ -70,18 +80,28 @@ export const CheckoutPublicLoader: React.FC = () => {
   const shouldShowContent = isReady || isSubmitting || isPaymentPending || isSuccess;
   
   if (shouldShowContent && checkout && product && design) {
-    return <CheckoutPublicContent machine={machine} />;
+    return (
+      <>
+        <OfflineIndicator />
+        <CheckoutErrorBoundary slug={slug || 'unknown'}>
+          <CheckoutPublicContent machine={machine} />
+        </CheckoutErrorBoundary>
+      </>
+    );
   }
 
   // Fallback: Only show error if we truly have no data
   // This should rarely happen - only for invalid slugs or network failures
   return (
-    <CheckoutErrorDisplay
-      errorReason="CHECKOUT_NOT_FOUND"
-      errorMessage="Checkout não encontrado"
-      canRetry={false}
-      retryCount={0}
-      onRetry={() => {}}
-    />
+    <>
+      <OfflineIndicator />
+      <CheckoutErrorDisplay
+        errorReason="CHECKOUT_NOT_FOUND"
+        errorMessage="Checkout não encontrado"
+        canRetry={false}
+        retryCount={0}
+        onRetry={() => {}}
+      />
+    </>
   );
 };
