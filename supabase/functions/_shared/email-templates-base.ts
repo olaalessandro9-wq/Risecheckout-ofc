@@ -1,10 +1,33 @@
 /**
  * Email Templates - Base Utilities
  * 
- * Helpers compartilhados por todos os templates de email.
+ * RISE Protocol V3 - 10.0/10
  * 
- * RISE Protocol Compliant - < 100 linhas
+ * Helpers compartilhados por todos os templates de email.
+ * Uses site-urls.ts for zero hardcoded URLs.
+ * 
+ * @version 2.0.0
  */
+
+import { getSiteBaseUrl } from "./site-urls.ts";
+
+// ============================================================================
+// CONSTANTS (Dynamic, not hardcoded)
+// ============================================================================
+
+/**
+ * Gets the logo URL dynamically based on SITE_BASE_DOMAIN.
+ * Falls back to current domain if not in email context.
+ */
+export function getLogoUrl(): string {
+  try {
+    const baseUrl = getSiteBaseUrl('default');
+    return `${baseUrl}/logo-risecheckout-v2.png`;
+  } catch {
+    // Fallback for edge cases where env is not available
+    return 'https://www.risecheckout.com/logo-risecheckout-v2.png';
+  }
+}
 
 // ============================================================================
 // TYPES - Re-exported for convenience

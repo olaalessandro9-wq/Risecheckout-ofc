@@ -45,10 +45,13 @@ export const isPreview: boolean =
 
 /**
  * True when running on the production domain.
+ * Uses VITE_SITE_BASE_DOMAIN if configured, fallback to risecheckout.com check.
  */
 export const isProductionDomain: boolean =
   typeof window !== 'undefined' &&
-  window.location.hostname.includes('risecheckout.com');
+  (import.meta.env.VITE_SITE_BASE_DOMAIN
+    ? window.location.hostname.includes(import.meta.env.VITE_SITE_BASE_DOMAIN)
+    : window.location.hostname.includes('risecheckout.com'));
 
 // ============================================================================
 // MODE HELPERS

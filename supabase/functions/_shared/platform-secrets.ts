@@ -149,8 +149,8 @@ export const SECRETS_MANIFEST: Record<string, SecretDefinition> = {
   // ========================================================================
   SITE_BASE_DOMAIN: {
     name: 'SITE_BASE_DOMAIN',
-    description: 'Domínio base da plataforma (ex: risecheckout.com). Usado por site-urls.ts e cors-v2.ts. Fallback: PUBLIC_SITE_URL',
-    required: false, // Opcional pois PUBLIC_SITE_URL funciona como fallback
+    description: 'Domínio base da plataforma (ex: risecheckout.com). Usado por site-urls.ts, email-config.ts, e cors-v2.ts. OBRIGATÓRIO desde RISE V3.',
+    required: true, // RISE V3: Obrigatório, sem fallbacks legados
   },
   CORS_ALLOWED_ORIGINS: {
     name: 'CORS_ALLOWED_ORIGINS',

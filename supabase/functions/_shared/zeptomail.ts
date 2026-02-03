@@ -1,11 +1,18 @@
 /**
  * ZeptoMail Shared Module
  * 
+ * RISE Protocol V3 - 10.0/10
+ * 
  * Módulo utilitário para envio de emails via ZeptoMail API.
  * Suporta 3 tipos de email com remetentes diferentes.
+ * 
+ * Uses centralized email-config.ts for zero hardcoded emails.
+ * 
+ * @version 2.0.0
  */
 
 import { createLogger } from "./logger.ts";
+import { getSupportEmail, getNoReplyEmail, getNotificationsEmail } from "./email-config.ts";
 
 const log = createLogger("ZeptoMail");
 
@@ -44,28 +51,19 @@ export interface SendEmailResult {
 
 /**
  * Retorna o email e nome do remetente baseado no tipo de email.
+ * Uses email-config.ts for centralized email address management.
  */
 export function getFromEmail(type: EmailType = 'transactional'): { email: string; name: string } {
-  // DEFENSIVE: .trim() removes accidental whitespace/tabs from environment variables
   const fromName = (Deno.env.get('ZEPTOMAIL_FROM_NAME') || 'Rise Checkout').trim();
   
   switch (type) {
     case 'support':
-      return {
-        email: (Deno.env.get('ZEPTOMAIL_FROM_SUPPORT') || 'suporte@risecheckout.com').trim(),
-        name: fromName,
-      };
+      return { email: getSupportEmail(), name: fromName };
     case 'notification':
-      return {
-        email: (Deno.env.get('ZEPTOMAIL_FROM_NOTIFICATIONS') || 'notificacoes@risecheckout.com').trim(),
-        name: fromName,
-      };
+      return { email: getNotificationsEmail(), name: fromName };
     case 'transactional':
     default:
-      return {
-        email: (Deno.env.get('ZEPTOMAIL_FROM_NOREPLY') || 'naoresponda@risecheckout.com').trim(),
-        name: fromName,
-      };
+      return { email: getNoReplyEmail(), name: fromName };
   }
 }
 

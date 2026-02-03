@@ -1,13 +1,18 @@
 /**
  * Email Templates - Members Area Delivery
  * 
+ * RISE Protocol V3 - 10.0/10
+ * 
  * Template para confirmação de compra com acesso à área de membros.
  * O link é gerado automaticamente para /minha-conta/produtos/{productId}
+ * Uses centralized helpers for zero hardcoded URLs/emails.
  * 
- * RISE Protocol Compliant - < 150 linhas
+ * @version 2.0.0
  */
 
-import { PurchaseConfirmationData, formatCurrency } from "./email-templates-base.ts";
+import { PurchaseConfirmationData, formatCurrency, getLogoUrl } from "./email-templates-base.ts";
+import { getSiteBaseUrl } from "./site-urls.ts";
+import { getSupportEmail } from "./email-config.ts";
 
 // ============================================================================
 // MEMBERS AREA CONFIRMATION (HTML)
@@ -47,7 +52,7 @@ export function getMembersAreaConfirmationTemplate(data: PurchaseConfirmationDat
 
   const content = `
     <div class="header">
-      <img src="https://www.risecheckout.com/logo-risecheckout-v2.png" alt="Rise Checkout Logo">
+      <img src="${getLogoUrl()}" alt="Rise Checkout Logo">
     </div>
     <div class="content">
       <h1>Sua compra foi confirmada!</h1>
@@ -86,12 +91,12 @@ export function getMembersAreaConfirmationTemplate(data: PurchaseConfirmationDat
       </div>
     </div>
     <div class="support">
-      <p>Em caso de dúvidas sobre sua compra ou acesso, entre em contato: <a href="mailto:${data.supportEmail || 'suporte@risecheckout.com'}">${data.supportEmail || 'suporte@risecheckout.com'}</a>.</p>
+      <p>Em caso de dúvidas sobre sua compra ou acesso, entre em contato: <a href="mailto:${data.supportEmail || getSupportEmail()}">${data.supportEmail || getSupportEmail()}</a>.</p>
     </div>
     <div class="footer">
       ${data.sellerName ? `<p>Vendido por: <strong>${data.sellerName}</strong></p>` : ''}
       <p>Pagamento processado com segurança por <strong>Rise Checkout</strong>.</p>
-      <p><a href="https://risecheckout.com">risecheckout.com</a></p>
+      <p><a href="${getSiteBaseUrl('default')}">${getSiteBaseUrl('default').replace('https://', '')}</a></p>
     </div>
   `;
 
@@ -138,7 +143,7 @@ Nº do Pedido: #${data.orderId.substring(0, 8).toUpperCase()}
 ${data.paymentMethod ? `Forma de Pagamento: ${data.paymentMethod}` : ''}
 Total Pago: ${formatCurrency(data.amountCents)}
 
-Em caso de dúvidas, entre em contato: ${data.supportEmail || 'suporte@risecheckout.com'}
+Em caso de dúvidas, entre em contato: ${data.supportEmail || getSupportEmail()}
 
 ${data.sellerName ? `Vendido por: ${data.sellerName}` : ''}
 Processado com segurança por Rise Checkout
