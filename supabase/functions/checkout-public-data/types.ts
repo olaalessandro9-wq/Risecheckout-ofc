@@ -27,6 +27,7 @@ export type ActionType =
   | "order-by-token" 
   | "payment-link-data"
   | "resolve-and-load"
+  | "resolve-universal"
   | "check-order-payment-status"
   | "get-checkout-slug-by-order";
 
