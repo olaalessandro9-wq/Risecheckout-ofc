@@ -1,226 +1,165 @@
 
 
-# Plano de Ação: Eliminação Total do Código Legado `auth.users`
+# Plano: Eliminação Total de Código Legado de Cookies/Sessões
 
-## 📊 Análise de Soluções (RISE V3 Mandatório)
+## Status Atual
 
-### Solução A: Eliminação Completa com Reescrita Total
-- **Manutenibilidade:** 10/10 - Zero referências a sistema abandonado
-- **Zero DT:** 10/10 - Elimina 100% da dívida técnica
-- **Arquitetura:** 10/10 - Single Source of Truth absoluto (tabela `users`)
-- **Escalabilidade:** 10/10 - Sem dependências de sistema externo
-- **Segurança:** 10/10 - Sem pontos de falha por tabela vazia
+**RISE V3 Score: 7.5/10** - Código de transição ainda presente
+
+A migração do banco de dados foi bem-sucedida, mas o código mantém fallbacks desnecessários que constituem dívida técnica.
+
+## Análise de Soluções (RISE Protocol V3 §4.4)
+
+### Solução A: Manter Estado Atual
+- Manutenibilidade: 6/10 (código confuso)
+- Zero DT: 5/10 (fallback é dívida)
+- Arquitetura: 7/10 (funciona mas está sujo)
+- Escalabilidade: 8/10 (não bloqueia)
+- Segurança: 9/10 (cookies funcionam)
+- **NOTA FINAL: 6.7/10**
+- Tempo estimado: 0 minutos
+
+### Solução B: Remover Fallback, Manter Cleanup
+- Manutenibilidade: 9/10 (código limpo)
+- Zero DT: 9/10 (quase zero)
+- Arquitetura: 9/10 (separação clara)
+- Escalabilidade: 10/10 (sem overhead)
+- Segurança: 10/10 (melhor)
+- **NOTA FINAL: 9.3/10**
+- Tempo estimado: 30 minutos
+
+### Solução C: Eliminação Total (Purge Absoluto)
+- Manutenibilidade: 10/10 (zero código morto)
+- Zero DT: 10/10 (absolutamente zero)
+- Arquitetura: 10/10 (Clean Architecture)
+- Escalabilidade: 10/10 (sem overhead)
+- Segurança: 10/10 (superfície reduzida)
 - **NOTA FINAL: 10.0/10**
-- **Tempo estimado:** 1-2 dias
+- Tempo estimado: 45 minutos
 
-### Solução B: Migração Gradual com Fallbacks
-- **Manutenibilidade:** 6/10 - Mantém código de fallback
-- **Zero DT:** 4/10 - Cria mais dívida técnica
-- **Arquitetura:** 5/10 - Viola Single Source of Truth
-- **Escalabilidade:** 6/10 - Complexidade desnecessária
-- **Segurança:** 7/10 - Pontos de falha ocultos
-- **NOTA FINAL: 5.6/10**
-- **Tempo estimado:** 30 minutos
+### DECISAO: Solucao C (Nota 10.0)
 
-### DECISÃO: Solução A (Nota 10.0)
-**Justificativa:** A Solução B seria "rápida" mas criaria mais dívida técnica e violaria o RISE Protocol V3. Não existe justificativa para manter código que consulta uma tabela abandonada.
+Conforme Lei Suprema §4.6: A melhor solucao VENCE. SEMPRE.
 
 ---
 
-## 📋 Inventário de Código Legado a Eliminar
+## Arquivos a Modificar
 
-### Edge Functions
-| Arquivo | Problema | Ação |
-|---------|----------|------|
-| `get-users-with-emails/index.ts` | Usa `auth.admin.listUsers()` | DELETAR inteiramente |
-| `_shared/user-sync.ts` | Consulta `auth.users` via RPC | DELETAR inteiramente |
-| `_shared/test-helpers.ts` | Usa `auth.admin.createUser/deleteUser` | REESCREVER para usar `users` |
-| `create-order/handlers/affiliate/index.ts` | Usa `auth.admin.getUserById()` | CORRIGIR para usar `users` |
-
-### RPC Functions (SQL)
-| Função | Problema | Ação |
-|--------|----------|------|
-| `get_auth_user_by_email` | Consulta `auth.users` | DROPAR |
-| `get_user_email` | Consulta `auth.users` | REESCREVER para usar `users` |
-
-### Frontend
-| Arquivo | Problema | Ação |
-|---------|----------|------|
-| `src/modules/admin/context/adminFetchers.ts` | Chama função obsoleta | REMOVER chamada |
-| `src/lib/rpc/rpcProxy.ts` | Exporta função obsoleta | REMOVER export |
-| `supabase/functions/rpc-proxy/index.ts` | Lista RPC obsoleto | REMOVER da lista |
-
-### Documentação
-| Arquivo | Problema | Ação |
-|---------|----------|------|
-| `docs/EDGE_FUNCTIONS_REGISTRY.md` | Lista função obsoleta | ATUALIZAR |
-
----
-
-## 🔧 Plano de Execução (14 Passos)
-
-### Fase 1: Eliminação de Edge Functions Legadas
-
-**Passo 1:** Deletar `supabase/functions/get-users-with-emails/` (pasta inteira)
-- Esta função é 100% inútil - consulta tabela abandonada
-- Nenhuma funcionalidade será perdida - os emails já estão na tabela `users`
-
-**Passo 2:** Deletar `supabase/functions/_shared/user-sync.ts`
-- Módulo de "sincronização" entre `auth.users` e `users` é obsoleto
-- O sistema Unified Auth já cria usuários diretamente em `users`
-- Nenhuma outra função importa este módulo (confirmado via busca)
-
-### Fase 2: Correção de Dependências Remanescentes
-
-**Passo 3:** Corrigir `create-order/handlers/affiliate/index.ts`
-- Função `checkSelfReferral` usa `auth.admin.getUserById()`
-- Reescrever para buscar email diretamente da tabela `users`
-
-**Passo 4:** Reescrever `_shared/test-helpers.ts`
-- Remover uso de `auth.admin.createUser()`
-- Remover uso de `auth.admin.deleteUser()`
-- Usar tabela `users` como SSOT
-- Remover referências a tabela `profiles` (também legada)
-
-### Fase 3: Limpeza do Frontend
-
-**Passo 5:** Atualizar `src/modules/admin/context/adminFetchers.ts`
-- Remover chamada a `get-users-with-emails`
-- O handler `getUsersWithMetrics` já retorna dados da tabela `users`
-- Adicionar campo `email` na query de `users` no backend
-
-**Passo 6:** Atualizar `admin-data/handlers/users.ts`
-- Modificar `getUsersWithMetrics` para incluir `email` no select
-- Isso elimina necessidade de função separada para emails
-
-**Passo 7:** Atualizar `src/lib/rpc/rpcProxy.ts`
-- Remover export `getUserEmailRpc`
-- Função não será mais necessária
-
-**Passo 8:** Atualizar `supabase/functions/rpc-proxy/index.ts`
-- Remover `get_user_email` da lista `PRODUCER_RPCS`
-
-### Fase 4: Limpeza do Banco de Dados (Scripts SQL)
-
-**Passo 9:** Criar migration para dropar `get_auth_user_by_email`
-
-```sql
-DROP FUNCTION IF EXISTS public.get_auth_user_by_email(text);
-```
-
-**Passo 10:** Criar migration para reescrever `get_user_email`
-
-```sql
--- Reescrever para usar tabela 'users' (SSOT)
-CREATE OR REPLACE FUNCTION get_user_email(user_id uuid)
-RETURNS text
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  user_email text;
-BEGIN
-  SELECT email INTO user_email
-  FROM users
-  WHERE id = user_id;
-  
-  RETURN user_email;
-END;
-$$;
-```
-
-### Fase 5: Atualização de Documentação
-
-**Passo 11:** Atualizar `docs/EDGE_FUNCTIONS_REGISTRY.md`
-- Remover `get-users-with-emails` da lista
-- Atualizar contagem de funções (106 → 105)
-
-### Fase 6: Undeploy de Função Obsoleta
-
-**Passo 12:** Deletar `get-users-with-emails` do Supabase
-- Usar ferramenta de delete de edge functions
-
-### Fase 7: Validação Final
-
-**Passo 13:** Buscar qualquer referência remanescente
-- Grep por `auth.users`, `auth.admin`, `listUsers`, `getUserById`
-- Garantir zero ocorrências (exceto em arquivos de migration históricos)
-
-**Passo 14:** Testar fluxos críticos
-- Login de producer
-- Listagem de usuários no admin
-- Criação de pedido com afiliado
-
----
-
-## 📁 Resumo de Arquivos Afetados
-
-### Arquivos a DELETAR
 ```text
-supabase/functions/get-users-with-emails/       (pasta inteira)
-supabase/functions/_shared/user-sync.ts
-```
+supabase/functions/_shared/
+├── cookie-helper.ts                    # Remover LEGACY_COOKIE_NAMES, fallback
+├── session-reader.ts                   # Remover hasLegacyCookies()
+├── unified-auth-v2.ts                  # Remover referencias V3
+└── __tests__/
+    └── unified-auth-v2.test.ts         # Remover testes V3
 
-### Arquivos a MODIFICAR
-```text
-supabase/functions/create-order/handlers/affiliate/index.ts
-supabase/functions/_shared/test-helpers.ts
-supabase/functions/rpc-proxy/index.ts
-supabase/functions/admin-data/handlers/users.ts
-src/modules/admin/context/adminFetchers.ts
-src/lib/rpc/rpcProxy.ts
-docs/EDGE_FUNCTIONS_REGISTRY.md
-```
-
-### Migrations SQL a CRIAR
-```text
-supabase/migrations/XXXXXX_drop_legacy_auth_functions.sql
+supabase/functions/
+├── affiliate-pixel-management/tests/
+│   ├── _shared.ts                      # Cookie: __Secure-rise_access
+│   └── error-handling.test.ts          # Cookie: __Secure-rise_access
+├── pixel-management/tests/
+│   ├── _shared.ts                      # Cookie: __Secure-rise_access
+│   └── authentication.test.ts          # Cookie: __Secure-rise_access
+├── webhook-crud/tests/_shared.ts       # Cookie: __Secure-rise_access
+├── send-webhook-test/tests/_shared.ts  # Cookie: __Secure-rise_access
+└── pushinpay-stats/tests/_shared.ts    # Cookie: __Secure-rise_access
 ```
 
 ---
 
-## ⚠️ Seção Técnica Detalhada
+## Mudancas Detalhadas
 
-### Por que `user-sync.ts` pode ser deletado?
-O módulo foi criado para "sincronizar" usuários que existiam em `auth.users` mas não em `users`. Com a migração completa para Unified Auth, todos os novos usuários são criados diretamente em `users`. A tabela `auth.users` está abandonada e vazia (após a limpeza que você executou).
+### 1. cookie-helper.ts - Remover Fallback e Constantes Legadas
 
-### Por que `get-users-with-emails` pode ser deletado?
-Esta função buscava emails em `auth.users` para o painel admin. Como a tabela `users` já possui a coluna `email`, basta modificar `getUsersWithMetrics` para incluir o email no retorno.
-
-### Como `checkSelfReferral` será corrigido?
-Atualmente usa `auth.admin.getUserById()` para verificar se afiliado e comprador são a mesma pessoa. Será reescrito para:
-
+**ANTES (linhas 38-58):**
 ```typescript
-async function checkSelfReferral(
-  supabase: SupabaseClient,
-  userId: string,
-  customerEmail: string
-): Promise<boolean> {
-  const { data } = await supabase
-    .from("users")
-    .select("email")
-    .eq("id", userId)
-    .single();
+export const LEGACY_COOKIE_NAMES = {
+  v3: {
+    access: "__Host-rise_access",
+    refresh: "__Host-rise_refresh",
+  },
+  producer: { ... },
+  buyer: { ... },
+};
+```
+
+**DEPOIS:**
+```typescript
+// RISE V3: LEGACY_COOKIE_NAMES REMOVIDO
+// Migração 100% completa - zero fallback necessário
+```
+
+**ANTES (linhas 108-119):**
+```typescript
+export function getAccessToken(req: Request): string | null {
+  const cookieHeader = req.headers.get("Cookie");
+  if (!cookieHeader) return null;
   
-  return data?.email?.toLowerCase() === customerEmail.toLowerCase();
+  const newToken = getCookie(cookieHeader, COOKIE_NAMES.access);
+  if (newToken) return newToken;
+  
+  // Fallback to V3 format during migration period
+  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.access);
 }
 ```
 
-### Sobre `test-helpers.ts`
-Este módulo ainda usa `auth.admin.createUser` para testes de integração. Será reescrito para criar usuários diretamente na tabela `users` com senha hasheada, usando o mesmo método do registro normal.
+**DEPOIS:**
+```typescript
+export function getAccessToken(req: Request): string | null {
+  const cookieHeader = req.headers.get("Cookie");
+  if (!cookieHeader) return null;
+  
+  return getCookie(cookieHeader, COOKIE_NAMES.access);
+}
+```
+
+### 2. session-reader.ts - Remover hasLegacyCookies()
+
+Remover funcao `hasLegacyCookies()` (linhas 50-67) e import de `LEGACY_COOKIE_NAMES`.
+
+### 3. unified-auth-v2.ts - Remover Limpeza de Cookies V3
+
+Simplificar `createUnifiedLogoutCookies()` para limpar apenas cookies atuais.
+
+### 4. Testes - Atualizar para Cookie Correto
+
+Todos os 7 arquivos de teste terao:
+```typescript
+"Cookie": "producer_session=valid-token"
+```
+Substituido por:
+```typescript
+"Cookie": "__Secure-rise_access=valid-token"
+```
+
+### 5. unified-auth-v2.test.ts - Remover Testes de Fallback
+
+Remover testes:
+- `"getUnifiedAccessToken: should fallback to V3 cookie"`
+- `"getUnifiedRefreshToken: should fallback to V3 cookie"`
+- `"createUnifiedLogoutCookies: should clear V3 format cookies"`
 
 ---
 
-## ✅ Resultado Esperado
+## Secao Tecnica
 
-Após execução do plano:
+### Impacto
 
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| Referências a `auth.users` em código ativo | 4 arquivos | 0 |
-| Referências a `auth.admin` | 3 arquivos | 0 |
-| RPC functions consultando `auth.users` | 2 | 0 |
-| Edge Functions obsoletas | 1 | 0 |
-| Single Source of Truth | Violado | ✅ 100% `users` |
-| RISE V3 Compliance | Parcial | ✅ Total |
+| Aspecto | Impacto |
+|---------|---------|
+| Sessoes ativas | Zero impacto - todas usam V4 |
+| Usuarios logados | Mantem sessao (cookie novo) |
+| Logout | Simplificado (menos cookies) |
+| Performance | Melhora (menos parsing) |
+
+### Validacao Pos-Implementacao
+
+1. Deploy Edge Functions afetadas
+2. Executar testes de autenticacao
+3. Verificar login/logout funciona
+4. Confirmar zero referencias legadas
+
+### Resultado Final
+
+**RISE V3 Score: 10.0/10** - Zero codigo morto, zero fallbacks, zero divida tecnica
 
