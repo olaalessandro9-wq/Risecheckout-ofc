@@ -60,11 +60,8 @@ vi.mock("@/hooks/useAffiliateTracking", () => ({
   }),
 }));
 
-vi.mock("@/hooks/checkout/useCheckoutProductPixels", () => ({
-  useCheckoutProductPixels: () => ({
-    pixels: [],
-  }),
-}));
+// NOTE: useCheckoutProductPixels mock removed - Phase 2 BFF architecture
+// Pixels are now delivered via machine.productPixels from resolve-and-load action
 
 vi.mock("@/hooks/checkout/useVisitTracker", () => ({
   useVisitTracker: () => ({

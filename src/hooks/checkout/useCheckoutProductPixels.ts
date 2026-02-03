@@ -1,32 +1,30 @@
 /**
  * Hook: useCheckoutProductPixels
  * 
+ * @deprecated Para o checkout público, use os dados de productPixels
+ * que vêm do BFF unificado (resolve-and-load action) via checkoutPublicMachine.
+ * 
+ * Este hook ainda pode ser útil em outros contextos que precisam
+ * carregar pixels de produto de forma isolada (ex: preview no dashboard).
+ * 
+ * PHASE 2 ARCHITECTURE:
+ * - Checkout público: usa machine.productPixels (BFF unificado)
+ * - Dashboard/preview: pode usar este hook diretamente
+ * 
+ * @see src/modules/checkout-public/machines/checkoutPublicMachine.actors.ts
+ * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useEffect } from "react";
 import { publicApi } from "@/lib/api/public-client";
 import { createLogger } from "@/lib/logger";
-import type { PixelPlatform } from "@/modules/pixels";
+
+// Re-export CheckoutPixel type from SSOT
+export type { CheckoutPixel } from "@/types/checkout-pixels.types";
+import type { CheckoutPixel } from "@/types/checkout-pixels.types";
 
 const log = createLogger("UseCheckoutProductPixels");
-
-export interface CheckoutPixel {
-  id: string;
-  platform: PixelPlatform;
-  pixel_id: string;
-  access_token?: string | null;
-  conversion_label?: string | null;
-  domain?: string | null;
-  is_active: boolean;
-  // Configurações de disparo
-  fire_on_initiate_checkout: boolean;
-  fire_on_purchase: boolean;
-  fire_on_pix: boolean;
-  fire_on_card: boolean;
-  fire_on_boleto: boolean;
-  custom_value_percent: number;
-}
 
 interface UseCheckoutProductPixelsReturn {
   pixels: CheckoutPixel[];

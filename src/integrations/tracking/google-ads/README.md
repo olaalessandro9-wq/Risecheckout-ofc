@@ -1,7 +1,7 @@
 # Google Ads Module
 
-> **Versão:** 2.0.0 - RISE Protocol V3 Compliant  
-> **Última atualização:** Janeiro 2026
+> **Versão:** 2.1.0 - RISE Protocol V3 Compliant  
+> **Última atualização:** Fevereiro 2026
 
 ## Arquitetura
 
@@ -45,8 +45,10 @@ src/integrations/tracking/google-ads/
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  3. Checkout carrega pixels via useCheckoutProductPixels    │
-│     └── Edge Function: checkout-loader                      │
+│  3. Checkout recebe pixels via BFF unificado (Phase 2)      │
+│     └── Edge Function: checkout-public-data                 │
+│     └── Action: resolve-and-load                            │
+│     └── Dados: productPixels[] incluídos na resposta        │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -109,6 +111,10 @@ O Google Ads requer um `conversion_label` para cada tipo de evento. Este label �
 - ✅ SSOT via XState para gerenciamento de pixels
 
 ## Changelog
+
+### v2.1.0 (Fevereiro 2026)
+- ✅ Documentação atualizada para Phase 2 BFF architecture
+- ✅ Fluxo de dados corrigido: resolve-and-load action
 
 ### v2.0.0 (Janeiro 2026)
 - ✅ Migração para novo sistema vendor_pixels + product_pixels

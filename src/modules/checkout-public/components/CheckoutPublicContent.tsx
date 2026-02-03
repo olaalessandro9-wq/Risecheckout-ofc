@@ -304,7 +304,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     const backgroundImage = checkoutDesignJson?.backgroundImage as 
       { url?: string; fixed?: boolean; repeat?: boolean; expand?: boolean } | undefined;
 
-    // Build customization compatible with CheckoutMasterLayout
+    // Build customization for CheckoutPublicLayout (Phase 2 - lightweight layout)
     return {
       design: {
         theme: checkout.theme || 'light',
