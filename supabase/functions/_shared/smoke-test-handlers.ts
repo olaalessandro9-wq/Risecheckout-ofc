@@ -98,13 +98,14 @@ export async function testSecrets(): Promise<TestResult[]> {
 export async function testTables(supabase: SupabaseClient): Promise<TestResult[]> {
   const results: TestResult[] = [];
   
+  // RISE V3: Tabelas SSOT - users substitui buyer_profiles
   const tables = [
     'orders',
     'products',
     'offers',
     'checkouts',
     'order_events',
-    'buyer_profiles',
+    'users',  // RISE V3: SSOT única para identidade
     'buyer_product_access',
   ];
 
