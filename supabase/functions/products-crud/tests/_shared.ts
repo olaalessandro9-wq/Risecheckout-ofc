@@ -1,6 +1,7 @@
 /**
- * Shared Types & Mock Data for products-crud, product-entities, get-users-with-emails, members-area-groups Tests
+ * Shared Types & Mock Data for products-crud, product-entities, members-area-groups Tests
  * Combined _shared files to save time - each function imports what it needs
+ * @version 2.0.0 - RISE Protocol V3 Compliant
  */
 
 // products-crud types
