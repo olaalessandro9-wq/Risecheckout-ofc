@@ -17,7 +17,7 @@ import {
   getValidatedContextData,
   toggleBumpInArray,
   removeFieldError,
-  createFetchError,
+  createBackendError,
   createNetworkError,
   createValidationError,
   createSubmitError,
@@ -83,7 +83,12 @@ export const checkoutPublicMachine = setup({
           },
           {
             target: "error",
-            actions: assign({ error: ({ event }) => createFetchError(event.output.error || "") }),
+            actions: assign({ 
+              error: ({ event }) => createBackendError(
+                event.output.error || "",
+                event.output.reason
+              )
+            }),
           },
         ],
         onError: {

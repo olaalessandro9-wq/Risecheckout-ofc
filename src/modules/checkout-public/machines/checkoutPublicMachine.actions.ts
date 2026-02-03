@@ -83,13 +83,40 @@ export function removeFieldError(formErrors: FormErrors, field: string): FormErr
 // ERROR CREATORS
 // ============================================================================
 
+import type { ErrorReason } from "./checkoutPublicMachine.types";
+
 /**
- * Creates a FETCH_FAILED error
+ * Creates a FETCH_FAILED error (generic fallback)
  */
 export function createFetchError(message: string) {
   return {
     reason: 'FETCH_FAILED' as const,
     message: message || "Erro ao carregar checkout",
+  };
+}
+
+/**
+ * Creates an error from backend response with specific reason.
+ * Maps backend reasons to frontend ErrorReason type.
+ * All messages in Brazilian Portuguese.
+ */
+export function createBackendError(error: string, backendReason?: string) {
+  // Valid backend reasons that should be preserved
+  const validBackendReasons: ErrorReason[] = [
+    'NOT_FOUND',
+    'NO_CHECKOUT', 
+    'INACTIVE', 
+    'BLOCKED',
+    'CHECKOUT_NOT_FOUND',
+  ];
+  
+  const reason: ErrorReason = (backendReason && validBackendReasons.includes(backendReason as ErrorReason))
+    ? (backendReason as ErrorReason)
+    : 'FETCH_FAILED';
+    
+  return {
+    reason,
+    message: error || "Erro ao carregar checkout",
   };
 }
 

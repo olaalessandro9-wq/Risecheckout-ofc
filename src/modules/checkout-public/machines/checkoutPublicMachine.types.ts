@@ -120,7 +120,12 @@ export type ErrorReason =
   | 'SUBMIT_FAILED'
   | 'PAYMENT_FAILED'
   | 'NETWORK_ERROR'
-  | 'UNKNOWN';
+  | 'UNKNOWN'
+  // Backend reasons (resolve-universal)
+  | 'NOT_FOUND'    // Slug não existe como checkout nem payment_link
+  | 'NO_CHECKOUT'  // Payment Link sem checkout configurado
+  | 'INACTIVE'     // Link inativo
+  | 'BLOCKED';     // Produto bloqueado
 
 export interface CheckoutError {
   reason: ErrorReason;
@@ -249,6 +254,7 @@ export interface FetchCheckoutOutput {
   success: boolean;
   data?: unknown;
   error?: string;
+  reason?: string; // Backend error reason (NOT_FOUND, NO_CHECKOUT, INACTIVE, BLOCKED)
 }
 
 export interface SubmitPaymentInput {
