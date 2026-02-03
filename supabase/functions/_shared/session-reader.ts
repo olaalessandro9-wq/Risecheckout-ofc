@@ -3,20 +3,17 @@
  * 
  * RISE Protocol V3: Reads auth tokens from unified cookies ONLY.
  * 
- * LEGACY REMOVED (2026-01-23):
- * - Zero deprecated aliases (getProducerAccessToken, getBuyerAccessToken)
- * - Zero legacy cookie reading
- * - Only hasLegacyCookies() kept for logout cleanup
+ * LEGACY REMOVED (2026-02-03):
+ * - Zero fallbacks, zero deprecated aliases
+ * - Only V4 cookie format (__Secure-rise_*)
  * 
- * @version 4.0.0 - Complete legacy cleanup
+ * @version 5.0.0 - Complete legacy purge
  */
 
 import { 
   getAccessToken, 
   getRefreshToken,
-  getCookie,
   COOKIE_NAMES,
-  LEGACY_COOKIE_NAMES,
 } from "./cookie-helper.ts";
 
 // ============================================
@@ -44,29 +41,6 @@ export function getUnifiedRefreshToken(req: Request): string | null {
 }
 
 // ============================================
-// LEGACY COOKIE DETECTION (For logout cleanup only)
-// ============================================
-
-/**
- * Checks if request has any legacy cookies that should be cleared.
- * Used by logout to ensure complete cleanup.
- * 
- * @param req - Request object
- * @returns true if legacy cookies are present
- */
-export function hasLegacyCookies(req: Request): boolean {
-  const cookieHeader = req.headers.get("Cookie");
-  if (!cookieHeader) return false;
-  
-  return (
-    getCookie(cookieHeader, LEGACY_COOKIE_NAMES.producer.access) !== null ||
-    getCookie(cookieHeader, LEGACY_COOKIE_NAMES.producer.refresh) !== null ||
-    getCookie(cookieHeader, LEGACY_COOKIE_NAMES.buyer.access) !== null ||
-    getCookie(cookieHeader, LEGACY_COOKIE_NAMES.buyer.refresh) !== null
-  );
-}
-
-// ============================================
 // STANDARD EXPORTS
 // ============================================
 
@@ -75,3 +49,8 @@ export function hasLegacyCookies(req: Request): boolean {
  * Points to the unified token getter.
  */
 export const getSessionToken = getUnifiedAccessToken;
+
+/**
+ * Re-export cookie names for convenience.
+ */
+export { COOKIE_NAMES };

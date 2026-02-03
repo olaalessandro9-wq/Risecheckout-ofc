@@ -35,27 +35,9 @@ export const COOKIE_NAMES = {
   refresh: "__Secure-rise_refresh",
 } as const;
 
-/**
- * Legacy cookie names - kept ONLY for clearing during logout.
- * Includes both old __Host- prefixed cookies (V3) and legacy buyer/producer cookies.
- */
-export const LEGACY_COOKIE_NAMES = {
-  // V3 cookies (being replaced)
-  v3: {
-    access: "__Host-rise_access",
-    refresh: "__Host-rise_refresh",
-  },
-  // Legacy producer cookies
-  producer: {
-    access: "__Host-producer_access",
-    refresh: "__Host-producer_refresh",
-  },
-  // Legacy buyer cookies
-  buyer: {
-    access: "__Host-buyer_access",
-    refresh: "__Host-buyer_refresh",
-  },
-} as const;
+// RISE V3 CLEANUP (2026-02-03): LEGACY_COOKIE_NAMES REMOVIDO
+// Migração 100% completa - zero fallback necessário
+// Todas as sessões ativas já usam __Secure-rise_* (V4)
 
 // ============================================
 // COOKIE OPTIONS
@@ -104,34 +86,24 @@ export function getCookie(cookieHeader: string | null, name: string): string | n
 
 /**
  * Gets access token from request.
- * Tries new __Secure- cookie first, then falls back to legacy __Host- for migration.
+ * Uses __Secure-rise_access cookie (V4 format).
  */
 export function getAccessToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
   
-  // Try new cookie format first
-  const newToken = getCookie(cookieHeader, COOKIE_NAMES.access);
-  if (newToken) return newToken;
-  
-  // Fallback to V3 format during migration period
-  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.access);
+  return getCookie(cookieHeader, COOKIE_NAMES.access);
 }
 
 /**
  * Gets refresh token from request.
- * Tries new __Secure- cookie first, then falls back to legacy __Host- for migration.
+ * Uses __Secure-rise_refresh cookie (V4 format).
  */
 export function getRefreshToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
   
-  // Try new cookie format first
-  const newToken = getCookie(cookieHeader, COOKIE_NAMES.refresh);
-  if (newToken) return newToken;
-  
-  // Fallback to V3 format during migration period
-  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.refresh);
+  return getCookie(cookieHeader, COOKIE_NAMES.refresh);
 }
 
 // ============================================
@@ -198,30 +170,15 @@ export function createAuthCookies(
 
 /**
  * Creates expired cookies for logout.
- * Clears ALL cookie formats: new __Secure-, V3 __Host-, and legacy buyer/producer.
+ * Clears current __Secure-rise_* cookies only (V4 format).
  */
 export function createLogoutCookies(): string[] {
-  // Helper for expired cookies WITH domain (new format)
   const expiredWithDomain = (name: string) => 
     `${name}=; Max-Age=0; Path=/; Domain=${COOKIE_DOMAIN}; HttpOnly; Secure; SameSite=None`;
   
-  // Helper for expired cookies WITHOUT domain (legacy __Host- format)
-  const expiredHostOnly = (name: string) => 
-    `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
-  
   return [
-    // New __Secure- cookies (with domain)
     expiredWithDomain(COOKIE_NAMES.access),
     expiredWithDomain(COOKIE_NAMES.refresh),
-    // V3 __Host- cookies (host-only, needs Partitioned)
-    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.refresh),
-    // Legacy producer cookies
-    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.refresh),
-    // Legacy buyer cookies
-    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.refresh),
   ];
 }
 

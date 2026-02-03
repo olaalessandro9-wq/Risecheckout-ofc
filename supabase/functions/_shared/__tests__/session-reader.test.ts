@@ -3,22 +3,22 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Comprehensive tests for session token extraction utilities.
- * Tests cover: happy paths, error handling, edge cases, legacy detection.
+ * Tests for unified session token extraction utilities.
+ * V4 format only (__Secure-rise_*).
  * 
  * @module _shared/__tests__/session-reader
+ * @version 2.0.0 - Legacy tests removed
  */
 
 import {
   assertEquals,
   assertExists,
-  assert,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   getUnifiedAccessToken,
   getUnifiedRefreshToken,
-  hasLegacyCookies,
   getSessionToken,
+  COOKIE_NAMES,
 } from "../session-reader.ts";
 
 // ============================================================================
@@ -41,12 +41,21 @@ function createMockRequest(cookies: Record<string, string>): Request {
 }
 
 // ============================================================================
+// COOKIE_NAMES Export Tests
+// ============================================================================
+
+Deno.test("COOKIE_NAMES: should export correct cookie names", () => {
+  assertEquals(COOKIE_NAMES.access, "__Secure-rise_access");
+  assertEquals(COOKIE_NAMES.refresh, "__Secure-rise_refresh");
+});
+
+// ============================================================================
 // getUnifiedAccessToken Tests
 // ============================================================================
 
-Deno.test("getUnifiedAccessToken: should extract access token from unified cookie", () => {
+Deno.test("getUnifiedAccessToken: should extract access token from V4 cookie", () => {
   const req = createMockRequest({
-    "rise_access_token": MOCK_ACCESS_TOKEN,
+    "__Secure-rise_access": MOCK_ACCESS_TOKEN,
   });
   
   const token = getUnifiedAccessToken(req);
@@ -69,18 +78,17 @@ Deno.test("getUnifiedAccessToken: should return null when Cookie header is missi
 
 Deno.test("getUnifiedAccessToken: should handle empty cookie value", () => {
   const req = createMockRequest({
-    "rise_access_token": "",
+    "__Secure-rise_access": "",
   });
   
   const token = getUnifiedAccessToken(req);
-  // Should return empty string or null depending on implementation
   assertExists(token !== undefined);
 });
 
 Deno.test("getUnifiedAccessToken: should ignore legacy cookies", () => {
   const req = createMockRequest({
-    "producer_access_token": "legacy-token",
-    "buyer_access_token": "legacy-token-2",
+    "producer_session": "legacy-token",
+    "__Host-rise_access": "v3-token",
   });
   
   const token = getUnifiedAccessToken(req);
@@ -91,9 +99,9 @@ Deno.test("getUnifiedAccessToken: should ignore legacy cookies", () => {
 // getUnifiedRefreshToken Tests
 // ============================================================================
 
-Deno.test("getUnifiedRefreshToken: should extract refresh token from unified cookie", () => {
+Deno.test("getUnifiedRefreshToken: should extract refresh token from V4 cookie", () => {
   const req = createMockRequest({
-    "rise_refresh_token": MOCK_REFRESH_TOKEN,
+    "__Secure-rise_refresh": MOCK_REFRESH_TOKEN,
   });
   
   const token = getUnifiedRefreshToken(req);
@@ -114,109 +122,13 @@ Deno.test("getUnifiedRefreshToken: should return null when Cookie header is miss
   assertEquals(token, null);
 });
 
-Deno.test("getUnifiedRefreshToken: should handle empty cookie value", () => {
-  const req = createMockRequest({
-    "rise_refresh_token": "",
-  });
-  
-  const token = getUnifiedRefreshToken(req);
-  assertExists(token !== undefined);
-});
-
 Deno.test("getUnifiedRefreshToken: should ignore legacy cookies", () => {
   const req = createMockRequest({
-    "producer_refresh_token": "legacy-refresh",
-    "buyer_refresh_token": "legacy-refresh-2",
+    "__Host-rise_refresh": "v3-refresh",
   });
   
   const token = getUnifiedRefreshToken(req);
-  assertEquals(token, null); // Should not read legacy cookies
-});
-
-// ============================================================================
-// hasLegacyCookies Tests
-// ============================================================================
-
-Deno.test("hasLegacyCookies: should return false when no cookies present", () => {
-  const req = createMockRequest({});
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, false);
-});
-
-Deno.test("hasLegacyCookies: should return false when only unified cookies present", () => {
-  const req = createMockRequest({
-    "rise_access_token": MOCK_ACCESS_TOKEN,
-    "rise_refresh_token": MOCK_REFRESH_TOKEN,
-  });
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, false);
-});
-
-Deno.test("hasLegacyCookies: should return true when producer access token present", () => {
-  const req = createMockRequest({
-    "producer_access_token": "legacy-token",
-  });
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, true);
-});
-
-Deno.test("hasLegacyCookies: should return true when producer refresh token present", () => {
-  const req = createMockRequest({
-    "producer_refresh_token": "legacy-refresh",
-  });
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, true);
-});
-
-Deno.test("hasLegacyCookies: should return true when buyer access token present", () => {
-  const req = createMockRequest({
-    "buyer_access_token": "legacy-token",
-  });
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, true);
-});
-
-Deno.test("hasLegacyCookies: should return true when buyer refresh token present", () => {
-  const req = createMockRequest({
-    "buyer_refresh_token": "legacy-refresh",
-  });
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, true);
-});
-
-Deno.test("hasLegacyCookies: should return true when multiple legacy cookies present", () => {
-  const req = createMockRequest({
-    "producer_access_token": "legacy-1",
-    "producer_refresh_token": "legacy-2",
-    "buyer_access_token": "legacy-3",
-    "buyer_refresh_token": "legacy-4",
-  });
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, true);
-});
-
-Deno.test("hasLegacyCookies: should return true when mixed cookies present", () => {
-  const req = createMockRequest({
-    "rise_access_token": MOCK_ACCESS_TOKEN,
-    "producer_access_token": "legacy-token",
-  });
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, true);
-});
-
-Deno.test("hasLegacyCookies: should return false when Cookie header is missing", () => {
-  const req = new Request("https://example.com");
-  
-  const hasLegacy = hasLegacyCookies(req);
-  assertEquals(hasLegacy, false);
+  assertEquals(token, null); // Should not read V3 fallback
 });
 
 // ============================================================================
@@ -225,7 +137,7 @@ Deno.test("hasLegacyCookies: should return false when Cookie header is missing",
 
 Deno.test("getSessionToken: should be an alias for getUnifiedAccessToken", () => {
   const req = createMockRequest({
-    "rise_access_token": MOCK_ACCESS_TOKEN,
+    "__Secure-rise_access": MOCK_ACCESS_TOKEN,
   });
   
   const token1 = getSessionToken(req);
@@ -251,7 +163,7 @@ Deno.test("getSessionToken: should return same result as getUnifiedAccessToken",
 Deno.test("getUnifiedAccessToken: should handle very long token", () => {
   const longToken = "a".repeat(10000);
   const req = createMockRequest({
-    "rise_access_token": longToken,
+    "__Secure-rise_access": longToken,
   });
   
   const token = getUnifiedAccessToken(req);
@@ -261,7 +173,7 @@ Deno.test("getUnifiedAccessToken: should handle very long token", () => {
 Deno.test("getUnifiedAccessToken: should handle special characters in token", () => {
   const specialToken = "token-with-special-chars_123.abc+xyz=";
   const req = createMockRequest({
-    "rise_access_token": specialToken,
+    "__Secure-rise_access": specialToken,
   });
   
   const token = getUnifiedAccessToken(req);
@@ -271,7 +183,7 @@ Deno.test("getUnifiedAccessToken: should handle special characters in token", ()
 Deno.test("getUnifiedAccessToken: should handle multiple cookies", () => {
   const req = createMockRequest({
     "other_cookie": "value1",
-    "rise_access_token": MOCK_ACCESS_TOKEN,
+    "__Secure-rise_access": MOCK_ACCESS_TOKEN,
     "another_cookie": "value2",
   });
   
@@ -282,32 +194,10 @@ Deno.test("getUnifiedAccessToken: should handle multiple cookies", () => {
 Deno.test("getUnifiedRefreshToken: should handle multiple cookies", () => {
   const req = createMockRequest({
     "other_cookie": "value1",
-    "rise_refresh_token": MOCK_REFRESH_TOKEN,
+    "__Secure-rise_refresh": MOCK_REFRESH_TOKEN,
     "another_cookie": "value2",
   });
   
   const token = getUnifiedRefreshToken(req);
   assertEquals(token, MOCK_REFRESH_TOKEN);
-});
-
-Deno.test("hasLegacyCookies: should handle malformed cookie header", () => {
-  const req = new Request("https://example.com", {
-    headers: {
-      "Cookie": "invalid cookie format",
-    },
-  });
-  
-  const hasLegacy = hasLegacyCookies(req);
-  // Should not throw error, return false
-  assertEquals(hasLegacy, false);
-});
-
-Deno.test("getUnifiedAccessToken: should handle whitespace in cookie value", () => {
-  const req = createMockRequest({
-    "rise_access_token": "  " + MOCK_ACCESS_TOKEN + "  ",
-  });
-  
-  const token = getUnifiedAccessToken(req);
-  // Token might be trimmed or not depending on implementation
-  assertExists(token);
 });

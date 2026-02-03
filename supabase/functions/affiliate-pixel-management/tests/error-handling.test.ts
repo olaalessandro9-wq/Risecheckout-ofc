@@ -29,7 +29,7 @@ describe("affiliate-pixel-management - Error Handling", () => {
       method: "POST",
       headers: new Headers({ 
         "Content-Type": "application/json",
-        "Cookie": "producer_session=valid-token",
+        "Cookie": "__Secure-rise_access=valid-token",
       }),
       body: "invalid-json",
     });

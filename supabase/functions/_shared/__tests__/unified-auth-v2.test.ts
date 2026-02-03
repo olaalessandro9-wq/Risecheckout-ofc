@@ -3,10 +3,11 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Comprehensive tests for core authentication library.
- * Tests cover: token generation, cookie creation, security, edge cases.
+ * Tests for core authentication library.
+ * V4 format only (__Secure-rise_*).
  * 
  * @module _shared/__tests__/unified-auth-v2
+ * @version 2.0.0 - Legacy tests removed
  */
 
 import {
@@ -58,7 +59,6 @@ Deno.test("generateSessionTokens: should generate tokens with correct format", (
 Deno.test("generateSessionTokens: should set correct expiration times", () => {
   const before = new Date();
   const tokens = generateSessionTokens();
-  const after = new Date();
   
   // Access token should expire in ~15 minutes
   const accessDiff = tokens.accessTokenExpiresAt.getTime() - before.getTime();
@@ -76,7 +76,6 @@ Deno.test("generateSessionTokens: should generate cryptographically secure token
   const tokens2 = generateSessionTokens();
   const tokens3 = generateSessionTokens();
   
-  // All tokens should be unique
   const allTokens = [
     tokens1.accessToken,
     tokens1.refreshToken,
@@ -91,14 +90,14 @@ Deno.test("generateSessionTokens: should generate cryptographically secure token
 });
 
 // ============================================================================
-// Token Reading Tests
+// Token Reading Tests (V4 Format Only)
 // ============================================================================
 
-Deno.test("getUnifiedAccessToken: should extract access token from cookie", () => {
+Deno.test("getUnifiedAccessToken: should extract access token from V4 cookie", () => {
   const mockToken = "access-token-123";
   const req = new Request("https://example.com", {
     headers: {
-      "Cookie": `__Secure-rise_access_token=${mockToken}`,
+      "Cookie": `__Secure-rise_access=${mockToken}`,
     },
   });
   
@@ -113,36 +112,23 @@ Deno.test("getUnifiedAccessToken: should return null when cookie missing", () =>
   assertEquals(token, null);
 });
 
-Deno.test("getUnifiedAccessToken: should fallback to V3 cookie", () => {
+Deno.test("getUnifiedAccessToken: should NOT fallback to V3 cookie", () => {
   const mockToken = "access-token-v3";
   const req = new Request("https://example.com", {
     headers: {
-      "Cookie": `__Host-rise_access_token=${mockToken}`,
+      "Cookie": `__Host-rise_access=${mockToken}`,
     },
   });
   
   const token = getUnifiedAccessToken(req);
-  assertEquals(token, mockToken);
+  assertEquals(token, null); // V3 fallback removed
 });
 
-Deno.test("getUnifiedAccessToken: should prefer new cookie over V3", () => {
-  const newToken = "new-token";
-  const v3Token = "v3-token";
-  const req = new Request("https://example.com", {
-    headers: {
-      "Cookie": `__Secure-rise_access_token=${newToken}; __Host-rise_access_token=${v3Token}`,
-    },
-  });
-  
-  const token = getUnifiedAccessToken(req);
-  assertEquals(token, newToken); // Should prefer new format
-});
-
-Deno.test("getUnifiedRefreshToken: should extract refresh token from cookie", () => {
+Deno.test("getUnifiedRefreshToken: should extract refresh token from V4 cookie", () => {
   const mockToken = "refresh-token-456";
   const req = new Request("https://example.com", {
     headers: {
-      "Cookie": `__Secure-rise_refresh_token=${mockToken}`,
+      "Cookie": `__Secure-rise_refresh=${mockToken}`,
     },
   });
   
@@ -157,16 +143,16 @@ Deno.test("getUnifiedRefreshToken: should return null when cookie missing", () =
   assertEquals(token, null);
 });
 
-Deno.test("getUnifiedRefreshToken: should fallback to V3 cookie", () => {
+Deno.test("getUnifiedRefreshToken: should NOT fallback to V3 cookie", () => {
   const mockToken = "refresh-token-v3";
   const req = new Request("https://example.com", {
     headers: {
-      "Cookie": `__Host-rise_refresh_token=${mockToken}`,
+      "Cookie": `__Host-rise_refresh=${mockToken}`,
     },
   });
   
   const token = getUnifiedRefreshToken(req);
-  assertEquals(token, mockToken);
+  assertEquals(token, null); // V3 fallback removed
 });
 
 // ============================================================================
@@ -225,51 +211,53 @@ Deno.test("createUnifiedAuthCookies: should include token values", () => {
   assert(cookies[1].includes(refreshToken));
 });
 
+Deno.test("createUnifiedAuthCookies: should use __Secure- prefix", () => {
+  const cookies = createUnifiedAuthCookies("access", "refresh");
+  
+  assert(cookies[0].includes("__Secure-rise_access"));
+  assert(cookies[1].includes("__Secure-rise_refresh"));
+});
+
 // ============================================================================
-// Logout Cookie Tests
+// Logout Cookie Tests (V4 Format Only)
 // ============================================================================
 
-Deno.test("createUnifiedLogoutCookies: should create expired cookies", () => {
+Deno.test("createUnifiedLogoutCookies: should create only 2 cookies (V4 format)", () => {
   const cookies = createUnifiedLogoutCookies();
   
-  assert(cookies.length >= 2); // At least access + refresh
+  assertEquals(cookies.length, 2); // Only access + refresh
+});
+
+Deno.test("createUnifiedLogoutCookies: should have Max-Age=0", () => {
+  const cookies = createUnifiedLogoutCookies();
   
-  // All cookies should have Max-Age=0
   cookies.forEach(cookie => {
     assert(cookie.includes("Max-Age=0"));
   });
 });
 
-Deno.test("createUnifiedLogoutCookies: should clear new format cookies", () => {
+Deno.test("createUnifiedLogoutCookies: should clear V4 format cookies", () => {
   const cookies = createUnifiedLogoutCookies();
   
   const cookieStr = cookies.join("; ");
-  assert(cookieStr.includes("__Secure-rise_access_token"));
-  assert(cookieStr.includes("__Secure-rise_refresh_token"));
+  assert(cookieStr.includes("__Secure-rise_access"));
+  assert(cookieStr.includes("__Secure-rise_refresh"));
 });
 
-Deno.test("createUnifiedLogoutCookies: should clear V3 format cookies", () => {
+Deno.test("createUnifiedLogoutCookies: should NOT include V3 format cookies", () => {
   const cookies = createUnifiedLogoutCookies();
   
   const cookieStr = cookies.join("; ");
-  assert(cookieStr.includes("__Host-rise_access_token"));
-  assert(cookieStr.includes("__Host-rise_refresh_token"));
+  assert(!cookieStr.includes("__Host-rise_access"));
+  assert(!cookieStr.includes("__Host-rise_refresh"));
 });
 
-Deno.test("createUnifiedLogoutCookies: should clear legacy producer cookies", () => {
+Deno.test("createUnifiedLogoutCookies: should NOT include legacy cookies", () => {
   const cookies = createUnifiedLogoutCookies();
   
   const cookieStr = cookies.join("; ");
-  assert(cookieStr.includes("producer_access_token") || cookieStr.includes("__Host-producer_access_token"));
-  assert(cookieStr.includes("producer_refresh_token") || cookieStr.includes("__Host-producer_refresh_token"));
-});
-
-Deno.test("createUnifiedLogoutCookies: should clear legacy buyer cookies", () => {
-  const cookies = createUnifiedLogoutCookies();
-  
-  const cookieStr = cookies.join("; ");
-  assert(cookieStr.includes("buyer_access_token") || cookieStr.includes("__Host-buyer_access_token"));
-  assert(cookieStr.includes("buyer_refresh_token") || cookieStr.includes("__Host-buyer_refresh_token"));
+  assert(!cookieStr.includes("producer_access"));
+  assert(!cookieStr.includes("buyer_access"));
 });
 
 Deno.test("createUnifiedLogoutCookies: should include security flags", () => {
@@ -292,7 +280,6 @@ Deno.test("generateSessionTokens: should not generate predictable tokens", () =>
     tokens.push(generateSessionTokens().accessToken);
   }
   
-  // All 100 tokens should be unique
   const uniqueTokens = new Set(tokens);
   assertEquals(uniqueTokens.size, 100);
 });
@@ -300,7 +287,6 @@ Deno.test("generateSessionTokens: should not generate predictable tokens", () =>
 Deno.test("createUnifiedAuthCookies: should prevent XSS with HttpOnly", () => {
   const cookies = createUnifiedAuthCookies("access", "refresh");
   
-  // HttpOnly prevents JavaScript access
   assert(cookies[0].includes("HttpOnly"));
   assert(cookies[1].includes("HttpOnly"));
 });
@@ -308,7 +294,6 @@ Deno.test("createUnifiedAuthCookies: should prevent XSS with HttpOnly", () => {
 Deno.test("createUnifiedAuthCookies: should prevent MITM with Secure", () => {
   const cookies = createUnifiedAuthCookies("access", "refresh");
   
-  // Secure ensures HTTPS only
   assert(cookies[0].includes("Secure"));
   assert(cookies[1].includes("Secure"));
 });
@@ -316,7 +301,6 @@ Deno.test("createUnifiedAuthCookies: should prevent MITM with Secure", () => {
 Deno.test("createUnifiedAuthCookies: should prevent CSRF with SameSite", () => {
   const cookies = createUnifiedAuthCookies("access", "refresh");
   
-  // SameSite=None with Secure for cross-site requests
   assert(cookies[0].includes("SameSite=None"));
   assert(cookies[1].includes("SameSite=None"));
 });
@@ -325,7 +309,6 @@ Deno.test("createUnifiedAuthCookies: should handle special characters in tokens"
   const specialToken = "token-with-special_chars.123+abc=";
   const cookies = createUnifiedAuthCookies(specialToken, "refresh");
   
-  // Should not break cookie format
   assertExists(cookies[0]);
   assert(cookies[0].length > 0);
 });
@@ -339,7 +322,6 @@ Deno.test("generateSessionTokens: should handle rapid successive calls", () => {
   const tokens2 = generateSessionTokens();
   const tokens3 = generateSessionTokens();
   
-  // All should be unique even if called immediately
   assert(tokens1.accessToken !== tokens2.accessToken);
   assert(tokens2.accessToken !== tokens3.accessToken);
   assert(tokens1.refreshToken !== tokens2.refreshToken);
@@ -353,19 +335,17 @@ Deno.test("getUnifiedAccessToken: should handle malformed cookie header", () => 
   });
   
   const token = getUnifiedAccessToken(req);
-  // Should not throw error
   assertExists(token !== undefined);
 });
 
 Deno.test("getUnifiedAccessToken: should handle empty cookie value", () => {
   const req = new Request("https://example.com", {
     headers: {
-      "Cookie": "__Secure-rise_access_token=",
+      "Cookie": "__Secure-rise_access=",
     },
   });
   
   const token = getUnifiedAccessToken(req);
-  // Should handle gracefully
   assertExists(token !== undefined);
 });
 
@@ -373,7 +353,6 @@ Deno.test("createUnifiedAuthCookies: should handle very long tokens", () => {
   const longToken = "a".repeat(10000);
   const cookies = createUnifiedAuthCookies(longToken, "refresh");
   
-  // Should not break
   assertExists(cookies[0]);
   assert(cookies[0].includes(longToken));
 });
@@ -381,7 +360,6 @@ Deno.test("createUnifiedAuthCookies: should handle very long tokens", () => {
 Deno.test("createUnifiedAuthCookies: should handle empty tokens", () => {
   const cookies = createUnifiedAuthCookies("", "");
   
-  // Should create cookies even with empty values
   assertEquals(cookies.length, 2);
   assert(cookies[0].includes("Max-Age"));
   assert(cookies[1].includes("Max-Age"));
@@ -391,6 +369,5 @@ Deno.test("createUnifiedLogoutCookies: should be idempotent", () => {
   const cookies1 = createUnifiedLogoutCookies();
   const cookies2 = createUnifiedLogoutCookies();
   
-  // Should generate same cookies each time
   assertEquals(cookies1.length, cookies2.length);
 });
