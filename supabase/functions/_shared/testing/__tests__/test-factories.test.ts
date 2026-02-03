@@ -222,13 +222,14 @@ Deno.test("createMockRequest: supports custom method", () => {
   assertEquals(req.method, "GET");
 });
 
-Deno.test("createAuthenticatedRequest: includes session token", () => {
+Deno.test("createAuthenticatedRequest: includes session token as cookie", () => {
   const req = createAuthenticatedRequest({
     sessionToken: "test-token-123",
     body: { action: "list" },
   });
   
-  assertEquals(req.headers.get("x-producer-session-token"), "test-token-123");
+  const cookie = req.headers.get("Cookie");
+  assertEquals(cookie?.includes("__Secure-rise_access=test-token-123"), true);
 });
 
 Deno.test("createAuthenticatedRequest: includes bearer token", () => {
