@@ -108,12 +108,17 @@ export function useProductsTable() {
       await deleteProductCascade(null as never, productId);
     },
     onSuccess: async () => {
+      toast.success("Produto excluído com sucesso!");
       await qc.invalidateQueries({ queryKey: productQueryKeys.all });
     },
     onError: (err: Error) => {
+      log.error("Delete product error:", err);
+      
       let errorMessage = "Erro ao excluir produto";
       
-      if (err?.message?.includes('pedido')) {
+      if (err?.message?.includes('autorizado') || err?.message?.includes('401') || err?.message?.includes('Unauthorized')) {
+        errorMessage = "Sua sessão expirou. Faça login novamente.";
+      } else if (err?.message?.includes('pedido')) {
         errorMessage = err.message;
       } else if (err?.message?.includes('foreign key')) {
         errorMessage = "Este produto possui dados vinculados e não pode ser excluído.";
@@ -143,7 +148,9 @@ export function useProductsTable() {
       resourceName: productName,
       requireTypeToConfirm: true,
       onConfirm: async () => {
-        deleteMutation.mutate(productId);
+        // RISE V3: Usar mutateAsync para que o dialog aguarde a conclusão
+        // e exiba o spinner durante a operação
+        await deleteMutation.mutateAsync(productId);
       },
     });
   }, [confirm, deleteMutation]);
