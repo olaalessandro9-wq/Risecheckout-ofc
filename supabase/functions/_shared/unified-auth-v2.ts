@@ -33,7 +33,6 @@ import {
   getCookie, 
   COOKIE_NAMES,
   COOKIE_DOMAIN,
-  LEGACY_COOKIE_NAMES,
   createAuthCookies, 
   createLogoutCookies,
   jsonResponseWithCookies,
@@ -114,32 +113,24 @@ export function generateSessionTokens(): {
 
 /**
  * Gets access token from request using unified cookie.
- * Legacy fallbacks removed - RISE V3 cleanup complete.
+ * Uses V4 format (__Secure-rise_access) only.
  */
 export function getUnifiedAccessToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
   
-  // Try new __Secure- cookie first, then V3 __Host- fallback for migration
-  const newToken = getCookie(cookieHeader, COOKIE_NAMES.access);
-  if (newToken) return newToken;
-  
-  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.access);
+  return getCookie(cookieHeader, COOKIE_NAMES.access);
 }
 
 /**
  * Gets refresh token from request using unified cookie.
- * Legacy fallbacks removed - RISE V3 cleanup complete.
+ * Uses V4 format (__Secure-rise_refresh) only.
  */
 export function getUnifiedRefreshToken(req: Request): string | null {
   const cookieHeader = req.headers.get("Cookie");
   if (!cookieHeader) return null;
   
-  // Try new __Secure- cookie first, then V3 __Host- fallback for migration
-  const newToken = getCookie(cookieHeader, COOKIE_NAMES.refresh);
-  if (newToken) return newToken;
-  
-  return getCookie(cookieHeader, LEGACY_COOKIE_NAMES.v3.refresh);
+  return getCookie(cookieHeader, COOKIE_NAMES.refresh);
 }
 
 // ============================================================================
@@ -174,30 +165,16 @@ export function createUnifiedAuthCookies(
 }
 
 /**
- * Creates expired cookies for logout (clears all possible cookie names).
+ * Creates expired cookies for logout.
+ * Clears V4 format cookies only (__Secure-rise_*).
  */
 export function createUnifiedLogoutCookies(): string[] {
-  // Helper for expired cookies WITH domain (new format)
   const expiredWithDomain = (name: string) => 
     `${name}=; Max-Age=0; Path=/; Domain=${COOKIE_DOMAIN}; HttpOnly; Secure; SameSite=None`;
   
-  // Helper for expired cookies WITHOUT domain (legacy __Host- format)
-  const expiredHostOnly = (name: string) => 
-    `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
-  
   return [
-    // New __Secure- cookies (with domain)
     expiredWithDomain(COOKIE_NAMES.access),
     expiredWithDomain(COOKIE_NAMES.refresh),
-    // V3 __Host- cookies (host-only, needs Partitioned)
-    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.refresh),
-    // Legacy producer cookies
-    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.refresh),
-    // Legacy buyer cookies
-    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.refresh),
   ];
 }
 
@@ -496,30 +473,8 @@ export function forbiddenResponse(corsHeaders: Record<string, string>, message =
 }
 
 /**
- * Creates expired cookies for legacy auth systems.
- * Used during login to ensure no stale legacy cookies remain.
- */
-function createLegacyClearCookies(): string[] {
-  const expiredHostOnly = (name: string) => 
-    `${name}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None; Partitioned`;
-  
-  return [
-    // V3 __Host- cookies (host-only)
-    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.v3.refresh),
-    // Legacy producer cookies
-    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.producer.refresh),
-    // Legacy buyer cookies  
-    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.access),
-    expiredHostOnly(LEGACY_COOKIE_NAMES.buyer.refresh),
-  ];
-}
-
-/**
  * Creates a successful login/register response with cookies.
- * 
- * SECURITY FIX: Also clears legacy cookies to prevent cross-user data leakage.
+ * Uses V4 format cookies only (__Secure-rise_*).
  */
 export function createAuthResponse(
   session: SessionData,
@@ -527,14 +482,7 @@ export function createAuthResponse(
   roles: AppRole[],
   corsHeaders: Record<string, string>
 ): Response {
-  // Create new unified auth cookies
   const authCookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
-  
-  // Clear any legacy cookies that might exist (SECURITY FIX)
-  const legacyClearCookies = createLegacyClearCookies();
-  
-  // Combine: set new cookies + clear legacy cookies
-  const allCookies = [...authCookies, ...legacyClearCookies];
   
   return jsonResponseWithCookies({
     success: true,
@@ -547,7 +495,7 @@ export function createAuthResponse(
     },
     roles,
     activeRole: session.activeRole,
-  }, corsHeaders, allCookies);
+  }, corsHeaders, authCookies);
 }
 
 /**

@@ -67,7 +67,7 @@ export function createMockSupabaseClient() {
 export function createMockRequest(body: Record<string, unknown>): Request {
   const headers = new Headers({
     "Content-Type": "application/json",
-    "Cookie": "producer_session=valid-token",
+    "Cookie": "__Secure-rise_access=valid-token",
   });
 
   return new Request(FUNCTION_URL, {
@@ -99,7 +99,7 @@ export function createOptionsRequest(): Request {
 export function createInvalidJsonRequest(): Request {
   const headers = new Headers({
     "Content-Type": "application/json",
-    "Cookie": "producer_session=valid-token",
+    "Cookie": "__Secure-rise_access=valid-token",
   });
 
   return new Request(FUNCTION_URL, {

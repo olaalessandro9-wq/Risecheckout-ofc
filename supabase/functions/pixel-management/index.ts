@@ -17,7 +17,7 @@
  * @version 2.0.0
  * @refactored 2026-01-13 - Handlers extraídos para _shared/pixel-handlers.ts
  * @refactored 2026-01-18 - jsonResponse signature standardized
- * @security Requer producer_session token válido
+ * @security Requer __Secure-rise_access cookie válido
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

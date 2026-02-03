@@ -44,7 +44,7 @@ export function createMockRequest(body: TestWebhookPayload): Request {
     method: "POST",
     headers: new Headers({
       "Content-Type": "application/json",
-      "Cookie": "producer_session=valid-token",
+      "Cookie": "__Secure-rise_access=valid-token",
     }),
     body: JSON.stringify(body),
   });

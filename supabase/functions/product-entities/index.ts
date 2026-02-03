@@ -84,7 +84,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Authenticate using producer_session_token
+    // Authenticate using unified auth (__Secure-rise_access cookie)
     let producer;
     try {
       producer = await requireAuthenticatedProducer(supabase, req);
