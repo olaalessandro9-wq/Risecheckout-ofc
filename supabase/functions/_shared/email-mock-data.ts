@@ -12,6 +12,7 @@ import type {
   PaymentPendingData, 
   NewSaleData 
 } from "./email-templates-base.ts";
+import { buildSiteUrl } from "./site-urls.ts";
 
 // ============================================================================
 // PURCHASE MOCK DATA
@@ -26,7 +27,7 @@ export function getMockPurchaseData(): PurchaseConfirmationData {
     paymentMethod: "Cartão de Crédito",
     sellerName: "Rise Academy",
     supportEmail: "suporte@riseacademy.com",
-    deliveryUrl: "https://risecheckout.com/minha-conta/produtos/preview",
+    deliveryUrl: buildSiteUrl("/minha-conta/produto/preview-product-id"),
   };
 }
 
@@ -43,7 +44,7 @@ export function getMockMembersAreaData(): PurchaseConfirmationData {
     paymentMethod: "PIX",
     sellerName: "Rise Academy",
     supportEmail: "suporte@riseacademy.com",
-    deliveryUrl: "https://risecheckout.com/minha-conta/produtos/preview-123",
+    deliveryUrl: buildSiteUrl("/minha-conta/produto/preview-product-123"),
   };
 }
 
@@ -107,7 +108,7 @@ export interface PasswordResetMockData {
 export function getMockPasswordResetData(): PasswordResetMockData {
   return {
     name: "Usuário Teste (PREVIEW)",
-    resetLink: "https://risecheckout.com/reset-password?token=preview-token-123",
+    resetLink: buildSiteUrl("/reset-password?token=preview-token-123"),
   };
 }
 
@@ -127,7 +128,7 @@ export function getMockStudentInviteData(): StudentInviteMockData {
     studentName: "Aluno Convidado (PREVIEW)",
     productName: "Curso de Programação Web",
     producerName: "Rise Academy",
-    accessLink: "https://risecheckout.com/convite/preview-token-456",
+    accessLink: buildSiteUrl("/convite/preview-token-456"),
   };
 }
 
@@ -143,6 +144,6 @@ export interface GdprRequestMockData {
 export function getMockGdprData(): GdprRequestMockData {
   return {
     email: "usuario@email.com",
-    confirmationLink: "https://risecheckout.com/gdpr/confirm?token=preview-gdpr-789",
+    confirmationLink: buildSiteUrl("/gdpr/confirm?token=preview-gdpr-789"),
   };
 }
