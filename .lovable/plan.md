@@ -1,271 +1,262 @@
 
-# Plano RISE V3: Eliminar Latência e "Reconectando..." do Fluxo PIX
+# Plano RISE V3: Propagação Correta de Erros na Duplicação de Checkout
 
-## Sumário Executivo
+## Resumo do Diagnóstico
 
-O fluxo de pagamento PIX apresenta três problemas críticos que estão custando vendas:
-1. **Spinner para antes do QR code aparecer** - Gap de ~2 segundos entre spinner parar e QR aparecer
-2. **Tela "Reconectando..." aparece** - Erro de chunk loading causa tela de recovery
-3. **Transição não é seamless** - Múltiplos estados de loading durante a navegação
+Investiguei o erro de duplicação de checkout do usuário `maiconmiranda1528@gmail.com` (Darckz). Encontrei:
 
-Este plano implementa a solução RISE V3 Score 10.0/10 para garantir um fluxo **FLASH RÁPIDO**.
+| Item | Status |
+|------|--------|
+| Usuário existe | Sim (id: 28aa5872-34e2-4a65-afec-0fdfca68b5d6) |
+| Sessão ativa | Sim (válida até 22:50:21 UTC) |
+| Checkouts do usuário | 2 checkouts existentes |
+| Logs de erro no rpc-proxy | Nenhum encontrado (já expurgados) |
+| Função RPC existe | Sim (duplicate_checkout_shallow) |
 
----
-
-## Diagnóstico Detalhado
-
-### Problema 1: Spinner Para Prematuramente
-
-**Fluxo Atual:**
-```text
-[Checkout Form]
-    │
-    ├── Clica "Pagar com PIX"
-    │   └── isSubmitting = true (spinner INICIA)
-    │
-    ├── XState: creatingOrder → processingPix
-    │   └── Chamadas às Edge Functions
-    │
-    ├── XState: → paymentPending
-    │   └── isSubmitting = false (spinner PARA ❌)
-    │
-    ├── useEffect detecta navigationData
-    │   └── navigate() para /pay/pix/:orderId
-    │
-    └── [GAP DE 2s] Lazy load + usePixRecovery
-        └── Finalmente mostra QR Code
-```
-
-**Causa:** A máquina transita para `paymentPending` ANTES da navegação estar completa. O `isSubmitting` é `false`, mas a nova página ainda não renderizou.
-
-### Problema 2: "Reconectando..." Aparece
-
-**Localização:** `src/components/RouteErrorBoundary.tsx` linha 119
-
-**Causa:** Quando o lazy loading do chunk `PixPaymentPage` falha (rede instável), o `RouteErrorBoundary` detecta como `isNetworkError` e entra em modo de auto-recovery.
-
-**Código Problemático:**
-```typescript
-// RouteErrorBoundary.tsx linha 114-122
-if (recovering) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-muted-foreground">Reconectando...</p>  // ❌ INACEITÁVEL
-      </div>
-    </div>
-  );
-}
-```
-
-### Problema 3: Múltiplos Estados de Loading
-
-**Sequência Atual (ineficiente):**
-```text
-1. [Checkout] Spinner girando (isSubmitting)
-2. [Checkout] Spinner para (transição para paymentPending)
-3. [Router] PageLoader (Suspense fallback)
-4. [PixPage] PixLoadingState (usePixRecovery: checking)
-5. [PixPage] QR Code renderizado
-```
-
-**5 estados de loading = experiência péssima!**
+**Conclusão:** O erro ocorreu mas foi **silenciado** pelo tratamento genérico de erros no frontend. O código de erro é perdido durante a propagação e o usuário vê apenas "Não foi possível duplicar o checkout" sem contexto.
 
 ---
 
 ## Análise de Soluções (RISE Protocol V3 Seção 4.4)
 
-### Solução A: Ajuste Cosmético
+### Solução A: Apenas Melhorar a Mensagem no Toast
 
-Apenas trocar "Reconectando..." por mensagem contextual de PIX.
+Modificar apenas o `CheckoutTab.tsx` para mostrar `error.message`.
 
-- Manutenibilidade: 5/10 (band-aid, não resolve raiz)
-- Zero DT: 4/10 (problema arquitetural persiste)
-- Arquitetura: 4/10 (múltiplos estados de loading)
-- Escalabilidade: 5/10
+- Manutenibilidade: 5/10 (não resolve o problema em outros lugares)
+- Zero DT: 4/10 (código de erro perdido no caminho)
+- Arquitetura: 4/10 (informação perdida em camada intermediária)
+- Escalabilidade: 4/10 (cada componente precisaria tratar)
 - Segurança: 10/10
-- **NOTA FINAL: 5.6/10**
-- Tempo estimado: 30 minutos
+- **NOTA FINAL: 5.4/10**
+- Tempo estimado: 15 minutos
 
-### Solução B: Manter Spinner Durante Transição
+### Solução B: Preservar ApiError no RpcProxy + Tratamento Contextual (ESCOLHIDA)
 
-Adicionar flag `isNavigating` e manter spinner até navegação completa.
+1. Criar `RpcError` que preserva o código de erro
+2. Modificar `rpcProxy.ts` para propagar `ApiError` corretamente
+3. Criar helper para detectar e tratar erros de autenticação
+4. Modificar `CheckoutTab.tsx` para usar mensagem contextual
 
-- Manutenibilidade: 7/10 (adiciona estado extra)
-- Zero DT: 7/10 (resolve sintoma, não causa)
-- Arquitetura: 6/10 (acoplamento entre componentes)
-- Escalabilidade: 7/10
-- Segurança: 10/10
-- **NOTA FINAL: 7.4/10**
-- Tempo estimado: 1 hora
-
-### Solução C: Unificação Completa do Loading (ESCOLHIDA)
-
-1. O checkout mantém o spinner até a página PIX estar COMPLETAMENTE pronta
-2. Os dados do PIX já estão prontos no navigationData (QR code incluso)
-3. A página PIX renderiza INSTANTANEAMENTE com os dados do navState
-4. Eliminar "Reconectando..." completamente do fluxo de pagamento
-5. Pré-carregar o chunk da página PIX quando o usuário seleciona PIX
-
-- Manutenibilidade: 10/10 (fluxo limpo e linear)
-- Zero DT: 10/10 (elimina todos os gaps)
-- Arquitetura: 10/10 (Single Loading State)
-- Escalabilidade: 10/10 (padrão replicável para cartão)
-- Segurança: 10/10
+- Manutenibilidade: 10/10 (padrão aplicável a todo o sistema)
+- Zero DT: 10/10 (informação completa preservada end-to-end)
+- Arquitetura: 10/10 (separação clara de responsabilidades)
+- Escalabilidade: 10/10 (funciona para qualquer RPC)
+- Segurança: 10/10 (mensagens não expõem detalhes técnicos)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 2-3 horas
+- Tempo estimado: 45 minutos
 
-### DECISÃO: Solução C (Nota 10.0)
+### DECISÃO: Solução B (Nota 10.0)
 
 ---
 
-## Plano de Implementação
-
-### Arquivos a Modificar
+## Arquivos a Criar/Modificar
 
 ```text
-src/modules/checkout-public/components/CheckoutPublicContent.tsx  # Navegação + preload
-src/pages/pix-payment/PixPaymentPage.tsx                          # Renderização instantânea
-src/pages/pix-payment/hooks/usePixRecovery.ts                     # Priorizar navState
-src/components/RouteErrorBoundary.tsx                             # Mensagem contextual
-src/routes/publicRoutes.tsx                                       # Preload chunk
+src/lib/rpc/errors.ts              # CRIAR: RpcError class + helpers
+src/lib/rpc/index.ts               # CRIAR: Re-exports para organização
+src/lib/rpc/rpcProxy.ts            # MODIFICAR: Usar RpcError
+src/modules/products/tabs/CheckoutTab.tsx  # MODIFICAR: Tratamento contextual
 ```
 
 ---
 
 ## Alterações Detalhadas
 
-### 1. CheckoutPublicContent.tsx - Preload + Navegação Otimizada
+### 1. CRIAR: `src/lib/rpc/errors.ts`
 
-**Objetivo:** Pré-carregar o chunk da página PIX quando o usuário seleciona o método PIX, e manter o spinner até a navegação estar completa.
+Nova classe de erro que preserva o código do erro original:
 
-**Mudanças:**
-- Adicionar preload do chunk quando `selectedPaymentMethod === 'pix'`
-- Remover o delay natural do `useEffect` usando navegação mais direta
-- Garantir que a navegação acontece APENAS quando todos os dados estão prontos
-
-**Código a adicionar (após linha 47):**
 ```typescript
-// RISE V3: Preload PIX page chunk when PIX is selected
-useEffect(() => {
-  if (selectedPaymentMethod === 'pix') {
-    // Preload the PIX page chunk in the background
-    import("@/pages/PixPaymentPage").catch(() => {
-      // Ignore preload errors - will be handled during navigation
-    });
+/**
+ * RPC Error - Preserves error code from API layer
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ */
+
+import type { ApiErrorCode } from "@/lib/api/types";
+
+/**
+ * Error class that preserves the ApiErrorCode for proper handling
+ */
+export class RpcError extends Error {
+  readonly code: ApiErrorCode;
+  readonly isAuthError: boolean;
+
+  constructor(code: ApiErrorCode, message: string) {
+    super(message);
+    this.name = "RpcError";
+    this.code = code;
+    this.isAuthError = code === "UNAUTHORIZED" || code === "FORBIDDEN";
   }
-}, [selectedPaymentMethod]);
-```
+}
 
-### 2. PixPaymentPage.tsx - Renderização Instantânea
+/**
+ * Creates an RpcError from an ApiError
+ */
+export function createRpcError(code: ApiErrorCode, message: string): RpcError {
+  return new RpcError(code, message);
+}
 
-**Objetivo:** Quando há navState com qrCode, renderizar IMEDIATAMENTE sem passar pelo estado `checking`.
+/**
+ * Type guard to check if error is RpcError
+ */
+export function isRpcError(error: unknown): error is RpcError {
+  return error instanceof RpcError;
+}
 
-**Mudanças no usePixRecovery:**
-- Se navState tem qrCode, setar `recoveryStatus` para `recovered_from_state` SÍNCRONAMENTE
-- Eliminar o delay do estado `idle` → `checking` quando há dados
+/**
+ * Checks if any error is an authentication error
+ */
+export function isRpcAuthError(error: unknown): boolean {
+  if (error instanceof RpcError) {
+    return error.isAuthError;
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("autenticado") || 
+           msg.includes("sessão") || 
+           msg.includes("authentication") ||
+           msg.includes("unauthorized");
+  }
+  return false;
+}
 
-**Código otimizado (usePixRecovery.ts):**
-```typescript
-// RISE V3: Renderização instantânea com navState
-export function usePixRecovery(
-  orderId: string | undefined,
-  navState: PixNavigationData | null
-): UsePixRecoveryReturn {
-  // INSTANT: Se navState tem QR code, inicializar já como recovered
-  const hasInstantData = !!(navState?.qrCode || navState?.qrCodeText || navState?.qrCodeBase64);
-  
-  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>(
-    hasInstantData ? 'recovered_from_state' : 'idle'
-  );
-  
-  const [recoveredData, setRecoveredData] = useState<RecoveredPixData | null>(
-    hasInstantData ? {
-      qrCode: navState!.qrCode || navState!.qrCodeText || '',
-      qrCodeBase64: navState!.qrCodeBase64,
-      qrCodeText: navState!.qrCodeText,
-      amount: navState!.amount,
-      checkoutSlug: navState!.checkoutSlug,
-      source: 'navState',
-    } : null
-  );
-  // ... resto permanece igual
-```
-
-### 3. RouteErrorBoundary.tsx - Mensagem Contextual
-
-**Objetivo:** Para rotas de pagamento, usar mensagem contextual ao invés de "Reconectando...".
-
-**Mudanças:**
-- Detectar se a rota atual é de pagamento (`/pay/`)
-- Usar mensagem "Preparando pagamento..." ao invés de "Reconectando..."
-
-**Código otimizado:**
-```typescript
-// Linha 50 - adicionar hook
-const location = typeof window !== 'undefined' ? window.location.pathname : '';
-const isPaymentRoute = location.startsWith('/pay/');
-
-// Linha 114-122 - mensagem contextual
-if (recovering) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-muted-foreground">
-          {isPaymentRoute ? "Preparando pagamento..." : "Carregando..."}
-        </p>
-      </div>
-    </div>
-  );
+/**
+ * Gets user-friendly message for RPC errors
+ */
+export function getRpcErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof RpcError) {
+    if (error.isAuthError) {
+      return "Sua sessão expirou. Faça login novamente.";
+    }
+    return error.message || fallback;
+  }
+  if (error instanceof Error) {
+    if (isRpcAuthError(error)) {
+      return "Sua sessão expirou. Faça login novamente.";
+    }
+    return error.message || fallback;
+  }
+  return fallback;
 }
 ```
 
-### 4. Eliminação Completa do "Reconectando" no Fluxo Normal
+### 2. CRIAR: `src/lib/rpc/index.ts`
 
-**Objetivo:** O fluxo normal (sem erro de rede) NUNCA deve mostrar "Reconectando" ou qualquer tela intermediária.
+Re-exports para organização:
 
-O preload do chunk + renderização instantânea garantem isso.
+```typescript
+/**
+ * RPC Module - Centralized RPC utilities
+ * RISE ARCHITECT PROTOCOL V3
+ */
 
----
+// Error handling
+export { 
+  RpcError, 
+  createRpcError, 
+  isRpcError, 
+  isRpcAuthError, 
+  getRpcErrorMessage 
+} from "./errors";
 
-## Fluxo Otimizado (Após Implementação)
-
-```text
-[Checkout Form]
-    │
-    ├── Usuário seleciona PIX
-    │   └── Preload chunk PixPaymentPage (background)
-    │
-    ├── Clica "Pagar com PIX"
-    │   └── isSubmitting = true (spinner INICIA)
-    │
-    ├── XState: creatingOrder → processingPix
-    │   └── Edge Functions executam (create-order + mercadopago-create-payment)
-    │   └── QR Code retornado e armazenado em navigationData
-    │
-    ├── XState: → paymentPending
-    │   └── navigate() IMEDIATO com navigationData
-    │
-    └── [PixPaymentPage - INSTANTÂNEO]
-        └── navState tem qrCode → recoveryStatus = 'recovered_from_state'
-        └── PixWaitingState renderiza com QR Code
-        └── Spinner do checkout nem apareceu como parado
+// RPC Proxy and typed helpers
+export * from "./rpcProxy";
 ```
 
-**Resultado: Transição de < 100ms percebidos**
+### 3. MODIFICAR: `src/lib/rpc/rpcProxy.ts`
+
+Linhas 1-14 - Adicionar import:
+
+```typescript
+import { createRpcError } from "./errors";
+```
+
+Linhas 50-53 - Usar RpcError ao invés de Error genérico:
+
+```typescript
+// ANTES:
+if (error) {
+  log.error(`Error invoking ${rpcName}:`, error);
+  return { data: null, error: new Error(error.message) };
+}
+
+// DEPOIS:
+if (error) {
+  log.error(`Error invoking ${rpcName}:`, error);
+  // RISE V3: Preservar código de erro para tratamento adequado
+  return { data: null, error: createRpcError(error.code, error.message) };
+}
+```
+
+Linhas 56-58 - Tratar erro interno da resposta:
+
+```typescript
+// ANTES:
+if (data?.error) {
+  return { data: null, error: new Error(data.error) };
+}
+
+// DEPOIS:
+if (data?.error) {
+  // RISE V3: Erros internos tratados como INTERNAL_ERROR
+  return { data: null, error: createRpcError("INTERNAL_ERROR", data.error) };
+}
+```
+
+### 4. MODIFICAR: `src/modules/products/tabs/CheckoutTab.tsx`
+
+Linhas 26-28 - Adicionar import:
+
+```typescript
+import { getRpcErrorMessage, isRpcAuthError } from "@/lib/rpc/errors";
+```
+
+Linhas 113-117 - Tratamento contextual de erro:
+
+```typescript
+// ANTES:
+} catch (error: unknown) {
+  log.error('Erro ao duplicar checkout', error);
+  toast.error("Não foi possível duplicar o checkout");
+}
+
+// DEPOIS:
+} catch (error: unknown) {
+  log.error('Erro ao duplicar checkout', error);
+  
+  // RISE V3: Mensagem contextual baseada no tipo de erro
+  const message = getRpcErrorMessage(error, "Não foi possível duplicar o checkout");
+  toast.error(message);
+  
+  // Se for erro de auth, o usuário precisa fazer login novamente
+  if (isRpcAuthError(error)) {
+    // Toast já informou - o usuário saberá que precisa relogar
+  }
+}
+```
 
 ---
 
-## Métricas de Sucesso
+## Resultado Esperado
 
-| Métrica | Antes | Depois |
+| Cenário | Antes | Depois |
 |---------|-------|--------|
-| Gap spinner → QR code | ~2-4 segundos | < 100ms |
-| Tela "Reconectando..." | Aparece em instabilidade | Nunca no fluxo normal |
-| Estados de loading visíveis | 4-5 | 1 (spinner contínuo) |
-| Chunk load time | Durante navegação | Pré-carregado |
+| Sessão expirada (401) | "Não foi possível duplicar o checkout" | "Sua sessão expirou. Faça login novamente." |
+| Checkout não encontrado | "Não foi possível duplicar o checkout" | "Checkout origem X não encontrado" |
+| Erro interno (500) | "Não foi possível duplicar o checkout" | Mensagem do servidor ou fallback |
+| Sucesso | Toast de sucesso | Toast de sucesso (inalterado) |
+
+---
+
+## Impacto no Sistema
+
+Esta mudança é **100% retrocompatível**:
+
+1. `RpcError extends Error` - código existente continua funcionando
+2. Interface `RpcResult<T>` permanece com `error: Error | null`
+3. Componentes não atualizados mostram `error.message` (já funciona)
+4. Componentes atualizados podem usar os helpers para mensagens contextuais
 
 ---
 
@@ -273,11 +264,11 @@ O preload do chunk + renderização instantânea garantem isso.
 
 | Critério | Status |
 |----------|--------|
-| Manutenibilidade Infinita | Fluxo simplificado e linear |
-| Zero Dívida Técnica | Elimina workarounds e band-aids |
-| Arquitetura Correta | Single Loading State Pattern |
-| Escalabilidade | Padrão aplicável a cartão/boleto |
-| Segurança | Mantida - dados via navState seguro |
+| Manutenibilidade Infinita | Padrão aplicável a todo o sistema |
+| Zero Dívida Técnica | Informação de erro preservada end-to-end |
+| Arquitetura Correta | Separação clara: erro → transporte → UI |
+| Escalabilidade | Funciona para qualquer RPC do sistema |
+| Segurança | Mensagens não expõem detalhes técnicos internos |
 
 **RISE V3 Score: 10.0/10**
 
@@ -285,24 +276,37 @@ O preload do chunk + renderização instantânea garantem isso.
 
 ## Seção Técnica
 
-### Por que Preload?
+### Fluxo de Erro Atual (Problemático)
 
-O preload do chunk elimina o principal causador de delay:
-1. Quando o usuário seleciona PIX, o chunk começa a carregar
-2. Durante o submit (1-2 segundos), o chunk já está em cache
-3. A navegação é instantânea porque o código já está disponível
+```text
+[Edge Function]  → { error: { code: "UNAUTHORIZED", message: "..." } }
+       ↓
+[api.call()]     → { data: null, error: ApiError }
+       ↓
+[rpcProxy]       → { data: null, error: new Error(message) }  ← PERDE O CODE!
+       ↓
+[duplicateCheckout] → throw error
+       ↓
+[CheckoutTab]    → toast.error("Genérico")  ← SEM CONTEXTO!
+```
 
-### Por que Inicialização Síncrona?
+### Fluxo de Erro Corrigido
 
-O React renderiza de cima para baixo. Se `recoveryStatus` começa como `idle`, há pelo menos 1 render com `PixLoadingState` antes de transitar para `recovered_from_state`.
+```text
+[Edge Function]  → { error: { code: "UNAUTHORIZED", message: "..." } }
+       ↓
+[api.call()]     → { data: null, error: ApiError }
+       ↓
+[rpcProxy]       → { data: null, error: RpcError(code, message) }  ← PRESERVA!
+       ↓
+[duplicateCheckout] → throw error
+       ↓
+[CheckoutTab]    → getRpcErrorMessage(error) → "Sua sessão expirou..."  ← CONTEXTUAL!
+```
 
-Ao inicializar diretamente como `recovered_from_state` quando há navState, eliminamos esse render intermediário.
+### Por que `RpcError` ao invés de usar `ApiError` diretamente?
 
-### Por que Manter navigationData no XState?
-
-O padrão atual é correto:
-1. XState processa pagamento e obtém QR code
-2. navigationData contém todos os dados necessários
-3. A página PIX é apenas uma VIEW que renderiza os dados
-
-A otimização é garantir que a VIEW renderize INSTANTANEAMENTE.
+1. **Camadas separadas**: API layer usa `ApiError`, RPC layer usa `RpcError`
+2. **Extends Error**: Mantém compatibilidade com catches existentes
+3. **Helpers específicos**: `isRpcAuthError` e `getRpcErrorMessage` são específicos para RPCs
+4. **Não quebra tipagem**: `RpcResult<T>` mantém `error: Error | null`
