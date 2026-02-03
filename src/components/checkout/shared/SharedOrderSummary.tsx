@@ -85,9 +85,8 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
   const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
     const discountBase = appliedCoupon.apply_to_order_bumps ? subtotal : productPrice;
-    return appliedCoupon.discount_type === 'percentage'
-      ? (discountBase * appliedCoupon.discount_value) / 100
-      : appliedCoupon.discount_value;
+    // RISE V3: Apenas desconto por porcentagem é suportado
+    return (discountBase * appliedCoupon.discount_value) / 100;
   }, [appliedCoupon, subtotal, productPrice]);
 
   const totalPrice = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
