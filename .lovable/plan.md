@@ -1,15 +1,15 @@
 
 # Plano: Checkout Publico - Arquitetura de Elite (Performance + Resiliencia)
 
-## Status Atual
+## Status: EM PROGRESSO
 
-**RISE V3 Score Pre-Refatoracao: 7.5/10**
-
-O checkout publico atual tem os seguintes problemas identificados:
-
-| Problema | Categoria | Severidade |
-|----------|-----------|------------|
-| Bundle inclui `@dnd-kit/core` no modo public | Bundle Bloat | CRITICO |
+### Fases Concluídas:
+- ✅ **Fase 1**: Layout leve sem @dnd-kit (CheckoutPublicLayout criado)
+- ✅ **Fase 2**: BFF Super-Unificado (pixels + UTMify incluídos)
+- ✅ **Fase 3**: Gateway SDKs Dinâmicos (DynamicMercadoPagoForm, DynamicStripeForm)
+- ✅ **Fase 4**: Resiliência (CheckoutErrorBoundary, OfflineIndicator, resilient-client)
+- ✅ **Fase 5**: Tracking Deferido (useDeferredTracking hook)
+- 🔄 **Fase 6**: Bundle Splitting e Métricas (parcialmente concluído)
 | 4+ requisicoes HTTP em cascata | Performance | CRITICO |
 | SDKs de pagamento carregados estaticamente | Bundle Bloat | ALTO |
 | Zero retry automatico no BFF | Resiliencia | ALTO |

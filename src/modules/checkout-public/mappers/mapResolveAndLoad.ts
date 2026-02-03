@@ -111,6 +111,33 @@ export interface MappedCheckoutData {
   affiliate: AffiliateUIModel | null;
   resolvedGateways: ResolvedGateways;
   design: ThemePreset;
+  // Phase 2 additions
+  productPixels: ProductPixelUIModel[];
+  vendorIntegration: VendorIntegrationUIModel | null;
+}
+
+// Phase 2 UI Models
+export interface ProductPixelUIModel {
+  id: string;
+  platform: string;
+  pixel_id: string;
+  access_token?: string | null;
+  conversion_label?: string | null;
+  domain?: string | null;
+  is_active: boolean;
+  fire_on_initiate_checkout: boolean;
+  fire_on_purchase: boolean;
+  fire_on_pix: boolean;
+  fire_on_card: boolean;
+  fire_on_boleto: boolean;
+  custom_value_percent: number;
+}
+
+export interface VendorIntegrationUIModel {
+  id: string;
+  vendor_id: string;
+  active: boolean;
+  config: unknown;
 }
 
 // ============================================================================
@@ -236,6 +263,37 @@ export function mapResolveAndLoad(response: ResolveAndLoadResponse): MappedCheck
   
   const design = normalizeDesign(designData);
 
+  // =========================================================================
+  // MAP PRODUCT PIXELS (Phase 2)
+  // =========================================================================
+  const productPixels: ProductPixelUIModel[] = (response.data.productPixels || []).map((p) => ({
+    id: p.id,
+    platform: p.platform,
+    pixel_id: p.pixel_id,
+    access_token: p.access_token,
+    conversion_label: p.conversion_label,
+    domain: p.domain,
+    is_active: p.is_active,
+    fire_on_initiate_checkout: p.fire_on_initiate_checkout,
+    fire_on_purchase: p.fire_on_purchase,
+    fire_on_pix: p.fire_on_pix,
+    fire_on_card: p.fire_on_card,
+    fire_on_boleto: p.fire_on_boleto,
+    custom_value_percent: p.custom_value_percent ?? 100,
+  }));
+
+  // =========================================================================
+  // MAP VENDOR INTEGRATION (Phase 2)
+  // =========================================================================
+  const vendorIntegration: VendorIntegrationUIModel | null = response.data.vendorIntegration
+    ? {
+        id: response.data.vendorIntegration.id,
+        vendor_id: response.data.vendorIntegration.vendor_id,
+        active: response.data.vendorIntegration.active,
+        config: response.data.vendorIntegration.config,
+      }
+    : null;
+
   return {
     checkout: checkoutUI,
     product: productUI,
@@ -244,5 +302,7 @@ export function mapResolveAndLoad(response: ResolveAndLoadResponse): MappedCheck
     affiliate: affiliateUI,
     resolvedGateways,
     design,
+    productPixels,
+    vendorIntegration,
   };
 }
