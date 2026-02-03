@@ -1,15 +1,17 @@
 # Sistema de Status de Pedidos - RiseCheckout
 
-## Padrão de Mercado: Hotmart/Kiwify
+## Padrão de Mercado: Hotmart/Kiwify/Cakto
 
-O RiseCheckout segue o modelo de status **padrão de mercado** utilizado por plataformas como Hotmart e Kiwify. Neste modelo:
+O RiseCheckout segue o modelo de status **padrão de mercado** utilizado por plataformas como Hotmart, Kiwify e Cakto. Neste modelo:
 
-> **Uma venda pendente NUNCA se torna "cancelada" ou "expirada" na interface do usuário.**
+> **Uma venda PIX pendente NUNCA se torna "cancelada" na interface do usuário.**
+> **Cartões recusados recebem status próprio: "Recusado".**
 
 Isso permite:
 1. **Métricas de conversão precisas** - Vendas perdidas são analisadas separadamente
 2. **Recuperação de vendas** - PIX expirado pode ser reprocessado
-3. **Consistência com mercado** - Mesma experiência que plataformas líderes
+3. **Diagnóstico de recusas** - Cartões recusados são rastreados separadamente
+4. **Consistência com mercado** - Mesma experiência que plataformas líderes
 
 ---
 
@@ -25,9 +27,9 @@ O sistema utiliza duas camadas de status:
 ### Campos no Banco de Dados
 
 ```sql
--- Coluna principal (4 valores possíveis)
+-- Coluna principal (5 valores possíveis)
 status TEXT NOT NULL DEFAULT 'pending'
-  CHECK (status IN ('paid', 'pending', 'refunded', 'chargeback'))
+  CHECK (status IN ('paid', 'pending', 'refused', 'refunded', 'chargeback'))
 
 -- Coluna técnica (6 valores possíveis)
 technical_status TEXT DEFAULT 'active'
@@ -42,23 +44,25 @@ expired_at TIMESTAMPTZ
 
 ## Status Canônicos (Camada Pública)
 
-Apenas **4 status** são exibidos ao usuário:
+Apenas **5 status** são exibidos ao usuário:
 
 | Status | Display | Cor | Descrição |
 |--------|---------|-----|-----------|
-| `paid` | Pago | 🟢 Verde | Pagamento confirmado |
-| `pending` | Pendente | 🟡 Amarelo | Aguardando pagamento |
-| `refunded` | Reembolso | 🔵 Azul | Valor devolvido |
-| `chargeback` | Chargeback | 🔴 Vermelho | Contestação de cartão |
+| `paid` | Pago | 🟢 Verde (emerald) | Pagamento confirmado |
+| `pending` | Pendente | 🟡 Amarelo (amber) | Aguardando pagamento |
+| `refused` | Recusado | 🟠 Laranja (orange) | Cartão recusado |
+| `refunded` | Reembolso | 🔵 Azul (blue) | Valor devolvido |
+| `chargeback` | Chargeback | 🔴 Vermelho (red) | Contestação de cartão |
 
 ### Cores CSS
 
 ```typescript
 const STATUS_COLORS = {
-  paid: { bg: 'bg-emerald-100', text: 'text-emerald-800', dot: 'bg-emerald-500' },
-  pending: { bg: 'bg-amber-100', text: 'text-amber-800', dot: 'bg-amber-500' },
-  refunded: { bg: 'bg-blue-100', text: 'text-blue-800', dot: 'bg-blue-500' },
-  chargeback: { bg: 'bg-red-100', text: 'text-red-800', dot: 'bg-red-500' },
+  paid: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', dot: 'bg-emerald-500' },
+  pending: { bg: 'bg-amber-500/10', text: 'text-amber-500', dot: 'bg-amber-500' },
+  refused: { bg: 'bg-orange-500/10', text: 'text-orange-500', dot: 'bg-orange-500' },
+  refunded: { bg: 'bg-blue-500/10', text: 'text-blue-500', dot: 'bg-blue-500' },
+  chargeback: { bg: 'bg-red-500/10', text: 'text-red-500', dot: 'bg-red-500' },
 };
 ```
 
@@ -77,7 +81,8 @@ Para diagnóstico e relatórios avançados, **6 status técnicos**:
 | `gateway_error` | Erro no processamento | `pending` |
 | `abandoned` | Checkout abandonado | `pending` |
 
-**Importante:** Todos os status técnicos negativos resultam em `status = 'pending'`.
+**Importante:** Todos os status técnicos negativos resultam em `status = 'pending'` (para PIX).
+Cartões recusados usam `status = 'refused'`.
 
 ---
 
@@ -89,7 +94,9 @@ stateDiagram-v2
     
     pending --> paid: Webhook payment.approved
     pending --> pending: PIX expirou (technical_status = expired)
-    pending --> pending: Gateway error (technical_status = gateway_error)
+    pending --> refused: Cartão recusado
+    
+    refused --> paid: Retry com sucesso
     
     paid --> refunded: Reembolso processado
     paid --> chargeback: Contestação recebida
@@ -109,7 +116,7 @@ stateDiagram-v2
 | `approved` | `paid` | - |
 | `pending` | `pending` | `active` |
 | `in_process` | `pending` | `active` |
-| `rejected` | `pending` | `gateway_cancelled` |
+| `rejected` | `refused` | - |
 | `cancelled` | `pending` | `gateway_cancelled` |
 | `refunded` | `refunded` | - |
 | `charged_back` | `chargeback` | - |
@@ -123,6 +130,7 @@ stateDiagram-v2
 | `PENDING` | `pending` | `active` |
 | `OVERDUE` | `pending` | `expired` |
 | `REFUNDED` | `refunded` | - |
+| `DECLINED` | `refused` | - |
 
 ### PushinPay
 
@@ -134,6 +142,17 @@ stateDiagram-v2
 | `canceled` | `pending` | `gateway_cancelled` |
 | `refunded` | `refunded` | - |
 
+### Mapeamento Genérico de Recusas
+
+| Status Gateway | Status Canônico |
+|----------------|-----------------|
+| `rejected` | `refused` |
+| `declined` | `refused` |
+| `failed` | `refused` |
+| `card_declined` | `refused` |
+| `cc_rejected` | `refused` |
+| `error` | `refused` |
+
 ---
 
 ## Uso no Código
@@ -144,21 +163,24 @@ stateDiagram-v2
 import { orderStatusService } from '@/lib/order-status';
 
 // Normaliza qualquer status de gateway para canônico
-const canonical = orderStatusService.normalize('rejected'); // 'pending'
+const canonical = orderStatusService.normalize('rejected'); // 'refused'
 
 // Obtém label para exibição
-const label = orderStatusService.getDisplayLabel('paid'); // 'Pago'
+const label = orderStatusService.getDisplayLabel('refused'); // 'Recusado'
 
 // Obtém cores
-const colors = orderStatusService.getColorScheme('pending');
-// { bg: 'bg-amber-100', text: 'text-amber-800', ... }
+const colors = orderStatusService.getColorScheme('refused');
+// { bg: 'bg-orange-500/10', text: 'text-orange-500', ... }
+
+// Verifica se é recusado
+const isRefused = orderStatusService.isRefused('card_declined'); // true
 ```
 
 ### Tipos TypeScript
 
 ```typescript
-// Apenas estes 4 valores são válidos
-type CanonicalOrderStatus = 'paid' | 'pending' | 'refunded' | 'chargeback';
+// Apenas estes 5 valores são válidos
+type CanonicalOrderStatus = 'paid' | 'pending' | 'refused' | 'refunded' | 'chargeback';
 
 // Para rastreamento interno
 type TechnicalOrderStatus = 
@@ -180,8 +202,11 @@ type TechnicalOrderStatus =
 -- Vendas aprovadas
 SELECT COUNT(*) FROM orders WHERE status = 'paid';
 
--- Vendas pendentes (inclui expiradas!)
+-- Vendas pendentes (PIX aguardando)
 SELECT COUNT(*) FROM orders WHERE status = 'pending';
+
+-- Cartões recusados
+SELECT COUNT(*) FROM orders WHERE status = 'refused';
 ```
 
 ### 2. Relatório de Vendas Perdidas
@@ -191,6 +216,9 @@ SELECT COUNT(*) FROM orders WHERE status = 'pending';
 SELECT * FROM orders 
 WHERE status = 'pending' 
   AND technical_status = 'expired';
+
+-- Cartões recusados
+SELECT * FROM orders WHERE status = 'refused';
 ```
 
 ### 3. Recuperação de Vendas
@@ -198,8 +226,7 @@ WHERE status = 'pending'
 ```sql
 -- Candidatas para email de recuperação
 SELECT * FROM orders 
-WHERE status = 'pending' 
-  AND technical_status IN ('expired', 'abandoned')
+WHERE status IN ('pending', 'refused')
   AND created_at > NOW() - INTERVAL '7 days';
 ```
 
@@ -212,13 +239,18 @@ Em **17 de Janeiro de 2026**, foi executada migração:
 - **14 pedidos** com `status = 'cancelled'` → `status = 'pending'`, `technical_status = 'expired'`
 - **0 pedidos** com `status = 'failed'` precisaram migração
 
+Em **03 de Fevereiro de 2026**, foi adicionado:
+
+- Status `refused` para cartões recusados
+- Mapeamento de `rejected`, `declined`, `failed` → `refused`
+
 ---
 
 ## Código Fonte
 
 | Arquivo | Propósito |
 |---------|-----------|
-| `src/lib/order-status/types.ts` | Tipos e constantes |
+| `src/lib/order-status/types.ts` | Tipos e constantes (5 status) |
 | `src/lib/order-status/service.ts` | Serviço de normalização |
 | `src/lib/order-status/index.ts` | Barrel export |
 | `supabase/functions/_shared/webhook-helpers.ts` | Mapeamento de gateways |

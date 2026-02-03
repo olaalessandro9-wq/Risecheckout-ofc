@@ -141,17 +141,18 @@ O RiseCheckout está **100% completo** e em **conformidade total com o RISE ARCH
 | Zero arquivos > 300 linhas (backend) | ✅ 100% Compliant |
 | Single Responsibility Principle | ✅ 100% Compliant |
 
-### Sistema de Status de Pedidos ✅ HOTMART/KIWIFY
+### Sistema de Status de Pedidos ✅ HOTMART/KIWIFY/CAKTO
 
 | Componente | Status |
 |------------|--------|
-| 4 Status Canônicos (paid, pending, refunded, chargeback) | ✅ |
+| 5 Status Canônicos (paid, pending, refused, refunded, chargeback) | ✅ |
+| Status "Recusado" para cartões recusados | ✅ |
 | Technical Status para diagnóstico interno | ✅ |
 | Campo `expired_at` para rastreamento | ✅ |
 | Mapeamento unificado de gateways | ✅ |
 | Documentação completa ([ORDER_STATUS_MODEL.md](./ORDER_STATUS_MODEL.md)) | ✅ |
 
-> **Modelo:** Vendas pendentes NUNCA viram "canceladas" na UI - padrão Hotmart/Kiwify.
+> **Modelo:** PIX expirado → Pendente. Cartão recusado → Recusado. Padrão Cakto.
 
 ### Gateways de Pagamento
 

@@ -6,6 +6,29 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [3.6.2] - 2026-02-03
+
+### 🟠 Status "Recusado" - RISE V3 10.0/10
+
+#### Adicionado
+- **Status `refused`** para cartões recusados (cor laranja)
+- **Método `isRefused()`** no `orderStatusService`
+- **Mapeamento de gateways:** `rejected`, `declined`, `failed`, `card_declined`, `cc_rejected` → `refused`
+- **Testes unitários:** 109 testes passando (cobertura completa)
+
+#### Alterado
+- **`src/lib/order-status/types.ts`**: 5 status canônicos (antes eram 4)
+- **`src/lib/order-status/service.ts`**: Comentários atualizados para 5 status
+- **`docs/ORDER_STATUS_MODEL.md`**: Reescrita completa com status `refused`
+- **`docs/STATUS_ATUAL.md`**: Tabela atualizada para 5 status
+- **`src/modules/dashboard/types/dashboard.types.ts`**: Comentários corrigidos
+
+#### Padrão de Mercado
+- **Modelo Cakto:** Cartão recusado → Status "Recusado" (separado de "Pendente")
+- **PIX expirado:** Continua como "Pendente" (padrão Hotmart/Kiwify)
+
+---
+
 ## [3.6.1] - 2026-01-31
 
 ### 🧹 Auditoria de Terminologia RISE V3 (Seção 4.5)
