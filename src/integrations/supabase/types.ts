@@ -279,7 +279,7 @@ export type Database = {
             foreignKeyName: "buyer_audit_log_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -314,7 +314,7 @@ export type Database = {
             foreignKeyName: "buyer_content_access_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -602,7 +602,7 @@ export type Database = {
             foreignKeyName: "buyer_quiz_attempts_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -695,7 +695,7 @@ export type Database = {
             foreignKeyName: "buyer_saved_cards_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -805,7 +805,7 @@ export type Database = {
             foreignKeyName: "certificates_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -2501,7 +2501,7 @@ export type Database = {
             foreignKeyName: "orders_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "buyer_profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
