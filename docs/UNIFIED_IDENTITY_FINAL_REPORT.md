@@ -1,9 +1,12 @@
 # Relatório Final Consolidado - Unified Identity Migration
 
-**Data de Geração:** 23 de Janeiro de 2026  
+**Data de Geração:** 03 de Fevereiro de 2026  
 **Projeto:** RiseCheckout  
 **RISE Protocol V3 Score:** 10.0/10  
 **Status:** ✅ PRODUÇÃO - 100% COMPLETO
+
+> **Atualização 03/02/2026:** Tabelas legadas `profiles` e `buyer_profiles` foram removidas. 
+> `users` é agora a única fonte de verdade (SSOT) para toda informação de identidade.
 
 ---
 
@@ -52,11 +55,11 @@
 
 | Categoria | Quantidade | Detalhes |
 |-----------|------------|----------|
-| **Tabelas Ativas** | 83 | Core auth, products, orders, members area |
+| **Tabelas Ativas** | 81 | Core auth, products, orders, members area |
 | **SQL Functions** | 74+ | Helpers, triggers, RPC endpoints |
 | **RLS Policies** | 214 | Cobertura completa de segurança |
-| **Tabelas Legadas** | 0 | `producer_sessions` e `buyer_sessions` removidas |
-| **Funções Legadas** | 0 | `get_producer_id_from_session()` removida |
+| **Tabelas Legadas** | 0 | `producer_sessions`, `buyer_sessions`, `profiles`, `buyer_profiles` removidas |
+| **Funções Legadas** | 0 | `get_producer_id_from_session()`, `get_buyer_by_email()` removidas |
 
 ### 2.2 Edge Functions
 
@@ -127,6 +130,8 @@
 |--------|-----------|
 | `producer_sessions` | 23/01/2026 |
 | `buyer_sessions` | 23/01/2026 |
+| `profiles` | 03/02/2026 |
+| `buyer_profiles` | 03/02/2026 |
 
 ### Funções SQL Removidas
 
@@ -135,6 +140,7 @@
 | `get_producer_id_from_session()` | 23/01/2026 |
 | `cleanup_expired_producer_sessions()` | 23/01/2026 |
 | `cleanup_expired_buyer_sessions()` | 23/01/2026 |
+| `get_buyer_by_email()` | 03/02/2026 |
 
 ### Edge Functions Removidas
 
@@ -224,12 +230,16 @@
 ║                                                                                ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                ║
-║  ✓ Zero tabelas legadas (producer_sessions, buyer_sessions DROPPED)           ║
-║  ✓ Zero funções legadas (get_producer_id_from_session DROPPED)                ║
+║  ✓ Zero tabelas legadas (producer_sessions, buyer_sessions, profiles,         ║
+║    buyer_profiles DROPPED)                                                     ║
+║  ✓ Zero funções legadas (get_producer_id_from_session, get_buyer_by_email     ║
+║    DROPPED)                                                                    ║
 ║  ✓ Zero Edge Functions órfãs (105/105 no repositório)                         ║
 ║  ✓ Zero hooks legados (useUnifiedAuth é SSOT)                                 ║
 ║  ✓ Zero headers obsoletos                                                      ║
 ║  ✓ Zero fallbacks de compatibilidade                                          ║
+║  ✓ Zero compatibility layers (http-client.ts, payment-validation.ts,          ║
+║    webhook-idempotency.ts DELETADOS)                                           ║
 ║  ✓ Zero código morto                                                           ║
 ║  ✓ 214 RLS policies ativas                                                     ║
 ║  ✓ 100% Edge Functions usando unified-auth-v2                                  ║
@@ -239,7 +249,7 @@
 ║                                                                                ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                ║
-║  Data de Certificação: 23 de Janeiro de 2026                                  ║
+║  Data de Certificação: 03 de Fevereiro de 2026                               ║
 ║  Lead Architect: AI Assistant                                                  ║
 ║  RISE Protocol V3 Score: 10.0/10                                              ║
 ║                                                                                ║
@@ -261,4 +271,4 @@
 
 **Fim do Relatório Final Consolidado**
 
-*Gerado automaticamente em 23/01/2026 - RISE Protocol V3*
+*Atualizado em 03/02/2026 - RISE Protocol V3*

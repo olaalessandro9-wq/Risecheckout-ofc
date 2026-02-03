@@ -29,10 +29,9 @@ Este documento descreve a implementação do **Direito ao Esquecimento** (Art. 1
 │   └──────────────┘           │                                      │
 │                              ▼                                      │
 │                    ┌──────────────────────────────────┐             │
-│                    │   Anonimização em 3 tabelas:     │             │
+│                    │   Anonimização em 2 tabelas:     │             │
 │                    │   - orders                       │             │
-│                    │   - buyer_profiles               │             │
-│                    │   - checkout_sessions            │             │
+│                    │   - users                        │             │
 │                    └──────────────────────────────────┘             │
 │                              │                                      │
 │                              ▼                                      │
@@ -140,7 +139,7 @@ Auditoria de todas as ações LGPD:
 
 1. Edge Function valida token (não expirado, não usado)
 2. Atualiza status para `verified`
-3. Executa anonimização em 3 tabelas:
+3. Executa anonimização em 2 tabelas:
 
    **`orders`:**
    ```sql
@@ -149,32 +148,21 @@ Auditoria de todas as ações LGPD:
      customer_name = 'Dados Removidos (LGPD)',
      customer_phone = NULL,
      customer_document = NULL,
-     payer_document = NULL,
-     payer_phone = NULL,
-     ip_address = NULL,
-     utm_source = NULL,
-     utm_medium = NULL,
-     utm_campaign = NULL,
-     metadata = NULL
+     customer_ip = NULL
    WHERE customer_email = <email>
    ```
 
-   **`buyer_profiles`:**
+   **`users`:**
    ```sql
-   UPDATE buyer_profiles SET
+   UPDATE users SET
      email = 'anonymized_xxx@deleted.lgpd',
      name = 'Dados Removidos (LGPD)',
      phone = NULL,
+     cpf_cnpj = NULL,
      document_encrypted = NULL,
      document_hash = NULL,
      is_active = false
    WHERE email = <email>
-   ```
-
-   **`checkout_sessions`:**
-   ```sql
-   DELETE FROM checkout_sessions
-   WHERE order_id IN (SELECT id FROM orders WHERE customer_email = <anonymized_email>)
    ```
 
 4. Registra em `gdpr_audit_log`
@@ -182,7 +170,7 @@ Auditoria de todas as ações LGPD:
    - `status = 'processed'`
    - `processed_at = now()`
    - `records_anonymized = total`
-   - `tables_affected = {orders: X, buyer_profiles: Y, ...}`
+   - `tables_affected = {orders: X, users: Y}`
 6. Anonimiza o próprio email na solicitação
 
 ### Fase 4: Retenção Fiscal

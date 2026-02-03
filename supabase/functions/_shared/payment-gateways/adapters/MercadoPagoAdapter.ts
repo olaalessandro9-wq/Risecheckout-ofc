@@ -6,8 +6,8 @@
 import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse, PaymentSplitRule } from "../types.ts";
 import { CircuitBreaker, CircuitOpenError, GATEWAY_CIRCUIT_CONFIGS } from "../../circuit-breaker.ts";
-import { createGatewayClient, type GatewayHttpClient } from "../../http-client.ts";
-import { validateOrderAmount } from "../../payment-validation.ts";
+import { createGatewayClient, type GatewayHttpClient } from "../../http/index.ts";
+import { validateOrderAmount } from "../../validation/index.ts";
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { MercadoPagoPayload, MercadoPagoDisbursement, MercadoPagoResponse } from "./mercadopago-types.ts";
 import { createLogger } from "../../logger.ts";

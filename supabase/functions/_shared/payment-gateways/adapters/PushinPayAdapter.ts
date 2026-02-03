@@ -23,8 +23,8 @@ import { IPaymentGateway } from "../IPaymentGateway.ts";
 import { PaymentRequest, PaymentResponse } from "../types.ts";
 import { CircuitOpenError } from "../../circuit-breaker.ts";
 import { createLogger } from "../../logger.ts";
-import { createGatewayClient, createGatewayHeaders } from "../../http-client.ts";
-import { validateOrderAmount } from "../../payment-validation.ts";
+import { createGatewayClient, createGatewayHeaders } from "../../http/index.ts";
+import { validateOrderAmount } from "../../validation/index.ts";
 
 const log = createLogger("PushinPayAdapter");
 
