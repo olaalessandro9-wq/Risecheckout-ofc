@@ -99,10 +99,10 @@ export interface ChartDataPoint {
 /**
  * Status de exibição para clientes
  * 
- * MODELO HOTMART/KIWIFY (padrão de mercado):
- * - Apenas 4 status possíveis
- * - Vendas pendentes NUNCA viram "canceladas"
- * - Expired/Failed/Cancelled = Pendente na UI
+ * MODELO HOTMART/KIWIFY/CAKTO (padrão de mercado):
+ * - 5 status possíveis: Pago, Pendente, Recusado, Reembolso, Chargeback
+ * - PIX expirado/cancelado → Pendente (vendas não "cancelam")
+ * - Cartão recusado → Recusado (status próprio)
  */
 export type CustomerDisplayStatus = 
   | "Pago" 
