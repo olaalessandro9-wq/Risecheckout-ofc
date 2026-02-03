@@ -70,6 +70,7 @@ export const fetchCheckoutDataActor = fromPromise<FetchCheckoutOutput, FetchChec
       return {
         success: false,
         error: data?.error || "Checkout não encontrado",
+        reason: data?.reason || undefined, // Propagar reason do backend
       };
     }
 

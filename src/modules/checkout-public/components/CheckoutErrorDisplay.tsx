@@ -22,38 +22,77 @@ interface CheckoutErrorDisplayProps {
   onGiveUp?: () => void;
 }
 
-// Error messages mapping
-const ERROR_MESSAGES: Record<string, { title: string; description: string }> = {
+// Error messages mapping - All in Brazilian Portuguese
+const ERROR_MESSAGES: Record<string, { title: string; description: string; canRetry: boolean }> = {
+  // Backend errors (resolve-universal)
+  NOT_FOUND: {
+    title: "Link não encontrado",
+    description: "Este link de pagamento não existe ou foi removido.",
+    canRetry: false,
+  },
+  NO_CHECKOUT: {
+    title: "Checkout não configurado",
+    description: "Este link ainda não possui um checkout configurado. Entre em contato com o vendedor.",
+    canRetry: false,
+  },
+  INACTIVE: {
+    title: "Produto indisponível",
+    description: "Este produto não está mais disponível para compra.",
+    canRetry: false,
+  },
+  BLOCKED: {
+    title: "Produto bloqueado",
+    description: "Este produto foi bloqueado e não está disponível. Entre em contato com o suporte.",
+    canRetry: false,
+  },
+  
+  // Existing errors (updated to PT-BR)
   FETCH_FAILED: {
-    title: "Erro ao carregar checkout",
+    title: "Erro ao carregar",
     description: "Não foi possível carregar os dados do checkout. Verifique sua conexão e tente novamente.",
+    canRetry: true,
   },
   VALIDATION_FAILED: {
     title: "Dados inválidos",
-    description: "Os dados recebidos do servidor estão em um formato inesperado.",
+    description: "Os dados recebidos estão em formato inesperado. Tente novamente ou entre em contato com o suporte.",
+    canRetry: true,
   },
   CHECKOUT_NOT_FOUND: {
     title: "Checkout não encontrado",
-    description: "Este link de checkout não existe ou foi removido.",
+    description: "Este checkout não existe ou foi removido.",
+    canRetry: false,
   },
   PRODUCT_UNAVAILABLE: {
     title: "Produto indisponível",
     description: "Este produto não está mais disponível para compra.",
+    canRetry: false,
   },
   NETWORK_ERROR: {
     title: "Erro de conexão",
     description: "Verifique sua conexão com a internet e tente novamente.",
+    canRetry: true,
+  },
+  SUBMIT_FAILED: {
+    title: "Erro ao processar",
+    description: "Não foi possível processar seu pedido. Tente novamente.",
+    canRetry: true,
+  },
+  PAYMENT_FAILED: {
+    title: "Erro no pagamento",
+    description: "Ocorreu um erro ao processar seu pagamento. Verifique os dados e tente novamente.",
+    canRetry: true,
   },
   UNKNOWN: {
     title: "Erro inesperado",
     description: "Ocorreu um erro inesperado. Por favor, tente novamente.",
+    canRetry: true,
   },
 };
 
 export const CheckoutErrorDisplay: React.FC<CheckoutErrorDisplayProps> = ({
   errorReason,
   errorMessage,
-  canRetry,
+  canRetry: canRetryProp,
   retryCount,
   onRetry,
   onGiveUp,
@@ -65,7 +104,17 @@ export const CheckoutErrorDisplay: React.FC<CheckoutErrorDisplayProps> = ({
   const displayMessage = errorMessage || errorInfo.description;
   
   // Check if it's a "not found" type error (no retry makes sense)
-  const isNotFoundError = reason === 'CHECKOUT_NOT_FOUND' || reason === 'PRODUCT_UNAVAILABLE';
+  const isNotFoundError = [
+    'NOT_FOUND',
+    'NO_CHECKOUT', 
+    'INACTIVE', 
+    'BLOCKED',
+    'CHECKOUT_NOT_FOUND', 
+    'PRODUCT_UNAVAILABLE'
+  ].includes(reason);
+  
+  // Use canRetry from error config if available, otherwise use prop
+  const canRetry = errorInfo.canRetry !== undefined ? errorInfo.canRetry && canRetryProp : canRetryProp;
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--checkout-error-bg))] p-4">
