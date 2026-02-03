@@ -33,9 +33,10 @@ const log = createLogger("OrderStatusService");
 /**
  * Maps raw gateway statuses to canonical statuses
  * 
- * MODELO HOTMART/KIWIFY:
- * - Todos os status de "falha" mapeiam para 'pending' (vendas não "cancelam")
- * - Apenas 4 status canônicos: paid, pending, refunded, chargeback
+ * MODELO HOTMART/KIWIFY/CAKTO:
+ * - PIX expirado/cancelado → 'pending' (vendas não "cancelam")
+ * - Cartão recusado → 'refused' (status próprio)
+ * - 5 status canônicos: paid, pending, refused, refunded, chargeback
  */
 const GATEWAY_STATUS_MAP: Readonly<Record<string, CanonicalOrderStatus>> = {
   // ===== CANONICAL (passthrough) =====
@@ -142,9 +143,10 @@ class OrderStatusService {
   /**
    * Normalize any status string to a canonical status
    * 
-   * PADRÃO HOTMART/KIWIFY:
-   * - expired, cancelled, failed → 'pending'
-   * - Apenas 4 status possíveis: paid, pending, refunded, chargeback
+   * PADRÃO HOTMART/KIWIFY/CAKTO:
+   * - PIX expired, cancelled → 'pending'
+   * - Cartão failed, rejected, declined → 'refused'
+   * - 5 status possíveis: paid, pending, refused, refunded, chargeback
    * 
    * @param status - Any status string (canonical or gateway-specific)
    * @returns Canonical status, or 'pending' if not mappable
