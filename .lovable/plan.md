@@ -1,93 +1,149 @@
-# Plano: Eliminação Total de Código Legado de Cookies/Sessões
 
-## ✅ STATUS: COMPLETO (2026-02-03)
+# Plano: Correção de Nomes de Testes Legados
 
-**RISE V3 Score: 10.0/10** - Zero código morto, zero fallbacks, zero dívida técnica
+## Status Atual
 
----
+**RISE V3 Score: 9.6/10** - Nomes de testes incorretos
 
-## Resumo da Execução
+A implementacao usa cookies corretos (`__Secure-rise_access`), mas os nomes/assercoes dos testes ainda mencionam `producer_session`, criando confusao.
 
-### Arquivos Modificados
+## Analise de Solucoes (RISE Protocol V3 Secao 4.4)
 
-#### Core Auth (3 arquivos)
-- `supabase/functions/_shared/cookie-helper.ts` - LEGACY_COOKIE_NAMES removido, fallbacks eliminados
-- `supabase/functions/_shared/session-reader.ts` - hasLegacyCookies() removido, versão 5.0.0
-- `supabase/functions/_shared/unified-auth-v2.ts` - Import LEGACY_COOKIE_NAMES removido, createLegacyClearCookies() eliminado
+### Solucao A: Manter Estado Atual
+- Manutenibilidade: 7/10 (confuso para novos desenvolvedores)
+- Zero DT: 7/10 (nomes misleading sao divida)
+- Arquitetura: 8/10 (funciona mas e incorreto)
+- Escalabilidade: 9/10 (nao bloqueia)
+- Seguranca: 10/10 (sem impacto)
+- **NOTA FINAL: 8.1/10**
+- Tempo estimado: 0 minutos
 
-#### Testes Core (2 arquivos)
-- `supabase/functions/_shared/__tests__/session-reader.test.ts` - Testes V3 removidos, usando V4 apenas
-- `supabase/functions/_shared/__tests__/unified-auth-v2.test.ts` - Testes de fallback removidos
+### Solucao B: Corrigir Nomes de Testes
+- Manutenibilidade: 10/10 (nomes refletem realidade)
+- Zero DT: 10/10 (zero misleading)
+- Arquitetura: 10/10 (codigo auto-documentado)
+- Escalabilidade: 10/10 (claro para todos)
+- Seguranca: 10/10 (sem impacto)
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 15 minutos
 
-#### Test Utilities (6 arquivos) - Cookie atualizado para __Secure-rise_access
-- `supabase/functions/affiliate-pixel-management/tests/_shared.ts`
-- `supabase/functions/affiliate-pixel-management/tests/error-handling.test.ts`
-- `supabase/functions/pixel-management/tests/_shared.ts`
-- `supabase/functions/webhook-crud/tests/_shared.ts`
-- `supabase/functions/send-webhook-test/tests/_shared.ts`
-- `supabase/functions/pushinpay-stats/tests/_shared.ts`
+### DECISAO: Solucao B (Nota 10.0)
 
-#### Comentários Atualizados (3 arquivos)
-- `supabase/functions/dashboard-analytics/index.ts`
-- `supabase/functions/product-entities/index.ts`
-- `supabase/functions/pixel-management/index.ts`
-
----
-
-## Validação
-
-| Verificação | Status |
-|-------------|--------|
-| Smoke Test | ✅ 17/17 passando |
-| Testes session-reader | ✅ Todos passando |
-| Testes unified-auth-v2 | ✅ Todos passando |
-| Zero LEGACY_COOKIE_NAMES em código | ✅ Confirmado |
-| Zero hasLegacyCookies() | ✅ Removido |
-| Zero fallback V3 | ✅ Eliminado |
-| Cookies de teste usando V4 | ✅ __Secure-rise_access |
+Conforme Lei Suprema Secao 4.6: A melhor solucao VENCE. SEMPRE.
 
 ---
 
-## Arquitetura Final de Cookies
+## Arquivos a Modificar (6 arquivos)
 
-```
-ANTES (V3 + Fallbacks - 8 cookies no logout):
-├── __Secure-rise_access (V4 - novo)
-├── __Secure-rise_refresh (V4 - novo)
-├── __Host-rise_access (V3 - fallback)
-├── __Host-rise_refresh (V3 - fallback)
-├── __Host-producer_access (legacy)
-├── __Host-producer_refresh (legacy)
-├── __Host-buyer_access (legacy)
-└── __Host-buyer_refresh (legacy)
-
-DEPOIS (V4 apenas - 2 cookies no logout):
-├── __Secure-rise_access
-└── __Secure-rise_refresh
+```text
+supabase/functions/
+├── pixel-management/tests/
+│   └── authentication.test.ts          # Corrigir nomes e assercoes
+├── webhook-crud/tests/
+│   └── authentication.test.ts          # Corrigir nomes
+├── affiliate-pixel-management/tests/
+│   └── authentication.test.ts          # Corrigir nomes
+├── pushinpay-stats/tests/
+│   └── stats.test.ts                   # Corrigir nomes
+├── send-webhook-test/tests/
+│   └── send-test.test.ts               # Corrigir nomes
+└── process-webhook-queue/tests/
+    └── authentication.test.ts          # Corrigir nomes (se aplicavel)
 ```
 
 ---
 
-## Impacto
+## Mudancas Detalhadas
 
-| Aspecto | Resultado |
-|---------|-----------|
-| Linhas de código removidas | ~80 linhas |
-| Funções removidas | 2 (hasLegacyCookies, createLegacyClearCookies) |
-| Constantes removidas | 1 (LEGACY_COOKIE_NAMES) |
-| Cookies de logout | 2 (antes 8) |
-| Performance | Melhorada (menos parsing) |
-| Segurança | Melhorada (superfície reduzida) |
+### 1. pixel-management/tests/authentication.test.ts
+
+**ANTES (linha 27):**
+```typescript
+it("should require producer_session cookie", async () => {
+```
+
+**DEPOIS:**
+```typescript
+it("should require __Secure-rise_access cookie", async () => {
+```
+
+**ANTES (linha 44):**
+```typescript
+assertEquals(cookie?.includes("producer_session="), true);
+```
+
+**DEPOIS:**
+```typescript
+assertEquals(cookie?.includes("__Secure-rise_access="), true);
+```
+
+### 2. webhook-crud/tests/authentication.test.ts
+
+**ANTES (linha 28):**
+```typescript
+it("should require producer_session cookie", async () => {
+```
+
+**DEPOIS:**
+```typescript
+it("should require __Secure-rise_access cookie", async () => {
+```
+
+### 3. affiliate-pixel-management/tests/authentication.test.ts
+
+**ANTES (linha 27):**
+```typescript
+it("should require producer_session cookie", async () => {
+```
+
+**DEPOIS:**
+```typescript
+it("should require __Secure-rise_access cookie", async () => {
+```
+
+### 4. pushinpay-stats/tests/stats.test.ts
+
+**ANTES (linha 13):**
+```typescript
+it("should require producer_session cookie", () => {
+```
+
+**DEPOIS:**
+```typescript
+it("should require __Secure-rise_access cookie", () => {
+```
+
+### 5. send-webhook-test/tests/send-test.test.ts
+
+**ANTES (linha 13):**
+```typescript
+it("should require producer_session cookie", () => {
+```
+
+**DEPOIS:**
+```typescript
+it("should require __Secure-rise_access cookie", () => {
+```
 
 ---
 
-## RISE Protocol V3 Compliance
+## Secao Tecnica
 
-| Critério | Score |
-|----------|-------|
-| Manutenibilidade Infinita | 10/10 |
-| Zero Dívida Técnica | 10/10 |
-| Arquitetura Correta | 10/10 |
-| Escalabilidade | 10/10 |
-| Segurança | 10/10 |
-| **NOTA FINAL** | **10.0/10** |
+### Impacto
+
+| Aspecto | Impacto |
+|---------|---------|
+| Testes | Zero impacto funcional (apenas nomes) |
+| CI/CD | Nomes de testes mudam nos logs |
+| Documentacao | Auto-documentacao melhorada |
+| Novos devs | Clareza total |
+
+### Validacao Pos-Implementacao
+
+1. Executar testes para confirmar que passam
+2. Verificar que zero referencias a `producer_session` existem nos testes
+3. Confirmar score RISE V3 = 10.0/10
+
+### Resultado Final
+
+**RISE V3 Score: 10.0/10** - Zero codigo morto, zero nomes misleading, zero divida tecnica
