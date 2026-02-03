@@ -1,280 +1,275 @@
 
-# Plano RISE V3: Unificar Cores de Status Negativos para Vermelho
+# Plano RISE V3: Site URLs com Wildcard (Padrão CORS)
 
-## Diagnóstico
+## Resumo
 
-O usuário identificou inconsistência visual: status "Reembolso" está em azul, mas todos os status negativos (Recusado, Reembolso, Chargeback) devem ser **vermelho** para comunicar claramente "problema/perda".
+Implementar helper centralizado para geração de URLs que suporta múltiplos subdomínios usando um único secret `SITE_BASE_DOMAIN`, seguindo o padrão já existente no CORS do projeto.
 
-### Estado Atual vs Desejado
+## Arquitetura
 
-| Status | Cor Atual | Cor Desejada | Mudança |
-|--------|-----------|--------------|---------|
-| Pago | Verde (emerald) | Verde | Manter |
-| Pendente | Amarelo (amber) | Amarelo | Manter |
-| Recusado | Laranja (orange) | **Vermelho (red)** | Alterar |
-| Reembolso | Azul (blue) | **Vermelho (red)** | Alterar |
-| Chargeback | Vermelho (red) | Vermelho | Manter |
-
----
-
-## Análise de Soluções (RISE Protocol V3 Seção 4.4)
-
-### Solução A: Atualizar Todos os Arquivos de Cores
-
-Modificar a fonte da verdade (types.ts) e todos os arquivos que definem cores de status.
-
-| Critério | Nota | Justificativa |
-|----------|------|---------------|
-| Manutenibilidade | 10/10 | SSOT atualizado, UI consistente |
-| Zero DT | 10/10 | Todas as referências sincronizadas |
-| Arquitetura | 10/10 | Padrão visual coerente |
-| Escalabilidade | 10/10 | Fácil adicionar novos status |
-| Segurança | 10/10 | Não afeta segurança |
-
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 30 minutos
-
-### Solução B: Apenas Atualizar types.ts
-
-Confiar que os outros arquivos usam a fonte da verdade.
-
-| Critério | Nota | Justificativa |
-|----------|------|---------------|
-| Manutenibilidade | 7/10 | Arquivos com cores hardcoded não serão atualizados |
-| Zero DT | 6/10 | CustomerTableRow.tsx tem cores inline |
-| Arquitetura | 6/10 | Inconsistência entre componentes |
-| Escalabilidade | 7/10 | Problema parcialmente resolvido |
-| Segurança | 10/10 | Não afeta segurança |
-
-- **NOTA FINAL: 7.0/10**
-- Tempo estimado: 10 minutos
-
-### DECISÃO: Solução A (Nota 10.0/10)
-
-A Solução B deixaria o `CustomerTableRow.tsx` e `statusConfig.ts` com cores desatualizadas, criando dívida técnica explícita.
-
----
-
-## Plano de Implementação
-
-### Arquivos a Modificar
-
-```text
-src/lib/order-status/types.ts           (SSOT)
-src/components/dashboard/order-details/statusConfig.ts
-src/components/dashboard/recent-customers/CustomerTableRow.tsx
-src/lib/order-status/__tests__/service.test.ts
-docs/ORDER_STATUS_MODEL.md
+### Secret Único
+```
+SITE_BASE_DOMAIN=risecheckout.com
 ```
 
+### Mapeamento de Contextos
+
+| Contexto | Subdomínio | URL Final |
+|----------|------------|-----------|
+| `default` | (nenhum) | `https://risecheckout.com` |
+| `members` | `aluno.` | `https://aluno.risecheckout.com` |
+| `checkout` | `pay.` | `https://pay.risecheckout.com` |
+| `dashboard` | `app.` | `https://app.risecheckout.com` |
+
+### Compatibilidade Retroativa
+
+O helper funciona com o secret atual `PUBLIC_SITE_URL` automaticamente (remove protocolo e usa como domínio base).
+
 ---
 
-### 1. `src/lib/order-status/types.ts` (Linhas 110-121)
+## Arquivos a Modificar
 
-Alterar cores de `refused` e `refunded` para vermelho:
+| Arquivo | Ação | Contexto de URL |
+|---------|------|-----------------|
+| `_shared/site-urls.ts` | CRIAR | Helper centralizado |
+| `unified-auth/handlers/password-reset-request.ts` | ATUALIZAR | `default` |
+| `students-invite/handlers/invite.ts` | ATUALIZAR | `members` |
+| `students-invite/handlers/generate_purchase_access.ts` | ATUALIZAR | `members` |
+| `_shared/grant-members-access.ts` | ATUALIZAR | `members` |
+| `_shared/send-order-emails.ts` | ATUALIZAR | `members` |
+| `gdpr-request/index.ts` | ATUALIZAR | `default` |
 
-**De:**
+---
+
+## Implementação Detalhada
+
+### 1. Criar `supabase/functions/_shared/site-urls.ts`
+
 ```typescript
-refused: {
-  bg: 'bg-orange-500/10',
-  text: 'text-orange-500',
-  border: 'border-orange-500/20',
-  dot: 'bg-orange-500',
-},
-refunded: {
-  bg: 'bg-blue-500/10',
-  text: 'text-blue-500',
-  border: 'border-blue-500/20',
-  dot: 'bg-blue-500',
-},
+/**
+ * Site URL Builder - Wildcard Subdomain Support
+ * 
+ * RISE Protocol V3 - 10.0/10
+ * 
+ * Architecture (follows cors-v2.ts pattern):
+ * - Single secret: SITE_BASE_DOMAIN (e.g., "risecheckout.com")
+ * - Context determines subdomain prefix
+ * - Zero config for new subdomains
+ */
+
+import { createLogger } from "./logger.ts";
+
+const log = createLogger("SiteUrls");
+
+export type UrlContext = 'default' | 'members' | 'checkout' | 'dashboard';
+
+const SUBDOMAIN_MAP: Record<UrlContext, string> = {
+  default: '',
+  members: 'aluno.',
+  checkout: 'pay.',
+  dashboard: 'app.',
+};
+
+let cachedBaseDomain: string | null = null;
+
+function getBaseDomain(): string {
+  if (cachedBaseDomain) return cachedBaseDomain;
+  
+  const domain = Deno.env.get("SITE_BASE_DOMAIN") 
+    || Deno.env.get("PUBLIC_SITE_URL")?.replace(/^https?:\/\//, '').replace(/\/$/, '')
+    || "risecheckout.com";
+  
+  cachedBaseDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  
+  log.info(`Site base domain: ${cachedBaseDomain}`);
+  return cachedBaseDomain;
+}
+
+export function buildSiteUrl(path: string, context: UrlContext = 'default'): string {
+  const baseDomain = getBaseDomain();
+  const subdomain = SUBDOMAIN_MAP[context] || '';
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  
+  return `https://${subdomain}${baseDomain}${cleanPath}`;
+}
+
+export function getSiteBaseUrl(context: UrlContext = 'default'): string {
+  const baseDomain = getBaseDomain();
+  const subdomain = SUBDOMAIN_MAP[context] || '';
+  return `https://${subdomain}${baseDomain}`;
+}
 ```
 
-**Para:**
+### 2. Atualizar `password-reset-request.ts`
+
+**Linha 118** - De:
 ```typescript
-refused: {
-  bg: 'bg-red-500/10',
-  text: 'text-red-500',
-  border: 'border-red-500/20',
-  dot: 'bg-red-500',
-},
-refunded: {
-  bg: 'bg-red-500/10',
-  text: 'text-red-500',
-  border: 'border-red-500/20',
-  dot: 'bg-red-500',
-},
+const siteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
+const resetLink = `${siteUrl}/redefinir-senha?token=${resetToken}`;
+```
+
+Para:
+```typescript
+import { buildSiteUrl } from "../../_shared/site-urls.ts";
+// ...
+const resetLink = buildSiteUrl(`/redefinir-senha?token=${resetToken}`, 'default');
+```
+
+### 3. Atualizar `invite.ts`
+
+**Linha 89-90** - De:
+```typescript
+const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
+const accessLink = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
+```
+
+Para:
+```typescript
+import { buildSiteUrl } from "../../_shared/site-urls.ts";
+// ...
+const accessLink = buildSiteUrl(`/minha-conta/setup-acesso?token=${rawToken}`, 'members');
+```
+
+### 4. Atualizar `generate_purchase_access.ts`
+
+**Linha 69** - De:
+```typescript
+const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
+```
+
+Para:
+```typescript
+import { buildSiteUrl } from "../../_shared/site-urls.ts";
+// ...
+// Linha com needsPasswordSetup:
+return jsonResponse({ 
+  success: true, 
+  needsPasswordSetup: true, 
+  accessUrl: buildSiteUrl(`/minha-conta/setup-acesso?token=${rawToken}`, 'members')
+}, 200, corsHeaders);
+
+// Linha sem setup:
+return jsonResponse({ 
+  success: true, 
+  needsPasswordSetup: false, 
+  accessUrl: buildSiteUrl('/minha-conta', 'members')
+}, 200, corsHeaders);
+```
+
+### 5. Atualizar `grant-members-access.ts`
+
+**Linhas 281-288** - De:
+```typescript
+const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
+accessUrl = `${baseUrl}/minha-conta/setup-acesso?token=${rawToken}`;
+// ...
+const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
+accessUrl = `${baseUrl}/minha-conta`;
+```
+
+Para:
+```typescript
+import { buildSiteUrl } from "./site-urls.ts";
+// ...
+accessUrl = buildSiteUrl(`/minha-conta/setup-acesso?token=${rawToken}`, 'members');
+// ...
+accessUrl = buildSiteUrl('/minha-conta', 'members');
+```
+
+### 6. Atualizar `send-order-emails.ts`
+
+**Linha 107** - De:
+```typescript
+const siteUrl = Deno.env.get('PUBLIC_SITE_URL') || 'https://risecheckout.com';
+return `${siteUrl}/minha-conta/produtos/${productId}`;
+```
+
+Para:
+```typescript
+import { buildSiteUrl } from "./site-urls.ts";
+// ...
+return buildSiteUrl(`/minha-conta/produtos/${productId}`, 'members');
+```
+
+### 7. Atualizar `gdpr-request/index.ts`
+
+**Linhas 260-261** - De:
+```typescript
+const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://risecheckout.com";
+const verificationUrl = `${publicSiteUrl}/lgpd/confirmar?token=${verificationToken}`;
+```
+
+Para:
+```typescript
+import { buildSiteUrl } from "../_shared/site-urls.ts";
+// ...
+const verificationUrl = buildSiteUrl(`/lgpd/confirmar?token=${verificationToken}`, 'default');
 ```
 
 ---
 
-### 2. `src/components/dashboard/order-details/statusConfig.ts` (Linhas 29-42)
+## Configuração de Secrets
 
-**De:**
-```typescript
-case "Recusado":
-  return {
-    color: "bg-orange-500/10 text-orange-700 border-orange-500/20",
-    icon: XCircle,
-    iconColor: "text-orange-600",
-    gradient: "from-orange-500/5 to-transparent"
-  };
-case "Reembolso":
-  return {
-    color: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-    icon: XCircle,
-    iconColor: "text-blue-600",
-    gradient: "from-blue-500/5 to-transparent"
-  };
+### Atual (Já Configurado)
+```
+PUBLIC_SITE_URL=https://risecheckout.com
 ```
 
-**Para:**
-```typescript
-case "Recusado":
-  return {
-    color: "bg-red-500/10 text-red-700 border-red-500/20",
-    icon: XCircle,
-    iconColor: "text-red-600",
-    gradient: "from-red-500/5 to-transparent"
-  };
-case "Reembolso":
-  return {
-    color: "bg-red-500/10 text-red-700 border-red-500/20",
-    icon: XCircle,
-    iconColor: "text-red-600",
-    gradient: "from-red-500/5 to-transparent"
-  };
+### Futuro (Quando Quiser Subdomain)
 ```
+SITE_BASE_DOMAIN=risecheckout.com
+```
+
+O helper funciona com ambos os secrets automaticamente.
 
 ---
 
-### 3. `src/components/dashboard/recent-customers/CustomerTableRow.tsx` (Linhas 67-72)
+## Benefícios
 
-**De:**
-```typescript
-: customer.status === "Recusado"
-? "bg-orange-500/10 text-orange-500 border-orange-500/20"
-: customer.status === "Reembolso"
-? "bg-blue-500/10 text-blue-500 border-blue-500/20"
-: customer.status === "Chargeback"
-? "bg-red-500/10 text-red-500 border-red-500/20"
-```
-
-**Para:**
-```typescript
-: customer.status === "Recusado"
-? "bg-red-500/10 text-red-500 border-red-500/20"
-: customer.status === "Reembolso"
-? "bg-red-500/10 text-red-500 border-red-500/20"
-: customer.status === "Chargeback"
-? "bg-red-500/10 text-red-500 border-red-500/20"
-```
-
----
-
-### 4. `src/lib/order-status/__tests__/service.test.ts` (Linhas 101-111)
-
-**De:**
-```typescript
-it("should return orange scheme for refused (cartão recusado)", () => {
-  const colors = orderStatusService.getColorScheme("refused");
-  expect(colors.bg).toContain("orange");
-  expect(colors.text).toContain("orange");
-});
-
-it("should return blue scheme for refunded", () => {
-  const colors = orderStatusService.getColorScheme("refunded");
-  expect(colors.bg).toContain("blue");
-  expect(colors.text).toContain("blue");
-});
-```
-
-**Para:**
-```typescript
-it("should return red scheme for refused (cartão recusado)", () => {
-  const colors = orderStatusService.getColorScheme("refused");
-  expect(colors.bg).toContain("red");
-  expect(colors.text).toContain("red");
-});
-
-it("should return red scheme for refunded", () => {
-  const colors = orderStatusService.getColorScheme("refunded");
-  expect(colors.bg).toContain("red");
-  expect(colors.text).toContain("red");
-});
-```
-
----
-
-### 5. `docs/ORDER_STATUS_MODEL.md` (Linhas 49-66)
-
-Atualizar tabela de cores e exemplo de código:
-
-**De:**
-```markdown
-| `refused` | Recusado | 🟠 Laranja (orange) | Cartão recusado |
-| `refunded` | Reembolso | 🔵 Azul (blue) | Valor devolvido |
-
-refused: { bg: 'bg-orange-500/10', text: 'text-orange-500', dot: 'bg-orange-500' },
-refunded: { bg: 'bg-blue-500/10', text: 'text-blue-500', dot: 'bg-blue-500' },
-```
-
-**Para:**
-```markdown
-| `refused` | Recusado | 🔴 Vermelho (red) | Cartão recusado |
-| `refunded` | Reembolso | 🔴 Vermelho (red) | Valor devolvido |
-
-refused: { bg: 'bg-red-500/10', text: 'text-red-500', dot: 'bg-red-500' },
-refunded: { bg: 'bg-red-500/10', text: 'text-red-500', dot: 'bg-red-500' },
-```
-
----
-
-## Semântica Visual Final
-
-| Status | Cor | Semântica |
-|--------|-----|-----------|
-| Pago | Verde | Sucesso, dinheiro recebido |
-| Pendente | Amarelo | Atenção, aguardando ação |
-| Recusado | Vermelho | Problema, perda potencial |
-| Reembolso | Vermelho | Problema, dinheiro devolvido |
-| Chargeback | Vermelho | Problema, contestação |
-
----
-
-## Validação Pós-Correção
-
-| Verificação | Critério |
-|-------------|----------|
-| types.ts | refused e refunded = red |
-| statusConfig.ts | Recusado e Reembolso = red |
-| CustomerTableRow.tsx | Recusado e Reembolso = red |
-| Testes | Esperam "red" para refused/refunded |
-| Documentação | Atualizada com cores corretas |
-
----
-
-## Conformidade RISE V3
-
-| Critério | Status |
-|----------|--------|
-| Manutenibilidade Infinita | Cores semânticas coerentes |
-| Zero Dívida Técnica | Todos os arquivos sincronizados |
-| Arquitetura Correta | SSOT respeitado |
-| Escalabilidade | Padrão claro para novos status |
-| Segurança | Não afetada |
-
-**RISE V3 Score: 10.0/10**
+| Aspecto | Antes | Depois |
+|---------|-------|--------|
+| Secrets necessários | 1 por subdomínio | 1 total |
+| Adicionar subdomínio | Criar secret + alterar código | Alterar 1 linha no SUBDOMAIN_MAP |
+| Consistência | Cada arquivo define fallback | Helper centralizado |
+| Manutenção | N arquivos | 1 arquivo |
 
 ---
 
 ## Seção Técnica
 
-### Resumo das Alterações
+### Compatibilidade Retroativa
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `types.ts` | refused/refunded → red-500 |
-| `statusConfig.ts` | Recusado/Reembolso → red |
-| `CustomerTableRow.tsx` | Recusado/Reembolso → red |
-| `service.test.ts` | Testes esperam "red" |
-| `ORDER_STATUS_MODEL.md` | Documentação atualizada |
+O helper detecta automaticamente:
+1. `SITE_BASE_DOMAIN` (novo, preferido)
+2. `PUBLIC_SITE_URL` (atual, remove https://)
+3. Fallback: `risecheckout.com`
+
+### Adicionando Novo Subdomínio (Futuro)
+
+Para adicionar `api.risecheckout.com`:
+
+```typescript
+// Em site-urls.ts, adicionar ao SUBDOMAIN_MAP:
+const SUBDOMAIN_MAP: Record<UrlContext, string> = {
+  default: '',
+  members: 'aluno.',
+  checkout: 'pay.',
+  dashboard: 'app.',
+  api: 'api.',  // Novo
+};
+
+// Atualizar tipo:
+export type UrlContext = 'default' | 'members' | 'checkout' | 'dashboard' | 'api';
+```
+
+Zero configuração de secrets.
+
+### RISE V3 Score: 10.0/10
+
+| Critério | Status |
+|----------|--------|
+| Manutenibilidade Infinita | Um secret, padrão consistente |
+| Zero Dívida Técnica | Não prolifera secrets |
+| Arquitetura Correta | Segue padrão CORS existente |
+| Escalabilidade | Novos subdomínios = zero config |
+| Segurança | Domínio base validado |
