@@ -8,6 +8,8 @@
  * - Color scheme retrieval
  * - Status normalization (gateway mapping)
  * - Validation
+ * 
+ * 5 STATUS CANÔNICOS: paid, pending, refused, refunded, chargeback
  */
 
 import { describe, it, expect } from "vitest";
@@ -24,6 +26,10 @@ describe("OrderStatusService", () => {
 
     it("should return 'Pendente' for pending status", () => {
       expect(orderStatusService.getDisplayLabel("pending")).toBe("Pendente");
+    });
+
+    it("should return 'Recusado' for refused status (cartão recusado)", () => {
+      expect(orderStatusService.getDisplayLabel("refused")).toBe("Recusado");
     });
 
     it("should return 'Reembolso' for refunded status", () => {
@@ -54,8 +60,16 @@ describe("OrderStatusService", () => {
       expect(orderStatusService.getDisplayLabel("cancelled")).toBe("Pendente");
     });
 
-    it("should return 'Pendente' for failed status (padrão mercado)", () => {
-      expect(orderStatusService.getDisplayLabel("failed")).toBe("Pendente");
+    it("should return 'Recusado' for failed status (cartão recusado)", () => {
+      expect(orderStatusService.getDisplayLabel("failed")).toBe("Recusado");
+    });
+
+    it("should return 'Recusado' for rejected status (cartão recusado)", () => {
+      expect(orderStatusService.getDisplayLabel("rejected")).toBe("Recusado");
+    });
+
+    it("should return 'Recusado' for declined status (cartão recusado)", () => {
+      expect(orderStatusService.getDisplayLabel("declined")).toBe("Recusado");
     });
 
     it("should return 'Pendente' for unknown status", () => {
@@ -65,6 +79,7 @@ describe("OrderStatusService", () => {
     it("should handle case-insensitive status", () => {
       expect(orderStatusService.getDisplayLabel("PAID")).toBe("Pago");
       expect(orderStatusService.getDisplayLabel("Pending")).toBe("Pendente");
+      expect(orderStatusService.getDisplayLabel("REFUSED")).toBe("Recusado");
     });
   });
 
@@ -81,6 +96,12 @@ describe("OrderStatusService", () => {
       const colors = orderStatusService.getColorScheme("pending");
       expect(colors.bg).toContain("amber");
       expect(colors.text).toContain("amber");
+    });
+
+    it("should return orange scheme for refused (cartão recusado)", () => {
+      const colors = orderStatusService.getColorScheme("refused");
+      expect(colors.bg).toContain("orange");
+      expect(colors.text).toContain("orange");
     });
 
     it("should return blue scheme for refunded", () => {
@@ -151,11 +172,11 @@ describe("OrderStatusService", () => {
       });
     });
 
-    describe("Failed/Rejected mappings → pending (padrão mercado)", () => {
-      const failedStatuses = ["failed", "rejected", "error", "declined"];
+    describe("Failed/Rejected mappings → refused (cartão recusado)", () => {
+      const refusedStatuses = ["failed", "rejected", "error", "declined", "refused", "card_declined", "cc_rejected"];
       
-      it.each(failedStatuses)("should map %s to pending (padrão mercado)", (status) => {
-        expect(orderStatusService.normalize(status)).toBe("pending");
+      it.each(refusedStatuses)("should map %s to refused", (status) => {
+        expect(orderStatusService.normalize(status)).toBe("refused");
       });
     });
 
@@ -199,6 +220,10 @@ describe("OrderStatusService", () => {
       expect(orderStatusService.isPaid("pending")).toBe(false);
     });
 
+    it("should return false for refused", () => {
+      expect(orderStatusService.isPaid("refused")).toBe(false);
+    });
+
     it("should return false for refunded", () => {
       expect(orderStatusService.isPaid("refunded")).toBe(false);
     });
@@ -223,12 +248,20 @@ describe("OrderStatusService", () => {
       expect(orderStatusService.isPending("expired")).toBe(true);
     });
 
-    it("should return true for failed (padrão mercado)", () => {
-      expect(orderStatusService.isPending("failed")).toBe(true);
+    it("should return false for failed (cartão recusado não é pending)", () => {
+      expect(orderStatusService.isPending("failed")).toBe(false);
+    });
+
+    it("should return false for rejected (cartão recusado não é pending)", () => {
+      expect(orderStatusService.isPending("rejected")).toBe(false);
     });
 
     it("should return false for paid", () => {
       expect(orderStatusService.isPending("paid")).toBe(false);
+    });
+
+    it("should return false for refused", () => {
+      expect(orderStatusService.isPending("refused")).toBe(false);
     });
 
     it("should return true for null (defaults to pending)", () => {
@@ -237,6 +270,54 @@ describe("OrderStatusService", () => {
 
     it("should return true for undefined (defaults to pending)", () => {
       expect(orderStatusService.isPending(undefined)).toBe(true);
+    });
+  });
+
+  // ========== IS REFUSED ==========
+
+  describe("isRefused", () => {
+    it("should return true for refused", () => {
+      expect(orderStatusService.isRefused("refused")).toBe(true);
+    });
+
+    it("should return true for rejected (gateway)", () => {
+      expect(orderStatusService.isRefused("rejected")).toBe(true);
+    });
+
+    it("should return true for declined (gateway)", () => {
+      expect(orderStatusService.isRefused("declined")).toBe(true);
+    });
+
+    it("should return true for failed (gateway)", () => {
+      expect(orderStatusService.isRefused("failed")).toBe(true);
+    });
+
+    it("should return true for card_declined (gateway)", () => {
+      expect(orderStatusService.isRefused("card_declined")).toBe(true);
+    });
+
+    it("should return true for cc_rejected (gateway)", () => {
+      expect(orderStatusService.isRefused("cc_rejected")).toBe(true);
+    });
+
+    it("should return true for error (gateway)", () => {
+      expect(orderStatusService.isRefused("error")).toBe(true);
+    });
+
+    it("should return false for paid", () => {
+      expect(orderStatusService.isRefused("paid")).toBe(false);
+    });
+
+    it("should return false for pending", () => {
+      expect(orderStatusService.isRefused("pending")).toBe(false);
+    });
+
+    it("should return false for null", () => {
+      expect(orderStatusService.isRefused(null)).toBe(false);
+    });
+
+    it("should return false for undefined", () => {
+      expect(orderStatusService.isRefused(undefined)).toBe(false);
     });
   });
 
@@ -259,6 +340,10 @@ describe("OrderStatusService", () => {
       expect(orderStatusService.isTerminal("pending")).toBe(false);
     });
 
+    it("should return false for refused (can retry with another card)", () => {
+      expect(orderStatusService.isTerminal("refused")).toBe(false);
+    });
+
     it("should return false for null (normalizes to pending)", () => {
       expect(orderStatusService.isTerminal(null)).toBe(false);
     });
@@ -274,6 +359,9 @@ describe("OrderStatusService", () => {
     it("should not throw for valid canonical status", () => {
       expect(() => orderStatusService.validate("paid")).not.toThrow();
       expect(() => orderStatusService.validate("pending")).not.toThrow();
+      expect(() => orderStatusService.validate("refused")).not.toThrow();
+      expect(() => orderStatusService.validate("refunded")).not.toThrow();
+      expect(() => orderStatusService.validate("chargeback")).not.toThrow();
     });
 
     it("should throw for non-canonical status", () => {
@@ -301,10 +389,15 @@ describe("OrderStatusService", () => {
   // ========== GET ALL STATUSES ==========
 
   describe("getAllStatuses", () => {
-    it("should return all canonical statuses", () => {
+    it("should return all 5 canonical statuses", () => {
       const statuses = orderStatusService.getAllStatuses();
       expect(statuses).toEqual(CANONICAL_STATUSES);
-      expect(statuses).toHaveLength(4);
+      expect(statuses).toHaveLength(5);
+    });
+
+    it("should include refused status", () => {
+      const statuses = orderStatusService.getAllStatuses();
+      expect(statuses).toContain("refused");
     });
   });
 
@@ -314,7 +407,7 @@ describe("OrderStatusService", () => {
     it("should return options with value and label", () => {
       const options = orderStatusService.getStatusOptions();
       
-      expect(options).toHaveLength(4);
+      expect(options).toHaveLength(5);
       expect(options[0]).toHaveProperty("value");
       expect(options[0]).toHaveProperty("label");
     });
@@ -324,6 +417,7 @@ describe("OrderStatusService", () => {
       
       expect(options.find(o => o.value === "paid")?.label).toBe("Pago");
       expect(options.find(o => o.value === "pending")?.label).toBe("Pendente");
+      expect(options.find(o => o.value === "refused")?.label).toBe("Recusado");
       expect(options.find(o => o.value === "refunded")?.label).toBe("Reembolso");
       expect(options.find(o => o.value === "chargeback")?.label).toBe("Chargeback");
     });
