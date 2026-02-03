@@ -4904,6 +4904,21 @@ export type Database = {
             }[]
           }
         | {
+            Args: { producer_id: string }
+            Returns: {
+              affiliate_code: string
+              affiliate_id: string
+              commission_rate: number
+              created_at: string
+              product_id: string
+              product_name: string
+              status: string
+              user_email: string
+              user_id: string
+              user_name: string
+            }[]
+          }
+        | {
             Args: { search_term?: string }
             Returns: {
               affiliate_code: string
