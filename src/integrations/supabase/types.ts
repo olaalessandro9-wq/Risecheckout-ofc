@@ -74,13 +74,6 @@ export type Database = {
             foreignKeyName: "affiliate_audit_log_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
-            referencedRelation: "_audit_affiliates_with_gateway_credentials"
-            referencedColumns: ["affiliate_id"]
-          },
-          {
-            foreignKeyName: "affiliate_audit_log_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
             referencedRelation: "affiliates"
             referencedColumns: ["id"]
           },
@@ -136,13 +129,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "affiliate_pixels_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
-            referencedRelation: "_audit_affiliates_with_gateway_credentials"
-            referencedColumns: ["affiliate_id"]
-          },
           {
             foreignKeyName: "affiliate_pixels_affiliate_id_fkey"
             columns: ["affiliate_id"]
@@ -496,69 +482,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      buyer_profiles: {
-        Row: {
-          account_status:
-            | Database["public"]["Enums"]["account_status_enum"]
-            | null
-          created_at: string | null
-          document_encrypted: string | null
-          document_hash: string | null
-          email: string
-          email_verified: boolean | null
-          id: string
-          is_active: boolean | null
-          last_login_at: string | null
-          name: string | null
-          password_hash: string
-          password_hash_version: number | null
-          phone: string | null
-          reset_token: string | null
-          reset_token_expires_at: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          account_status?:
-            | Database["public"]["Enums"]["account_status_enum"]
-            | null
-          created_at?: string | null
-          document_encrypted?: string | null
-          document_hash?: string | null
-          email: string
-          email_verified?: boolean | null
-          id?: string
-          is_active?: boolean | null
-          last_login_at?: string | null
-          name?: string | null
-          password_hash: string
-          password_hash_version?: number | null
-          phone?: string | null
-          reset_token?: string | null
-          reset_token_expires_at?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          account_status?:
-            | Database["public"]["Enums"]["account_status_enum"]
-            | null
-          created_at?: string | null
-          document_encrypted?: string | null
-          document_hash?: string | null
-          email?: string
-          email_verified?: boolean | null
-          id?: string
-          is_active?: boolean | null
-          last_login_at?: string | null
-          name?: string | null
-          password_hash?: string
-          password_hash_version?: number | null
-          phone?: string | null
-          reset_token?: string | null
-          reset_token_expires_at?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       buyer_quiz_attempts: {
         Row: {
@@ -2487,13 +2410,6 @@ export type Database = {
             foreignKeyName: "orders_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
-            referencedRelation: "_audit_affiliates_with_gateway_credentials"
-            referencedColumns: ["affiliate_id"]
-          },
-          {
-            foreignKeyName: "orders_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
             referencedRelation: "affiliates"
             referencedColumns: ["id"]
           },
@@ -3362,111 +3278,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      profiles: {
-        Row: {
-          account_status:
-            | Database["public"]["Enums"]["account_status_enum"]
-            | null
-          asaas_wallet_id: string | null
-          cpf_cnpj: string | null
-          created_at: string | null
-          custom_fee_percent: number | null
-          email: string | null
-          id: string
-          is_active: boolean | null
-          last_login_at: string | null
-          mercadopago_collector_id: string | null
-          mercadopago_connected_at: string | null
-          mercadopago_email: string | null
-          name: string
-          password_hash: string | null
-          password_hash_version: number | null
-          phone: string | null
-          registration_source: string | null
-          reset_token: string | null
-          reset_token_expires_at: string | null
-          status: string | null
-          status_changed_at: string | null
-          status_changed_by: string | null
-          status_reason: string | null
-          stripe_account_id: string | null
-          stripe_connected_at: string | null
-          test_access_token: string | null
-          test_mode_enabled: boolean | null
-          test_public_key: string | null
-          timezone: string
-          updated_at: string | null
-        }
-        Insert: {
-          account_status?:
-            | Database["public"]["Enums"]["account_status_enum"]
-            | null
-          asaas_wallet_id?: string | null
-          cpf_cnpj?: string | null
-          created_at?: string | null
-          custom_fee_percent?: number | null
-          email?: string | null
-          id: string
-          is_active?: boolean | null
-          last_login_at?: string | null
-          mercadopago_collector_id?: string | null
-          mercadopago_connected_at?: string | null
-          mercadopago_email?: string | null
-          name: string
-          password_hash?: string | null
-          password_hash_version?: number | null
-          phone?: string | null
-          registration_source?: string | null
-          reset_token?: string | null
-          reset_token_expires_at?: string | null
-          status?: string | null
-          status_changed_at?: string | null
-          status_changed_by?: string | null
-          status_reason?: string | null
-          stripe_account_id?: string | null
-          stripe_connected_at?: string | null
-          test_access_token?: string | null
-          test_mode_enabled?: boolean | null
-          test_public_key?: string | null
-          timezone?: string
-          updated_at?: string | null
-        }
-        Update: {
-          account_status?:
-            | Database["public"]["Enums"]["account_status_enum"]
-            | null
-          asaas_wallet_id?: string | null
-          cpf_cnpj?: string | null
-          created_at?: string | null
-          custom_fee_percent?: number | null
-          email?: string | null
-          id?: string
-          is_active?: boolean | null
-          last_login_at?: string | null
-          mercadopago_collector_id?: string | null
-          mercadopago_connected_at?: string | null
-          mercadopago_email?: string | null
-          name?: string
-          password_hash?: string | null
-          password_hash_version?: number | null
-          phone?: string | null
-          registration_source?: string | null
-          reset_token?: string | null
-          reset_token_expires_at?: string | null
-          status?: string | null
-          status_changed_at?: string | null
-          status_changed_by?: string | null
-          status_reason?: string | null
-          stripe_account_id?: string | null
-          stripe_connected_at?: string | null
-          test_access_token?: string | null
-          test_mode_enabled?: boolean | null
-          test_public_key?: string | null
-          timezone?: string
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       quiz_answers: {
         Row: {
@@ -4458,53 +4269,41 @@ export type Database = {
       }
     }
     Views: {
-      _audit_affiliates_with_gateway_credentials: {
-        Row: {
-          affiliate_id: string | null
-          gateway_credentials: Json | null
-          profile_asaas: string | null
-          profile_mp: string | null
-          profile_stripe: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "affiliates_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       marketplace_products: {
         Row: {
-          approval_mode: string | null
+          affiliate_enabled: boolean | null
+          category: string | null
           commission_percentage: number | null
-          conversion_rate: number | null
-          cookie_duration_days: number | null
           created_at: string | null
           description: string | null
           has_order_bump_commission: boolean | null
-          has_upsell: boolean | null
           id: string | null
           image_url: string | null
           marketplace_category: string | null
           marketplace_clicks: number | null
           marketplace_description: string | null
-          marketplace_enabled_at: string | null
-          marketplace_rules: string | null
+          marketplace_enabled: boolean | null
           marketplace_tags: string[] | null
           marketplace_views: number | null
           name: string | null
-          popularity_score: number | null
           price: number | null
           producer_id: string | null
           producer_name: string | null
           requires_manual_approval: boolean | null
-          total_affiliates: number | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+          vendor_email: string | null
+          vendor_name: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_user_id_fkey"
             columns: ["producer_id"]
@@ -4513,84 +4312,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      profiles_secure: {
-        Row: {
-          asaas_wallet_id: string | null
-          cpf_cnpj: string | null
-          created_at: string | null
-          custom_fee_percent: number | null
-          email: string | null
-          id: string | null
-          is_active: boolean | null
-          last_login_at: string | null
-          mercadopago_collector_id: string | null
-          mercadopago_connected_at: string | null
-          mercadopago_email: string | null
-          name: string | null
-          phone: string | null
-          registration_source: string | null
-          status: string | null
-          status_changed_at: string | null
-          status_changed_by: string | null
-          status_reason: string | null
-          stripe_account_id: string | null
-          stripe_connected_at: string | null
-          test_mode_enabled: boolean | null
-          test_public_key: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          asaas_wallet_id?: string | null
-          cpf_cnpj?: string | null
-          created_at?: string | null
-          custom_fee_percent?: number | null
-          email?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          last_login_at?: string | null
-          mercadopago_collector_id?: string | null
-          mercadopago_connected_at?: string | null
-          mercadopago_email?: string | null
-          name?: string | null
-          phone?: string | null
-          registration_source?: string | null
-          status?: string | null
-          status_changed_at?: string | null
-          status_changed_by?: string | null
-          status_reason?: string | null
-          stripe_account_id?: string | null
-          stripe_connected_at?: string | null
-          test_mode_enabled?: boolean | null
-          test_public_key?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          asaas_wallet_id?: string | null
-          cpf_cnpj?: string | null
-          created_at?: string | null
-          custom_fee_percent?: number | null
-          email?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          last_login_at?: string | null
-          mercadopago_collector_id?: string | null
-          mercadopago_connected_at?: string | null
-          mercadopago_email?: string | null
-          name?: string | null
-          phone?: string | null
-          registration_source?: string | null
-          status?: string | null
-          status_changed_at?: string | null
-          status_changed_by?: string | null
-          status_reason?: string | null
-          stripe_account_id?: string | null
-          stripe_connected_at?: string | null
-          test_mode_enabled?: boolean | null
-          test_public_key?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       v_system_health_summary: {
         Row: {

@@ -38,9 +38,29 @@ vi.mock("../EmptyState", () => ({
 const createMockProduct = (id: string, name: string): MarketplaceProduct => ({
   id,
   name,
+  description: "Test description",
   price: 10000,
+  image_url: null,
+  status: "active",
+  user_id: "user-123",
+  producer_id: "user-123",
+  category: "Test",
+  marketplace_category: "Test",
+  marketplace_enabled: true,
+  marketplace_description: "Test",
+  marketplace_tags: [],
+  marketplace_views: 0,
+  marketplace_clicks: 0,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
   commission_percentage: 30,
-} as MarketplaceProduct);
+  requires_manual_approval: false,
+  has_order_bump_commission: false,
+  affiliate_enabled: true,
+  vendor_name: "Test Vendor",
+  producer_name: "Test Vendor",
+  vendor_email: "test@example.com",
+});
 
 // ============================================
 // TESTS: LOADING STATE
