@@ -98,16 +98,16 @@ describe("OrderStatusService", () => {
       expect(colors.text).toContain("amber");
     });
 
-    it("should return orange scheme for refused (cartão recusado)", () => {
+    it("should return red scheme for refused (cartão recusado)", () => {
       const colors = orderStatusService.getColorScheme("refused");
-      expect(colors.bg).toContain("orange");
-      expect(colors.text).toContain("orange");
+      expect(colors.bg).toContain("red");
+      expect(colors.text).toContain("red");
     });
 
-    it("should return blue scheme for refunded", () => {
+    it("should return red scheme for refunded", () => {
       const colors = orderStatusService.getColorScheme("refunded");
-      expect(colors.bg).toContain("blue");
-      expect(colors.text).toContain("blue");
+      expect(colors.bg).toContain("red");
+      expect(colors.text).toContain("red");
     });
 
     it("should return red scheme for chargeback", () => {

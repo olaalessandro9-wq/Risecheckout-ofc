@@ -65,9 +65,9 @@ export function CustomerTableRow({ customer, displayEmail, onViewDetails }: Cust
               : customer.status === "Pendente"
               ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
               : customer.status === "Recusado"
-              ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
+              ? "bg-red-500/10 text-red-500 border-red-500/20"
               : customer.status === "Reembolso"
-              ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+              ? "bg-red-500/10 text-red-500 border-red-500/20"
               : customer.status === "Chargeback"
               ? "bg-red-500/10 text-red-500 border-red-500/20"
               : "bg-secondary text-secondary-foreground",

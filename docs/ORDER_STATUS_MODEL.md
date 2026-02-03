@@ -50,8 +50,8 @@ Apenas **5 status** são exibidos ao usuário:
 |--------|---------|-----|-----------|
 | `paid` | Pago | 🟢 Verde (emerald) | Pagamento confirmado |
 | `pending` | Pendente | 🟡 Amarelo (amber) | Aguardando pagamento |
-| `refused` | Recusado | 🟠 Laranja (orange) | Cartão recusado |
-| `refunded` | Reembolso | 🔵 Azul (blue) | Valor devolvido |
+| `refused` | Recusado | 🔴 Vermelho (red) | Cartão recusado |
+| `refunded` | Reembolso | 🔴 Vermelho (red) | Valor devolvido |
 | `chargeback` | Chargeback | 🔴 Vermelho (red) | Contestação de cartão |
 
 ### Cores CSS
@@ -60,8 +60,8 @@ Apenas **5 status** são exibidos ao usuário:
 const STATUS_COLORS = {
   paid: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', dot: 'bg-emerald-500' },
   pending: { bg: 'bg-amber-500/10', text: 'text-amber-500', dot: 'bg-amber-500' },
-  refused: { bg: 'bg-orange-500/10', text: 'text-orange-500', dot: 'bg-orange-500' },
-  refunded: { bg: 'bg-blue-500/10', text: 'text-blue-500', dot: 'bg-blue-500' },
+  refused: { bg: 'bg-red-500/10', text: 'text-red-500', dot: 'bg-red-500' },
+  refunded: { bg: 'bg-red-500/10', text: 'text-red-500', dot: 'bg-red-500' },
   chargeback: { bg: 'bg-red-500/10', text: 'text-red-500', dot: 'bg-red-500' },
 };
 ```
@@ -170,7 +170,7 @@ const label = orderStatusService.getDisplayLabel('refused'); // 'Recusado'
 
 // Obtém cores
 const colors = orderStatusService.getColorScheme('refused');
-// { bg: 'bg-orange-500/10', text: 'text-orange-500', ... }
+// { bg: 'bg-red-500/10', text: 'text-red-500', ... }
 
 // Verifica se é recusado
 const isRefused = orderStatusService.isRefused('card_declined'); // true
