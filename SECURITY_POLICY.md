@@ -249,7 +249,7 @@ O RiseCheckout implementa o **Direito ao Esquecimento** conforme Art. 18, VI da 
 | Tabela | Campos Sensíveis | Tratamento |
 |--------|------------------|------------|
 | `orders` | email, nome, telefone, documento, IP | Anonimização |
-| `buyer_profiles` | email, nome, telefone, documento | Anonimização |
+| `users` | email, nome, telefone, documento | Anonimização |
 | `checkout_sessions` | - | Deleção |
 
 ### 9.3 Retenção Legal

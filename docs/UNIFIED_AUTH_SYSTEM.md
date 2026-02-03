@@ -546,17 +546,17 @@ As seguintes tabelas são LEGADAS e **NÃO devem ser usadas em código novo**:
 A tabela `auth.users` é gerenciada pelo Supabase e **não deve ser referenciada diretamente**.
 Todas as FKs de tabelas de vendedores agora apontam para `public.users(id)`.
 
-### Tabelas de Compradores (Domínio Separado)
+### Tabelas de Compradores (SSOT: `users`)
 
-As tabelas abaixo NÃO são deprecated - elas formam um domínio separado para compradores/alunos:
+Todas as tabelas de compradores apontam para `users` como Single Source of Truth:
 
-| Tabela | SSOT | Propósito |
-|--------|------|-----------|
-| `buyer_profiles` | ✅ ATIVO | Identidade de compradores/alunos |
-| `buyer_content_access` | ✅ ATIVO | Acesso a conteúdo |
-| `buyer_quiz_attempts` | ✅ ATIVO | Tentativas de quiz |
-| `buyer_saved_cards` | ✅ ATIVO | Cartões salvos |
-| `certificates` | ✅ ATIVO | Certificados emitidos |
+| Tabela | FK → users | Propósito |
+|--------|------------|-----------|
+| `buyer_product_access` | ✅ `buyer_id` | Acesso a produtos |
+| `buyer_content_access` | ✅ `buyer_id` | Acesso a conteúdo |
+| `buyer_quiz_attempts` | ✅ `buyer_id` | Tentativas de quiz |
+| `buyer_saved_cards` | ✅ `buyer_id` | Cartões salvos |
+| `certificates` | ✅ `buyer_id` | Certificados emitidos |
 
 ---
 
