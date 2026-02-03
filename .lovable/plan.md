@@ -1,107 +1,147 @@
 
-# Plano RISE V3: Unificar e Corrigir CSP para Produção
+# Plano RISE V3: Corrigir Navegação Após Pagamento com Cartão
 
 ## Diagnóstico
 
-O sistema tem **DUAS CSPs conflitantes**:
-- `index.html` (meta tag) - Versão mais completa
-- `vercel.json` (HTTP header) - Versão incompleta, sem `worker-src` e alguns domínios
+### Problema Identificado
 
-Em produção, o navegador aplica a mais restritiva, causando bloqueios de scripts.
+O usuário reporta que após pagamento com cartão aprovado:
+1. O spinner roda e para
+2. Cliente permanece na tela de checkout
+3. Acessos são enviados (emails funcionam)
+4. Não há redirecionamento para `/success/{orderId}`
+
+### Causa Raiz
+
+**Arquivo:** `src/modules/checkout-public/machines/checkoutPublicMachine.ts`
+**Linha:** 52-53
+
+```typescript
+// IMPLEMENTAÇÃO ATUAL (INCORRETA)
+isCardApproved: (_, params: { output?: { navigationData?: NavigationData } }) => 
+  params?.output?.navigationData?.type === 'card' && params.output.navigationData.status === 'approved',
+```
+
+**Problema:** O guard tenta acessar `params.output`, mas:
+1. `params` é o SEGUNDO argumento do guard
+2. Quando o guard é chamado como string `"isCardApproved"` (linha 231), NÃO são passados params
+3. Em XState v5, o output do actor resolvido está em `event.output` (primeiro argumento)
+
+### Fluxo do Bug
+
+```text
+1. Cartão aprovado pelo gateway
+2. processCardPaymentActor retorna { success: true, navigationData: { type: 'card', status: 'approved' } }
+3. XState dispara evento onDone com event.output = { success: true, navigationData: {...} }
+4. Guard isCardApproved é chamado com:
+   - Primeiro argumento: { context, event }  (event contém output)
+   - Segundo argumento: undefined (nenhum params passado)
+5. Guard tenta acessar params?.output => undefined?.output => undefined
+6. Guard retorna false
+7. XState pula para próxima transição que também falha
+8. Máquina fica travada em "processingCard"
+9. UI mostra spinner eternamente
+```
 
 ---
 
 ## Análise de Soluções (RISE Protocol V3 Seção 4.4)
 
-### Solução A: Apenas Sincronizar CSPs
+### Solução A: Corrigir Assinatura do Guard
 
-Copiar a CSP do `index.html` para o `vercel.json` manualmente.
+Alterar o guard `isCardApproved` para acessar corretamente `event.output`.
 
-- Manutenibilidade: 5/10 (duas fontes para manter sincronizadas)
-- Zero DT: 5/10 (risco de dessincronização futura)
-- Arquitetura: 4/10 (duplicação de configuração)
-- Escalabilidade: 4/10 (cada mudança requer editar dois arquivos)
-- Segurança: 8/10 (funciona se sincronizado)
-- **NOTA FINAL: 5.2/10**
-- Tempo estimado: 15 minutos
+| Critério | Nota | Justificativa |
+|----------|------|---------------|
+| Manutenibilidade | 10/10 | Correção simples em uma linha, segue padrão XState v5 |
+| Zero DT | 10/10 | Remove bug sem criar novos problemas |
+| Arquitetura | 10/10 | Alinha com documentação oficial do XState v5 |
+| Escalabilidade | 10/10 | Padrão correto para todos os guards futuros |
+| Segurança | 10/10 | Não afeta segurança |
 
-### Solução B: Fonte Única de CSP no vercel.json (HTTP Header) (ESCOLHIDA)
-
-Remover a CSP do `index.html` e manter apenas no `vercel.json` com a versão completa.
-
-Justificativa técnica:
-- HTTP headers têm precedência sobre meta tags
-- HTTP headers são aplicados antes do HTML ser parseado (mais seguro)
-- Fonte única elimina conflitos
-- Padrão recomendado pela indústria
-
-- Manutenibilidade: 10/10 (fonte única de verdade)
-- Zero DT: 10/10 (sem duplicação, sem conflitos)
-- Arquitetura: 10/10 (padrão correto para CSP)
-- Escalabilidade: 10/10 (fácil de manter)
-- Segurança: 10/10 (HTTP header é mais seguro que meta tag)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 30 minutos
+- Tempo estimado: 5 minutos
 
-### DECISÃO: Solução B (Nota 10.0)
+### Solução B: Remover Guard Nomeado e Usar Inline
 
-A Solução A mantém duplicação e risco de dessincronização. A Solução B estabelece uma fonte única de verdade, eliminando conflitos permanentemente.
+Substituir o guard nomeado por um guard inline diretamente na transição.
+
+| Critério | Nota | Justificativa |
+|----------|------|---------------|
+| Manutenibilidade | 7/10 | Guards inline são menos testáveis e reutilizáveis |
+| Zero DT | 10/10 | Resolve o bug |
+| Arquitetura | 6/10 | Viola princípio de separação de concerns |
+| Escalabilidade | 7/10 | Dificulta reutilização em outras transições |
+| Segurança | 10/10 | Não afeta segurança |
+
+- **NOTA FINAL: 7.8/10**
+- Tempo estimado: 5 minutos
+
+### DECISÃO: Solução A (Nota 10.0/10)
+
+A Solução B viola separação de concerns e dificulta testes unitários. A Solução A mantém o guard nomeado (testável, reutilizável) e apenas corrige a assinatura.
 
 ---
 
 ## Plano de Implementação
 
-### Arquivos a Modificar
+### Arquivo a Modificar
 
 ```text
-index.html     # REMOVER meta tag de CSP
-vercel.json    # ATUALIZAR CSP completa e unificada
+src/modules/checkout-public/machines/checkoutPublicMachine.ts
+```
+
+### Alteração Detalhada
+
+**Antes (linha 52-53):**
+```typescript
+isCardApproved: (_, params: { output?: { navigationData?: NavigationData } }) => 
+  params?.output?.navigationData?.type === 'card' && params.output.navigationData.status === 'approved',
+```
+
+**Depois:**
+```typescript
+isCardApproved: ({ event }: { event: { output?: { navigationData?: NavigationData } } }) => 
+  event.output?.navigationData?.type === 'card' && event.output.navigationData?.status === 'approved',
+```
+
+### Explicação Técnica
+
+| Aspecto | Antes (Incorreto) | Depois (Correto) |
+|---------|-------------------|------------------|
+| Acesso ao output | `params.output` | `event.output` |
+| Posição do argumento | Segundo (`params`) | Primeiro (`{ event }`) |
+| Conformidade XState v5 | Violado | Correto |
+| Tipagem | Incorreta | Explícita e correta |
+
+---
+
+## Fluxo Corrigido
+
+```text
+1. Cartão aprovado pelo gateway
+2. processCardPaymentActor retorna { success: true, navigationData: { type: 'card', status: 'approved' } }
+3. XState dispara evento onDone com event.output = { success: true, navigationData: {...} }
+4. Guard isCardApproved é chamado com:
+   - Primeiro argumento: { context, event }
+5. Guard acessa event.output.navigationData
+6. Guard retorna TRUE (status === 'approved')
+7. Transição para estado "success" é executada
+8. navigationData é atribuído ao contexto
+9. Componente React detecta isSuccess === true
+10. useEffect dispara navigate('/success/{orderId}')
+11. Cliente vê página de obrigado
 ```
 
 ---
 
-## Alterações Detalhadas
+## Validação Pós-Correção
 
-### 1. REMOVER CSP do `index.html`
-
-**Remover linhas 13-28** (meta tag Content-Security-Policy):
-
-```html
-<!-- REMOVER COMPLETAMENTE -->
-<!-- Content Security Policy - Proteção avançada contra XSS -->
-<meta http-equiv="Content-Security-Policy" content="...">
-```
-
-### 2. ATUALIZAR `vercel.json` com CSP Unificada e Completa
-
-O header CSP no `vercel.json` será atualizado para incluir TODAS as diretivas necessárias:
-
-```json
-{
-  "key": "Content-Security-Policy",
-  "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://challenges.cloudflare.com https://js.stripe.com https://sdk.mercadopago.com https://http2.mlstatic.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://analytics.tiktok.com https://kpx.alicdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://api.risecheckout.com https://*.supabase.co wss://*.supabase.co https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://http2.mlstatic.com https://events.mercadopago.com https://api.stripe.com https://challenges.cloudflare.com https://www.google-analytics.com https://api.utmify.com.br https://graph.facebook.com https://analytics.tiktok.com https://kpx.alicdn.com https://*.sentry.io https://*.ingest.us.sentry.io; frame-src 'self' https://js.stripe.com https://challenges.cloudflare.com https://*.mercadopago.com https://*.mercadolibre.com https://www.mercadopago.com.br https://www.youtube.com https://player.vimeo.com; media-src 'self' https: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
-}
-```
-
-### Mudanças Específicas na CSP Unificada
-
-| Diretiva | Antes (vercel.json) | Depois |
-|----------|---------------------|--------|
-| `script-src` | Faltava `challenges.cloudflare.com`, usava domínio hardcoded | Adicionado `https://challenges.cloudflare.com`, usa `https://*.supabase.co` |
-| `connect-src` | Usava domínio hardcoded | Usa wildcard `https://*.supabase.co` |
-| `worker-src` | **AUSENTE** | Adicionado `'self' blob:` |
-| `media-src` | **AUSENTE** | Adicionado `'self' https: blob:` |
-
----
-
-## Resultado Esperado
-
-| Erro Atual | Status Após |
-|------------|-------------|
-| `Refused to load script... violates CSP 'script-src'` (supabase) | Resolvido |
-| `Refused to create worker... violates CSP 'worker-src'` | Resolvido |
-| `Refused to load script... challenges.cloudflare.com` | Resolvido |
-| Mercado Pago SDK deprecation warning | Não controlável (SDK externo) |
+Após a correção:
+1. O estado da máquina deve transicionar para `success` quando `status === 'approved'`
+2. O contexto `navigationData` deve conter os dados do pagamento
+3. O componente `CheckoutPublicContent` deve detectar `isSuccess === true`
+4. O `useEffect` na linha 101-118 deve disparar a navegação
 
 ---
 
@@ -109,11 +149,11 @@ O header CSP no `vercel.json` será atualizado para incluir TODAS as diretivas n
 
 | Critério | Status |
 |----------|--------|
-| Manutenibilidade Infinita | Fonte única de CSP |
-| Zero Dívida Técnica | Sem duplicação |
-| Arquitetura Correta | HTTP header (padrão recomendado) |
-| Escalabilidade | Fácil adicionar novos domínios |
-| Segurança | CSP via header é mais segura |
+| Manutenibilidade Infinita | Guard nomeado, testável, reutilizável |
+| Zero Dívida Técnica | Corrige bug sem workarounds |
+| Arquitetura Correta | Segue documentação XState v5 |
+| Escalabilidade | Padrão aplicável a todos os guards |
+| Segurança | Não afetada |
 
 **RISE V3 Score: 10.0/10**
 
@@ -121,25 +161,44 @@ O header CSP no `vercel.json` será atualizado para incluir TODAS as diretivas n
 
 ## Seção Técnica
 
-### Por que HTTP Header ao invés de Meta Tag?
+### XState v5 Guard Signature
 
-1. **Timing**: HTTP headers são processados ANTES do HTML ser parseado
-2. **Cobertura**: Aplica a todos os recursos, incluindo o próprio HTML
-3. **Precedência**: Em caso de conflito, o header tem precedência
-4. **Padrão**: Recomendado pelo OWASP e MDN
-
-### Por que Wildcard `*.supabase.co`?
-
-1. **Futuro-proof**: Se o projeto mudar de Supabase instance, não quebra
-2. **Subdomínios**: Cobre realtime, storage, functions, etc.
-3. **Manutenção**: Não precisa atualizar se o project ID mudar
-
-### Sobre o Warning do Mercado Pago
-
-O warning `using deprecated parameters for the initialization function` vem de **dentro do SDK do Mercado Pago** (`feature_collector.js`), não do nosso código. Nosso código já usa a sintaxe correta:
+De acordo com a documentação oficial (`node_modules/xstate/dist/declarations/src/guards.d.ts`):
 
 ```typescript
-new window.MercadoPago(publicKey, { locale: "pt-BR" });
+export interface GuardArgs<TContext, TExpressionEvent> {
+    context: TContext;
+    event: TExpressionEvent;
+}
+
+export type GuardPredicate<...> = {
+    (args: GuardArgs<TContext, TExpressionEvent>, params: TParams): boolean;
+};
 ```
 
-Este warning é interno ao SDK e será corrigido quando o Mercado Pago atualizar sua biblioteca. Não é algo que possamos resolver do nosso lado.
+- **Primeiro argumento:** `{ context, event }` - sempre disponível
+- **Segundo argumento:** `params` - só disponível se definido com `guard: { type: 'name', params: {...} }`
+
+### Por que o Bug Não Apareceu Antes?
+
+Em pagamentos PIX, o guard usado é inline (linha 208-209):
+```typescript
+guard: ({ event }) => event.output.success === true,
+```
+
+Apenas o guard `isCardApproved` (cartão) tinha a assinatura incorreta.
+
+### Impacto em Outros Guards
+
+Verificação dos outros guards no arquivo:
+
+| Guard | Assinatura | Status |
+|-------|------------|--------|
+| `canRetry` | `({ context })` | CORRETO |
+| `isDataValid` | `({ context })` | CORRETO |
+| `hasRequiredFormFields` | `({ context })` | CORRETO |
+| `isPixPayment` | `({ context })` | CORRETO |
+| `isCardPayment` | `({ context })` | CORRETO |
+| `isCardApproved` | `(_, params)` | INCORRETO |
+
+Apenas `isCardApproved` precisa de correção.
