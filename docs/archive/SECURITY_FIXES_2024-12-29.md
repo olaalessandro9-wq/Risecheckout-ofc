@@ -1,14 +1,25 @@
-# Correções de Segurança - RiseCheckout
+# [ARCHIVED] Correções de Segurança - RiseCheckout
 
-**Data:** 29 de Dezembro de 2024  
+> **⚠️ DOCUMENTO ARQUIVADO**  
+> **Arquivado em:** 03 de Fevereiro de 2026  
+> **Motivo:** Referencia funções legadas que foram eliminadas (get-users-with-emails, auth.users)  
+> **Status:** Substituído pela migração Unified Auth e RISE Protocol V3
+
+---
+
+**Data Original:** 29 de Dezembro de 2024  
 **Versão:** 2.0.0  
-**Status:** Pronto para Deploy
+**Status:** ~~Pronto para Deploy~~ OBSOLETO
 
 ---
 
 ## Resumo Executivo
 
 Este documento descreve as correções de segurança implementadas no projeto RiseCheckout para prepará-lo para produção. As mudanças foram divididas em 3 fases conforme o plano consolidado.
+
+> **NOTA DE ARQUIVAMENTO:** As Edge Functions mencionadas neste documento (`get-users-with-emails`) 
+> foram DELETADAS em 03/02/2026 como parte da migração para SSOT na tabela `users`. 
+> Consulte `docs/UNIFIED_AUTH_SYSTEM.md` para a arquitetura atual.
 
 ---
 
@@ -123,11 +134,11 @@ CORS_ALLOWED_ORIGINS_DEV=http://localhost:5173,http://localhost:3000
 
 ### 3.2 Edge Functions Atualizadas
 
-| Função | Antes | Depois |
-|--------|-------|--------|
-| `get-users-with-emails` | `*` | CORS restrito |
-| `manage-user-role` | `*` | CORS restrito |
-| `manage-user-status` | `*` | CORS restrito |
+| Função | Antes | Depois | Status Atual |
+|--------|-------|--------|--------------|
+| `get-users-with-emails` | `*` | CORS restrito | **DELETADA (2026-02-03)** |
+| `manage-user-role` | `*` | CORS restrito | Ativo |
+| `manage-user-status` | `*` | CORS restrito | Ativo |
 
 ---
 
@@ -144,7 +155,7 @@ supabase/
     │   └── index.ts  [ATUALIZADO]
     ├── vault-save/
     │   └── index.ts  [ATUALIZADO]
-    ├── get-users-with-emails/
+    ├── get-users-with-emails/        [DELETADA 2026-02-03]
     │   └── index.ts  [ATUALIZADO]
     ├── manage-user-role/
     │   └── index.ts  [ATUALIZADO]
@@ -178,7 +189,7 @@ Ou execute manualmente no SQL Editor do Supabase Dashboard.
 # Deploy de todas as funções modificadas
 supabase functions deploy vault-migration
 supabase functions deploy vault-save
-supabase functions deploy get-users-with-emails
+# supabase functions deploy get-users-with-emails  # DELETADA
 supabase functions deploy manage-user-role
 supabase functions deploy manage-user-status
 ```
