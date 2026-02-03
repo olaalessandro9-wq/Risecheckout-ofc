@@ -81,6 +81,20 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   } = machine;
 
   // ============================================================================
+  // RISE V3: PRELOAD PIX PAGE CHUNK WHEN USER SELECTS PIX
+  // Eliminates chunk loading delay during navigation
+  // ============================================================================
+  
+  useEffect(() => {
+    if (selectedPaymentMethod === 'pix') {
+      // Preload the PIX page chunk in the background
+      import("@/pages/PixPaymentPage").catch(() => {
+        // Ignore preload errors - will be handled during navigation
+      });
+    }
+  }, [selectedPaymentMethod]);
+
+  // ============================================================================
   // REACTIVE NAVIGATION (based on XState machine state)
   // ============================================================================
   

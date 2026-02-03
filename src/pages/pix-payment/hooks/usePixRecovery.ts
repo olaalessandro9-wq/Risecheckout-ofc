@@ -65,10 +65,25 @@ export function usePixRecovery(
   orderId: string | undefined,
   navState: PixNavigationData | null
 ): UsePixRecoveryReturn {
-  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>('idle');
-  const [recoveredData, setRecoveredData] = useState<RecoveredPixData | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [checkoutSlug, setCheckoutSlug] = useState<string | null>(null);
+  // RISE V3: INSTANT INITIALIZATION - Skip 'idle' and 'checking' states when navState has data
+  // This eliminates the render cycle that shows PixLoadingState
+  const hasInstantData = !!(navState?.qrCode || navState?.qrCodeText || navState?.qrCodeBase64);
+  
+  const initialRecoveredData: RecoveredPixData | null = hasInstantData ? {
+    qrCode: navState!.qrCode || navState!.qrCodeText || '',
+    qrCodeBase64: navState!.qrCodeBase64,
+    qrCodeText: navState!.qrCodeText,
+    amount: navState!.amount ?? 0,
+    checkoutSlug: navState!.checkoutSlug,
+    source: 'navState' as const,
+  } : null;
+
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>(
+    hasInstantData ? 'recovered_from_state' : 'idle'
+  );
+  const [recoveredData, setRecoveredData] = useState<RecoveredPixData | null>(initialRecoveredData);
+  const [accessToken, setAccessToken] = useState<string | null>(navState?.accessToken ?? null);
+  const [checkoutSlug, setCheckoutSlug] = useState<string | null>(navState?.checkoutSlug ?? null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const attemptRecovery = useCallback(async () => {

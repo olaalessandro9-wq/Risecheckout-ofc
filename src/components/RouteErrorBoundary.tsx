@@ -51,6 +51,11 @@ export function RouteErrorBoundary() {
   const error = useRouteError();
   const [recovering, setRecovering] = useState(false);
   
+  // RISE V3: Detect payment routes for contextual messaging
+  const isPaymentRoute = typeof window !== 'undefined' 
+    ? window.location.pathname.startsWith('/pay/') 
+    : false;
+  
   // Detectar se é erro de rede/chunk
   const isNetworkError = error instanceof Error && isChunkLoadError(error);
   
@@ -111,12 +116,17 @@ export function RouteErrorBoundary() {
   // RENDER: RECOVERING STATE
   // ============================================================================
   
+  // RISE V3: Contextual messaging - never show "Reconectando" for payments
   if (recovering) {
+    const loadingMessage = isPaymentRoute 
+      ? "Preparando pagamento..." 
+      : "Carregando...";
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-muted-foreground">Reconectando...</p>
+          <p className="text-muted-foreground">{loadingMessage}</p>
         </div>
       </div>
     );
