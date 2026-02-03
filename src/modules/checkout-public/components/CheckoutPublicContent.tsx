@@ -10,6 +10,11 @@
  * IMPORTANT: Payment flow is now fully controlled by the XState machine.
  * Navigation is REACTIVE based on machine state (navigationData).
  * 
+ * PHASE 2: 
+ * - Uses CheckoutPublicLayout (NO @dnd-kit dependencies)
+ * - Uses productPixels and vendorIntegration from machine (NO extra HTTP calls)
+ * - Uses usePerformanceMetrics for Web Vitals monitoring
+ * 
  * @module checkout-public/components
  */
 
@@ -18,19 +23,18 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import { toCheckoutFormData } from "../adapters";
+import { usePerformanceMetrics } from "../hooks/usePerformanceMetrics";
 
 const log = createLogger("CheckoutPublicContent");
 
 import { CheckoutProvider } from "@/contexts/CheckoutContext";
 import { TrackingManager } from "@/components/checkout/v2/TrackingManager";
 import { SharedCheckoutLayout } from "@/components/checkout/shared";
-import { CheckoutMasterLayout } from "@/components/checkout/unified";
+import { CheckoutPublicLayout } from "./layout";
 import { useTrackingService } from "@/hooks/checkout/useTrackingService";
 import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
-import { useCheckoutProductPixels } from "@/hooks/checkout/useCheckoutProductPixels";
 import { useVisitTracker } from "@/hooks/checkout/useVisitTracker";
 import { getSubmitSnapshot } from "@/features/checkout/personal-data";
-import * as UTMify from "@/integrations/tracking/utmify";
 import type { OrderBump, CheckoutFormData } from "@/types/checkout";
 import type { UseCheckoutPublicMachineReturn } from "../hooks";
 import type { CardFormData } from "../machines/checkoutPublicMachine.types";
@@ -42,6 +46,12 @@ interface CheckoutPublicContentProps {
 
 export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ machine }) => {
   const navigate = useNavigate();
+  
+  // Performance Metrics (Phase 2)
+  usePerformanceMetrics({
+    enabled: true,
+    debug: process.env.NODE_ENV === 'development',
+  });
   
   const {
     checkout,
@@ -65,6 +75,9 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     toggleBump,
     setPaymentMethod,
     submit,
+    // Phase 2: BFF Unified Data
+    productPixels,
+    vendorIntegration,
   } = machine;
 
   // ============================================================================
@@ -137,11 +150,32 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   const checkoutId = checkout.id;
   const vendorId = checkout.vendorId;
 
-  // Track visit on page load (once per session)
+  // Track visit on page load (once per session) - deferred via useDeferredTracking
   useVisitTracker(checkoutId);
 
-  // Fetch product pixels from product_pixels table
-  const { pixels: productPixels } = useCheckoutProductPixels(product.id);
+  // PHASE 2: Product pixels come from machine (BFF unified, no extra HTTP call)
+  // Convert ProductPixelData[] to CheckoutPixel[] format expected by TrackingManager
+  const trackingPixels = useMemo(() => 
+    productPixels.map(p => ({
+      id: p.id,
+      platform: p.platform as import("@/modules/pixels").PixelPlatform,
+      pixel_id: p.pixel_id,
+      access_token: p.access_token,
+      conversion_label: p.conversion_label,
+      domain: p.domain,
+      is_active: p.is_active,
+      fire_on_initiate_checkout: p.fire_on_initiate_checkout,
+      fire_on_purchase: p.fire_on_purchase,
+      fire_on_pix: p.fire_on_pix,
+      fire_on_card: p.fire_on_card,
+      fire_on_boleto: p.fire_on_boleto,
+      custom_value_percent: p.custom_value_percent,
+    })),
+    [productPixels]
+  );
+
+  // PHASE 2: UTMify config comes from machine (BFF unified, no extra HTTP call)
+  const utmifyConfig = vendorIntegration?.active ? vendorIntegration.config : null;
 
   // Affiliate Tracking - modo 'persist' para persistência final com configs do produto
   const affiliateSettings = product.affiliate_settings;
@@ -151,9 +185,6 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     attributionModel: affiliateSettings?.attributionModel || 'last_click', 
     enabled: true 
   });
-
-  // UTMify (único tracking que ainda não migrou para product_pixels)
-  const { data: utmifyConfig } = UTMify.useUTMifyConfig(vendorId);
 
   // Coupon state for form manager compatibility
   const [localAppliedCoupon, setLocalAppliedCoupon] = React.useState<typeof appliedCoupon>(appliedCoupon);
@@ -197,12 +228,12 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     setLocalAppliedCoupon(coupon);
   }, []);
 
-  // Tracking Service (apenas UTMify)
+  // Tracking Service (apenas UTMify) - cast to expected type or null
   const { fireInitiateCheckout } = useTrackingService({
     vendorId: vendorId || null,
     productId: product.id,
     productName: product.name,
-    trackingConfig: { utmifyConfig },
+    trackingConfig: { utmifyConfig: utmifyConfig as import("@/integrations/tracking/utmify").UTMifyIntegration | null },
   });
 
   // Calculate memoized amount
@@ -307,10 +338,10 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     <CheckoutProvider value={{ checkout: null, design, orderBumps: orderBumps as OrderBump[], vendorId: vendorId || null, productData }}>
       <TrackingManager 
         productId={product.id} 
-        productPixels={productPixels}
-        utmifyConfig={utmifyConfig}
+        productPixels={trackingPixels}
+        utmifyConfig={utmifyConfig as import("@/integrations/tracking/utmify").UTMifyIntegration | null}
       />
-      <CheckoutMasterLayout mode="public" design={design} viewMode="public" customization={customization}>
+      <CheckoutPublicLayout design={design} customization={customization}>
         <SharedCheckoutLayout
           productData={productData}
           orderBumps={orderBumps as OrderBump[]}
@@ -336,7 +367,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
             </form>
           )}
         />
-      </CheckoutMasterLayout>
+      </CheckoutPublicLayout>
     </CheckoutProvider>
   );
 };

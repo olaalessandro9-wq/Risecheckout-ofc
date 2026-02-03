@@ -2,17 +2,23 @@
  * GatewayCardForm - Componente Unificado de Formulário de Cartão
  * 
  * RISE Protocol V3 Compliant - Design Tokens
+ * PHASE 2: Uses dynamic imports for lazy-loaded payment SDKs.
+ * 
  * Seleciona automaticamente o formulário correto baseado no gateway.
  * 
  * Gateways Suportados:
- * - mercadopago: MercadoPagoCardForm ✅
- * - stripe: StripeCardForm ✅
+ * - mercadopago: DynamicMercadoPagoForm ✅ (lazy-loaded)
+ * - stripe: DynamicStripeForm ✅ (lazy-loaded)
  * - pagseguro: PagSeguroCardForm (futuro)
  */
 
 import React from 'react';
-import { MercadoPagoCardForm, type CardTokenResult } from '@/lib/payment-gateways';
-import { StripeCardForm } from '@/lib/payment-gateways/gateways/stripe';
+import { 
+  DynamicMercadoPagoForm, 
+  DynamicStripeForm, 
+  PaymentGatewayFallback 
+} from '@/lib/payment-gateways/dynamic';
+import type { CardTokenResult } from '@/lib/payment-gateways';
 import { getGatewayById, isGatewayAvailable } from '@/config/payment-gateways';
 import { createLogger } from "@/lib/logger";
 
@@ -81,13 +87,13 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
   }
 
   // ============================================
-  // RENDERIZAÇÃO POR GATEWAY
+  // RENDERIZAÇÃO POR GATEWAY (LAZY-LOADED)
   // ============================================
 
   switch (gateway) {
     case 'mercadopago':
       return (
-        <MercadoPagoCardForm
+        <DynamicMercadoPagoForm
           publicKey={publicKey}
           amount={amount}
           onSubmit={onSubmit}
@@ -102,7 +108,7 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
 
     case 'stripe':
       return (
-        <StripeCardForm
+        <DynamicStripeForm
           publicKey={publicKey}
           amount={amount}
           onSubmit={async (result) => {
@@ -134,7 +140,12 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
 
     default:
       log.warn(`Gateway "${gateway}" não implementado`);
-      return <GatewayComingSoon name={gateway} />;
+      return (
+        <PaymentGatewayFallback 
+          gatewayName={gateway} 
+          onRetry={() => window.location.reload()} 
+        />
+      );
   }
 };
 

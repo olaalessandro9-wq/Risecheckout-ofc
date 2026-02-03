@@ -4,14 +4,15 @@
  * Hook para rastrear visitas ao checkout.
  * Insere registro em checkout_visits via Edge Function.
  * 
- * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * PHASE 2: Uses useDeferredTracking for non-blocking execution.
  * 
- * @version 3.0.0 - RISE Protocol V3 - Zero console.log
+ * @version 4.0.0 - RISE Protocol V3 - Deferred tracking
  */
 
-import { useEffect, useRef } from "react";
+import { useRef, useCallback } from "react";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
+import { useDeferredTracking } from "./useDeferredTracking";
 
 const log = createLogger("VisitTracker");
 
@@ -19,12 +20,13 @@ const log = createLogger("VisitTracker");
  * Tracks a checkout visit once per session
  * Uses sessionStorage to prevent duplicate tracking
  * 
+ * PHASE 2: Uses useDeferredTracking for non-blocking execution.
  * ZERO FALLBACK: Se a Edge Function falhar, NÃO tenta acesso direto ao banco
  */
 export function useVisitTracker(checkoutId: string | undefined): void {
   const hasTracked = useRef(false);
 
-  useEffect(() => {
+  const trackVisit = useCallback(async () => {
     if (!checkoutId || hasTracked.current) return;
 
     // v2: Nova chave para garantir tracking após reset de dados
@@ -36,43 +38,42 @@ export function useVisitTracker(checkoutId: string | undefined): void {
       return;
     }
 
-    const trackVisit = async () => {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        // Call edge function to track visit (captures IP server-side)
-        const { error } = await api.publicCall("track-visit", {
-          checkoutId,
-          userAgent: navigator.userAgent,
-          referrer: document.referrer || null,
-          utmSource: urlParams.get("utm_source"),
-          utmMedium: urlParams.get("utm_medium"),
-          utmCampaign: urlParams.get("utm_campaign"),
-          utmContent: urlParams.get("utm_content"),
-          utmTerm: urlParams.get("utm_term"),
-        });
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Call edge function to track visit (captures IP server-side)
+      const { error } = await api.publicCall("track-visit", {
+        checkoutId,
+        userAgent: navigator.userAgent,
+        referrer: document.referrer || null,
+        utmSource: urlParams.get("utm_source"),
+        utmMedium: urlParams.get("utm_medium"),
+        utmCampaign: urlParams.get("utm_campaign"),
+        utmContent: urlParams.get("utm_content"),
+        utmTerm: urlParams.get("utm_term"),
+      });
 
-        if (error) {
-          // Log error but do NOT fallback to direct database access
-          log.error("Edge function error:", error);
-          // Still mark as tracked to prevent infinite retries
-          sessionStorage.setItem(sessionKey, "failed");
-          hasTracked.current = true;
-          return;
-        }
-
-        // Mark as tracked in session
-        sessionStorage.setItem(sessionKey, "true");
+      if (error) {
+        // Log error but do NOT fallback to direct database access
+        log.error("Edge function error:", error);
+        // Still mark as tracked to prevent infinite retries
+        sessionStorage.setItem(sessionKey, "failed");
         hasTracked.current = true;
-
-        log.debug("Visit tracked for checkout:", checkoutId);
-      } catch (err) {
-        log.error("Error tracking visit:", err);
-        // Mark as attempted to prevent infinite retries
-        hasTracked.current = true;
+        return;
       }
-    };
 
-    trackVisit();
+      // Mark as tracked in session
+      sessionStorage.setItem(sessionKey, "true");
+      hasTracked.current = true;
+
+      log.debug("Visit tracked for checkout:", checkoutId);
+    } catch (err) {
+      log.error("Error tracking visit:", err);
+      // Mark as attempted to prevent infinite retries
+      hasTracked.current = true;
+    }
   }, [checkoutId]);
+
+  // Use deferred tracking to avoid blocking main thread
+  useDeferredTracking(trackVisit, [checkoutId, trackVisit]);
 }

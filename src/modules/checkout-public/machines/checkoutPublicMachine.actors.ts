@@ -8,11 +8,13 @@
  * NOTE: Payment actors have been moved to ./actors/ directory
  * for better modularization (createOrderActor, processPixPaymentActor, processCardPaymentActor).
  * 
+ * PHASE 2: Uses resilientApi for automatic retry and circuit breaker.
+ * 
  * @module checkout-public/machines
  */
 
 import { fromPromise } from "xstate";
-import { publicApi } from "@/lib/api/public-client";
+import { resilientApi } from "@/lib/api/resilient-client";
 import type {
   FetchCheckoutInput,
   FetchCheckoutOutput,
@@ -26,9 +28,11 @@ import type {
  * Fetches checkout data from the BFF (checkout-public-data)
  * 
  * This actor:
- * 1. Calls the resolve-and-load action
+ * 1. Calls the resolve-and-load action with resilient retry
  * 2. Returns raw data for validation by the machine
- * 3. Throws on network/API errors
+ * 3. Uses circuit breaker to prevent cascading failures
+ * 
+ * PHASE 2: Upgraded to resilientApi for automatic retry with backoff.
  */
 export const fetchCheckoutDataActor = fromPromise<FetchCheckoutOutput, FetchCheckoutInput>(
   async ({ input }) => {
@@ -41,7 +45,8 @@ export const fetchCheckoutDataActor = fromPromise<FetchCheckoutOutput, FetchChec
       };
     }
 
-    const { data, error } = await publicApi.call<{
+    // Use resilientApi for checkout-optimized retry settings
+    const { data, error } = await resilientApi.checkout<{
       success: boolean;
       data?: unknown;
       error?: string;

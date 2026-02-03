@@ -197,6 +197,10 @@ export function createMockCheckoutPublicContext(
     design: null,
     resolvedGateways: createMockResolvedGateways(),
     
+    // Phase 2: BFF Unified Data
+    productPixels: [],
+    vendorIntegration: null,
+    
     // Form State
     formData: createMockCheckoutFormData(),
     formErrors: {},

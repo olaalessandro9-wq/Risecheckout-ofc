@@ -46,6 +46,10 @@ export interface UseCheckoutPublicMachineReturn {
   design: ReturnType<typeof checkoutPublicMachine.getInitialSnapshot>['context']['design'];
   resolvedGateways: ReturnType<typeof checkoutPublicMachine.getInitialSnapshot>['context']['resolvedGateways'];
   
+  // === Phase 2: BFF Unified Data ===
+  productPixels: ReturnType<typeof checkoutPublicMachine.getInitialSnapshot>['context']['productPixels'];
+  vendorIntegration: ReturnType<typeof checkoutPublicMachine.getInitialSnapshot>['context']['vendorIntegration'];
+  
   // === Form State ===
   formData: FormData;
   formErrors: ReturnType<typeof checkoutPublicMachine.getInitialSnapshot>['context']['formErrors'];
@@ -197,6 +201,10 @@ export function useCheckoutPublicMachine(): UseCheckoutPublicMachineReturn {
     affiliate: state.context.affiliate,
     design: state.context.design,
     resolvedGateways: state.context.resolvedGateways,
+    
+    // Phase 2: BFF Unified Data
+    productPixels: state.context.productPixels,
+    vendorIntegration: state.context.vendorIntegration,
     
     // Form State
     formData: state.context.formData,

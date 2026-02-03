@@ -44,8 +44,8 @@ vi.mock("@/components/checkout/shared", () => ({
   ),
 }));
 
-vi.mock("@/components/checkout/unified", () => ({
-  CheckoutMasterLayout: () => <div data-testid="checkout-master-layout">Checkout Layout</div>,
+vi.mock("../layout", () => ({
+  CheckoutPublicLayout: ({ children }: { children: React.ReactNode }) => <div data-testid="checkout-public-layout">{children}</div>,
 }));
 
 vi.mock("@/hooks/checkout/useTrackingService", () => ({
@@ -107,6 +107,10 @@ describe("CheckoutPublicContent", () => {
       offer: null,
       resolvedGateways: mockLoadedContext.resolvedGateways,
       affiliate: null,
+      
+      // Phase 2: BFF Unified Data
+      productPixels: [],
+      vendorIntegration: null,
       
       // Form State
       formData: mockLoadedContext.formData,
