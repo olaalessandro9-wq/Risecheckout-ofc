@@ -33,6 +33,13 @@ vi.mock("../CheckoutPublicContent", () => ({
   ),
 }));
 
+// Mock CheckoutSkeleton (Zero Latency Architecture)
+vi.mock("../CheckoutSkeleton", () => ({
+  CheckoutSkeleton: () => (
+    <div data-testid="checkout-skeleton">Loading Skeleton</div>
+  ),
+}));
+
 // Type alias for mock return type
 type CheckoutMachineReturn = ReturnType<typeof hooks.useCheckoutPublicMachine>;
 
@@ -99,7 +106,7 @@ describe("CheckoutPublicLoader", () => {
 
       render(<CheckoutPublicLoader />);
 
-      expect(screen.getByText("Carregando checkout...")).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-skeleton")).toBeInTheDocument();
     });
 
     it("should show loading spinner when loading", () => {
@@ -109,7 +116,7 @@ describe("CheckoutPublicLoader", () => {
 
       render(<CheckoutPublicLoader />);
 
-      expect(screen.getByText("Carregando checkout...")).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-skeleton")).toBeInTheDocument();
     });
 
     it("should show loading spinner when validating", () => {
@@ -119,7 +126,7 @@ describe("CheckoutPublicLoader", () => {
 
       render(<CheckoutPublicLoader />);
 
-      expect(screen.getByText("Carregando checkout...")).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-skeleton")).toBeInTheDocument();
     });
   });
 

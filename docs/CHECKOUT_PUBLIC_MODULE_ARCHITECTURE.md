@@ -780,7 +780,8 @@ supabase/functions/checkout-public-data/
     ├── pixels-handler.ts                       # action: product-pixels (~100 linhas)
     ├── order-handler.ts                        # action: order-by-token, check-order-payment-status (~80 linhas)
     ├── payment-link-handler.ts                 # action: payment-link-data (~65 linhas)
-    └── resolve-and-load-handler.ts             # action: resolve-and-load (BFF) (~240 linhas)
+    ├── resolve-and-load-handler.ts             # action: resolve-and-load (BFF) (~240 linhas)
+    └── resolve-universal-handler.ts            # action: resolve-universal (Zero Latency) (~300 linhas)
 ```
 
 ### 17.2 Actions Disponíveis
@@ -798,7 +799,8 @@ supabase/functions/checkout-public-data/
 | `order-by-token` | order-handler | Busca pedido para página de sucesso |
 | `check-order-payment-status` | order-handler | Verifica status de pagamento |
 | `payment-link-data` | payment-link-handler | Busca dados de link de pagamento |
-| `resolve-and-load` | resolve-and-load-handler | **BFF OTIMIZADO** - Busca tudo em uma chamada |
+| `resolve-and-load` | resolve-and-load-handler | BFF otimizado - Busca tudo em uma chamada |
+| `resolve-universal` | resolve-universal-handler | **ZERO LATENCY BFF** - Aceita checkout_slug OU payment_link_slug, reduz latência em 60-70% |
 
 ### 17.3 Performance do BFF (resolve-and-load)
 

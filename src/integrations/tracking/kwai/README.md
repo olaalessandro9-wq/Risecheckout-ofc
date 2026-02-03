@@ -45,9 +45,9 @@ src/integrations/tracking/kwai/
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  3. Checkout recebe pixels via BFF unificado (Phase 2)      │
+│  3. Checkout recebe pixels via BFF unificado (Zero Latency) │
 │     └── Edge Function: checkout-public-data                 │
-│     └── Action: resolve-and-load                            │
+│     └── Action: resolve-universal                           │
 │     └── Dados: productPixels[] incluídos na resposta        │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -109,6 +109,11 @@ O Kwai Pixel usa o evento `PlaceOrder` para conversões de compra, diferente de 
 - ✅ SSOT via XState para gerenciamento de pixels
 
 ## Changelog
+
+### v2.2.0 (Fevereiro 2026)
+- ✅ Atualizado para Zero Latency Architecture
+- ✅ Action alterada: resolve-and-load → resolve-universal
+- ✅ Single HTTP call para carregar todos os dados
 
 ### v2.1.0 (Fevereiro 2026)
 - ✅ Documentação atualizada para Phase 2 BFF architecture
