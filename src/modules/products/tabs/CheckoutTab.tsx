@@ -25,6 +25,7 @@ import type { Checkout } from "../types/product.types";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
+import { getRpcErrorMessage } from "@/lib/rpc/errors";
 import { useBusy } from "@/components/BusyProvider";
 
 interface ProductEntitiesResponse {
@@ -112,7 +113,9 @@ export function CheckoutTab() {
       );
     } catch (error: unknown) {
       log.error('Erro ao duplicar checkout', error);
-      toast.error("Não foi possível duplicar o checkout");
+      // RISE V3: Mensagem contextual baseada no tipo de erro
+      const message = getRpcErrorMessage(error, "Não foi possível duplicar o checkout");
+      toast.error(message);
     }
   };
 
