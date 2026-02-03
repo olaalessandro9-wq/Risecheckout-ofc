@@ -5,7 +5,8 @@
  * @version 2.0.0 - RISE V3 Compliant - Zero console.log
  * 
  * PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
- * Status expired, cancelled, failed do gateway = 'pending' na UI.
+ * Status expired, cancelled do gateway = 'pending' na UI.
+ * Status failed, rejected, declined do gateway = 'refused' (cartão recusado).
  * 
  * This service handles all status-related operations:
  * - Display label generation
