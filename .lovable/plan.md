@@ -1,215 +1,172 @@
 
-# Auditoria RISE V3: Cupons e Order Bumps no Checkout Público
 
-## Sumário Executivo
+# Plano: Corrigir Validação de Order Bumps no create-order
 
-Realizei uma investigação profunda nos módulos de **Order Bumps** e **Cupons** que alimentam o checkout público. A análise cobriu todo o fluxo desde o banco de dados até a renderização no frontend.
+## Diagnóstico do Problema
 
----
-
-## 1. ORDER BUMPS - APROVADO (10.0/10)
-
-| Camada | Arquivo | Status | Observação |
-|--------|---------|--------|------------|
-| Backend | `order-bumps-handler.ts` | PERFEITO | Semântica de preços correta |
-| Backend | `resolve-universal-handler.ts` | PERFEITO | Carrega order bumps via BFF |
-| Frontend | `mapResolveAndLoad.ts` | PERFEITO | Mapper SSOT para UI |
-| Frontend | `SharedOrderBumps.tsx` | PERFEITO | Componente visual completo |
-| Frontend | `calculateTotalFromContext()` | PERFEITO | Cálculo de preço correto |
-| Database | 11 order bumps ativos | OK | Integridade 100% |
-
-**Semântica de Preço Correta:**
-- `price` = Preço REAL cobrado (da oferta ou produto)
-- `original_price` = Preço MARKETING (strikethrough visual apenas)
-
-**Conclusão Order Bumps:** Código em **estado perfeito**, pronto para produção.
-
----
-
-## 2. CUPONS - QUASE PERFEITO (9.7/10)
-
-| Camada | Arquivo | Status | Observação |
-|--------|---------|--------|------------|
-| Backend | `coupon-handler.ts` | PERFEITO | Valida código, produto, datas, limites |
-| Backend | `coupon-validation.ts` | PERFEITO | Apenas `percentage` aceito |
-| Frontend | Schema Zod `coupon.schema.ts` | PERFEITO | `z.literal("percentage")` |
-| Frontend | UI `CouponFormFields.tsx` | PERFEITO | Só mostra campo porcentagem |
-| Frontend | `useCouponValidation.ts` | PERFEITO | Força `'percentage' as const` |
-| Frontend | `checkoutPublicMachine.types.ts` | PERFEITO | `discount_type: 'percentage'` |
-| Frontend | `calculateTotalFromContext()` | PERFEITO | Só calcula porcentagem |
-| Frontend | `SharedOrderSummary.tsx` | **CÓDIGO LEGADO** | Suporta `fixed` sem uso |
-
-### Problema Identificado: Código Legado
-
-O arquivo `SharedOrderSummary.tsx` (linhas 88-90) contém código que suporta `discount_type === 'fixed'`:
-
-```typescript
-return appliedCoupon.discount_type === 'percentage'
-  ? (discountBase * appliedCoupon.discount_value) / 100
-  : appliedCoupon.discount_value;  // <- CÓDIGO MORTO
+### Erro Identificado
+O checkout com order bump selecionado falha com erro 400:
+```
+[ERROR] [bump-processor] Bumps inválidos: {"requested":1,"found":0}
 ```
 
-**Análise:**
-- Este código é **dívida técnica** - nunca será executado
-- O tipo `AppliedCoupon` importado de `useCouponValidation.ts` define `discount_type: 'percentage'`
-- TypeScript deveria marcar isso como unreachable code (mas não marca por causa do import)
-- Os 3 cupons `fixed` no banco (22/Jan/2026) não estão vinculados a produtos e nunca serão validados
+### Causa Raiz (CONFIRMADA VIA LOGS + DADOS)
 
-### Dados Legados no Banco
+O `bump-processor.ts` valida order bumps usando `checkout_id`:
 
-| Código | Tipo | Vinculado a Produto | Status |
-|--------|------|---------------------|--------|
-| DADADA | fixed | NÃO (nil) | Órfão - nunca será usado |
-| ADADAD | fixed | NÃO (nil) | Órfão - nunca será usado |
-| ADADADD | fixed | NÃO (nil) | Órfão - nunca será usado |
+```typescript
+// LINHA 108 - PROBLEMA
+.eq("checkout_id", checkout_id)
+```
 
-**Estes cupons são inofensivos** - a validação no `coupon-handler.ts` (linhas 37-46) já os rejeita porque não estão vinculados a nenhum produto.
+Porém, os order bumps são vinculados por `parent_product_id`, não por `checkout_id`:
+
+| Campo no Bump | Valor Real |
+|---------------|------------|
+| `id` | `b08db6c9-eb28-4044-b82d-a9e2ee906414` |
+| `checkout_id` | **NULL** |
+| `parent_product_id` | `a9547038-b10b-442b-8b99-6331739a8730` |
+
+**Inconsistência Crítica:**
+- Frontend (resolve-and-load-handler.ts): Carrega bumps por `parent_product_id` ✅
+- Backend (bump-processor.ts): Valida bumps por `checkout_id` ❌
+
+Resultado: O frontend exibe o bump corretamente, mas quando o usuário tenta pagar, o backend não encontra o bump porque a query usa o campo errado.
 
 ---
 
-## 3. Análise de Soluções (RISE Protocol V3 Seção 4.4)
+## Análise de Soluções (RISE Protocol V3 Seção 4.4)
 
-### Solução A: Manter código legado (não fazer nada)
+### Solução A: Usar parent_product_id na Validação
 
-Deixar o código `fixed` em SharedOrderSummary como está.
+Modificar a query no `bump-processor.ts` para usar `parent_product_id` ao invés de `checkout_id`, alinhando com a arquitetura do frontend.
 
-- Manutenibilidade: 8/10 (código morto confunde desenvolvedores)
-- Zero DT: 7/10 (existe código que nunca será executado)
-- Arquitetura: 8/10 (inconsistência entre tipos e implementação)
-- Escalabilidade: 10/10 (não afeta funcionalidade)
-- Segurança: 10/10 (inofensivo)
-- **NOTA FINAL: 8.6/10**
-- Tempo estimado: 0 minutos
-
-### Solução B: Remover código legado e limpar dados
-
-1. Remover suporte a `fixed` em `SharedOrderSummary.tsx`
-2. Limpar os 3 cupons órfãos do banco (opcional, são inofensivos)
-
-- Manutenibilidade: 10/10 (código limpo e consistente)
-- Zero DT: 10/10 (zero código morto)
-- Arquitetura: 10/10 (tipos e implementação alinhados)
-- Escalabilidade: 10/10 (código limpo)
-- Segurança: 10/10 (nenhuma vulnerabilidade)
+- Manutenibilidade: 10/10 (alinha backend com frontend)
+- Zero DT: 10/10 (resolve problema definitivamente)
+- Arquitetura: 10/10 (SSOT - Single Source of Truth)
+- Escalabilidade: 10/10 (suporta bumps com checkout_id NULL)
+- Segurança: 10/10 (valida ownership via parent_product_id)
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 10 minutos
+- Tempo estimado: 15 minutos
 
-### DECISÃO: Solução B (Nota 10.0)
+### Solução B: Manter checkout_id + Adicionar Fallback parent_product_id
 
-Conforme Lei Suprema: A melhor solução VENCE. SEMPRE.
+Usar OR na query: `.or(\`checkout_id.eq.${checkout_id},parent_product_id.eq.${product_id}\`)`
+
+- Manutenibilidade: 7/10 (lógica complexa desnecessária)
+- Zero DT: 8/10 (mantém código legado)
+- Arquitetura: 6/10 (duplica lógica de ownership)
+- Escalabilidade: 7/10 (confuso para novos devs)
+- Segurança: 10/10
+- **NOTA FINAL: 7.6/10**
+- Tempo estimado: 15 minutos
+
+### DECISÃO: Solução A (Nota 10.0)
+
+O `parent_product_id` é o campo correto de relacionamento. O `checkout_id` em order_bumps é **legado** e está sendo descontinuado (ver comentário no `create-handler.ts` linha 71).
 
 ---
 
-## 4. Plano de Correção
+## Plano de Correção
 
-### 4.1 Arquivos a Modificar
+### Arquivo a Modificar
 
 ```text
-src/components/checkout/shared/SharedOrderSummary.tsx  # Remover código legado
+supabase/functions/create-order/handlers/bump-processor.ts
 ```
 
-### 4.2 Alteração Detalhada
+### Alteração
 
-**Arquivo:** `SharedOrderSummary.tsx` (linhas 85-91)
+**Linha 108:**
 
 ```typescript
-// ANTES (suporta fixed que nunca será usado):
-const discountAmount = useMemo(() => {
-  if (!appliedCoupon) return 0;
-  const discountBase = appliedCoupon.apply_to_order_bumps ? subtotal : productPrice;
-  return appliedCoupon.discount_type === 'percentage'
-    ? (discountBase * appliedCoupon.discount_value) / 100
-    : appliedCoupon.discount_value;
-}, [appliedCoupon, subtotal, productPrice]);
+// ANTES (usa checkout_id que pode ser NULL):
+.eq("checkout_id", checkout_id)
 
-// DEPOIS (apenas porcentagem, que é o único tipo suportado):
-const discountAmount = useMemo(() => {
-  if (!appliedCoupon) return 0;
-  const discountBase = appliedCoupon.apply_to_order_bumps ? subtotal : productPrice;
-  // RISE V3: Apenas desconto por porcentagem é suportado
-  return (discountBase * appliedCoupon.discount_value) / 100;
-}, [appliedCoupon, subtotal, productPrice]);
+// DEPOIS (usa parent_product_id - campo correto de relacionamento):
+.eq("parent_product_id", product_id)
 ```
 
-### 4.3 Limpeza de Dados (Opcional)
+### Código Completo da Seção (linhas 102-109)
 
-Query para limpar cupons órfãos (executar manualmente no SQL Editor se desejar):
+```typescript
+// ANTES:
+// Validar bumps (ownership + status)
+const { data: bumps, error: bumpsError } = await supabase
+  .from("order_bumps")
+  .select("id, product_id, active, custom_title, discount_enabled, original_price, offer_id")
+  .in("id", order_bump_ids)
+  .eq("checkout_id", checkout_id)  // ❌ PROBLEMA
+  .eq("active", true);
 
-```sql
--- Remover cupons fixed que não estão vinculados a nenhum produto
-DELETE FROM coupons 
-WHERE discount_type = 'fixed' 
-AND id NOT IN (SELECT coupon_id FROM coupon_products);
+// DEPOIS:
+// Validar bumps (ownership via parent_product_id - RISE V3)
+const { data: bumps, error: bumpsError } = await supabase
+  .from("order_bumps")
+  .select("id, product_id, active, custom_title, discount_enabled, original_price, offer_id")
+  .in("id", order_bump_ids)
+  .eq("parent_product_id", product_id)  // ✅ Campo correto
+  .eq("active", true);
 ```
-
-**Nota:** Isso é opcional pois estes cupons são inofensivos - nunca passarão pela validação.
 
 ---
 
-## 5. Conformidade Final
+## Seção Técnica
 
-| Módulo | Antes | Depois |
-|--------|-------|--------|
-| Order Bumps | 10.0/10 | 10.0/10 |
-| Cupons | 9.7/10 | 10.0/10 |
-| Integridade de Dados | 100% | 100% |
-| Código Morto | 1 ocorrência | 0 |
-| Consistência Tipos | 95% | 100% |
-
----
-
-## 6. Seção Técnica
-
-### Fluxo de Cupom Validado
+### Fluxo de Dados Corrigido
 
 ```text
-Frontend (CouponInput)
+Frontend (checkout público)
     │
-    └── useCouponValidation.validateCoupon()
-    │
-    ▼
-Edge Function (coupon-handler.ts)
-    │
-    ├── Valida: código existe
-    ├── Valida: cupom ativo
-    ├── Valida: vinculado ao produto
-    ├── Valida: data início/fim
-    ├── Valida: limite de usos
-    │
-    └── Retorna: { discount_type: "percentage", discount_value: X }
+    └── Carrega bumps via resolve-and-load
+        └── .eq("parent_product_id", productId)  ✅
     │
     ▼
-useCouponValidation
+Usuario seleciona bump + clica "Pagar com PIX"
     │
-    └── AppliedCoupon { discount_type: "percentage" as const }
+    └── XState envia: { order_bump_ids: ["b08db6c9-..."], product_id: "a9547038-..." }
     │
     ▼
-SharedOrderSummary / calculateTotalFromContext
+Backend (create-order → bump-processor.ts)
     │
-    └── total * (1 - discount_value / 100)
+    └── Valida bumps
+        └── .eq("parent_product_id", product_id)  ✅ (APÓS CORREÇÃO)
+    │
+    ▼
+Bump encontrado → Pedido criado → PIX gerado
 ```
 
-### Tipagem Correta
+### Por que checkout_id Existe no order_bumps?
+
+O campo `checkout_id` é **legado** - foi o design original antes da migração para `parent_product_id`. O comentário no `create-handler.ts` (linha 71) confirma:
 
 ```typescript
-// Todos os locais estão consistentes:
-// checkoutPublicMachine.types.ts
-discount_type: 'percentage';
-
-// useCouponValidation.ts
-discount_type: 'percentage';
-
-// checkout-shared.types.ts
-discount_type: 'percentage';
-
-// coupon.schema.ts
-discountType: z.literal("percentage")
+checkout_id: payload.checkout_id || null, // Deprecated, kept for compatibility
 ```
+
+A arquitetura RISE V3 usa `parent_product_id` como campo de relacionamento, e o frontend já foi migrado para isso. O backend estava desalinhado.
 
 ---
 
-## 7. Conclusão
+## Resultado Esperado
 
-O sistema de cupons e order bumps está **extremamente estável** e **seguro** para produção. A única pendência é a remoção de 5 linhas de código legado no `SharedOrderSummary.tsx`.
+| Cenário | Antes | Depois |
+|---------|-------|--------|
+| Checkout sem bump | ✅ Funciona | ✅ Funciona |
+| Checkout com bump (checkout_id = NULL) | ❌ Erro 400 | ✅ Funciona |
+| Checkout com bump (checkout_id preenchido) | ✅ Funciona | ✅ Funciona |
 
-**RISE V3 Score Final (Após Correção): 10.0/10**
+---
+
+## Conformidade RISE V3
+
+| Critério | Status |
+|----------|--------|
+| Manutenibilidade Infinita | Frontend e Backend alinhados |
+| Zero Dívida Técnica | Removida dependência de campo legado |
+| Arquitetura Correta | SSOT via parent_product_id |
+| Escalabilidade | Suporta todos os cenários de order bumps |
+| Segurança | Validação de ownership mantida |
+
+**RISE V3 Score: 10.0/10**
+
