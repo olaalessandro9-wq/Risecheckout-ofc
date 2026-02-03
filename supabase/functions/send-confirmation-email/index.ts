@@ -13,6 +13,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { getNoReplyEmail } from "../_shared/email-config.ts";
 
 const log = createLogger("SendConfirmationEmail");
 
@@ -107,7 +108,10 @@ serve(async (req) => {
       </html>
     `;
 
-    // Send email via Resend
+    // Send email via Resend (using centralized email config)
+    const fromEmail = getNoReplyEmail();
+    const fromName = Deno.env.get('ZEPTOMAIL_FROM_NAME') || 'Rise Checkout';
+    
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -115,7 +119,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Rise Checkout <noreply@risecheckout.com>',
+        from: `${fromName} <${fromEmail}>`,
         to: order.customer_email,
         subject: 'Compra Confirmada! 🎉',
         html: emailHtml,
