@@ -237,13 +237,23 @@ function determineWallet(
   return null;
 }
 
+/**
+ * Verifica se afiliado e comprador são a mesma pessoa
+ * 
+ * RISE V3: Usa tabela 'users' como SSOT em vez de auth.admin.getUserById()
+ */
 async function checkSelfReferral(
   supabase: SupabaseClient,
   userId: string,
   customerEmail: string
 ): Promise<boolean> {
-  const { data } = (await supabase.auth.admin.getUserById(userId)) as { data: AffiliateUserData | null };
-  const affiliateEmail = data?.user?.email?.toLowerCase();
+  const { data } = await supabase
+    .from("users")
+    .select("email")
+    .eq("id", userId)
+    .single();
+  
+  const affiliateEmail = data?.email?.toLowerCase();
   return affiliateEmail === customerEmail.toLowerCase();
 }
 

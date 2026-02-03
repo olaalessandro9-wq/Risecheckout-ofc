@@ -4816,14 +4816,6 @@ export type Database = {
           with_check: string
         }[]
       }
-      get_auth_user_by_email: {
-        Args: { user_email: string }
-        Returns: {
-          created_at: string
-          email: string
-          id: string
-        }[]
-      }
       get_checkout_by_payment_slug: {
         Args: { p_slug: string }
         Returns: {

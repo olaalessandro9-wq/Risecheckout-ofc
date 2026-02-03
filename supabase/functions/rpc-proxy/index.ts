@@ -35,13 +35,13 @@ const PUBLIC_RPCS = [
 ];
 
 // RPCs that require producer session authentication
+// RISE V3: Removido get_user_email (usava auth.users abandonada)
 const PRODUCER_RPCS = [
   "attach_offer_to_checkout_smart",
   "clone_checkout_layout",
   "duplicate_checkout_shallow",
   "get_dashboard_metrics",
   "get_producer_affiliates",
-  "get_user_email",
 ];
 
 // RPCs that require admin authentication (check user_roles)

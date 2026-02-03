@@ -41,10 +41,10 @@ export async function getUsersWithMetrics(
 
   if (rolesError) throw rolesError;
 
-  // RISE V3: Use 'users' table as SSOT
+  // RISE V3: Use 'users' table as SSOT - Incluindo email
   const { data: usersData, error: usersError } = await supabase
     .from("users")
-    .select("id, name, registration_source, account_status");
+    .select("id, name, email, registration_source, account_status");
 
   if (usersError) throw usersError;
 
@@ -67,6 +67,7 @@ export async function getUsersWithMetrics(
     }
   });
 
+  // RISE V3: Email vem da tabela users (SSOT) - elimina necessidade de get-users-with-emails
   const usersWithRoles = rolesData.map((roleRow: Record<string, unknown>) => {
     const user = usersData.find((u: Record<string, unknown>) => u.id === roleRow.user_id);
     const metrics = metricsMap.get(roleRow.user_id as string) || { gmv: 0, fees: 0, count: 0 };
@@ -74,6 +75,7 @@ export async function getUsersWithMetrics(
       user_id: roleRow.user_id,
       role: roleRow.role,
       profile: user ? { name: user.name || "Sem nome" } : null,
+      email: user?.email || null, // RISE V3: Email direto da tabela users
       status: user?.account_status || "active",
       total_gmv: metrics.gmv,
       total_fees: metrics.fees,

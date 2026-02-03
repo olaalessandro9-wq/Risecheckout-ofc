@@ -6,10 +6,18 @@
  * Shared utilities for testing Edge Functions with real HTTP requests
  * and database validation.
  * 
+ * RISE V3 MIGRATION COMPLETE:
+ * - Removed auth.admin.createUser (used abandoned auth.users)
+ * - Removed auth.admin.deleteUser (used abandoned auth.users)
+ * - Uses 'users' table as SSOT for all user operations
+ * - Removed references to 'profiles' table (also legacy)
+ * 
  * @module _shared/test-helpers
+ * @version 3.0.0 - RISE V3 Compliant (Zero auth.users references)
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { hashPassword } from "./password-utils.ts";
 
 // ============================================================================
 // Types
@@ -55,9 +63,15 @@ export function createTestClient(): SupabaseClient {
 }
 
 // ============================================================================
-// Test User Management
+// Test User Management - RISE V3 (Uses 'users' table as SSOT)
 // ============================================================================
 
+/**
+ * Creates a test user directly in the 'users' table (SSOT)
+ * 
+ * RISE V3: Does NOT use auth.admin.createUser() - auth.users is abandoned
+ * Users are created directly in the 'users' table with hashed password
+ */
 export async function createTestUser(
   supabase: SupabaseClient,
   overrides?: Partial<TestUser>
@@ -66,41 +80,30 @@ export async function createTestUser(
   const randomId = Math.random().toString(36).substring(7);
   
   const testUser: TestUser = {
-    id: overrides?.id || `test-user-${randomId}`,
+    id: overrides?.id || crypto.randomUUID(),
     email: overrides?.email || `test-${timestamp}-${randomId}@example.com`,
     password: overrides?.password || "TestPassword123!",
     name: overrides?.name || `Test User ${randomId}`,
     role: overrides?.role || "producer",
   };
   
-  // Create user in auth.users (if using Supabase Auth)
-  // Note: This is a simplified version. Real implementation may vary.
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-    email: testUser.email,
-    password: testUser.password,
-    email_confirm: true,
-    user_metadata: {
-      name: testUser.name,
-    },
-  });
+  // RISE V3: Hash password using the same method as unified-auth
+  const passwordHash = await hashPassword(testUser.password);
   
-  if (authError) {
-    throw new Error(`Failed to create auth user: ${authError.message}`);
-  }
-  
-  testUser.id = authUser.user.id;
-  
-  // Create profile
-  const { error: profileError } = await supabase
-    .from("profiles")
+  // RISE V3: Create user directly in 'users' table (SSOT)
+  const { error: userError } = await supabase
+    .from("users")
     .insert({
       id: testUser.id,
+      email: testUser.email.toLowerCase(),
       name: testUser.name,
-      email: testUser.email,
+      password_hash: passwordHash,
+      account_status: "active",
+      created_at: new Date().toISOString(),
     });
   
-  if (profileError) {
-    throw new Error(`Failed to create profile: ${profileError.message}`);
+  if (userError) {
+    throw new Error(`Failed to create test user: ${userError.message}`);
   }
   
   // Assign role
@@ -118,15 +121,20 @@ export async function createTestUser(
   return testUser;
 }
 
+/**
+ * Deletes a test user from all tables
+ * 
+ * RISE V3: Does NOT use auth.admin.deleteUser() - auth.users is abandoned
+ * Deletes only from 'users', 'user_roles', and 'sessions' tables
+ */
 export async function deleteTestUser(
   supabase: SupabaseClient,
   userId: string
 ): Promise<void> {
-  // Delete in reverse order of creation
-  await supabase.from("user_roles").delete().eq("user_id", userId);
-  await supabase.from("profiles").delete().eq("id", userId);
+  // Delete in correct order (foreign key constraints)
   await supabase.from("sessions").delete().eq("user_id", userId);
-  await supabase.auth.admin.deleteUser(userId);
+  await supabase.from("user_roles").delete().eq("user_id", userId);
+  await supabase.from("users").delete().eq("id", userId);
 }
 
 // ============================================================================
@@ -252,14 +260,17 @@ export async function assertSessionExists(
   return !!data;
 }
 
+/**
+ * RISE V3: Check if user exists in 'users' table (SSOT)
+ */
 export async function assertUserExists(
   supabase: SupabaseClient,
   email: string
 ): Promise<boolean> {
   const { data } = await supabase
-    .from("profiles")
+    .from("users")
     .select("id")
-    .eq("email", email)
+    .eq("email", email.toLowerCase())
     .single();
   
   return !!data;
@@ -269,12 +280,15 @@ export async function assertUserExists(
 // Cleanup Helpers
 // ============================================================================
 
+/**
+ * RISE V3: Clean up test users from 'users' table (SSOT)
+ */
 export async function cleanupTestData(
   supabase: SupabaseClient
 ): Promise<void> {
-  // Delete test users (those with email containing 'test-')
+  // Find test users (those with email containing 'test-')
   const { data: testUsers } = await supabase
-    .from("profiles")
+    .from("users")
     .select("id")
     .like("email", "%test-%@example.com");
   
