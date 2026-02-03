@@ -20,11 +20,10 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 export { jsonResponse, errorResponse } from "./response-helpers.ts";
 
 // ============================================================================
-// Rate Limiting (Deprecated - use _shared/rate-limiting/ module)
+// Rate Limiting (Re-exported for convenience)
 // ============================================================================
-// NOTE: Rate limiting has been consolidated into _shared/rate-limiting/
-// These exports are kept for API stability only.
-// New code should import directly from _shared/rate-limiting/index.ts
+// The rate limiting module is in _shared/rate-limiting/
+// These exports provide a convenient access point through edge-helpers.
 
 export {
   checkRateLimit,

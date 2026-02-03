@@ -76,7 +76,7 @@ export interface GeneralFormData {
   support_name: string;
   support_email: string;
   delivery_url: string;
-  /** @deprecated Use delivery_type instead */
+  /** Legacy field kept for database compatibility - use delivery_type in new code */
   external_delivery: boolean;
   delivery_type: DeliveryType;
 }
