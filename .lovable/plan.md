@@ -1,101 +1,243 @@
 
-# Plano de Correção Final: Comentários Legados - RISE V3 10.0/10
+# Plano RISE V3: Unificar Cores de Status Negativos para Vermelho
 
 ## Diagnóstico
 
-A implementação do status "Recusado" está **100% funcional**, com 109 testes passando e UI correta. Porém, existem **2 comentários desatualizados** que violam a regra de Zero Dívida Técnica do RISE Protocol V3.
+O usuário identificou inconsistência visual: status "Reembolso" está em azul, mas todos os status negativos (Recusado, Reembolso, Chargeback) devem ser **vermelho** para comunicar claramente "problema/perda".
 
-## Análise de Soluções (RISE Protocol V3 Seção 4.4)
+### Estado Atual vs Desejado
 
-### Solução A: Corrigir Todos os Comentários Legados
-
-Atualizar os comentários que ainda mencionam comportamento antigo (`failed` → `pending`).
-
-| Critério | Nota | Justificativa |
-|----------|------|---------------|
-| Manutenibilidade | 10/10 | Comentários documentam comportamento real |
-| Zero DT | 10/10 | Elimina inconsistência código/comentário |
-| Arquitetura | 10/10 | Documentação precisa |
-| Escalabilidade | 10/10 | Base sólida para futuro |
-| Segurança | 10/10 | Não afeta segurança |
-
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 10 minutos
-
-### Solução B: Deixar Como Está
-
-Ignorar os comentários desatualizados.
-
-| Critério | Nota | Justificativa |
-|----------|------|---------------|
-| Manutenibilidade | 6/10 | Comentários mentem sobre o código |
-| Zero DT | 5/10 | Dívida técnica explícita |
-| Arquitetura | 7/10 | Funciona, mas confunde |
-| Escalabilidade | 7/10 | Problemas futuros |
-| Segurança | 10/10 | Não afeta segurança |
-
-- **NOTA FINAL: 6.8/10**
-- Tempo estimado: 0 minutos
-
-### DECISÃO: Solução A (Nota 10.0/10)
-
-Comentários que mentem sobre o comportamento do código são dívida técnica. O RISE Protocol V3 proíbe explicitamente deixar inconsistências "para depois".
+| Status | Cor Atual | Cor Desejada | Mudança |
+|--------|-----------|--------------|---------|
+| Pago | Verde (emerald) | Verde | Manter |
+| Pendente | Amarelo (amber) | Amarelo | Manter |
+| Recusado | Laranja (orange) | **Vermelho (red)** | Alterar |
+| Reembolso | Azul (blue) | **Vermelho (red)** | Alterar |
+| Chargeback | Vermelho (red) | Vermelho | Manter |
 
 ---
 
-## Arquivos a Corrigir
+## Análise de Soluções (RISE Protocol V3 Seção 4.4)
 
-### 1. `src/lib/order-status/service.ts` (Linha 8)
+### Solução A: Atualizar Todos os Arquivos de Cores
+
+Modificar a fonte da verdade (types.ts) e todos os arquivos que definem cores de status.
+
+| Critério | Nota | Justificativa |
+|----------|------|---------------|
+| Manutenibilidade | 10/10 | SSOT atualizado, UI consistente |
+| Zero DT | 10/10 | Todas as referências sincronizadas |
+| Arquitetura | 10/10 | Padrão visual coerente |
+| Escalabilidade | 10/10 | Fácil adicionar novos status |
+| Segurança | 10/10 | Não afeta segurança |
+
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 30 minutos
+
+### Solução B: Apenas Atualizar types.ts
+
+Confiar que os outros arquivos usam a fonte da verdade.
+
+| Critério | Nota | Justificativa |
+|----------|------|---------------|
+| Manutenibilidade | 7/10 | Arquivos com cores hardcoded não serão atualizados |
+| Zero DT | 6/10 | CustomerTableRow.tsx tem cores inline |
+| Arquitetura | 6/10 | Inconsistência entre componentes |
+| Escalabilidade | 7/10 | Problema parcialmente resolvido |
+| Segurança | 10/10 | Não afeta segurança |
+
+- **NOTA FINAL: 7.0/10**
+- Tempo estimado: 10 minutos
+
+### DECISÃO: Solução A (Nota 10.0/10)
+
+A Solução B deixaria o `CustomerTableRow.tsx` e `statusConfig.ts` com cores desatualizadas, criando dívida técnica explícita.
+
+---
+
+## Plano de Implementação
+
+### Arquivos a Modificar
+
+```text
+src/lib/order-status/types.ts           (SSOT)
+src/components/dashboard/order-details/statusConfig.ts
+src/components/dashboard/recent-customers/CustomerTableRow.tsx
+src/lib/order-status/__tests__/service.test.ts
+docs/ORDER_STATUS_MODEL.md
+```
+
+---
+
+### 1. `src/lib/order-status/types.ts` (Linhas 110-121)
+
+Alterar cores de `refused` e `refunded` para vermelho:
 
 **De:**
 ```typescript
-* PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
-* Status expired, cancelled, failed do gateway = 'pending' na UI.
+refused: {
+  bg: 'bg-orange-500/10',
+  text: 'text-orange-500',
+  border: 'border-orange-500/20',
+  dot: 'bg-orange-500',
+},
+refunded: {
+  bg: 'bg-blue-500/10',
+  text: 'text-blue-500',
+  border: 'border-blue-500/20',
+  dot: 'bg-blue-500',
+},
 ```
 
 **Para:**
 ```typescript
-* PADRÃO DE MERCADO: Uma venda pendente NUNCA vira "cancelada".
-* Status expired, cancelled do gateway = 'pending' na UI.
-* Status failed, rejected, declined do gateway = 'refused' (cartão recusado).
+refused: {
+  bg: 'bg-red-500/10',
+  text: 'text-red-500',
+  border: 'border-red-500/20',
+  dot: 'bg-red-500',
+},
+refunded: {
+  bg: 'bg-red-500/10',
+  text: 'text-red-500',
+  border: 'border-red-500/20',
+  dot: 'bg-red-500',
+},
 ```
 
-### 2. `src/lib/order-status/types.ts` (Linhas 21-29)
+---
+
+### 2. `src/components/dashboard/order-details/statusConfig.ts` (Linhas 29-42)
 
 **De:**
 ```typescript
-/**
- * Canonical order statuses stored in the database
- * 
- * MODELO DE MERCADO (Hotmart/Kiwify):
- * - pending: Aguardando pagamento (PIX gerado, boleto emitido)
- * - paid: Pagamento confirmado
- * - refunded: Reembolso efetuado
- * - chargeback: Contestação no cartão
- * 
- * NOTA: 'cancelled' e 'failed' foram REMOVIDOS.
- * Vendas expiradas/canceladas pelo gateway continuam como 'pending'.
- * O campo 'technical_status' guarda o status técnico real para relatórios.
- */
+case "Recusado":
+  return {
+    color: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+    icon: XCircle,
+    iconColor: "text-orange-600",
+    gradient: "from-orange-500/5 to-transparent"
+  };
+case "Reembolso":
+  return {
+    color: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+    icon: XCircle,
+    iconColor: "text-blue-600",
+    gradient: "from-blue-500/5 to-transparent"
+  };
 ```
 
 **Para:**
 ```typescript
-/**
- * Canonical order statuses stored in the database
- * 
- * MODELO DE MERCADO (Hotmart/Kiwify/Cakto):
- * - paid: Pagamento confirmado
- * - pending: Aguardando pagamento (PIX gerado, boleto emitido)
- * - refused: Cartão recusado (CVV inválido, limite, etc)
- * - refunded: Reembolso efetuado
- * - chargeback: Contestação no cartão
- * 
- * NOTA: 'cancelled' foi REMOVIDO (PIX expirado → pending).
- * 'failed/rejected' agora mapeia para 'refused' (cartão recusado).
- * O campo 'technical_status' guarda o status técnico real para relatórios.
- */
+case "Recusado":
+  return {
+    color: "bg-red-500/10 text-red-700 border-red-500/20",
+    icon: XCircle,
+    iconColor: "text-red-600",
+    gradient: "from-red-500/5 to-transparent"
+  };
+case "Reembolso":
+  return {
+    color: "bg-red-500/10 text-red-700 border-red-500/20",
+    icon: XCircle,
+    iconColor: "text-red-600",
+    gradient: "from-red-500/5 to-transparent"
+  };
 ```
+
+---
+
+### 3. `src/components/dashboard/recent-customers/CustomerTableRow.tsx` (Linhas 67-72)
+
+**De:**
+```typescript
+: customer.status === "Recusado"
+? "bg-orange-500/10 text-orange-500 border-orange-500/20"
+: customer.status === "Reembolso"
+? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+: customer.status === "Chargeback"
+? "bg-red-500/10 text-red-500 border-red-500/20"
+```
+
+**Para:**
+```typescript
+: customer.status === "Recusado"
+? "bg-red-500/10 text-red-500 border-red-500/20"
+: customer.status === "Reembolso"
+? "bg-red-500/10 text-red-500 border-red-500/20"
+: customer.status === "Chargeback"
+? "bg-red-500/10 text-red-500 border-red-500/20"
+```
+
+---
+
+### 4. `src/lib/order-status/__tests__/service.test.ts` (Linhas 101-111)
+
+**De:**
+```typescript
+it("should return orange scheme for refused (cartão recusado)", () => {
+  const colors = orderStatusService.getColorScheme("refused");
+  expect(colors.bg).toContain("orange");
+  expect(colors.text).toContain("orange");
+});
+
+it("should return blue scheme for refunded", () => {
+  const colors = orderStatusService.getColorScheme("refunded");
+  expect(colors.bg).toContain("blue");
+  expect(colors.text).toContain("blue");
+});
+```
+
+**Para:**
+```typescript
+it("should return red scheme for refused (cartão recusado)", () => {
+  const colors = orderStatusService.getColorScheme("refused");
+  expect(colors.bg).toContain("red");
+  expect(colors.text).toContain("red");
+});
+
+it("should return red scheme for refunded", () => {
+  const colors = orderStatusService.getColorScheme("refunded");
+  expect(colors.bg).toContain("red");
+  expect(colors.text).toContain("red");
+});
+```
+
+---
+
+### 5. `docs/ORDER_STATUS_MODEL.md` (Linhas 49-66)
+
+Atualizar tabela de cores e exemplo de código:
+
+**De:**
+```markdown
+| `refused` | Recusado | 🟠 Laranja (orange) | Cartão recusado |
+| `refunded` | Reembolso | 🔵 Azul (blue) | Valor devolvido |
+
+refused: { bg: 'bg-orange-500/10', text: 'text-orange-500', dot: 'bg-orange-500' },
+refunded: { bg: 'bg-blue-500/10', text: 'text-blue-500', dot: 'bg-blue-500' },
+```
+
+**Para:**
+```markdown
+| `refused` | Recusado | 🔴 Vermelho (red) | Cartão recusado |
+| `refunded` | Reembolso | 🔴 Vermelho (red) | Valor devolvido |
+
+refused: { bg: 'bg-red-500/10', text: 'text-red-500', dot: 'bg-red-500' },
+refunded: { bg: 'bg-red-500/10', text: 'text-red-500', dot: 'bg-red-500' },
+```
+
+---
+
+## Semântica Visual Final
+
+| Status | Cor | Semântica |
+|--------|-----|-----------|
+| Pago | Verde | Sucesso, dinheiro recebido |
+| Pendente | Amarelo | Atenção, aguardando ação |
+| Recusado | Vermelho | Problema, perda potencial |
+| Reembolso | Vermelho | Problema, dinheiro devolvido |
+| Chargeback | Vermelho | Problema, contestação |
 
 ---
 
@@ -103,47 +245,36 @@ Comentários que mentem sobre o comportamento do código são dívida técnica. 
 
 | Verificação | Critério |
 |-------------|----------|
-| Comentário service.ts | Menciona `failed → refused` |
-| Comentário types.ts | Lista 5 status, menciona `refused` |
-| Testes passando | 109 testes (sem alteração) |
-| Código funcional | Sem alteração (apenas comentários) |
+| types.ts | refused e refunded = red |
+| statusConfig.ts | Recusado e Reembolso = red |
+| CustomerTableRow.tsx | Recusado e Reembolso = red |
+| Testes | Esperam "red" para refused/refunded |
+| Documentação | Atualizada com cores corretas |
 
 ---
 
-## Conformidade RISE V3 Final
+## Conformidade RISE V3
 
-| Critério | Antes | Depois |
-|----------|-------|--------|
-| Código Core | 10/10 | 10/10 |
-| Testes Unitários | 10/10 | 10/10 |
-| UI Components | 10/10 | 10/10 |
-| Backend | 10/10 | 10/10 |
-| Documentação | 10/10 | 10/10 |
-| Comentários em Código | 9.5/10 | 10/10 |
-| **TOTAL** | **9.8/10** | **10.0/10** |
+| Critério | Status |
+|----------|--------|
+| Manutenibilidade Infinita | Cores semânticas coerentes |
+| Zero Dívida Técnica | Todos os arquivos sincronizados |
+| Arquitetura Correta | SSOT respeitado |
+| Escalabilidade | Padrão claro para novos status |
+| Segurança | Não afetada |
 
----
-
-## Resumo das Correções
-
-| Arquivo | Linha | Alteração |
-|---------|-------|-----------|
-| `src/lib/order-status/service.ts` | 8 | Adicionar `failed → refused` no comentário |
-| `src/lib/order-status/types.ts` | 21-29 | Atualizar lista de status e nota sobre `failed` |
+**RISE V3 Score: 10.0/10**
 
 ---
 
 ## Seção Técnica
 
-### Checkpoint de Qualidade RISE V3
+### Resumo das Alterações
 
-| Pergunta | Resposta Após Correção |
-|----------|------------------------|
-| Código e comentários estão sincronizados? | Sim |
-| Existe algum comentário mentindo sobre o código? | Não |
-| Status "refused" está em toda documentação? | Sim |
-| RISE V3 Score = 10.0? | Sim |
-
-### Nota sobre CHANGELOG.md
-
-A referência a "4 status" na linha 348 do CHANGELOG é **histórica** (versão 3.2.0 de Janeiro). Não deve ser alterada pois documenta o que foi feito naquela versão. O CHANGELOG 3.6.2 já documenta corretamente a adição do 5º status.
+| Arquivo | Alteração |
+|---------|-----------|
+| `types.ts` | refused/refunded → red-500 |
+| `statusConfig.ts` | Recusado/Reembolso → red |
+| `CustomerTableRow.tsx` | Recusado/Reembolso → red |
+| `service.test.ts` | Testes esperam "red" |
+| `ORDER_STATUS_MODEL.md` | Documentação atualizada |
