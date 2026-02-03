@@ -1,249 +1,308 @@
 
-# Plano RISE V3: Corrigir Erros de Console no Checkout Público
+# Plano RISE V3: Eliminar Latência e "Reconectando..." do Fluxo PIX
 
 ## Sumário Executivo
 
-Investiguei profundamente os 4 tipos de erros reportados no console do checkout público. Este plano corrige todos os problemas seguindo o RISE Protocol V3 com nota 10.0/10.
+O fluxo de pagamento PIX apresenta três problemas críticos que estão custando vendas:
+1. **Spinner para antes do QR code aparecer** - Gap de ~2 segundos entre spinner parar e QR aparecer
+2. **Tela "Reconectando..." aparece** - Erro de chunk loading causa tela de recovery
+3. **Transição não é seamless** - Múltiplos estados de loading durante a navegação
+
+Este plano implementa a solução RISE V3 Score 10.0/10 para garantir um fluxo **FLASH RÁPIDO**.
 
 ---
 
-## 1. Diagnóstico Detalhado dos Erros
+## Diagnóstico Detalhado
 
-### Erro 1: Violações de CSP (Content-Security-Policy)
-**Causa:** A meta tag CSP no `index.html` está bloqueando recursos necessários pelo SDK do Mercado Pago.
+### Problema 1: Spinner Para Prematuramente
 
-**Domínios Faltando:**
-| Diretiva | Domínio Ausente | Uso |
-|----------|-----------------|-----|
-| `script-src` | `https://http2.mlstatic.com` | SDK principal do MP |
-| `connect-src` | `https://http2.mlstatic.com` | APIs de fingerprint |
-| `connect-src` | `https://events.mercadopago.com` | Telemetria/anti-fraude |
-| `frame-src` | `https://www.mercadopago.com.br` | iframes de pagamento |
-| `script-src` | `https://analytics.tiktok.com` | TikTok Pixel |
-| `script-src` | `https://kpx.alicdn.com` | Kwai Pixel |
+**Fluxo Atual:**
+```text
+[Checkout Form]
+    │
+    ├── Clica "Pagar com PIX"
+    │   └── isSubmitting = true (spinner INICIA)
+    │
+    ├── XState: creatingOrder → processingPix
+    │   └── Chamadas às Edge Functions
+    │
+    ├── XState: → paymentPending
+    │   └── isSubmitting = false (spinner PARA ❌)
+    │
+    ├── useEffect detecta navigationData
+    │   └── navigate() para /pay/pix/:orderId
+    │
+    └── [GAP DE 2s] Lazy load + usePixRecovery
+        └── Finalmente mostra QR Code
+```
 
-### Erro 2: TypeError "Cannot read properties of undefined (reading 'message')"
-**Causa Provável:** Acesso a `error.message` sem verificação defensiva.
+**Causa:** A máquina transita para `paymentPending` ANTES da navegação estar completa. O `isSubmitting` é `false`, mas a nova página ainda não renderizou.
 
-**Localização Identificada:**
-- `src/modules/checkout-public/machines/checkoutPublicMachine.actions.ts` linha 129: `String(error)` pode retornar `"undefined"` se error for undefined.
+### Problema 2: "Reconectando..." Aparece
 
-### Erro 3: Tracking Failures ([object ProgressEvent])
-**Causa:** Quando a CSP bloqueia o script de tracking, o evento de erro do XMLHttpRequest é um `ProgressEvent` que não tem `message`. O logger tenta logar como string e aparece `[object ProgressEvent]`.
+**Localização:** `src/components/RouteErrorBoundary.tsx` linha 119
 
-**Solução:** Corrigir CSP (item 1) + melhorar tratamento de erro no logger.
+**Causa:** Quando o lazy loading do chunk `PixPaymentPage` falha (rede instável), o `RouteErrorBoundary` detecta como `isNetworkError` e entra em modo de auto-recovery.
 
-### Erro 4: postMessage Mismatch
-**Causa:** Comunicação entre iframes de SDK de pagamento (MP/Stripe) e janela principal. 
+**Código Problemático:**
+```typescript
+// RouteErrorBoundary.tsx linha 114-122
+if (recovering) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-muted-foreground">Reconectando...</p>  // ❌ INACEITÁVEL
+      </div>
+    </div>
+  );
+}
+```
 
-**Análise:** Este erro é **esperado e inofensivo** - são mensagens internas dos SDKs que não precisam de tratamento. Não há código nosso que escuta estas mensagens específicas.
+### Problema 3: Múltiplos Estados de Loading
+
+**Sequência Atual (ineficiente):**
+```text
+1. [Checkout] Spinner girando (isSubmitting)
+2. [Checkout] Spinner para (transição para paymentPending)
+3. [Router] PageLoader (Suspense fallback)
+4. [PixPage] PixLoadingState (usePixRecovery: checking)
+5. [PixPage] QR Code renderizado
+```
+
+**5 estados de loading = experiência péssima!**
 
 ---
 
-## 2. Análise de Soluções (RISE Protocol V3 Seção 4.4)
+## Análise de Soluções (RISE Protocol V3 Seção 4.4)
 
-### Solução A: Correção Parcial (Apenas CSP)
+### Solução A: Ajuste Cosmético
 
-- Manutenibilidade: 7/10 (não corrige TypeError)
-- Zero DT: 6/10 (deixa código frágil)
-- Arquitetura: 6/10 (tratamento de erro incompleto)
-- Escalabilidade: 8/10
+Apenas trocar "Reconectando..." por mensagem contextual de PIX.
+
+- Manutenibilidade: 5/10 (band-aid, não resolve raiz)
+- Zero DT: 4/10 (problema arquitetural persiste)
+- Arquitetura: 4/10 (múltiplos estados de loading)
+- Escalabilidade: 5/10
+- Segurança: 10/10
+- **NOTA FINAL: 5.6/10**
+- Tempo estimado: 30 minutos
+
+### Solução B: Manter Spinner Durante Transição
+
+Adicionar flag `isNavigating` e manter spinner até navegação completa.
+
+- Manutenibilidade: 7/10 (adiciona estado extra)
+- Zero DT: 7/10 (resolve sintoma, não causa)
+- Arquitetura: 6/10 (acoplamento entre componentes)
+- Escalabilidade: 7/10
 - Segurança: 10/10
 - **NOTA FINAL: 7.4/10**
+- Tempo estimado: 1 hora
 
-### Solução B: Correção Completa (CSP + Tratamento de Erro + Documentação)
+### Solução C: Unificação Completa do Loading (ESCOLHIDA)
 
-1. Atualizar CSP em `index.html` e `vercel.json`
-2. Melhorar tratamento de erro em actions
-3. Documentar erros de postMessage como "esperados"
+1. O checkout mantém o spinner até a página PIX estar COMPLETAMENTE pronta
+2. Os dados do PIX já estão prontos no navigationData (QR code incluso)
+3. A página PIX renderiza INSTANTANEAMENTE com os dados do navState
+4. Eliminar "Reconectando..." completamente do fluxo de pagamento
+5. Pré-carregar o chunk da página PIX quando o usuário seleciona PIX
 
-- Manutenibilidade: 10/10
-- Zero DT: 10/10
-- Arquitetura: 10/10
-- Escalabilidade: 10/10
+- Manutenibilidade: 10/10 (fluxo limpo e linear)
+- Zero DT: 10/10 (elimina todos os gaps)
+- Arquitetura: 10/10 (Single Loading State)
+- Escalabilidade: 10/10 (padrão replicável para cartão)
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
+- Tempo estimado: 2-3 horas
 
-### DECISÃO: Solução B (Nota 10.0)
+### DECISÃO: Solução C (Nota 10.0)
 
 ---
 
-## 3. Plano de Correção
+## Plano de Implementação
 
 ### Arquivos a Modificar
 
 ```text
-index.html                                                    # CSP principal
-vercel.json                                                   # CSP de produção
-src/modules/checkout-public/machines/checkoutPublicMachine.actions.ts  # Tratamento de erro
+src/modules/checkout-public/components/CheckoutPublicContent.tsx  # Navegação + preload
+src/pages/pix-payment/PixPaymentPage.tsx                          # Renderização instantânea
+src/pages/pix-payment/hooks/usePixRecovery.ts                     # Priorizar navState
+src/components/RouteErrorBoundary.tsx                             # Mensagem contextual
+src/routes/publicRoutes.tsx                                       # Preload chunk
 ```
 
 ---
 
-## 4. Alterações Detalhadas
+## Alterações Detalhadas
 
-### 4.1 index.html - CSP Atualizada
+### 1. CheckoutPublicContent.tsx - Preload + Navegação Otimizada
 
-A meta tag CSP (linhas 14-28) será atualizada com os seguintes domínios adicionais:
+**Objetivo:** Pré-carregar o chunk da página PIX quando o usuário seleciona o método PIX, e manter o spinner até a navegação estar completa.
 
-**script-src (adicionar):**
-- `https://http2.mlstatic.com` - Mercado Pago SDK core
-- `https://analytics.tiktok.com` - TikTok Pixel
-- `https://kpx.alicdn.com` - Kwai Pixel
+**Mudanças:**
+- Adicionar preload do chunk quando `selectedPaymentMethod === 'pix'`
+- Remover o delay natural do `useEffect` usando navegação mais direta
+- Garantir que a navegação acontece APENAS quando todos os dados estão prontos
 
-**connect-src (adicionar):**
-- `https://http2.mlstatic.com` - MP fingerprint/resources
-- `https://events.mercadopago.com` - MP telemetry/anti-fraud
-
-**frame-src (já existe):**
-- Verificar se `https://*.mercadopago.com` cobre todos os casos
-
-### 4.2 vercel.json - CSP de Produção Sincronizada
-
-Atualizar a CSP no header de produção para manter paridade com index.html:
-- Adicionar mesmos domínios que foram adicionados em index.html
-- Garantir que `*.mlstatic.com` esteja em connect-src
-- Adicionar `events.mercadopago.com` em connect-src
-
-### 4.3 checkoutPublicMachine.actions.ts - Tratamento Robusto
-
-Linha 126-131 - função `createNetworkError`:
-
+**Código a adicionar (após linha 47):**
 ```typescript
-// ANTES:
-export function createNetworkError(error: unknown) {
-  return {
-    reason: 'NETWORK_ERROR' as const,
-    message: String(error) || "Erro de rede",
-  };
-}
-
-// DEPOIS:
-export function createNetworkError(error: unknown) {
-  let message = "Erro de rede";
-  
-  if (error instanceof Error) {
-    message = error.message || "Erro de rede";
-  } else if (typeof error === 'string' && error.trim()) {
-    message = error;
+// RISE V3: Preload PIX page chunk when PIX is selected
+useEffect(() => {
+  if (selectedPaymentMethod === 'pix') {
+    // Preload the PIX page chunk in the background
+    import("@/pages/PixPaymentPage").catch(() => {
+      // Ignore preload errors - will be handled during navigation
+    });
   }
-  // ProgressEvent e outros objetos sem message caem no default
+}, [selectedPaymentMethod]);
+```
+
+### 2. PixPaymentPage.tsx - Renderização Instantânea
+
+**Objetivo:** Quando há navState com qrCode, renderizar IMEDIATAMENTE sem passar pelo estado `checking`.
+
+**Mudanças no usePixRecovery:**
+- Se navState tem qrCode, setar `recoveryStatus` para `recovered_from_state` SÍNCRONAMENTE
+- Eliminar o delay do estado `idle` → `checking` quando há dados
+
+**Código otimizado (usePixRecovery.ts):**
+```typescript
+// RISE V3: Renderização instantânea com navState
+export function usePixRecovery(
+  orderId: string | undefined,
+  navState: PixNavigationData | null
+): UsePixRecoveryReturn {
+  // INSTANT: Se navState tem QR code, inicializar já como recovered
+  const hasInstantData = !!(navState?.qrCode || navState?.qrCodeText || navState?.qrCodeBase64);
   
-  return {
-    reason: 'NETWORK_ERROR' as const,
-    message,
-  };
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>(
+    hasInstantData ? 'recovered_from_state' : 'idle'
+  );
+  
+  const [recoveredData, setRecoveredData] = useState<RecoveredPixData | null>(
+    hasInstantData ? {
+      qrCode: navState!.qrCode || navState!.qrCodeText || '',
+      qrCodeBase64: navState!.qrCodeBase64,
+      qrCodeText: navState!.qrCodeText,
+      amount: navState!.amount,
+      checkoutSlug: navState!.checkoutSlug,
+      source: 'navState',
+    } : null
+  );
+  // ... resto permanece igual
+```
+
+### 3. RouteErrorBoundary.tsx - Mensagem Contextual
+
+**Objetivo:** Para rotas de pagamento, usar mensagem contextual ao invés de "Reconectando...".
+
+**Mudanças:**
+- Detectar se a rota atual é de pagamento (`/pay/`)
+- Usar mensagem "Preparando pagamento..." ao invés de "Reconectando..."
+
+**Código otimizado:**
+```typescript
+// Linha 50 - adicionar hook
+const location = typeof window !== 'undefined' ? window.location.pathname : '';
+const isPaymentRoute = location.startsWith('/pay/');
+
+// Linha 114-122 - mensagem contextual
+if (recovering) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-muted-foreground">
+          {isPaymentRoute ? "Preparando pagamento..." : "Carregando..."}
+        </p>
+      </div>
+    </div>
+  );
 }
 ```
 
+### 4. Eliminação Completa do "Reconectando" no Fluxo Normal
+
+**Objetivo:** O fluxo normal (sem erro de rede) NUNCA deve mostrar "Reconectando" ou qualquer tela intermediária.
+
+O preload do chunk + renderização instantânea garantem isso.
+
 ---
 
-## 5. CSP Completa Proposta
+## Fluxo Otimizado (Após Implementação)
 
 ```text
-default-src 'self';
-script-src 'self' 'unsafe-inline' 'unsafe-eval' 
-  https://challenges.cloudflare.com 
-  https://js.stripe.com 
-  https://sdk.mercadopago.com 
-  https://http2.mlstatic.com 
-  https://www.googletagmanager.com 
-  https://www.google-analytics.com 
-  https://connect.facebook.net 
-  https://analytics.tiktok.com 
-  https://kpx.alicdn.com;
-style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-font-src 'self' https://fonts.gstatic.com data:;
-img-src 'self' data: https: blob:;
-connect-src 'self' 
-  https://api.risecheckout.com 
-  https://*.supabase.co 
-  wss://*.supabase.co 
-  https://*.mercadopago.com 
-  https://*.mercadolibre.com 
-  https://*.mlstatic.com 
-  https://http2.mlstatic.com 
-  https://events.mercadopago.com 
-  https://api.stripe.com 
-  https://challenges.cloudflare.com 
-  https://www.google-analytics.com 
-  https://api.utmify.com.br 
-  https://graph.facebook.com 
-  https://analytics.tiktok.com 
-  https://kpx.alicdn.com 
-  https://*.sentry.io 
-  https://*.ingest.us.sentry.io;
-frame-src 'self' 
-  https://js.stripe.com 
-  https://challenges.cloudflare.com 
-  https://*.mercadopago.com 
-  https://*.mercadolibre.com 
-  https://www.mercadopago.com.br 
-  https://www.youtube.com 
-  https://player.vimeo.com;
-media-src 'self' https: blob:;
-worker-src 'self' blob:;
-object-src 'none';
-base-uri 'self';
-form-action 'self';
-upgrade-insecure-requests;
+[Checkout Form]
+    │
+    ├── Usuário seleciona PIX
+    │   └── Preload chunk PixPaymentPage (background)
+    │
+    ├── Clica "Pagar com PIX"
+    │   └── isSubmitting = true (spinner INICIA)
+    │
+    ├── XState: creatingOrder → processingPix
+    │   └── Edge Functions executam (create-order + mercadopago-create-payment)
+    │   └── QR Code retornado e armazenado em navigationData
+    │
+    ├── XState: → paymentPending
+    │   └── navigate() IMEDIATO com navigationData
+    │
+    └── [PixPaymentPage - INSTANTÂNEO]
+        └── navState tem qrCode → recoveryStatus = 'recovered_from_state'
+        └── PixWaitingState renderiza com QR Code
+        └── Spinner do checkout nem apareceu como parado
 ```
 
----
-
-## 6. Sobre os Erros de postMessage
-
-Os erros de postMessage são **comportamento esperado** dos SDKs de pagamento:
-- Mercado Pago SDK usa postMessage internamente para comunicação entre iframes
-- Stripe SDK tem comportamento similar
-- Não há código no projeto que dependa dessas mensagens
-
-**Decisão:** Não tratar - são logs informativos internos dos SDKs que não afetam funcionalidade.
+**Resultado: Transição de < 100ms percebidos**
 
 ---
 
-## 7. Resultado Esperado
+## Métricas de Sucesso
 
-| Erro | Antes | Depois |
-|------|-------|--------|
-| CSP blocking MP fingerprint | Erro no console | Silencioso |
-| CSP blocking TikTok/Kwai | Erro no console | Silencioso |
-| TypeError message undefined | Crash potencial | Tratado graciosamente |
-| postMessage mismatch | Log de aviso | Mesmo (esperado) |
-| Mercado Pago SDK | Parcialmente bloqueado | Funcionando 100% |
+| Métrica | Antes | Depois |
+|---------|-------|--------|
+| Gap spinner → QR code | ~2-4 segundos | < 100ms |
+| Tela "Reconectando..." | Aparece em instabilidade | Nunca no fluxo normal |
+| Estados de loading visíveis | 4-5 | 1 (spinner contínuo) |
+| Chunk load time | Durante navegação | Pré-carregado |
 
 ---
 
-## 8. Conformidade RISE V3
+## Conformidade RISE V3
 
 | Critério | Status |
 |----------|--------|
-| Manutenibilidade Infinita | CSP documentada e extensível |
-| Zero Dívida Técnica | Todos os SDKs autorizados |
-| Arquitetura Correta | Tratamento de erro defensivo |
-| Escalabilidade | Fácil adicionar novos pixels |
-| Segurança | CSP restritiva mas funcional |
+| Manutenibilidade Infinita | Fluxo simplificado e linear |
+| Zero Dívida Técnica | Elimina workarounds e band-aids |
+| Arquitetura Correta | Single Loading State Pattern |
+| Escalabilidade | Padrão aplicável a cartão/boleto |
+| Segurança | Mantida - dados via navState seguro |
 
 **RISE V3 Score: 10.0/10**
 
 ---
 
-## 9. Seção Técnica
+## Seção Técnica
 
-### Por que CSP em dois lugares?
+### Por que Preload?
 
-1. **index.html (meta tag):** Aplica-se no desenvolvimento local e em qualquer host
-2. **vercel.json (HTTP header):** Aplica-se na produção Vercel com precedência sobre meta tag
+O preload do chunk elimina o principal causador de delay:
+1. Quando o usuário seleciona PIX, o chunk começa a carregar
+2. Durante o submit (1-2 segundos), o chunk já está em cache
+3. A navegação é instantânea porque o código já está disponível
 
-Ambos precisam estar sincronizados para evitar inconsistências.
+### Por que Inicialização Síncrona?
 
-### Domínios do Mercado Pago SDK
+O React renderiza de cima para baixo. Se `recoveryStatus` começa como `idle`, há pelo menos 1 render com `PixLoadingState` antes de transitar para `recovered_from_state`.
 
-O SDK do Mercado Pago carrega recursos de múltiplos domínios:
-- `sdk.mercadopago.com` - SDK JavaScript principal
-- `http2.mlstatic.com` - Recursos estáticos, fingerprinting
-- `events.mercadopago.com` - Telemetria e anti-fraude
-- `*.mercadopago.com` - iframes de formulário seguro
-- `*.mercadolibre.com` - Infraestrutura compartilhada
+Ao inicializar diretamente como `recovered_from_state` quando há navState, eliminamos esse render intermediário.
 
-Todos esses domínios são necessários para funcionamento completo do SDK.
+### Por que Manter navigationData no XState?
+
+O padrão atual é correto:
+1. XState processa pagamento e obtém QR code
+2. navigationData contém todos os dados necessários
+3. A página PIX é apenas uma VIEW que renderiza os dados
+
+A otimização é garantir que a VIEW renderize INSTANTANEAMENTE.
