@@ -1,18 +1,20 @@
 /**
  * ImageCropDialogProduct - Modal profissional para recortar imagem de produto
  * 
- * Implementação com react-easy-crop (padrão de mercado)
- * - Suporte a zoom, drag e rotate
- * - Mobile friendly
- * - UX profissional (Kiwify, Hotmart, Cakto)
+ * Implementação com react-image-crop (PADRÃO DE MERCADO REAL)
+ * - Handles visuais nos cantos e laterais (UX intuitiva)
+ * - Área de crop redimensionável visualmente
+ * - Background escurecido ao redor da área de crop
+ * - UX profissional igual Kiwify, Hotmart, Cakto
  * - Proporção 4:3 para imagens de produto
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { createLogger } from "@/lib/logger";
-import Cropper, { Area, Point } from "react-easy-crop";
+import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +23,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Loader2, ZoomIn, ZoomOut } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 const log = createLogger("ImageCropDialogProduct");
 
@@ -37,89 +38,6 @@ const ASPECT_RATIO = 4 / 3; // 800x600
 const OUTPUT_WIDTH = 800;
 const OUTPUT_HEIGHT = 600;
 
-/**
- * Cria imagem cropada a partir das coordenadas
- */
-async function createCroppedImage(
-  imageSrc: string,
-  pixelCrop: Area,
-  rotation = 0
-): Promise<Blob> {
-  const image = await createImage(imageSrc);
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  if (!ctx) {
-    throw new Error("Could not get canvas context");
-  }
-
-  const maxSize = Math.max(image.width, image.height);
-  const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
-
-  canvas.width = safeArea;
-  canvas.height = safeArea;
-
-  ctx.translate(safeArea / 2, safeArea / 2);
-  ctx.rotate((rotation * Math.PI) / 180);
-  ctx.translate(-safeArea / 2, -safeArea / 2);
-
-  ctx.drawImage(
-    image,
-    safeArea / 2 - image.width * 0.5,
-    safeArea / 2 - image.height * 0.5
-  );
-
-  const data = ctx.getImageData(0, 0, safeArea, safeArea);
-
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
-
-  ctx.putImageData(
-    data,
-    Math.round(0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x),
-    Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
-  );
-
-  // Resize to output dimensions
-  const outputCanvas = document.createElement("canvas");
-  const outputCtx = outputCanvas.getContext("2d");
-  
-  if (!outputCtx) {
-    throw new Error("Could not get output canvas context");
-  }
-
-  outputCanvas.width = OUTPUT_WIDTH;
-  outputCanvas.height = OUTPUT_HEIGHT;
-
-  outputCtx.drawImage(canvas, 0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
-
-  return new Promise((resolve, reject) => {
-    outputCanvas.toBlob(
-      (blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("Failed to create blob"));
-        }
-      },
-      "image/jpeg",
-      0.9
-    );
-  });
-}
-
-/**
- * Carrega imagem a partir de URL
- */
-function createImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", (error) => reject(error));
-    image.src = url;
-  });
-}
-
 export function ImageCropDialogProduct({
   open,
   onOpenChange,
@@ -127,141 +45,159 @@ export function ImageCropDialogProduct({
   onCropComplete,
 }: ImageCropDialogProductProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [crop, setCrop] = useState<Crop>({
+    unit: "%",
+    width: 75,
+    height: 56.25,
+    x: 12.5,
+    y: 21.875,
+  });
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // Load image URL when imageFile changes
   useEffect(() => {
     if (imageFile && open) {
       const url = URL.createObjectURL(imageFile);
       setImageUrl(url);
-      // Reset state
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setRotation(0);
-      setCroppedAreaPixels(null);
       return () => URL.revokeObjectURL(url);
     }
   }, [imageFile, open]);
 
-  const onCropCompleteCallback = useCallback(
-    (croppedArea: Area, croppedAreaPixels: Area) => {
-      setCroppedAreaPixels(croppedAreaPixels);
-    },
-    []
-  );
+  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    log.debug("Image loaded", { width, height });
+    
+    // Define crop inicial centralizado (4:3)
+    const aspectRatio = 4 / 3;
+    let cropWidth = 75;
+    let cropHeight = (cropWidth * height) / width / aspectRatio;
+    
+    if (cropHeight > 75) {
+      cropHeight = 75;
+      cropWidth = (cropHeight * width * aspectRatio) / height;
+    }
+    
+    setCrop({
+      unit: "%",
+      width: cropWidth,
+      height: cropHeight,
+      x: (100 - cropWidth) / 2,
+      y: (100 - cropHeight) / 2,
+    });
+  }, []);
 
-  const handleSaveCrop = async () => {
-    if (!imageUrl || !croppedAreaPixels) return;
+  const handleSaveCrop = useCallback(async () => {
+    if (!completedCrop || !imgRef.current) {
+      log.warn("No crop or image ref available");
+      return;
+    }
 
     setIsSaving(true);
 
     try {
-      const croppedBlob = await createCroppedImage(
-        imageUrl,
-        croppedAreaPixels,
-        rotation
+      const image = imgRef.current;
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        throw new Error("No 2d context");
+      }
+
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+
+      // Set canvas to output size
+      canvas.width = OUTPUT_WIDTH;
+      canvas.height = OUTPUT_HEIGHT;
+
+      // Draw cropped image scaled to output size
+      ctx.drawImage(
+        image,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY,
+        0,
+        0,
+        OUTPUT_WIDTH,
+        OUTPUT_HEIGHT
       );
 
-      const croppedFile = new File(
-        [croppedBlob],
-        imageFile.name.replace(/\.[^.]+$/, ".jpg"),
-        { type: "image/jpeg" }
-      );
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            log.error("Failed to create blob");
+            setIsSaving(false);
+            return;
+          }
 
-      onCropComplete(croppedFile);
-      onOpenChange(false);
-    } catch (error: unknown) {
-      log.error("Error cropping image:", error);
-    } finally {
+          const croppedFile = new File(
+            [blob],
+            imageFile.name.replace(/\.[^.]+$/, ".jpg"),
+            { type: "image/jpeg" }
+          );
+
+          log.info("Crop completed successfully");
+          onCropComplete(croppedFile);
+          onOpenChange(false);
+          setIsSaving(false);
+        },
+        "image/jpeg",
+        0.9
+      );
+    } catch (error) {
+      log.error("Error cropping image", error);
       setIsSaving(false);
     }
-  };
+  }, [completedCrop, imageFile, onCropComplete, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
+      <DialogContent className="sm:max-w-[90vw] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Recortar imagem do produto</DialogTitle>
         </DialogHeader>
 
-        {/* Cropper Area */}
-        <div className="relative w-full h-[400px] bg-black/95 rounded-lg overflow-hidden">
+        <div className="flex flex-col items-center justify-center py-4 max-h-[70vh] overflow-auto bg-black/5 rounded-lg">
           {imageUrl && (
-            <Cropper
-              image={imageUrl}
+            <ReactCrop
               crop={crop}
-              zoom={zoom}
-              rotation={rotation}
+              onChange={(c) => setCrop(c)}
+              onComplete={(c) => setCompletedCrop(c)}
               aspect={ASPECT_RATIO}
-              onCropChange={setCrop}
-              onCropComplete={onCropCompleteCallback}
-              onZoomChange={setZoom}
-              onRotationChange={setRotation}
-              showGrid={true}
-              objectFit="contain"
-            />
+              className="max-w-full"
+            >
+              <img
+                ref={imgRef}
+                src={imageUrl}
+                alt="Crop preview"
+                onLoad={onImageLoad}
+                className="max-w-full max-h-[60vh] object-contain"
+                style={{ display: "block" }}
+              />
+            </ReactCrop>
           )}
         </div>
 
-        {/* Controls */}
-        <div className="space-y-4 px-2">
-          {/* Zoom Control */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <ZoomOut className="h-4 w-4" />
-                Zoom
-              </label>
-              <span className="text-sm text-muted-foreground">
-                {Math.round(zoom * 100)}%
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Slider
-                value={[zoom]}
-                onValueChange={(value) => setZoom(value[0])}
-                min={1}
-                max={3}
-                step={0.1}
-                className="flex-1"
-              />
-              <ZoomIn className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </div>
-
-          {/* Rotation Control */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Rotação</label>
-              <span className="text-sm text-muted-foreground">
-                {rotation}°
-              </span>
-            </div>
-            <Slider
-              value={[rotation]}
-              onValueChange={(value) => setRotation(value[0])}
-              min={0}
-              max={360}
-              step={1}
-              className="flex-1"
-            />
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground text-center">
-          Arraste para posicionar • Use o scroll para zoom • Proporção 4:3
+        <p className="text-sm text-muted-foreground text-center">
+          Arraste as alças nos cantos e laterais para ajustar a área de recorte (proporção 4:3)
         </p>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving}
+          >
             Cancelar
           </Button>
-          <Button onClick={handleSaveCrop} disabled={isSaving}>
-            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          <Button
+            onClick={handleSaveCrop}
+            disabled={isSaving || !completedCrop}
+          >
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salvar corte
           </Button>
         </DialogFooter>
