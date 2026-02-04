@@ -107,12 +107,14 @@ export interface UTMifyDispatchResult {
 
 /**
  * Verifica se o evento está habilitado para o vendor/produto
+ * 
+ * RISE V3: Suporta múltiplos product IDs (ordem com bumps)
  */
 async function isEventEnabled(
   supabase: SupabaseClient,
   vendorId: string,
   eventType: UTMifyEventType,
-  productId?: string
+  productIds?: string[]
 ): Promise<boolean> {
   try {
     const { data: integration } = await supabase
@@ -140,9 +142,11 @@ async function isEventEnabled(
       return false;
     }
 
-    // Se há filtro de produtos, verificar
-    if (selectedProducts && selectedProducts.length > 0 && productId) {
-      return selectedProducts.includes(productId);
+    // RISE V3: Se há filtro de produtos, verificar interseção
+    // Pedidos com múltiplos itens (produto + bump) passam se QUALQUER item estiver selecionado
+    if (selectedProducts && selectedProducts.length > 0 && productIds && productIds.length > 0) {
+      const hasMatch = productIds.some(pid => selectedProducts.includes(pid));
+      return hasMatch;
     }
 
     return true;
@@ -153,7 +157,9 @@ async function isEventEnabled(
 }
 
 /**
- * Recupera token UTMify do Vault
+ * Recupera token UTMify do Vault com sanitização
+ * 
+ * RISE V3: Remove caracteres invisíveis para evitar rejeição pela API
  */
 async function getUTMifyToken(
   supabase: SupabaseClient,
@@ -174,7 +180,28 @@ async function getUTMifyToken(
       return null;
     }
 
-    return data.credentials.api_token;
+    // RISE V3: Sanitizar token removendo caracteres invisíveis
+    const rawToken = data.credentials.api_token as string;
+    const sanitizedToken = rawToken
+      .replace(/[\r\n\t]/g, '')  // Remove quebras de linha e tabs
+      .replace(/\s+/g, '')       // Remove espaços
+      .replace(/^["']|["']$/g, '') // Remove aspas envolventes
+      .trim();
+
+    // Log de diagnóstico (sem expor o token)
+    if (rawToken.length !== sanitizedToken.length) {
+      log.warn("Token UTMify sanitizado - tinha caracteres invisíveis", {
+        originalLength: rawToken.length,
+        sanitizedLength: sanitizedToken.length
+      });
+    }
+
+    if (sanitizedToken.length === 0) {
+      log.error("Token UTMify vazio após sanitização");
+      return null;
+    }
+
+    return sanitizedToken;
   } catch (error) {
     log.warn("Exceção ao recuperar token UTMify:", error);
     return null;
@@ -234,19 +261,19 @@ function mapPaymentMethod(method: string): string {
  * @param supabase - Cliente Supabase com service role
  * @param eventType - Tipo do evento (pix_generated, purchase_approved, etc)
  * @param orderData - Dados do pedido
- * @param productId - ID do produto (opcional, para filtro)
+ * @param productIds - IDs dos produtos (para filtro multi-item)
  * @returns Resultado do disparo
  */
 export async function dispatchUTMifyEvent(
   supabase: SupabaseClient,
   eventType: UTMifyEventType,
   orderData: UTMifyOrderData,
-  productId?: string
+  productIds?: string[]
 ): Promise<UTMifyDispatchResult> {
   const { vendorId, orderId } = orderData;
 
-  // 1. Verificar se evento está habilitado
-  const enabled = await isEventEnabled(supabase, vendorId, eventType, productId);
+  // 1. Verificar se evento está habilitado (RISE V3: suporta multi-itens)
+  const enabled = await isEventEnabled(supabase, vendorId, eventType, productIds);
   if (!enabled) {
     log.info(`UTMify ${eventType} não habilitado para vendor ${vendorId}`);
     return { success: true, skipped: true, reason: "not_enabled" };
@@ -305,7 +332,10 @@ export async function dispatchUTMifyEvent(
 
   // 4. Enviar para UTMify
   try {
-    log.info(`Disparando UTMify ${eventType} para order ${orderId}`);
+    log.info(`Disparando UTMify ${eventType} para order ${orderId}`, {
+      tokenLength: token.length,
+      payloadSize: JSON.stringify(payload).length
+    });
 
     const response = await fetch(UTMIFY_API_URL, {
       method: "POST",
@@ -319,7 +349,12 @@ export async function dispatchUTMifyEvent(
     const responseText = await response.text();
 
     if (!response.ok) {
-      log.error(`UTMify API error (${response.status}):`, responseText);
+      log.error(`UTMify API error (${response.status}):`, {
+        orderId,
+        eventType,
+        statusCode: response.status,
+        response: responseText.slice(0, 500)
+      });
       return { success: false, error: `API Error ${response.status}: ${responseText}` };
     }
 
@@ -327,7 +362,7 @@ export async function dispatchUTMifyEvent(
     return { success: true };
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    log.error(`Erro ao enviar para UTMify:`, errMsg);
+    log.error(`Erro ao enviar para UTMify:`, { orderId, eventType, error: errMsg });
     return { success: false, error: errMsg };
   }
 }
@@ -410,6 +445,8 @@ export function buildUTMifyOrderData(
 
 /**
  * Busca dados completos do pedido para disparo UTMify
+ * 
+ * RISE V3: Log melhorado para distinguir "não encontrado" de "erro SQL"
  */
 export async function fetchOrderForUTMify(
   supabase: SupabaseClient,
@@ -426,7 +463,21 @@ export async function fetchOrderForUTMify(
     .eq("id", orderId)
     .single();
 
-  if (error || !data) {
+  if (error) {
+    // RISE V3: Distinguir entre "não encontrado" e "erro SQL"
+    if (error.code === 'PGRST116') {
+      log.warn(`Pedido ${orderId} não encontrado para UTMify`);
+    } else {
+      log.error(`Erro SQL ao buscar pedido ${orderId} para UTMify:`, {
+        code: error.code,
+        message: error.message,
+        hint: error.hint
+      });
+    }
+    return null;
+  }
+
+  if (!data) {
     log.warn(`Pedido ${orderId} não encontrado para UTMify`);
     return null;
   }
@@ -441,7 +492,7 @@ export async function fetchOrderForUTMify(
 /**
  * Busca o pedido e dispara evento UTMify em uma única operação
  * 
- * Convenience function para uso nos webhooks.
+ * RISE V3: Suporta múltiplos produtos (pedido com bumps)
  */
 export async function dispatchUTMifyEventForOrder(
   supabase: SupabaseClient,
@@ -456,7 +507,9 @@ export async function dispatchUTMifyEventForOrder(
   }
 
   const orderData = buildUTMifyOrderData(order, overrides);
-  const productId = order.order_items?.[0]?.product_id;
+  
+  // RISE V3: Passar TODOS os product_ids para filtro multi-item
+  const productIds = order.order_items?.map(item => item.product_id) || [];
 
-  return dispatchUTMifyEvent(supabase, eventType, orderData, productId);
+  return dispatchUTMifyEvent(supabase, eventType, orderData, productIds);
 }

@@ -178,6 +178,30 @@ Deno.serve(async (req) => {
     // 6. Separar credenciais sensíveis de dados públicos
     const { publicConfig, vaultCredentials } = separateCredentials(credentials);
 
+    // RISE V3: Sanitização específica para UTMify token
+    if (normalizedType === 'UTMIFY' && vaultCredentials.api_token) {
+      const original = vaultCredentials.api_token;
+      vaultCredentials.api_token = original
+        .replace(/[\r\n\t]/g, '')  // Remove quebras de linha e tabs
+        .replace(/\s+/g, '')       // Remove espaços
+        .replace(/^["']|["']$/g, '') // Remove aspas envolventes
+        .trim();
+      
+      if (original !== vaultCredentials.api_token) {
+        log.warn("Token UTMify sanitizado - tinha caracteres invisíveis", {
+          originalLength: original.length,
+          sanitizedLength: vaultCredentials.api_token.length
+        });
+      }
+      
+      if (vaultCredentials.api_token.length < 10) {
+        return new Response(
+          JSON.stringify({ error: 'Token UTMify parece inválido (muito curto)' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     log.info(`Dados públicos: ${Object.keys(publicConfig).join(', ')}`);
     log.info(`Secrets a salvar: ${Object.keys(vaultCredentials).join(', ')}`);
 

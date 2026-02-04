@@ -51,6 +51,14 @@ interface ValidatedOrderData {
   payment_method?: string;
   coupon_id?: string;
   affiliate_code?: string;
+  // RISE V3: UTM tracking parameters
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
+  src?: string;
+  sck?: string;
 }
 
 interface ProductData {
@@ -129,7 +137,15 @@ serve(withSentry('create-order', async (req) => {
       gateway,
       payment_method,
       coupon_id,
-      affiliate_code
+      affiliate_code,
+      // RISE V3: UTM tracking parameters
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_content,
+      utm_term,
+      src,
+      sck
     } = validatedData;
 
     // RISE V3: Capturar IP real do cliente para UTMify e análise de fraude
@@ -187,7 +203,7 @@ serve(withSentry('create-order', async (req) => {
       allOrderItems
     });
 
-    // 8. CRIAR PEDIDO (RISE V3: Inclui customer_ip para UTMify)
+    // 8. CRIAR PEDIDO (RISE V3: Inclui customer_ip + UTM params para UTMify)
     const orderResult = await createOrder(
       supabase,
       {
@@ -211,7 +227,15 @@ serve(withSentry('create-order', async (req) => {
         gateway: gateway || 'pending',
         payment_method: payment_method || 'pending',
         allOrderItems,
-        identifier
+        identifier,
+        // RISE V3: UTM tracking parameters for backend SSOT
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        utm_content,
+        utm_term,
+        src,
+        sck
       },
       corsHeaders
     );

@@ -13,6 +13,7 @@ import { fromPromise } from "xstate";
 import { publicApi } from "@/lib/api/public-client";
 import { getAffiliateCode } from "@/hooks/checkout/helpers";
 import { createLogger } from "@/lib/logger";
+import { extractUTMParameters } from "@/integrations/tracking/utmify/utils";
 
 const log = createLogger("CreateOrderActor");
 
@@ -55,6 +56,9 @@ export const createOrderActor = fromPromise<CreateOrderOutput, CreateOrderInput>
       gateway: input.gateway,
     });
 
+    // RISE V3: Extract UTM parameters for tracking persistence
+    const utmParams = extractUTMParameters();
+
     const payload = {
       product_id: input.productId,
       offer_id: input.offerId || input.productId,
@@ -65,6 +69,14 @@ export const createOrderActor = fromPromise<CreateOrderOutput, CreateOrderInput>
       customer_cpf: input.formData.cpf?.replace(/\D/g, '') || null,
       order_bump_ids: input.selectedBumps,
       gateway: input.gateway.toUpperCase(),
+      // RISE V3: UTM tracking parameters for UTMify backend SSOT
+      utm_source: utmParams.utm_source,
+      utm_medium: utmParams.utm_medium,
+      utm_campaign: utmParams.utm_campaign,
+      utm_content: utmParams.utm_content,
+      utm_term: utmParams.utm_term,
+      src: utmParams.src,
+      sck: utmParams.sck,
       payment_method: input.paymentMethod,
       coupon_id: input.couponId,
       affiliate_code: getAffiliateCode(),

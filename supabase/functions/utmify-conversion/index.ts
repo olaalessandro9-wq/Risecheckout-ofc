@@ -100,9 +100,9 @@ serve(async (req) => {
 
     // Extract token from RPC response structure
     // vaultResponse = { success: true, credentials: { api_token: "..." } }
-    const token = vaultResponse?.credentials?.api_token;
+    const rawToken = vaultResponse?.credentials?.api_token as string | undefined;
 
-    if (!token) {
+    if (!rawToken) {
       log.info(`No UTMify token configured for vendor: ${conversionRequest.vendorId} - Response: ${JSON.stringify(vaultResponse)}`);
       return new Response(
         JSON.stringify({ 
@@ -113,7 +113,35 @@ serve(async (req) => {
       );
     }
 
-    log.info("UTMify token retrieved from Vault successfully");
+    // RISE V3: Sanitizar token removendo caracteres invisíveis
+    const token = rawToken
+      .replace(/[\r\n\t]/g, '')  // Remove quebras de linha e tabs
+      .replace(/\s+/g, '')       // Remove espaços
+      .replace(/^["']|["']$/g, '') // Remove aspas envolventes
+      .trim();
+
+    if (token.length === 0) {
+      log.error("Token UTMify vazio após sanitização");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "UTMify token is empty after sanitization" 
+        } satisfies EdgeFunctionResponse),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Log de diagnóstico (sem expor o token)
+    if (rawToken.length !== token.length) {
+      log.warn("Token UTMify foi sanitizado - tinha caracteres invisíveis", {
+        originalLength: rawToken.length,
+        sanitizedLength: token.length
+      });
+    }
+
+    log.info("UTMify token retrieved and sanitized successfully", {
+      tokenLength: token.length
+    });
 
     // Build payload according to UTMify API documentation
     const payload = buildUTMifyPayload(conversionRequest);

@@ -139,6 +139,14 @@ export interface CreateOrderInput {
   payment_method: string;
   coupon_id?: string;
   affiliate_code?: string;
+  // RISE V3: UTM tracking parameters
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
+  src?: string;
+  sck?: string;
 }
 
 export function validateCreateOrderInput(data: unknown): ValidationResult<CreateOrderInput> {
@@ -208,6 +216,12 @@ export function validateCreateOrderInput(data: unknown): ValidationResult<Create
     return { success: false, errors };
   }
   
+  // RISE V3: Normalize UTM parameters (trim, max 500 chars)
+  const normalizeUTM = (val: unknown): string | undefined => {
+    if (typeof val !== 'string' || !val.trim()) return undefined;
+    return val.trim().slice(0, 500);
+  };
+
   return {
     success: true,
     data: {
@@ -223,6 +237,14 @@ export function validateCreateOrderInput(data: unknown): ValidationResult<Create
       payment_method: input.payment_method as string,
       coupon_id: input.coupon_id as string | undefined,
       affiliate_code: input.affiliate_code as string | undefined,
+      // RISE V3: UTM tracking parameters
+      utm_source: normalizeUTM(input.utm_source),
+      utm_medium: normalizeUTM(input.utm_medium),
+      utm_campaign: normalizeUTM(input.utm_campaign),
+      utm_content: normalizeUTM(input.utm_content),
+      utm_term: normalizeUTM(input.utm_term),
+      src: normalizeUTM(input.src),
+      sck: normalizeUTM(input.sck),
     }
   };
 }
