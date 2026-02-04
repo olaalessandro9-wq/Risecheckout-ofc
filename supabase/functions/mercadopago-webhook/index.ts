@@ -26,6 +26,7 @@ import {
 import { validateMercadoPagoSignature } from '../_shared/mercadopago-signature.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { processPostRefundActions, getRefundEventType, type RefundReason } from '../_shared/webhook-post-refund.ts';
+import { dispatchUTMifyEventForOrder } from '../_shared/utmify-dispatcher.ts';
 
 const FUNCTION_VERSION = "147";
 const logger = createLogger('mercadopago-webhook', FUNCTION_VERSION);
@@ -217,7 +218,19 @@ serve(async (req) => {
       }, eventType, logger);
     }
 
-    // Post-Refund Actions - RISE V3: Revogação automática de acesso
+    // RISE V3: Disparar UTMify purchase_refused para pagamentos recusados
+    if (normalizedStatus === 'rejected' || normalizedStatus === 'cancelled') {
+      try {
+        const result = await dispatchUTMifyEventForOrder(supabase, currentOrder.id as string, "purchase_refused");
+        if (result.success && !result.skipped) {
+          logger.info("UTMify purchase_refused disparado");
+        }
+      } catch (utmifyError) {
+        logger.warn("UTMify purchase_refused falhou (não crítico)", utmifyError);
+      }
+    }
+
+    // Post-Refund Actions - RISE V3: Revogação automática de acesso + UTMify
     if (['refunded', 'chargeback', 'partially_refunded'].includes(normalizedStatus)) {
       await processPostRefundActions(supabase, {
         orderId: currentOrder.id as string,

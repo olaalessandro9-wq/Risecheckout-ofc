@@ -8,9 +8,11 @@
  * Gerencia ações após a criação bem-sucedida de um PIX:
  * - Atualizar order com dados do PIX (qr_code, pix_id, status)
  * - Disparar webhook pix_generated
+ * - Disparar evento UTMify pix_generated (Backend SSOT)
  * - Registrar pagamentos manuais necessários (split > 50%)
  * 
  * @module pushinpay-create-pix/handlers/post-pix
+ * @version 2.0.0 - UTMify Backend SSOT
  * @author RiseCheckout Team
  * ============================================================================
  */
@@ -19,6 +21,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { PushinPayResponse } from "./pix-builder.ts";
 import type { SmartSplitDecision } from "./smart-split.ts";
 import { createLogger } from "../../_shared/logger.ts";
+import { dispatchUTMifyEventForOrder } from "../../_shared/utmify-dispatcher.ts";
 
 const log = createLogger("pushinpay-create-pix");
 
@@ -86,6 +89,36 @@ export async function triggerPixGeneratedWebhook(params: TriggerWebhookParams): 
     }
   } catch (webhookError) {
     log.warn('Excecao ao disparar pix_generated (nao critico):', { error: webhookError });
+  }
+}
+
+// ============================================================================
+// UTMIFY PIX_GENERATED EVENT (RISE V3 - Backend SSOT)
+// ============================================================================
+
+interface DispatchUTMifyParams {
+  supabase: SupabaseClient;
+  orderId: string;
+  logPrefix: string;
+}
+
+export async function dispatchPixGeneratedUTMify(params: DispatchUTMifyParams): Promise<void> {
+  const { supabase, orderId, logPrefix } = params;
+  
+  try {
+    log.info(`[${logPrefix}] Disparando UTMify pix_generated para order ${orderId}`);
+    
+    const result = await dispatchUTMifyEventForOrder(supabase, orderId, "pix_generated");
+    
+    if (result.success && !result.skipped) {
+      log.info(`[${logPrefix}] ✅ UTMify pix_generated disparado com sucesso`);
+    } else if (result.skipped) {
+      log.info(`[${logPrefix}] UTMify pulado: ${result.reason}`);
+    } else {
+      log.warn(`[${logPrefix}] Erro ao disparar UTMify: ${result.error}`);
+    }
+  } catch (error) {
+    log.warn(`[${logPrefix}] Exceção ao disparar UTMify pix_generated (não crítico):`, { error });
   }
 }
 

@@ -21,6 +21,7 @@ import {
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { processPostRefundActions, getRefundEventType, type RefundReason } from '../_shared/webhook-post-refund.ts';
+import { dispatchUTMifyEventForOrder } from '../_shared/utmify-dispatcher.ts';
 
 const FUNCTION_VERSION = "2";
 const logger = createLogger('stripe-webhook', FUNCTION_VERSION);
@@ -141,6 +142,16 @@ serve(async (req) => {
           .update({ status: "failed", updated_at: new Date().toISOString() })
           .eq("id", orderId);
         logger.info("Order updated to failed", { orderId });
+
+        // RISE V3: Disparar UTMify purchase_refused
+        try {
+          const result = await dispatchUTMifyEventForOrder(supabase, orderId, "purchase_refused");
+          if (result.success && !result.skipped) {
+            logger.info("UTMify purchase_refused disparado");
+          }
+        } catch (utmifyError) {
+          logger.warn("UTMify purchase_refused falhou (não crítico)", utmifyError);
+        }
       }
     }
 

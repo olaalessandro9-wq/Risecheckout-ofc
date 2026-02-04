@@ -1,14 +1,17 @@
 /**
- * post-payment.ts - Ações pós-pagamento (transferência afiliado, webhooks, PIX)
+ * post-payment.ts - Ações pós-pagamento (transferência afiliado, webhooks, PIX, UTMify)
  * 
  * RISE Protocol V3 - 10.0/10 Compliant
  * Uses 'users' table as SSOT for affiliate stripe account lookup
+ * 
+ * @version 2.0.0 - UTMify Backend SSOT
  */
 
 import Stripe from "https://esm.sh/stripe@14.14.0";
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { OrderData } from "./order-loader.ts";
 import { Logger } from "../../_shared/logger.ts";
+import { dispatchUTMifyEventForOrder } from "../../_shared/utmify-dispatcher.ts";
 
 /**
  * Processa comissão de afiliado via Stripe Transfer
@@ -167,4 +170,33 @@ export async function processPixPayment(
     expires_at: pixAction.expires_at,
     hosted_instructions_url: pixAction.hosted_instructions_url,
   };
+}
+
+// ============================================================================
+// UTMIFY PIX_GENERATED EVENT (RISE V3 - Backend SSOT)
+// ============================================================================
+
+/**
+ * Dispara evento pix_generated para UTMify após criação do PIX Stripe
+ */
+export async function dispatchStripePixGeneratedUTMify(
+  supabase: SupabaseClient,
+  orderId: string,
+  log: Logger
+): Promise<void> {
+  try {
+    log.info(`Disparando UTMify pix_generated para order ${orderId}`);
+    
+    const result = await dispatchUTMifyEventForOrder(supabase, orderId, "pix_generated");
+    
+    if (result.success && !result.skipped) {
+      log.info(`✅ UTMify pix_generated disparado com sucesso`);
+    } else if (result.skipped) {
+      log.info(`UTMify pulado: ${result.reason}`);
+    } else {
+      log.warn(`Erro ao disparar UTMify: ${result.error}`);
+    }
+  } catch (error) {
+    log.warn("Exceção ao disparar UTMify pix_generated (não crítico):", error);
+  }
 }

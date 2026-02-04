@@ -7,9 +7,11 @@
  * - Conceder acesso à área de membros
  * - Enviar emails de confirmação
  * - Disparar webhooks do vendedor
+ * - Disparar evento UTMify (RISE V3 - Backend SSOT)
  * 
- * Versão: 1.0
+ * Versão: 2.0.0 - RISE Protocol V3
  * Data de Criação: 2026-01-11
+ * Última Atualização: 2026-02-04
  * ============================================================================
  */
 
@@ -17,6 +19,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendOrderConfirmationEmails, type OrderData } from './send-order-emails.ts';
 import { grantMembersAccess, type GrantAccessInput } from './grant-members-access.ts';
 import { type Logger } from './webhook-helpers.ts';
+import { dispatchUTMifyEventForOrder } from './utmify-dispatcher.ts';
 
 // ============================================================================
 // TYPES
@@ -38,6 +41,7 @@ export interface PostPaymentResult {
   membersAccessGranted: boolean;
   emailsSent: number;
   webhooksTriggered: boolean;
+  utmifyDispatched: boolean;
   errors: string[];
 }
 
@@ -59,6 +63,7 @@ export async function processPostPaymentActions(
     membersAccessGranted: false,
     emailsSent: 0,
     webhooksTriggered: false,
+    utmifyDispatched: false,
     errors: [],
   };
 
@@ -178,6 +183,35 @@ export async function processPostPaymentActions(
         logger.warn('Exceção ao disparar webhooks', webhookError);
       }
     }
+  }
+
+  // ========================================================================
+  // 4. UTMIFY TRACKING (RISE V3 - Backend SSOT)
+  // ========================================================================
+
+  try {
+    logger.info('Disparando evento UTMify purchase_approved', { orderId: input.orderId });
+    
+    const utmifyResult = await dispatchUTMifyEventForOrder(
+      supabase,
+      input.orderId,
+      "purchase_approved",
+      { approvedDate: new Date().toISOString() }
+    );
+
+    if (utmifyResult.success && !utmifyResult.skipped) {
+      result.utmifyDispatched = true;
+      logger.info('✅ UTMify purchase_approved disparado com sucesso');
+    } else if (utmifyResult.skipped) {
+      logger.info('UTMify pulado:', utmifyResult.reason);
+    } else {
+      result.errors.push(`UTMify: ${utmifyResult.error}`);
+      logger.warn('⚠️ Erro ao disparar UTMify (não crítico)', utmifyResult.error);
+    }
+  } catch (utmifyError) {
+    const errorMsg = utmifyError instanceof Error ? utmifyError.message : 'Erro desconhecido';
+    result.errors.push(`UTMify: ${errorMsg}`);
+    logger.warn('⚠️ Exceção ao disparar UTMify (não crítico)', utmifyError);
   }
 
   return result;
