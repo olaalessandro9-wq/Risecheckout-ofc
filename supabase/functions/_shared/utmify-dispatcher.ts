@@ -48,7 +48,7 @@ export type UTMifyEventType =
  * Mapeamento de eventos para status da API UTMify
  */
 const STATUS_MAP: Record<UTMifyEventType, string> = {
-  pix_generated: "pending",
+  pix_generated: "waiting_payment",
   purchase_approved: "paid",
   purchase_refused: "refused",
   refund: "refunded",
