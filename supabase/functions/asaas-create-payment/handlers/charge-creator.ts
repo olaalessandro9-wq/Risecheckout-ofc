@@ -188,7 +188,7 @@ export async function triggerPixGeneratedWebhook(
 // UTMIFY PIX_GENERATED EVENT (RISE V3 - Backend SSOT)
 // ============================================================================
 
-import { dispatchUTMifyEventForOrder } from "../../_shared/utmify-dispatcher.ts";
+import { dispatchUTMifyEventForOrder } from "../../_shared/utmify/index.ts";
 
 /**
  * Dispara evento pix_generated para UTMify

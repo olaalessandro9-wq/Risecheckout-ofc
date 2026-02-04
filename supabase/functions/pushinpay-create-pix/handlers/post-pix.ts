@@ -21,7 +21,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { PushinPayResponse } from "./pix-builder.ts";
 import type { SmartSplitDecision } from "./smart-split.ts";
 import { createLogger } from "../../_shared/logger.ts";
-import { dispatchUTMifyEventForOrder } from "../../_shared/utmify-dispatcher.ts";
+import { dispatchUTMifyEventForOrder } from "../../_shared/utmify/index.ts";
 
 const log = createLogger("pushinpay-create-pix");
 

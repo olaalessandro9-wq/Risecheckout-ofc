@@ -21,7 +21,7 @@ import {
 } from '../_shared/webhook-helpers.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { processPostRefundActions, getRefundEventType, type RefundReason } from '../_shared/webhook-post-refund.ts';
-import { dispatchUTMifyEventForOrder } from '../_shared/utmify-dispatcher.ts';
+import { dispatchUTMifyEventForOrder } from '../_shared/utmify/index.ts';
 
 const FUNCTION_VERSION = "2";
 const logger = createLogger('stripe-webhook', FUNCTION_VERSION);

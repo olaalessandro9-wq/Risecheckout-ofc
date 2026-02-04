@@ -40,6 +40,7 @@ import {
 import { handleCorsV2 } from '../_shared/cors-v2.ts';
 import { requireAuthenticatedProducer, unauthorizedResponse } from '../_shared/unified-auth.ts';
 import { createLogger } from '../_shared/logger.ts';
+import { normalizeUTMifyToken } from '../_shared/utmify/token-normalizer.ts';
 
 const log = createLogger('vault-save');
 
@@ -178,23 +179,20 @@ Deno.serve(async (req) => {
     // 6. Separar credenciais sensíveis de dados públicos
     const { publicConfig, vaultCredentials } = separateCredentials(credentials);
 
-    // RISE V3: Sanitização específica para UTMify token
+    // RISE V3: Sanitização SSOT para UTMify token
     if (normalizedType === 'UTMIFY' && vaultCredentials.api_token) {
-      const original = vaultCredentials.api_token;
-      vaultCredentials.api_token = original
-        .replace(/[\r\n\t]/g, '')  // Remove quebras de linha e tabs
-        .replace(/\s+/g, '')       // Remove espaços
-        .replace(/^["']|["']$/g, '') // Remove aspas envolventes
-        .trim();
+      const result = normalizeUTMifyToken(vaultCredentials.api_token);
+      vaultCredentials.api_token = result.normalized;
       
-      if (original !== vaultCredentials.api_token) {
-        log.warn("Token UTMify sanitizado - tinha caracteres invisíveis", {
-          originalLength: original.length,
-          sanitizedLength: vaultCredentials.api_token.length
+      if (result.changes.length > 0) {
+        log.warn("Token UTMify normalizado via SSOT", {
+          changes: result.changes,
+          originalLength: result.originalLength,
+          normalizedLength: result.normalizedLength
         });
       }
       
-      if (vaultCredentials.api_token.length < 10) {
+      if (result.normalized.length < 10) {
         return new Response(
           JSON.stringify({ error: 'Token UTMify parece inválido (muito curto)' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

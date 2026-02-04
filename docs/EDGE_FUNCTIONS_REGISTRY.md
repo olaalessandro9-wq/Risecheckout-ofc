@@ -253,7 +253,25 @@
 
 > **🔴 RISE V3 - UTMify Backend SSOT (ATUALIZADO 2026-02-04)**:
 > 
-> Eventos UTMify são disparados **EXCLUSIVAMENTE** pelo backend via `_shared/utmify-dispatcher.ts`:
+> Eventos UTMify são disparados **EXCLUSIVAMENTE** pelo backend via módulo `_shared/utmify/`:
+> 
+> ### UTMify Shared Module (RISE V3 - Modularizado)
+> 
+> | Arquivo | Linhas | Responsabilidade |
+> |---------|--------|------------------|
+> | `_shared/utmify/types.ts` | ~130 | Tipos unificados |
+> | `_shared/utmify/constants.ts` | ~30 | Constantes (URL, STATUS_MAP) |
+> | `_shared/utmify/token-normalizer.ts` | ~100 | **SSOT** normalização de tokens |
+> | `_shared/utmify/date-formatter.ts` | ~35 | Formatação UTC |
+> | `_shared/utmify/payment-mapper.ts` | ~25 | Mapeamento de métodos |
+> | `_shared/utmify/config-checker.ts` | ~70 | Verificação evento habilitado |
+> | `_shared/utmify/token-retriever.ts` | ~60 | Recuperação do Vault |
+> | `_shared/utmify/payload-builder.ts` | ~100 | Construção do payload |
+> | `_shared/utmify/order-fetcher.ts` | ~55 | Busca pedido no DB |
+> | `_shared/utmify/dispatcher.ts` | ~120 | Orquestrador principal |
+> | `_shared/utmify/index.ts` | ~35 | Barrel export |
+> 
+> **Regra de Segurança**: Token nunca aparece em logs; apenas fingerprint SHA-256 (12 chars hex).
 > 
 > | Evento | Disparado em | Gateway |
 > |--------|--------------|---------|

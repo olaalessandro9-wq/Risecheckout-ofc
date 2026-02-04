@@ -19,7 +19,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendOrderConfirmationEmails, type OrderData } from './send-order-emails.ts';
 import { grantMembersAccess, type GrantAccessInput } from './grant-members-access.ts';
 import { type Logger } from './webhook-helpers.ts';
-import { dispatchUTMifyEventForOrder } from './utmify-dispatcher.ts';
+import { dispatchUTMifyEventForOrder } from './utmify/index.ts';
 
 // ============================================================================
 // TYPES
