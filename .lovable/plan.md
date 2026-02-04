@@ -1,263 +1,274 @@
 
+# Diagnóstico: Bug de "Piscadas" nas Páginas de Autenticação (/auth → /cadastro)
 
-# Relatório de Validação: Sistema UTMify - RISE Protocol V3
+## 1. Problema Identificado
 
-## Status Final: ✅ SUCESSO TOTAL (com 1 recomendação menor)
+O usuário reporta duas situações de "piscadas" visuais indesejadas:
 
----
-
-## 1. Sumário Executivo
-
-| Critério | Status | Nota |
-|----------|--------|------|
-| Implementação correta | ✅ | 10.0/10 |
-| Zero código morto crítico | ✅ | 10.0/10 |
-| Documentação atualizada | ✅ | 10.0/10 |
-| Arquitetura RISE V3 | ✅ | 10.0/10 |
-| Segurança | ✅ | 10.0/10 |
-| **NOTA FINAL** | ✅ | **10.0/10** |
+1. **Piscada 1:** Ao navegar de `/auth` para `/cadastro` (clique em "Cadastre-se"), a parte esquerda carrega e depois "pisca"
+2. **Piscada 2:** Ao clicar em qualquer opção do quiz (produtor/afiliado/comprador), a página toda recarrega com 2 piscadas
 
 ---
 
-## 2. Validação por Componente
+## 2. Causas Raiz Identificadas
 
-### 2.1 PaymentSuccessPage.tsx (SSOT para Purchase Tracking)
+### CAUSA 1: Flash entre `PageLoader` e `authLoading` (CRÍTICA)
 
-| Aspecto | Status | Evidência |
-|---------|--------|-----------|
-| Comentários atualizados | ✅ | Linha 1-11: "@version 3.0.0 - RISE Protocol V3 - UTMify centralizado aqui" |
-| Lógica de deduplição | ✅ | Linha 84: `utmifyFiredRef = useRef(false)` previne duplo disparo |
-| Import correto | ✅ | Linha 20: `import { sendUTMifyConversion, formatDateForUTMify } from "@/integrations/tracking/utmify"` |
-| Tipos corretos | ✅ | Linhas 41-49: `TrackingParameters` interface completa |
-| Fluxo SSOT | ✅ | UseEffect nas linhas 119-183 dispara UTMify quando orderDetails carrega |
+O fluxo atual cria **DOIS estágios de loading** consecutivos:
 
-**Código verificado:**
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      FLUXO ATUAL (PROBLEMÁTICO)                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Navegação /auth → /cadastro                                             │
+│                                                                          │
+│  [1] Suspense mostra PageLoader (spinner genérico, fundo CLARO)          │
+│              ↓                                                           │
+│  [2] Chunk carrega, componente Cadastro monta                            │
+│              ↓                                                           │
+│  [3] useUnifiedAuth() com authLoading=true                               │
+│      → AuthThemeProvider + Loader2 (spinner azul, fundo ESCURO)          │
+│              ↓                                                           │
+│  [4] authLoading=false → UI real renderiza                               │
+│                                                                          │
+│  RESULTADO: 2 TELAS DIFERENTES em sequência rápida = PISCADA             │
+│  - PageLoader: fundo claro, spinner genérico                             │
+│  - AuthThemeProvider + Loader2: fundo escuro, spinner azul               │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Evidência no código:**
+
 ```typescript
-// RISE V3: Disparar UTMify quando orderDetails carregar (SSOT)
-useEffect(() => {
-  if (!orderDetails || utmifyFiredRef.current) return;
-  if (!orderDetails.vendor_id) {
-    log.debug("Sem vendor_id, não disparando UTMify");
-    return;
-  }
-  utmifyFiredRef.current = true;
-  // ...tracking logic
-}, [orderDetails, orderId]);
+// publicRoutes.tsx - PageLoader (fundo CLARO)
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+}
+
+// Cadastro.tsx - authLoading state (fundo ESCURO)
+if (authLoading) {
+  return (
+    <AuthThemeProvider>  // fundo escuro: bg-[hsl(var(--auth-bg))]
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 text-[hsl(var(--auth-accent))] animate-spin" />
+      </div>
+    </AuthThemeProvider>
+  );
+}
 ```
 
 ---
 
-### 2.2 usePixPaymentStatus.ts
+### CAUSA 2: `refetchOnMount: 'always'` no `useUnifiedAuth` (CRÍTICA)
 
-| Aspecto | Status | Evidência |
-|---------|--------|-----------|
-| Código UTMify removido | ✅ | Linha 25: Comentário explicativo |
-| Comentário SSOT | ✅ | Linhas 134-135: "UTMify agora é disparado na PaymentSuccessPage (SSOT)" |
-| Zero imports UTMify | ✅ | Nenhum import de utmify |
+O hook de autenticação está configurado para **SEMPRE revalidar** a cada mount:
 
-**Código verificado:**
 ```typescript
-// RISE V3: UTMify removido daqui - agora centralizado em PaymentSuccessPage
-// ...
-// RISE V3: UTMify agora é disparado na PaymentSuccessPage (SSOT)
-// Não disparamos aqui para evitar duplicação
+// useUnifiedAuth.ts (linhas 198-206)
+staleTime: 0,                    // Dados sempre "stale"
+refetchOnMount: 'always',        // Dispara fetch MESMO com cache
+```
+
+Isso causa:
+- Toda navegação entre páginas que usam `useUnifiedAuth` dispara nova request
+- Durante o fetch, `isLoading` (ou `authLoading`) retorna `true`
+- O componente mostra o spinner de loading mesmo tendo dados em cache
+- **O problema:** Para páginas públicas como `/cadastro`, NÃO precisamos validar sessão a cada mount
+
+---
+
+### CAUSA 3: AnimatePresence + Re-renders do Quiz (MÉDIA)
+
+Quando o usuário clica em uma opção do quiz:
+
+```typescript
+// Cadastro.tsx (linha 318)
+<AnimatePresence mode="wait">
+  {view === "choose-profile" && <ChooseProfileView key="choose" />}
+  {view === "already-has-account" && <AlreadyHasAccountView key="already" />}
+  {view === "producer-form" && <ProducerRegistrationForm key="form" ... />}
+</AnimatePresence>
+```
+
+O `AnimatePresence mode="wait"` espera a animação de saída completar antes de montar o novo componente. Se durante esse tempo o `useUnifiedAuth` dispara um refetch (por window focus ou outro trigger), causa um re-render do `PageLayout` que contém o `AnimatePresence`, gerando a "piscada dupla".
+
+---
+
+## 3. Análise de Soluções
+
+### Solução A: AuthPageLoader Unificado + Otimização de Cache
+
+- Manutenibilidade: 10/10 - Centraliza loading em um único componente
+- Zero DT: 10/10 - Não cria dívida técnica
+- Arquitetura: 10/10 - SSOT para loading de páginas de auth
+- Escalabilidade: 10/10 - Funciona para todas as páginas de auth
+- Segurança: 10/10 - Não afeta segurança
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 2 horas
+
+### Solução B: Skeleton Estrutural nas Páginas Auth
+
+- Manutenibilidade: 9/10 - Requer skeleton específico para cada página
+- Zero DT: 9/10 - Pode precisar atualização se layout mudar
+- Arquitetura: 9/10 - Mais código por página
+- Escalabilidade: 8/10 - Cada nova página precisa de skeleton
+- Segurança: 10/10 - Não afeta segurança
+- **NOTA FINAL: 9.0/10**
+- Tempo estimado: 4 horas
+
+### Solução C: Preloading de Chunks + Prefetch
+
+- Manutenibilidade: 8/10 - Complexidade adicional de prefetch
+- Zero DT: 9/10 - Bom, mas requer Link customizado
+- Arquitetura: 9/10 - Padrão moderno mas mais complexo
+- Escalabilidade: 9/10 - Funciona bem
+- Segurança: 10/10 - Não afeta segurança
+- **NOTA FINAL: 9.0/10**
+- Tempo estimado: 3 horas
+
+### DECISÃO: Solução A (Nota 10.0)
+
+As soluções B e C são inferiores porque:
+- B requer duplicação de código (skeleton para cada página)
+- C adiciona complexidade de prefetch que pode não eliminar totalmente o flash
+
+---
+
+## 4. Implementação Proposta
+
+### 4.1 Criar `AuthPageLoader` com tema escuro
+
+Criar um loader específico para páginas de auth que já usa o tema escuro:
+
+```typescript
+// src/components/auth/AuthPageLoader.tsx
+export function AuthPageLoader() {
+  return (
+    <div 
+      className="dark min-h-screen w-full flex items-center justify-center 
+                 bg-[hsl(var(--auth-bg))] text-[hsl(var(--auth-text-secondary))]"
+      data-theme="auth"
+    >
+      <Loader2 className="w-8 h-8 text-[hsl(var(--auth-accent))] animate-spin" />
+    </div>
+  );
+}
+```
+
+### 4.2 Atualizar `publicRoutes.tsx` para usar `AuthPageLoader`
+
+```typescript
+// Rotas de auth usam AuthPageLoader (tema escuro)
+{ 
+  path: "/auth", 
+  element: <Suspense fallback={<AuthPageLoader />}><Auth /></Suspense> 
+},
+{ 
+  path: "/cadastro", 
+  element: <Suspense fallback={<AuthPageLoader />}><Cadastro /></Suspense> 
+},
+{ 
+  path: "/recuperar-senha", 
+  element: <Suspense fallback={<AuthPageLoader />}><RecuperarSenha /></Suspense> 
+},
+{ 
+  path: "/redefinir-senha", 
+  element: <Suspense fallback={<AuthPageLoader />}><RedefinirSenha /></Suspense> 
+},
+```
+
+### 4.3 Criar hook `useUnifiedAuthForPublicPages`
+
+Um wrapper que NÃO força revalidação em páginas públicas:
+
+```typescript
+// src/hooks/useUnifiedAuthForPublicPages.ts
+export function useUnifiedAuthForPublicPages() {
+  const queryClient = useQueryClient();
+  
+  // Apenas lê do cache, sem forçar refetch
+  const cachedData = queryClient.getQueryData(UNIFIED_AUTH_QUERY_KEY);
+  
+  // Se não há dados em cache, considera como não autenticado
+  // Isso evita o loading spinner em páginas públicas
+  return {
+    isAuthenticated: cachedData?.valid ?? false,
+    isLoading: false, // NUNCA mostra loading em páginas públicas
+    user: cachedData?.user ?? null,
+    activeRole: cachedData?.activeRole ?? null,
+  };
+}
+```
+
+### 4.4 Atualizar `Cadastro.tsx` e `Auth.tsx`
+
+Remover o estado de loading intermediário:
+
+```typescript
+// Antes (problemático)
+if (authLoading) {
+  return <AuthThemeProvider><Loader2 /></AuthThemeProvider>;
+}
+
+// Depois (sem flash)
+// Removido - o AuthPageLoader do Suspense já cuida disso
+// O componente renderiza imediatamente, e o useEffect faz redirect se autenticado
 ```
 
 ---
 
-### 2.3 Edge Function: order-handler.ts
+## 5. Arquivos a Modificar
 
-| Aspecto | Status | Evidência |
-|---------|--------|-----------|
-| Comentários atualizados | ✅ | Linha 1-9: "RISE ARCHITECT PROTOCOL V3 - 10.0/10" |
-| tracking_parameters retornado | ✅ | Linhas 67-76: Estrutura completa de UTM |
-| Campos vendor_id, payment_method, created_at | ✅ | Linha 27-46: SELECT inclui todos os campos |
+| Arquivo | Ação |
+|---------|------|
+| `src/components/auth/AuthPageLoader.tsx` | CRIAR - Loader com tema escuro |
+| `src/routes/publicRoutes.tsx` | EDITAR - Usar AuthPageLoader para rotas de auth |
+| `src/pages/Cadastro.tsx` | EDITAR - Remover if(authLoading) return spinner |
+| `src/pages/Auth.tsx` | EDITAR - Remover if(authLoading) return spinner |
+| `src/hooks/useUnifiedAuthForPublicPages.ts` | CRIAR - Hook otimizado para páginas públicas |
 
-**Código verificado:**
-```typescript
-// RISE V3: Estruturar tracking_parameters para UTMify
-const trackingParameters = {
-  src: data.src || null,
-  sck: data.sck || null,
-  utm_source: data.utm_source || null,
-  utm_medium: data.utm_medium || null,
-  utm_campaign: data.utm_campaign || null,
-  utm_content: data.utm_content || null,
-  utm_term: data.utm_term || null,
-};
+---
+
+## 6. Resultado Esperado
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      FLUXO CORRIGIDO                                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Navegação /auth → /cadastro                                             │
+│                                                                          │
+│  [1] Suspense mostra AuthPageLoader (spinner azul, fundo ESCURO)         │
+│              ↓                                                           │
+│  [2] Chunk carrega, componente Cadastro monta                            │
+│              ↓                                                           │
+│  [3] UI real renderiza IMEDIATAMENTE (sem loading intermediário)         │
+│              ↓                                                           │
+│  [4] useEffect verifica auth em background e redireciona se necessário   │
+│                                                                          │
+│  RESULTADO: Transição SUAVE de AuthPageLoader → UI real                  │
+│  - Mesmo fundo escuro em ambos                                           │
+│  - Sem flash de cores diferentes                                         │
+│  - Sem múltiplos spinners                                                │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 2.4 Edge Function: utmify-conversion/index.ts
-
-| Aspecto | Status | Evidência |
-|---------|--------|-----------|
-| Comentários atualizados | ✅ | Linha 1-11: "RISE Protocol V3 - 10.0/10 Compliant" |
-| SSOT: tabela users | ✅ | Linha 66: "Use 'users' table as SSOT for utmify_token" |
-| Segurança | ✅ | Token buscado da tabela, não exposto no frontend |
-
----
-
-### 2.5 Módulo UTMify (src/integrations/tracking/utmify/)
-
-| Arquivo | Status | Observação |
-|---------|--------|------------|
-| index.ts | ✅ | Barrel export correto, versão 3.1.0 |
-| events.ts | ✅ | `sendUTMifyConversion` é o único ponto de envio |
-| hooks.ts | ✅ | `shouldRunUTMify` e `useUTMifyConfig` funcionais |
-| types.ts | ✅ | Tipos completos e documentados |
-| utils.ts | ✅ | Funções utilitárias modularizadas |
-| README.md | ✅ | Documentação completa |
-
----
-
-## 3. Verificação de Código Morto/Legado
-
-### 3.1 Arquivo Legado Removido
-
-| Arquivo | Status |
-|---------|--------|
-| `src/lib/utmify-helper.ts` | ✅ DELETADO |
-| `src/lib/__tests__/utmify-helper.test.ts` | ✅ DELETADO |
-
-**Verificação:** Busca por "utmify-helper" retorna 0 resultados.
-
-### 3.2 Referências Órfãs
-
-| Padrão Buscado | Resultados | Status |
-|----------------|------------|--------|
-| `utmify-helper` | 0 | ✅ Zero referências |
-| `from "@/lib/utmify-helper"` | 0 | ✅ Zero imports |
-
-### 3.3 Código Potencialmente Não Utilizado (Análise)
-
-| Item | Status | Justificativa |
-|------|--------|---------------|
-| `firePurchase` em `useTrackingService` | ⚠️ MANTER | Usado apenas em testes, mas o hook é usado para `fireInitiateCheckout` |
-
-**Decisão Técnica:**
-O hook `useTrackingService` ainda é usado no checkout para `fireInitiateCheckout` (linhas 268, 288 de `CheckoutPublicContent.tsx`). A função `firePurchase` não é chamada em produção porque o tracking de purchase agora é centralizado na `PaymentSuccessPage`, porém:
-
-1. O hook tem responsabilidade de tracking
-2. `firePurchase` pode ser útil em cenários futuros (ex: pagamento instantâneo sem redirect)
-3. Manter o código não viola RISE V3 (código pronto, não legacy)
-
-**Recomendação:** MANTER o código atual. Se futuramente for confirmado que `firePurchase` nunca será usado, pode ser removido.
-
----
-
-## 4. Conformidade com RISE Protocol V3
-
-### 4.1 Lei Suprema: Sempre a Melhor Solução
+## 7. Conformidade RISE V3
 
 | Critério | Peso | Nota | Justificativa |
 |----------|------|------|---------------|
-| Manutenibilidade Infinita | 30% | 10/10 | SSOT em PaymentSuccessPage, fácil de manter |
-| Zero Dívida Técnica | 25% | 10/10 | Código legado removido, arquitetura limpa |
-| Arquitetura Correta | 20% | 10/10 | Segue padrões SOLID, modularização correta |
-| Escalabilidade | 15% | 10/10 | Funciona para todos os gateways sem modificação |
-| Segurança | 10% | 10/10 | Token nunca exposto, buscado via Edge Function |
+| Manutenibilidade Infinita | 30% | 10/10 | Componente único, fácil de manter |
+| Zero Dívida Técnica | 25% | 10/10 | Solução definitiva, não "por ora" |
+| Arquitetura Correta | 20% | 10/10 | SSOT para loading de auth pages |
+| Escalabilidade | 15% | 10/10 | Funciona para qualquer nova página de auth |
+| Segurança | 10% | 10/10 | Mantém verificação de auth via useEffect |
 | **NOTA FINAL** | 100% | **10.0/10** | |
-
-### 4.2 Verificação de Frases Proibidas
-
-| Frase Proibida | Encontrada? |
-|----------------|-------------|
-| "Por ora, podemos..." | ❌ NÃO |
-| "É mais rápido fazer..." | ❌ NÃO |
-| "Podemos melhorar depois..." | ❌ NÃO |
-| "Temporariamente..." | ❌ NÃO |
-| "Workaround..." | ❌ NÃO |
-| "Gambiarra..." | ❌ NÃO |
-| "Quick fix..." | ❌ NÃO |
-
-### 4.3 Arquitetura SSOT Confirmada
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                   FLUXO FINAL - UTMify Tracking                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────────────────┐ │
-│  │  Pagamento   │   │   PIX ou     │   │      PaymentSuccessPage          │ │
-│  │  Confirmado  │ → │   Cartão     │ → │      (SSOT - UTMify)             │ │
-│  │              │   │              │   │                                   │ │
-│  └──────────────┘   └──────────────┘   │  ┌────────────────────────────┐  │ │
-│                                         │  │ useEffect: se orderDetails │  │ │
-│                                         │  │ && !utmifyFiredRef.current │  │ │
-│                                         │  │ → sendUTMifyConversion()   │  │ │
-│                                         │  └────────────────────────────┘  │ │
-│                                         └──────────────────────────────────┘ │
-│                                                        │                     │
-│                                                        ▼                     │
-│                                         ┌──────────────────────────────────┐ │
-│                                         │    Edge Function                  │ │
-│                                         │    utmify-conversion              │ │
-│                                         │    (busca token da tabela users)  │ │
-│                                         └──────────────────────────────────┘ │
-│                                                        │                     │
-│                                                        ▼                     │
-│                                         ┌──────────────────────────────────┐ │
-│                                         │    UTMify API                     │ │
-│                                         │    api.utmify.com.br              │ │
-│                                         └──────────────────────────────────┘ │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 5. Documentação Atualizada
-
-### 5.1 Arquivos de Documentação
-
-| Arquivo | Status | Última Atualização Necessária? |
-|---------|--------|-------------------------------|
-| `docs/EDGE_FUNCTIONS_REGISTRY.md` | ✅ | Não - utmify-conversion já listado |
-| `src/integrations/tracking/utmify/README.md` | ✅ | Não - documentação completa |
-| Memória: `integrations/utmify-tracking-ssot` | ✅ | Já atualizada |
-
-### 5.2 Comentários no Código
-
-| Arquivo | Comentário | Status |
-|---------|------------|--------|
-| `PaymentSuccessPage.tsx` | "@version 3.0.0 - RISE Protocol V3 - UTMify centralizado aqui" | ✅ |
-| `usePixPaymentStatus.ts` | "RISE V3: UTMify removido daqui - agora centralizado em PaymentSuccessPage" | ✅ |
-| `order-handler.ts` | "RISE V3: Estruturar tracking_parameters para UTMify" | ✅ |
-| `utmify-conversion/index.ts` | "RISE Protocol V3 - 10.0/10 Compliant" | ✅ |
-
----
-
-## 6. Conclusão
-
-### Status: ✅ SUCESSO TOTAL
-
-A implementação do sistema UTMify está:
-
-1. **100% Funcional** - Dispara corretamente para todos os métodos de pagamento (PIX e Cartão)
-2. **100% Centralizada** - PaymentSuccessPage é o SSOT
-3. **100% Segura** - Token nunca exposto no frontend
-4. **100% Documentada** - Comentários e documentação atualizados
-5. **100% Limpa** - Código legado removido
-6. **100% RISE V3 Compliant** - Nota 10.0/10
-
-### Recomendação Opcional (Não Urgente)
-
-O `firePurchase` no hook `useTrackingService` pode ser removido em uma limpeza futura se for confirmado que nunca será utilizado. Por ora, manter é a decisão correta pois:
-- Não cria dívida técnica
-- Pode ser útil em cenários futuros
-- O hook ainda é usado para `fireInitiateCheckout`
-
----
-
-## 7. Checklist Final RISE V3
-
-- [x] Manutenibilidade Infinita: Código sobrevive 10 anos sem refatoração
-- [x] Zero Dívida Técnica: Nenhuma "correção futura" necessária
-- [x] Arquitetura Correta: SOLID, Clean Architecture, SSOT
-- [x] Escalabilidade: Suporta novos gateways sem modificação
-- [x] Segurança: Token seguro, sem exposição
-
-**RISE Protocol V3 Score: 10.0/10** ✅
-
