@@ -1,225 +1,192 @@
 
-## Diagnóstico (Root Cause – confirmado no código)
+## Contexto e restrição assumida (não-negociável)
+Você afirmou que **o token UTMify está correto e ativo**. Vou tratar isso como verdade. Logo, o problema não é “token inválido”, e sim **o sistema não está usando exatamente esse token no disparo**, ou está **alterando o token** (normalização/sanitização/encoding), ou há **desalinhamento de ambiente** (o token salvo no Vault do ambiente que dispara não é o mesmo).
 
-O comportamento que você descreveu (“mesmo e-mail gera um PIX, volta ao checkout, gera outro PIX e o UTMify não mostra um novo `pix_generated`”) é explicado por **idempotência errada no `create-order`**.
-
-Hoje, o backend **reaproveita o mesmo `order_id`** quando considera que “é o mesmo pedido” dentro de uma janela de 5 minutos. Isso acontece aqui:
-
-- Arquivo: `supabase/functions/create-order/handlers/order-creator.ts`
-- Trecho (linhas ~131–167):
-
-```ts
-// Verificar idempotência (pedidos duplicados)
-const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-const { data: existingOrders } = await supabase
-  .from("orders")
-  .select("id, status, created_at")
-  .eq("customer_email", customer_email)
-  .eq("offer_id", validatedOfferId || product_id)
-  .eq("amount_cents", amountInCents)
-  .gte("created_at", fiveMinutesAgo)
-  .limit(1);
-
-if (existingOrders && existingOrders.length > 0) {
-  return Response({ order_id: existing.id, duplicate: true })
-}
-```
-
-Isso significa que:
-- Mesmo e-mail + mesma oferta + mesmo valor + dentro de 5 minutos
-- `create-order` **não cria um novo pedido** → retorna o mesmo `order_id`
-- Em seguida, o gateway gera “outro PIX”, mas **para o mesmo orderId**
-- A UTMify, por especificação, trata `orderId` como identificador único do pedido (ela faz “upsert/atualização do mesmo pedido”), então **não aparece um “novo pedido pendente”** no dashboard.
-
-Você testou concorrentes e faz sentido: **checkout bom não deduplica pedido por e-mail**. Ele deduplica por **idempotency key do clique/attempt**, não por heurística.
+Além disso: você acabou de colar um segredo em chat. Pelo RISE V3, isso exige ação de segurança: **rotacionar a credencial** depois que terminarmos o diagnóstico (não porque o token era “inválido”, e sim porque foi exposto).
 
 ---
 
-## O que você quer (e é correto)
+## O que eu vi no código (e por que isso importa)
+Hoje existem **3 pontos** que podem alterar o token antes de chegar na UTMify:
 
-- “Gerou outro PIX” deve significar **outro attempt/pedido** para tracking.
-- Logo, precisa existir **outro `order_id`**.
-- A UTMify só vai registrar “mais um pix_generated” como “mais um pedido pendente” se o `orderId` for diferente. Isso não é opinião: é o contrato do modelo deles (orderId é chave).
+1) `supabase/functions/vault-save/index.ts`
+- Sanitização UTMify:
+  - remove `[\r\n\t]`
+  - remove **todos** os whitespace via `\s+` (isso inclui espaços internos)
+  - remove aspas “envolventes” com `^["']|["']$` (remove só 1 por lado)
+- Isso pode **transformar o token** no momento do save.
+
+2) `supabase/functions/_shared/utmify-dispatcher.ts`
+- Recupera do Vault via RPC `get_gateway_credentials(p_vendor_id, 'utmify')`
+- Sanitiza **de novo** com a mesma regra (`\s+` e regex de aspas simples)
+- Envia em `x-api-token`
+
+3) `supabase/functions/utmify-conversion/index.ts`
+- Também sanitiza com a mesma regra
+
+Ponto crítico: a documentação oficial da UTMify (PDF) mostra exemplo de token com **espaço** no meio. Se isso for um espaço real (e não artefato do PDF), o código atual **corrompe** tokens que contenham espaços internos. Mesmo que o seu token atual não tenha, essa normalização agressiva é uma fonte real de inconsistências e “funcionava antes / parou depois”.
 
 ---
 
-## Análise de Soluções (RISE V3 – obrigatório)
+## Objetivo técnico (o único que resolve sem discussão)
+Construir um diagnóstico “prova matemática” de que:
+1) **Qual token (fingerprint) está no Vault** (sem expor o segredo)
+2) **Qual token (fingerprint) está sendo enviado no dispatch**
+3) **Se a UTMify aceita esse token** (requisição real, controlada, em modo teste)
+4) Detectar automaticamente se há **alteração por sanitização**, **caractere invisível**, **unicode/encoding**, ou **ambiente divergente**
 
-### Solução A: Remover idempotência por e-mail/oferta/valor (sempre criar novo order)
-- Manutenibilidade: 6/10 (resolve o sintoma, mas abre porta para duplicação por double-click/retry de rede)
-- Zero DT: 4/10 (vai gerar pedidos duplicados acidentais; depois vira caos de conciliação)
-- Arquitetura: 6/10 (sem idempotência correta é anti-padrão em checkout)
-- Escalabilidade: 5/10 (duplicação explode custo operacional)
+Isso atende seu pedido (“teste você mesmo”) sem violar segurança.
+
+---
+
+## Análise de Soluções (RISE V3)
+
+### Solução A: “Só testar PIX de novo e olhar painel”
+- Manutenibilidade: 1/10
+- Zero DT: 1/10
+- Arquitetura: 1/10
+- Escalabilidade: 1/10
+- Segurança: 6/10
+- **NOTA FINAL: 1.7/10**
+- Tempo estimado: curto, mas não resolve a causa raiz
+
+### Solução B: Ajustar sanitização (parar de remover `\s+`) e torcer
+- Manutenibilidade: 6/10
+- Zero DT: 5/10
+- Arquitetura: 6/10
+- Escalabilidade: 6/10
 - Segurança: 9/10
-- **NOTA FINAL: 5.9/10**
+- **NOTA FINAL: 6.4/10**
+- Tempo estimado: baixo, mas ainda fica “cego” (sem prova/fingerprint/health)
 
-### Solução B: Idempotência correta por “Order Attempt Key” (client-generated) + persistência no backend (SSOT)
-Implementar **idempotency key por tentativa**, não por e-mail.
-- Manutenibilidade: 10/10 (padrão de indústria; comportamento previsível)
-- Zero DT: 10/10 (elimina duplicação acidental e elimina dedupe errada)
-- Arquitetura: 10/10 (Clean: tentativa explícita; sem heurística frágil)
-- Escalabilidade: 10/10 (funciona com múltiplas instâncias/concorrência)
+### Solução C (SSOT + Prova Criptográfica): Validador backend + fingerprint + health check + normalização robusta centralizada
+- Manutenibilidade: 10/10
+- Zero DT: 10/10
+- Arquitetura: 10/10
+- Escalabilidade: 10/10
 - Segurança: 10/10
 - **NOTA FINAL: 10.0/10**
+- Tempo estimado: médio (mas é a melhor solução, obrigatória no RISE V3)
 
-### Solução C: Manter heurística de 5 min e criar um “force_new_order=true”
-- Manutenibilidade: 5/10 (regra escondida, branch extra, casos inconsistentes)
-- Zero DT: 4/10 (vira matriz de exceções)
-- Arquitetura: 5/10
-- Escalabilidade: 6/10
-- Segurança: 10/10
-- **NOTA FINAL: 5.5/10**
-
-### DECISÃO: Solução B (Nota 10.0/10)
-A deduplicação por e-mail é conceitualmente errada para checkout e conflita diretamente com o tracking UTMify baseado em `orderId`. A solução de nota máxima é trocar para idempotência por tentativa (idempotency key).
+### DECISÃO: Solução C (10.0/10)
+É a única que:
+- prova se o sistema está usando o token correto
+- detecta e impede corrupção do token
+- dá diagnóstico objetivo em produção
+- evita regressões futuras
 
 ---
 
-## Implementação (Plano detalhado)
+## Plano de Implementação (Solução C)
 
-### Fase 0 — Critério de Aceite (o que vai mudar visivelmente)
-Após a implementação:
-1. Mesmo e-mail pode gerar **2 pedidos pendentes** seguidos (2 `order_id` diferentes).
-2. A UTMify deve mostrar **2 registros** “waiting_payment” se ambos foram criados.
-3. Double-click / retry de rede no mesmo clique **não cria pedido duplicado** (retorna o mesmo order_id do attempt).
+### Fase 0 — Segurança (obrigatória após diagnóstico)
+- Assim que confirmarmos o fluxo, **rotacionar a credencial no dashboard da UTMify** e salvar novamente no RiseCheckout (porque o token foi exposto em chat).
+- Isso não tem relação com “token inválido”; é higiene de segurança.
 
----
+### Fase 1 — Criar um módulo SSOT de normalização (backend)
+Criar um helper único (shared) usado por:
+- `vault-save` (no momento de salvar)
+- `utmify-dispatcher` (no momento de disparar)
+- `utmify-conversion` (legado/compatibilidade)
 
-### Fase 1 — Banco de Dados (migração)
-Objetivo: persistir “tentativa de criação de pedido” de forma idempotente e auditável.
+**Regras de normalização (robustas e seguras):**
+- `raw.normalize('NFKC')` (evita unicode “parecido”)
+- remover caracteres invisíveis/control:
+  - C0/C1, `\u200B-\u200F`, `\uFEFF`, `\u00A0` (NBSP), etc.
+- `trim()` apenas nas bordas
+- remover aspas nas bordas com regex correta: `^["']+|["']+$`
+- **não** remover espaços internos automaticamente (porque pode ser significativo).  
+  Em vez disso, tratar “espaços internos” como caso especial a ser validado na Fase 2.
 
-**Opção escolhida (nota 10/10):** adicionar uma coluna de idempotência no próprio `orders` + índice único parcial (sem tabela extra), porque:
-- cria 1 fonte de verdade por pedido
-- não adiciona crescimento infinito de uma tabela de tentativas
-- resolve o problema 100% com complexidade mínima e máxima robustez
+**Entrega adicional: testes unitários (Deno) para normalização**
+- casos com tabs/CRLF
+- casos com NBSP
+- casos com 1/2/3 aspas
+- caso com espaço interno (mantém)
 
-#### 1.1 Adicionar coluna `orders.idempotency_key`
-- Coluna: `idempotency_key uuid null`
-- Índice: `unique` **apenas quando não for null**
+### Fase 2 — Nova Edge Function de diagnóstico: `utmify-validate-credentials`
+Criar `supabase/functions/utmify-validate-credentials/index.ts` com:
+- Auth:
+  - modo “sessions” (para painel do produtor) e/ou modo “internal/admin”
+- Fonte do token:
+  - por padrão: buscar do Vault via `get_gateway_credentials(vendor_id, 'utmify')`
+- Saída **sem expor segredo**:
+  - `token_length`
+  - `token_fingerprint_sha256_12` (ex: primeiros 12 chars do hex)
+  - `has_spaces`, `has_invisible_chars_detected`
+  - `normalization_diff` (ex: “removed 2 invisible chars”, “removed surrounding quotes”)
+- Teste real contra UTMify:
+  - enviar payload `isTest: true` com status coerente (`waiting_payment`)
+  - retornar `utmify_http_status` + `utmify_body_truncated`
+- Se token contiver espaço interno:
+  - tentar duas variantes **somente no validador**:
+    1) token normalizado (com espaços)
+    2) token com espaços removidos
+  - retornar qual variante foi aceita (se alguma), e recomendar salvar a forma canônica aceita
 
-SQL (migration):
-```sql
-alter table public.orders
-  add column if not exists idempotency_key uuid;
+Resultado: isso cumpre seu “teste você mesmo” de forma auditável e sem vazar token.
 
-create unique index if not exists orders_idempotency_key_uq
-  on public.orders (idempotency_key)
-  where idempotency_key is not null;
+### Fase 3 — Observabilidade no dispatcher (prova de qual token foi usado)
+Atualizar `supabase/functions/_shared/utmify-dispatcher.ts` para:
+- logar `token_fingerprint_sha256_12` junto com `orderId/eventType` (sem token)
+- logar também `normalization_applied` (boolean + diffs)
+- quando falhar, registrar em tabela de erros/telemetria existente (ex: `edge_function_errors`) com:
+  - `order_id`, `vendor_id`, `event_type`, `utmify_status`, `fingerprint`
 
-comment on column public.orders.idempotency_key is
-  'Idempotency key generated per checkout submission attempt. Prevents accidental duplicate order creation; must NOT dedupe by email.';
-```
+Isso resolve definitivamente o debate “o sistema enviou esse token mesmo?”.
 
-Observação RISE: manter `null` para pedidos legados, sem backfill forçado.
+### Fase 4 — UI do painel (produtor) com “Testar Conexão”
+Atualizar `src/modules/utmify` para incluir:
+- botão “Testar Conexão UTMify”
+- chama `utmify-validate-credentials`
+- mostra resultado:
+  - “Conexão OK” ou erro com mensagem específica da UTMify
+- exibir fingerprint retornado (12 chars) para auditoria
 
----
+### Fase 5 — Ajuste do fluxo de salvar (bloquear corrupção)
+Atualizar `vault-save`:
+- usar normalização SSOT (Fase 1)
+- remover a normalização agressiva `\s+` (ou, se mantida para algum cenário, que seja baseada em validação real do token, não suposição)
+- opcional: após salvar token, rodar validação server-side e gravar `validated_at` no `vendor_integrations.config` (saúde da integração)
 
-### Fase 2 — Frontend (gerar idempotency key por tentativa)
-Objetivo: cada clique real de “Gerar PIX” cria **um novo attempt** → um novo `idempotency_key`.
-
-#### 2.1 Adicionar `orderAttemptKey` ao contexto da máquina XState
-Arquivos:
-- `src/modules/checkout-public/machines/checkoutPublicMachine.types.ts` (adicionar campo no `CheckoutPublicContext`)
-- `src/modules/checkout-public/machines/checkoutPublicMachine.context.ts` (inicializar como `null`)
-
-#### 2.2 Gerar uma nova chave ao enviar `SUBMIT`
-No `checkoutPublicMachine.ts`, na transição do evento `SUBMIT` (onde já existe `assign(...)`):
-- setar `orderAttemptKey = crypto.randomUUID()`
-
-Regra:
-- sempre que o usuário realmente submeter um novo pedido, gera outra.
-- se houver retry automático dentro do mesmo submit (ex.: falha de rede com retry), a chave deve ser **a mesma** daquele attempt.
-  - Para isso, manter a chave no contexto enquanto o submit estiver “em progresso/erro” e só gerar outra quando o usuário voltar a submeter “um novo pedido”.
-
-#### 2.3 Enviar `idempotency_key` no payload do `create-order`
-Arquivos:
-- `src/modules/checkout-public/machines/checkoutPublicMachine.inputs.ts` (incluir `idempotency_key: context.orderAttemptKey`)
-- `src/modules/checkout-public/machines/actors/createOrderActor.ts` (incluir no payload)
-
----
-
-### Fase 3 — Backend `create-order` (usar idempotency_key corretamente)
-Objetivo: parar de deduplicar por e-mail/oferta/valor e deduplicar apenas por `idempotency_key`.
-
-#### 3.1 Validar `idempotency_key` na camada de validação
-Arquivo:
-- `supabase/functions/_shared/validators.ts`
-
-Mudanças:
-- Incluir `idempotency_key` em `CreateOrderInput`
-- Tornar obrigatório (ou obrigatório quando presente; recomendado: obrigatório para chamadas do checkout)
-- Validar como UUID
-
-#### 3.2 Remover heurística de 5 minutos por e-mail
-Arquivo:
-- `supabase/functions/create-order/handlers/order-creator.ts`
-
-Substituir o bloco de “Verificar idempotência (pedidos duplicados)” por:
-- `select id, access_token from orders where idempotency_key = input.idempotency_key`
-- se existir: retornar o mesmo `order_id` e `access_token`
-- se não existir: inserir um novo pedido com `idempotency_key`
-
-Isso garante:
-- Mesmo e-mail pode criar infinitos pedidos
-- Apenas o mesmo attempt (mesma chave) é idempotente
-
-#### 3.3 Persistir `idempotency_key` ao inserir `orders`
-Ainda em `order-creator.ts`, no `.insert({ ... })`, incluir:
-- `idempotency_key: input.idempotency_key`
+### Fase 6 — Docs (SSOT)
+Atualizar `docs/EDGE_FUNCTIONS_REGISTRY.md`:
+- registrar `utmify-validate-credentials`
+- descrever fingerprint/health check
+- declarar regra: “token nunca aparece em logs; apenas fingerprint”
 
 ---
 
-### Fase 4 — Tracking UTMify (resultado esperado)
-Com o `order_id` sempre novo por tentativa:
-- a Edge Function do gateway vai disparar `dispatchUTMifyEventForOrder(..., "pix_generated")` para **um orderId novo**
-- o payload para a UTMify terá `status = waiting_payment` (já corrigido)
-- a UTMify terá base para registrar **mais de um pendente** para o mesmo e-mail, como concorrentes.
+## Como vamos comprovar o resultado (checklist)
+1) Você gera um PIX (MercadoPago) no seu domínio de produção.
+2) Logs do `utmify-dispatcher` mostram:
+   - fingerprint X
+   - request enviado
+3) `utmify-validate-credentials` retorna:
+   - fingerprint X (mesmo do dispatcher)
+   - status 200/201 (ou o erro real)
+4) Se o status for erro:
+   - agora teremos a resposta real + fingerprint para isolar se é credencial, payload, ou outro fator
 
 ---
 
-### Fase 5 — Testes (obrigatório, RISE V3)
-#### 5.1 Testes de Edge Function (Deno)
-Atualizar/Adicionar testes em:
-- `supabase/functions/create-order/tests/`
+## Escopo de arquivos (previsto)
 
-Casos:
-1. Mesmo `idempotency_key` → retorna mesmo `order_id`
-2. Mesmo e-mail/offer/amount com **idempotency_key diferente** → cria **novo** order_id
-3. Requisição com idempotency_key inválida → 400
+### Novos
+- `supabase/functions/utmify-validate-credentials/index.ts`
+- `supabase/functions/_shared/utmify-token-normalizer.ts` (ou equivalente)
+- testes Deno para normalizer e validador
 
-#### 5.2 Teste E2E manual (fluxo real)
-Checklist:
-1. Gerar PIX com `alessanderlaem@gmail.com` (pedido A) → aparece na UTMify
-2. Voltar ao checkout e gerar outro PIX com mesmo e-mail (pedido B) → deve aparecer também
-3. Conferir no banco: 2 linhas em `orders` com ids diferentes
-4. Conferir logs do gateway: 2 chamadas `Disparando UTMify pix_generated`
+### Modificados
+- `supabase/functions/vault-save/index.ts`
+- `supabase/functions/_shared/utmify-dispatcher.ts`
+- `supabase/functions/utmify-conversion/index.ts` (consistência)
+- `src/modules/utmify/machines/utmifyMachine.ts`
+- `src/modules/utmify/components/UTMifyForm.tsx`
+- `docs/EDGE_FUNCTIONS_REGISTRY.md`
 
 ---
 
-## Arquivos que serão modificados
-
-### Frontend
-- `src/modules/checkout-public/machines/checkoutPublicMachine.types.ts`
-- `src/modules/checkout-public/machines/checkoutPublicMachine.context.ts`
-- `src/modules/checkout-public/machines/checkoutPublicMachine.ts`
-- `src/modules/checkout-public/machines/checkoutPublicMachine.inputs.ts`
-- `src/modules/checkout-public/machines/actors/createOrderActor.ts`
-
-### Backend (Edge)
-- `supabase/functions/_shared/validators.ts`
-- `supabase/functions/create-order/index.ts` (somente para plugar o novo campo se necessário no flow)
-- `supabase/functions/create-order/handlers/order-creator.ts`
-
-### Banco
-- `supabase/migrations/<timestamp>_orders_idempotency_key.sql`
-
----
-
-## Nota final de conformidade com o seu requisito
-
-- Você não quer “um PIX por e-mail”: correto.
-- O que está acontecendo hoje é uma consequência direta de um design errado (idempotência heurística).
-- A solução proposta muda o modelo para o padrão correto: **1 submit attempt = 1 pedido (orderId único)**, mantendo idempotência real para evitar duplicação acidental.
-- Isso alinha perfeitamente com como a UTMify enxerga o mundo: `orderId` é a chave, e um “novo PIX gerado” que você quer contar precisa ser um “novo pedido” (novo orderId).
+## Nota importante sobre o token que você colou
+Eu não vou repetir o token em logs/UI/planos futuros. Ele foi exposto aqui, então a etapa de rotação após o diagnóstico é obrigatória para manter RISE V3 10/10.
 
