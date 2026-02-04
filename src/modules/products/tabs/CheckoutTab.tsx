@@ -27,6 +27,8 @@ import { api } from "@/lib/api";
 import { useConfirmDelete } from "@/components/common/ConfirmDelete";
 import { getRpcErrorMessage } from "@/lib/rpc/errors";
 import { useBusy } from "@/components/BusyProvider";
+import { dynamicImportWithRetry } from "@/lib/dynamicImportWithRetry";
+import { isChunkLoadError } from "@/lib/lazyWithRetry";
 
 interface ProductEntitiesResponse {
   offers?: Array<{ id: string; name: string; price: number; is_default: boolean | null; status?: string }>;
@@ -101,7 +103,10 @@ export function CheckoutTab() {
     try {
       await busy.run(
         async () => {
-          const { duplicateCheckout } = await import("@/lib/checkouts/duplicateCheckout");
+          // RISE V3: Dynamic import com retry automático para evitar erros de cache
+          const { duplicateCheckout } = await dynamicImportWithRetry(
+            () => import("@/lib/checkouts/duplicateCheckout")
+          );
           await duplicateCheckout(checkout.id);
           
           // Recarregar checkouts para mostrar o novo item na lista
@@ -113,7 +118,14 @@ export function CheckoutTab() {
       );
     } catch (error: unknown) {
       log.error('Erro ao duplicar checkout', error);
-      // RISE V3: Mensagem contextual baseada no tipo de erro
+      
+      // RISE V3: Mensagem específica para erro de carregamento de módulo
+      if (error instanceof Error && isChunkLoadError(error)) {
+        toast.error("Erro de conexão. Por favor, recarregue a página e tente novamente.");
+        return;
+      }
+      
+      // Mensagem contextual baseada no tipo de erro
       const message = getRpcErrorMessage(error, "Não foi possível duplicar o checkout");
       toast.error(message);
     }

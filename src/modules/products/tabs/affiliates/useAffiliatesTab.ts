@@ -14,6 +14,7 @@ import type { AffiliateSettings } from "../../types/product.types";
 import type { AffiliateGatewaySettingsData } from "../../components/AffiliateGatewaySettings";
 import type { AffiliateSettingValue } from "./types";
 import { createLogger } from "@/lib/logger";
+import { dynamicImportWithRetry } from "@/lib/dynamicImportWithRetry";
 
 const log = createLogger("useAffiliatesTab");
 
@@ -143,7 +144,8 @@ export function useAffiliatesTab() {
         }
       }
 
-      const { api } = await import("@/lib/api");
+      // RISE V3: Dynamic import com retry automático para evitar erros de cache
+      const { api } = await dynamicImportWithRetry(() => import("@/lib/api"));
       
       const { data: result, error: gatewayError } = await api.call<{ success?: boolean; error?: string }>('product-settings', { 
         action: 'update-affiliate-gateway-settings',
