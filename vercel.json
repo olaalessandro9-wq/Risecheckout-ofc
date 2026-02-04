@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "_deploy_trigger": "2026-02-04T00:00:00Z",
   "redirects": [
     {
       "source": "/",
