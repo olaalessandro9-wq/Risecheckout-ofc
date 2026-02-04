@@ -1,30 +1,71 @@
 # UTMify Integration Module
 **Módulo**: `src/integrations/tracking/utmify`  
 **Status**: ✅ Implementado  
-**Versão**: 2.0.0  
+**Versão**: 4.0.0 - Backend SSOT  
 **RISE V3 Score**: 10.0/10
+
+---
+
+## ⚠️ IMPORTANTE: Arquitetura Backend SSOT
+
+A partir da versão 4.0.0, **TODOS os eventos UTMify são disparados exclusivamente pelo backend**.
+
+### O que mudou?
+
+| Antes (v2.x) | Agora (v4.x) |
+|--------------|--------------|
+| Frontend enviava conversões via Edge Function | Backend dispara eventos automaticamente |
+| `trackPurchase()` chamado no frontend | Webhook de pagamento dispara `purchase_approved` |
+| Token exposto ao frontend | Token armazenado no Vault (nunca sai do backend) |
+
+### Por que Backend SSOT?
+
+1. **Segurança**: Token nunca é exposto ao frontend
+2. **Confiabilidade**: Eventos disparados após confirmação real do pagamento
+3. **Consistência**: Um único ponto de disparo (webhooks de gateway)
+4. **Auditoria**: Fingerprint SHA-256 em logs para rastreamento
 
 ---
 
 ## 📋 Visão Geral
 
-Este módulo implementa a integração do **UTMify** no RiseCheckout seguindo uma arquitetura modular baseada em features. Cada integração (Facebook, UTMify, Google Ads, etc) fica isolada em sua própria pasta.
+Este módulo frontend exporta **apenas utilitários e tipos**. A lógica de disparo está em `supabase/functions/_shared/utmify/`.
 
-### Estrutura do Módulo
+### Estrutura do Módulo Frontend
 
 ```
 src/integrations/tracking/utmify/
-├── index.ts          # Barrel export (interface pública)
+├── index.ts          # Barrel export (utils + types + hooks)
 ├── types.ts          # Tipos e interfaces TypeScript
-├── events.ts         # Lógica de envio de eventos
-├── hooks.ts          # Hooks React customizados
-├── Tracker.tsx       # Componente React
+├── events.ts         # Utils: extractUTMParameters, formatDateForUTMify
+├── utils.ts          # Utils: convertToCents, convertToReais
+├── hooks.ts          # Hooks React para config
+├── Tracker.tsx       # Componente de logging (debug)
 └── README.md         # Este arquivo
+```
+
+### Estrutura do Módulo Backend (SSOT)
+
+```
+supabase/functions/_shared/utmify/
+├── index.ts              # Barrel export
+├── types.ts              # Tipos unificados
+├── constants.ts          # URL API, STATUS_MAP
+├── token-normalizer.ts   # SSOT: normalização de tokens
+├── date-formatter.ts     # Formatação UTC
+├── payment-mapper.ts     # Mapeamento de métodos
+├── config-checker.ts     # Verificação de eventos habilitados
+├── token-retriever.ts    # Recuperação do Vault
+├── payload-builder.ts    # Construção do payload
+├── order-fetcher.ts      # Busca de pedido
+├── dispatcher.ts         # Função principal de disparo
+└── tests/
+    └── token-normalizer.test.ts
 ```
 
 ---
 
-## 🚀 Como Usar
+## 🚀 Como Usar (Frontend)
 
 ### 1. Import Centralizado
 
@@ -32,104 +73,127 @@ src/integrations/tracking/utmify/
 import * as UTMify from "@/integrations/tracking/utmify";
 ```
 
-### 2. Carregar Configuração
+### 2. Extrair Parâmetros UTM (para persistir no pedido)
+
+```typescript
+const utmParams = UTMify.extractUTMParameters();
+// Usado pelo createOrderActor para salvar UTMs na tabela orders
+```
+
+### 3. Carregar Configuração (Admin)
 
 ```typescript
 const { data: utmifyIntegration } = UTMify.useUTMifyConfig(vendorId);
 ```
 
-### 3. Verificar se Deve Rodar
+### 4. Verificar se Habilitado (Admin)
 
 ```typescript
 const shouldRun = UTMify.shouldRunUTMify(utmifyIntegration, productId);
 ```
 
-### 4. Renderizar Componente
+---
 
-```typescript
-{shouldRun && <UTMify.Tracker integration={utmifyIntegration} />}
+## 📚 Exports Disponíveis
+
+### Funções Utilitárias
+
+| Função | Descrição |
+|--------|-----------|
+| `extractUTMParameters()` | Extrai parâmetros UTM da URL |
+| `formatDateForUTMify()` | Formata data para UTC |
+| `convertToCents()` | Converte reais para centavos |
+| `convertToReais()` | Converte centavos para reais |
+
+### Hooks React
+
+| Hook | Descrição |
+|------|-----------|
+| `useUTMifyConfig(vendorId)` | Carregar config do banco (cache 5 min) |
+| `shouldRunUTMify(integration, productId)` | Verificar se deve rodar |
+| `useUTMifyForProduct(vendorId, productId)` | Hook combinado |
+| `isEventEnabledForUTMify(integration, eventType)` | Verificar evento habilitado |
+
+### Componente
+
+| Componente | Descrição |
+|------------|-----------|
+| `Tracker` | Componente de logging/debug (invisível) |
+
+### ❌ Funções REMOVIDAS (Backend SSOT)
+
+As seguintes funções **NÃO existem mais** no frontend:
+
+- ~~`sendUTMifyConversion()`~~ → Disparado pelo backend
+- ~~`trackPageView()`~~ → Não suportado
+- ~~`trackAddToCart()`~~ → Não suportado
+- ~~`trackPurchase()`~~ → Disparado pelo backend via webhook
+- ~~`trackRefund()`~~ → Disparado pelo backend via webhook
+
+---
+
+## 📊 Fluxo de Dados (Backend SSOT)
+
 ```
-
-### 5. Enviar Conversão
-
-```typescript
-const utmParams = UTMify.extractUTMParameters();
-
-const orderData: UTMify.UTMifyOrderData = {
-  orderId: orderResponse.order_id,
-  status: "approved",
-  createdAt: UTMify.formatDateForUTMify(new Date()),
-  customer: {
-    name: logic.formData.name,
-    email: logic.formData.email,
-    phone: logic.formData.phone,
-  },
-  products: [
-    {
-      id: checkout.product.id,
-      name: checkout.product.name,
-      priceInCents: UTMify.convertToCents(checkout.product.price),
-    },
-  ],
-  trackingParameters: utmParams,
-  totalPriceInCents: totalCents,
-};
-
-await UTMify.trackPurchase(vendorId, orderData);
+┌─────────────────────────────────────────────────────────────┐
+│                    CHECKOUT FRONTEND                        │
+│                                                              │
+│  1. extractUTMParameters() captura UTMs da URL              │
+│  2. createOrderActor persiste UTMs na tabela orders         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    GATEWAY DE PAGAMENTO                      │
+│                                                              │
+│  - MercadoPago, Stripe, PushInPay, Asaas                    │
+│  - Confirma pagamento e envia webhook                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    WEBHOOK HANDLER                           │
+│                                                              │
+│  - mercadopago-webhook, stripe-webhook, etc                 │
+│  - Valida assinatura do webhook                             │
+│  - Atualiza status do pedido                                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 _shared/utmify/dispatcher.ts                 │
+│                                                              │
+│  1. isEventEnabled() - verifica se evento está habilitado   │
+│  2. getUTMifyToken() - recupera token do Vault              │
+│  3. buildUTMifyPayload() - constrói payload                 │
+│  4. fetch() - envia para api.utmify.com.br                  │
+│  5. Registra fingerprint para auditoria                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      UTMify API                              │
+│                                                              │
+│  POST https://api.utmify.com.br/api-credentials/orders      │
+│  Header: x-api-token: {token}                               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📚 Documentação Detalhada
+## 🔐 Segurança
 
-### types.ts
-
-Define as interfaces TypeScript:
-
-- **UTMifyConfig**: Configuração do UTMify armazenada no banco
-- **UTMParameters**: Parâmetros UTM extraídos da URL
-- **UTMifyCustomer**: Dados do cliente
-- **UTMifyProduct**: Dados de um produto
-- **UTMifyCommission**: Dados de comissão
-- **UTMifyOrderData**: Dados completos do pedido
-- **UTMifyResponse**: Resposta da API
-- **UTMifyIntegration**: Integração do vendedor
-
-### events.ts
-
-Funções para enviar eventos:
-
-- `extractUTMParameters()` - Extrai parâmetros UTM da URL
-- `formatDateForUTMify()` - Formata data para UTC
-- `convertToCents()` - Converte reais para centavos
-- `convertToReais()` - Converte centavos para reais
-- `sendUTMifyConversion()` - Envia conversão genérica
-- `trackPageView()` - Rastreia visualização de página
-- `trackAddToCart()` - Rastreia adição ao carrinho
-- `trackPurchase()` - Rastreia compra ⭐
-- `trackRefund()` - Rastreia reembolso
-
-### hooks.ts
-
-Hooks React:
-
-- `useUTMifyConfig(vendorId)` - Carregar config do banco (com cache de 5 min)
-- `shouldRunUTMify(integration, productId)` - Verificar se deve rodar
-- `useUTMifyForProduct(vendorId, productId)` - Hook combinado
-- `isEventEnabledForUTMify(integration, eventType)` - Verificar se evento está habilitado
-
-### Tracker.tsx
-
-Componente React:
-
-- Inicializa rastreamento do UTMify
-- Retorna null (invisível)
+- ✅ Token armazenado no Vault (nunca no frontend)
+- ✅ Token normalizado via SSOT (`token-normalizer.ts`)
+- ✅ Fingerprint SHA-256 em logs (token nunca exposto)
+- ✅ RLS protege dados de outros vendedores
+- ✅ Eventos disparados após confirmação real do gateway
 
 ---
 
 ## 🔧 Configuração no Banco de Dados
 
-A configuração é armazenada em `vendor_integrations`:
+### vendor_integrations
 
 ```json
 {
@@ -137,145 +201,92 @@ A configuração é armazenada em `vendor_integrations`:
   "integration_type": "UTMIFY",
   "active": true,
   "config": {
-    "api_token": "token-do-utmify",
     "selected_products": ["product-id-1", "product-id-2"],
-    "selected_events": ["purchase", "pageview"]
+    "selected_events": ["purchase_approved", "refund"]
   }
 }
 ```
 
-### Campos
+### vault (via Edge Function vault-save)
 
-- **api_token**: Token de API do UTMify
-- **selected_products**: Lista de IDs de produtos (vazio = todos)
-- **selected_events**: Lista de eventos habilitados (vazio = todos)
-
----
-
-## 📊 Fluxo de Dados
-
-```
-PublicCheckout.tsx
-    ↓
-useUTMifyConfig(vendorId)
-    ↓ (Query ao Supabase)
-vendor_integrations table
-    ↓
-shouldRunUTMify(integration, productId)
-    ↓
-<Tracker integration={utmifyIntegration} />
-    ↓
-trackPurchase(vendorId, orderData)
-    ↓
-Edge Function: utmify-conversion
-    ↓
-UTMify API
+```json
+{
+  "gateway": "utmify",
+  "credentials": {
+    "api_token": "token-normalizado"
+  }
+}
 ```
 
 ---
 
 ## 🧪 Testes
 
-### Teste 1: Verificar Configuração
+### Backend (Deno)
 
-```javascript
-// Console do navegador
-const utmParams = extractUTMParameters();
-console.log(utmParams);
-// Deve retornar: { src: null, utm_source: "google", ... }
+```bash
+# Executar via ferramenta test-edge-functions
+supabase/functions/_shared/utmify/tests/token-normalizer.test.ts
 ```
 
-### Teste 2: Verificar Logs
+### Frontend (Vitest)
 
-```javascript
-// Console do navegador
-// Procure por:
-// [UTMify] Configuração carregada com sucesso
-// [UTMify] 📡 Enviando conversão
-// [UTMify] ✅ Conversão enviada com sucesso
+```bash
+# Executar via npm test
+src/integrations/tracking/utmify/__tests__/index.test.ts
 ```
-
-### Teste 3: Verificar no UTMify
-
-1. Ir para: app.utmify.com.br
-2. Selecionar seu projeto
-3. Ir para "Conversões"
-4. Verificar se aparecem os eventos
-
----
-
-## 🔐 Segurança
-
-- ✅ API Token armazenado no banco (não no frontend)
-- ✅ Service Role Key não exposto
-- ✅ RLS protege dados de outros vendedores
-- ✅ Validação de entrada
-- ✅ Tratamento de erro
-
----
-
-## 🚀 Próximas Integrações
-
-Este módulo serve como template para outras integrações:
-
-- `src/integrations/tracking/google-ads/` - Google Ads
-- `src/integrations/tracking/tiktok/` - TikTok Pixel
-- `src/integrations/tracking/kwai/` - Kwai Pixel
-- `src/integrations/gateways/mercadopago/` - Mercado Pago
-- `src/integrations/gateways/pushinpay/` - PushInPay
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Problema: "Integração não encontrada"
-**Solução**: Verificar se existe registro em vendor_integrations com integration_type="UTMIFY"
+### Problema: "Evento não foi disparado"
 
-### Problema: "Conversão não foi enviada"
-**Solução**: 
-1. Verificar se api_token está correto
-2. Verificar se Edge Function está deployada
-3. Verificar logs da Edge Function
+**Verificar**:
+1. Token está salvo no Vault? (`vault-save` foi chamado)
+2. Evento está em `selected_events`?
+3. Produto está em `selected_products` (ou lista vazia = todos)?
+4. Logs da Edge Function do webhook
 
-### Problema: "Parâmetros UTM não aparecem"
-**Solução**: 
-1. Verificar se URL tem parâmetros UTM
-2. Verificar console para logs de extração
+### Problema: "Token inválido (401)"
 
-### Problema: "Produto não está habilitado"
-**Solução**: 
-1. Verificar se productId está em selected_products
-2. Se selected_products vazio, todos os produtos devem estar habilitados
+**Verificar**:
+1. Token foi normalizado corretamente ao salvar
+2. Fingerprint no log corresponde ao esperado
+3. Token não contém caracteres invisíveis
+
+### Problema: "Parâmetros UTM não chegaram"
+
+**Verificar**:
+1. URL do checkout contém `?src=...&sck=...` ou `?utm_source=...`
+2. createOrderActor persistiu UTMs na tabela orders
+3. Colunas `src`, `sck`, `utm_*` estão preenchidas no pedido
 
 ---
 
 ## 📝 Changelog
 
+### v4.0.0 (04/02/2026) - Backend SSOT
+- ✅ Migração completa para Backend SSOT
+- ✅ Modularização: 11 arquivos < 150 linhas cada
+- ✅ Token normalizer SSOT (`token-normalizer.ts`)
+- ✅ Fingerprint SHA-256 para auditoria
+- ✅ Removidas funções de disparo do frontend
+- ✅ 15 testes unitários no backend
+
 ### v2.0.0 (04/02/2026)
 - ✅ Correção completa conforme documentação API UTMify
 - ✅ URL corrigida: api-credentials/orders
 - ✅ Header corrigido: x-api-token
-- ✅ Payload aninhado (orderData) suportado
-- ✅ Validação robusta de campos obrigatórios
-- ✅ 50+ testes automatizados
 
 ### v1.0 (29/11/2025)
 - ✅ Implementação inicial
-- ✅ 5 arquivos criados
-- ✅ Documentação completa
-- ✅ Testes recomendados
-
----
-
-## 👨‍💻 Autor
-
-Implementado como parte da Refração Modular do RiseCheckout.
 
 ---
 
 ## 📞 Suporte
 
-Para dúvidas ou problemas, consulte:
-1. Este README
-2. Arquivo types.ts para interfaces
-3. Código comentado em cada arquivo
+Para dúvidas ou problemas:
+1. Consulte este README
+2. Verifique logs da Edge Function
+3. Consulte `docs/EDGE_FUNCTIONS_REGISTRY.md`
