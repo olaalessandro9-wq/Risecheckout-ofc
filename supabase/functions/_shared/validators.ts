@@ -147,6 +147,8 @@ export interface CreateOrderInput {
   utm_term?: string;
   src?: string;
   sck?: string;
+  // RISE V3: Idempotency key per checkout submission attempt
+  idempotency_key?: string;
 }
 
 export function validateCreateOrderInput(data: unknown): ValidationResult<CreateOrderInput> {
@@ -212,6 +214,13 @@ export function validateCreateOrderInput(data: unknown): ValidationResult<Create
     }
   }
   
+  // RISE V3: Validate idempotency_key if provided
+  if (input.idempotency_key !== undefined && input.idempotency_key !== null && input.idempotency_key !== "") {
+    if (!isValidUUID(input.idempotency_key)) {
+      errors.push("idempotency_key deve ser um UUID válido");
+    }
+  }
+  
   if (errors.length > 0) {
     return { success: false, errors };
   }
@@ -245,6 +254,8 @@ export function validateCreateOrderInput(data: unknown): ValidationResult<Create
       utm_term: normalizeUTM(input.utm_term),
       src: normalizeUTM(input.src),
       sck: normalizeUTM(input.sck),
+      // RISE V3: Idempotency key per checkout submission attempt
+      idempotency_key: input.idempotency_key as string | undefined,
     }
   };
 }

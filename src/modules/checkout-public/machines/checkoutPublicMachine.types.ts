@@ -199,6 +199,9 @@ export interface CheckoutPublicContext {
   // === Card Form Data (for credit card submission) ===
   cardFormData: CardFormData | null;
   
+  // === Idempotency Key (RISE V3: per-attempt deduplication) ===
+  orderAttemptKey: string | null;
+  
   // === Error State ===
   error: CheckoutError | null;
   
