@@ -2,10 +2,13 @@
  * UTMify Conversion Types
  * 
  * @module utmify-conversion/types
- * @version 2.0.0 - RISE Protocol V3 Compliant
+ * @version 3.0.0 - RISE Protocol V3 Compliant - Vault SSOT
  * 
  * Tipos conforme documentação oficial da API UTMify:
  * https://api.utmify.com.br/api-credentials/orders
+ * 
+ * Changelog V3.0.0:
+ * - Adicionado UTMifyVaultCredentials para tipagem do Vault
  */
 
 // ============================================================================
@@ -226,4 +229,16 @@ export interface EdgeFunctionResponse {
   message?: string;
   error?: string;
   details?: unknown;
+}
+
+// ============================================================================
+// VAULT CREDENTIALS (RISE V3 - SSOT)
+// ============================================================================
+
+/**
+ * Credenciais UTMify retornadas do Vault via RPC get_gateway_credentials
+ * Segue padrão unificado de todas as integrações (MercadoPago, Asaas, etc.)
+ */
+export interface UTMifyVaultCredentials {
+  api_token?: string;
 }

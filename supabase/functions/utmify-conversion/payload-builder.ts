@@ -74,6 +74,7 @@ export function mapStatus(status: string): string {
 
 /**
  * Constrói o objeto customer conforme documentação UTMify
+ * NOTA: ip é obrigatório na API UTMify - usa valor padrão se não fornecido
  */
 function buildCustomer(input: UTMifyConversionRequest["customer"]): UTMifyCustomer {
   return {
@@ -82,7 +83,9 @@ function buildCustomer(input: UTMifyConversionRequest["customer"]): UTMifyCustom
     phone: input.phone || null,
     document: input.document || null,
     country: input.country || "BR",
-    ip: input.ip || null,
+    // IP é obrigatório na API UTMify - usa string vazia como fallback
+    // O frontend deve idealmente capturar e enviar o IP real
+    ip: input.ip || "",
   };
 }
 

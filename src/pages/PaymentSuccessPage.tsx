@@ -57,6 +57,7 @@ interface OrderDetails {
   customer_name: string | null;
   customer_phone?: string | null;
   customer_document?: string | null;
+  customer_ip?: string | null;
   order_items: OrderItem[];
   coupon_code: string | null;
   discount_amount_cents: number | null;
@@ -144,7 +145,7 @@ export const PaymentSuccessPage = () => {
               phone: orderDetails.customer_phone || null,
               document: orderDetails.customer_document || null,
               country: "BR",
-              ip: "0.0.0.0",
+              ip: orderDetails.customer_ip || "",
             },
             products: orderDetails.order_items?.map(item => ({
               id: item.id,

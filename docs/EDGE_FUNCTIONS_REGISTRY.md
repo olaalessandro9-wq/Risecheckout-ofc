@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-02-04 (UTMify V2.0 - API compliance fix)  
+> Última atualização: 2026-02-04 (UTMify V3.0 - Vault SSOT migration)  
 > Mantenedor: AI Assistant + User
 
 ---
