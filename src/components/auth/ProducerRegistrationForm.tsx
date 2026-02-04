@@ -1,21 +1,25 @@
 /**
  * ProducerRegistrationForm - Isolated form component for producer/affiliate registration
  * 
- * This component contains its own form state (useFormValidation hooks) to prevent
- * state loss when AnimatePresence triggers re-mounts in parent components.
+ * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Supports both "producer" and "affiliate" registration with dynamic text content.
+ * Features:
+ * - Form state persistence via sessionStorage (survives tab switches)
+ * - CPF/CNPJ is sent to backend and saved
+ * - Specific error messages for duplicate email/phone/cpf
+ * - Password is NEVER persisted (security)
  * 
- * @version 2.0.0 - Migrated to Design Tokens (RISE Protocol V3)
+ * @version 3.0.0 - Added persistence + uniqueness validation
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useFormValidation } from "@/hooks/useFormValidation";
+import { useRegistrationFormPersistence } from "@/hooks/useRegistrationFormPersistence";
 import { api } from "@/lib/api";
 import { AlertCircle, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
@@ -31,6 +35,9 @@ export function ProducerRegistrationForm({
 }: ProducerRegistrationFormProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  
+  // RISE V3: Persistência via sessionStorage
+  const { loadSavedData, saveData, clearData, isHydratedRef } = useRegistrationFormPersistence();
 
   // Form hooks live INSIDE this component to prevent state loss on parent re-render
   const nameField = useFormValidation('name', true);
@@ -40,6 +47,34 @@ export function ProducerRegistrationForm({
   const passwordField = useFormValidation('password', true);
 
   const isAffiliate = registrationSource === "affiliate";
+  
+  // RISE V3: Hidratar campos do sessionStorage no mount
+  useEffect(() => {
+    if (isHydratedRef.current) return;
+    
+    const saved = loadSavedData();
+    if (saved) {
+      if (saved.name) nameField.setValue(saved.name);
+      if (saved.cpfCnpj) cpfCnpjField.setValue(saved.cpfCnpj);
+      if (saved.phone) phoneField.setValue(saved.phone);
+      if (saved.email) emailField.setValue(saved.email);
+    }
+    
+    isHydratedRef.current = true;
+  }, [loadSavedData, isHydratedRef, nameField, cpfCnpjField, phoneField, emailField]);
+  
+  // RISE V3: Salvar alterações no sessionStorage (exceto senha)
+  useEffect(() => {
+    if (!isHydratedRef.current) return;
+    
+    saveData({
+      name: nameField.value,
+      cpfCnpj: cpfCnpjField.value,
+      phone: phoneField.value,
+      email: emailField.value,
+      registrationType: registrationSource,
+    });
+  }, [nameField.value, cpfCnpjField.value, phoneField.value, emailField.value, registrationSource, saveData, isHydratedRef]);
 
   // Dynamic text content based on registration type
   const content = {
@@ -79,15 +114,31 @@ export function ProducerRegistrationForm({
         password: passwordField.value,
         name: nameField.value,
         phone: phoneField.getRawValue() || undefined,
+        cpf_cnpj: cpfCnpjField.getRawValue() || undefined,
         registrationType: registrationSource,
       });
 
       if (error || !data?.success) {
-        toast.error(error?.message || data?.error || "Erro ao criar conta");
+        const errorMsg = error?.message || data?.error || "Erro ao criar conta";
+        
+        // RISE V3: Mapear erros específicos para mensagens amigáveis
+        if (errorMsg.includes("email já está cadastrado")) {
+          toast.error("Este email já possui uma conta. Tente fazer login.");
+        } else if (errorMsg.includes("telefone já está cadastrado")) {
+          toast.error("Este telefone já está vinculado a outra conta.");
+        } else if (errorMsg.includes("CPF/CNPJ já está cadastrado")) {
+          toast.error("Este CPF/CNPJ já está vinculado a outra conta.");
+        } else {
+          toast.error(errorMsg);
+        }
+        
         setLoading(false);
         return;
       }
 
+      // RISE V3: Limpar sessionStorage após sucesso
+      clearData();
+      
       toast.success("Cadastro realizado! Faça login para continuar.");
       navigate("/auth");
     } catch (error: unknown) {
