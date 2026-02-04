@@ -62,6 +62,15 @@ export interface OrderCreationInput {
   
   // Rate limit
   identifier: string;
+  
+  // RISE V3: UTM tracking parameters for backend SSOT
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
+  src?: string;
+  sck?: string;
 }
 
 interface ExistingOrder {
@@ -108,7 +117,15 @@ export async function createOrder(
     gateway,
     payment_method,
     allOrderItems,
-    identifier
+    identifier,
+    // RISE V3: UTM tracking parameters
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_content,
+    utm_term,
+    src,
+    sck
   } = input;
 
   // Verificar idempotência (pedidos duplicados)
@@ -173,7 +190,7 @@ export async function createOrder(
   }
 
   // Inserir pedido com dados criptografados
-  // RISE V3: Incluir customer_ip para UTMify e análise de fraude
+  // RISE V3: Incluir customer_ip + UTM params para UTMify backend SSOT
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -197,7 +214,15 @@ export async function createOrder(
       access_token: accessToken,
       affiliate_id: affiliateId,
       commission_cents: commissionCents,
-      platform_fee_cents: platformFeeCents
+      platform_fee_cents: platformFeeCents,
+      // RISE V3: UTM tracking parameters for backend SSOT
+      utm_source: utm_source || null,
+      utm_medium: utm_medium || null,
+      utm_campaign: utm_campaign || null,
+      utm_content: utm_content || null,
+      utm_term: utm_term || null,
+      src: src || null,
+      sck: sck || null
     })
     .select()
     .single();

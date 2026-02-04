@@ -2328,9 +2328,16 @@ export type Database = {
           platform_fee_cents: number | null
           product_id: string
           product_name: string | null
+          sck: string | null
+          src: string | null
           status: string
           technical_status: string | null
           updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           vendor_id: string
         }
         Insert: {
@@ -2364,9 +2371,16 @@ export type Database = {
           platform_fee_cents?: number | null
           product_id: string
           product_name?: string | null
+          sck?: string | null
+          src?: string | null
           status: string
           technical_status?: string | null
           updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           vendor_id: string
         }
         Update: {
@@ -2400,9 +2414,16 @@ export type Database = {
           platform_fee_cents?: number | null
           product_id?: string
           product_name?: string | null
+          sck?: string | null
+          src?: string | null
           status?: string
           technical_status?: string | null
           updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           vendor_id?: string
         }
         Relationships: [

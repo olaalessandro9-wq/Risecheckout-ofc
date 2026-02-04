@@ -17,6 +17,8 @@ import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from '../_
 import { getVendorCredentials } from '../_shared/vault-credentials.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { createLogger } from '../_shared/logger.ts';
+// RISE V3: UTMify dispatcher for pix_generated event
+import { dispatchUTMifyEventForOrder } from '../_shared/utmify-dispatcher.ts';
 
 // RISE V3: Usar PaymentFactory + Adapter
 import { PaymentFactory, PaymentRequest as AdapterPaymentRequest } from '../_shared/payment-gateways/index.ts';
@@ -274,6 +276,23 @@ serve(async (req) => {
     }
     
     await supabase.from('orders').update(updateData).eq('id', orderId);
+
+    // RISE V3: Disparar UTMify pix_generated para MercadoPago PIX
+    if (paymentMethod === 'pix' && result.qr_code_text) {
+      try {
+        log.info("Disparando UTMify pix_generated para order", { orderId });
+        const utmifyResult = await dispatchUTMifyEventForOrder(supabase, orderId, "pix_generated");
+        if (utmifyResult.success && !utmifyResult.skipped) {
+          log.info("✅ UTMify pix_generated disparado com sucesso");
+        } else if (utmifyResult.skipped) {
+          log.info("UTMify pix_generated pulado:", utmifyResult.reason);
+        }
+      } catch (utmifyError) {
+        // Não crítico - não impede o fluxo de pagamento
+        const errMsg = utmifyError instanceof Error ? utmifyError.message : String(utmifyError);
+        log.warn("UTMify pix_generated falhou (não crítico):", errMsg);
+      }
+    }
 
     // Post-payment actions se aprovado
     if (result.status === 'approved') {
