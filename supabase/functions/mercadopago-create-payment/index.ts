@@ -18,7 +18,7 @@ import { getVendorCredentials } from '../_shared/vault-credentials.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { createLogger } from '../_shared/logger.ts';
 // RISE V3: UTMify dispatcher for pix_generated event
-import { dispatchUTMifyEventForOrder } from '../_shared/utmify-dispatcher.ts';
+import { dispatchUTMifyEventForOrder } from '../_shared/utmify/index.ts';
 
 // RISE V3: Usar PaymentFactory + Adapter
 import { PaymentFactory, PaymentRequest as AdapterPaymentRequest } from '../_shared/payment-gateways/index.ts';

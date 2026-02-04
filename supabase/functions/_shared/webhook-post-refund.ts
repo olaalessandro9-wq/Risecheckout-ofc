@@ -22,7 +22,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { type Logger } from './webhook-helpers.ts';
-import { dispatchUTMifyEventForOrder, type UTMifyEventType } from './utmify-dispatcher.ts';
+import { dispatchUTMifyEventForOrder, type UTMifyEventType } from './utmify/index.ts';
 
 // ============================================================================
 // TYPES

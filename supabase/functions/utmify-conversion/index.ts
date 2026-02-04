@@ -25,6 +25,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { normalizeUTMifyToken } from "../_shared/utmify/token-normalizer.ts";
 
 import { UTMIFY_API_URL, type UTMifyConversionRequest, type EdgeFunctionResponse } from "./types.ts";
 import { validateRequest } from "./validators.ts";
@@ -113,15 +114,11 @@ serve(async (req) => {
       );
     }
 
-    // RISE V3: Sanitizar token removendo caracteres invisíveis
-    const token = rawToken
-      .replace(/[\r\n\t]/g, '')  // Remove quebras de linha e tabs
-      .replace(/\s+/g, '')       // Remove espaços
-      .replace(/^["']|["']$/g, '') // Remove aspas envolventes
-      .trim();
+    // RISE V3: Usar normalizador SSOT
+    const { normalized: token, changes } = normalizeUTMifyToken(rawToken);
 
     if (token.length === 0) {
-      log.error("Token UTMify vazio após sanitização");
+      log.error("Token UTMify vazio após normalização");
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -132,14 +129,11 @@ serve(async (req) => {
     }
 
     // Log de diagnóstico (sem expor o token)
-    if (rawToken.length !== token.length) {
-      log.warn("Token UTMify foi sanitizado - tinha caracteres invisíveis", {
-        originalLength: rawToken.length,
-        sanitizedLength: token.length
-      });
+    if (changes.length > 0) {
+      log.warn("Token UTMify normalizado via SSOT", { changes });
     }
 
-    log.info("UTMify token retrieved and sanitized successfully", {
+    log.info("UTMify token retrieved and normalized successfully", {
       tokenLength: token.length
     });
 

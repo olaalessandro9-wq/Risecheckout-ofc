@@ -11,7 +11,7 @@ import Stripe from "https://esm.sh/stripe@14.14.0";
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { OrderData } from "./order-loader.ts";
 import { Logger } from "../../_shared/logger.ts";
-import { dispatchUTMifyEventForOrder } from "../../_shared/utmify-dispatcher.ts";
+import { dispatchUTMifyEventForOrder } from "../../_shared/utmify/index.ts";
 
 /**
  * Processa comissão de afiliado via Stripe Transfer

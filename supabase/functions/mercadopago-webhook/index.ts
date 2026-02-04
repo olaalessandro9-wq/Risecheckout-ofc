@@ -26,7 +26,7 @@ import {
 import { validateMercadoPagoSignature } from '../_shared/mercadopago-signature.ts';
 import { processPostPaymentActions } from '../_shared/webhook-post-payment.ts';
 import { processPostRefundActions, getRefundEventType, type RefundReason } from '../_shared/webhook-post-refund.ts';
-import { dispatchUTMifyEventForOrder } from '../_shared/utmify-dispatcher.ts';
+import { dispatchUTMifyEventForOrder } from '../_shared/utmify/index.ts';
 
 const FUNCTION_VERSION = "147";
 const logger = createLogger('mercadopago-webhook', FUNCTION_VERSION);
