@@ -32,6 +32,7 @@ export interface Permissions {
   canAccessAdminPanel: boolean;     // Pode acessar painéis administrativos
   canViewSecurityLogs: boolean;     // Pode ver logs de segurança
   canManageUsers: boolean;          // Pode gerenciar outros usuários
+  canAccessMembersArea: boolean;    // Pode acessar área de membros (admin/owner)
   
   // Estado
   isLoading: boolean;
@@ -91,6 +92,9 @@ export function usePermissions(): Permissions {
 
       // Apenas owner pode gerenciar usuários
       canManageUsers: role === "owner",
+
+      // Apenas owner e admin podem acessar área de membros
+      canAccessMembersArea: role === "owner" || role === "admin",
     };
   }, [role]);
 

@@ -22,6 +22,7 @@ interface NewOfferCardProps {
   onCancel: () => void;
   hasMembersArea: boolean;
   memberGroups: MemberGroupOption[];
+  canAccessMembersArea?: boolean;
 }
 
 interface CreateOfferResponse {
@@ -36,6 +37,7 @@ export function NewOfferCard({
   onCancel,
   hasMembersArea,
   memberGroups,
+  canAccessMembersArea = false,
 }: NewOfferCardProps) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState(0);
@@ -162,7 +164,7 @@ export function NewOfferCard({
         </div>
 
         {/* Member Group Select */}
-        {hasMembersArea && memberGroups.length > 0 && (
+        {canAccessMembersArea && hasMembersArea && memberGroups.length > 0 && (
           <MemberGroupSelect
             offerId="new-offer"
             value={memberGroupId}

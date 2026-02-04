@@ -105,6 +105,7 @@ function createMockPermissions(
     canBecomeAffiliate: true,
     canAccessAdminPanel: role === "owner" || role === "admin",
     canViewSecurityLogs: role === "owner",
+    canAccessMembersArea: role === "owner" || role === "admin",
     ...overrides,
   };
 }

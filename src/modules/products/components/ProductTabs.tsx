@@ -7,12 +7,14 @@
  * Estendido para suportar:
  * - Indicadores visuais de erro por aba
  * - Navegação controlada via Context
+ * - Restrição de acesso à Área de Membros por role
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Sistema de Validação Global
  */
 
 import { lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { GeneralTab } from "../tabs/GeneralTab";
 import { ConfiguracoesTab } from "../tabs/ConfiguracoesTab";
 import { OrderBumpTab } from "../tabs/OrderBumpTab";
@@ -21,6 +23,7 @@ import { CheckoutTab } from "../tabs/CheckoutTab";
 import { CuponsTab } from "../tabs/CuponsTab";
 import { LinksTab } from "../tabs/LinksTab";
 import { MembersAreaTab } from "../tabs/MembersAreaTab";
+import { ComingSoonPlaceholder } from "@/components/ui/coming-soon-placeholder";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProductContext } from "../context/ProductContext";
 import { Loader2, AlertCircle } from "lucide-react";
@@ -72,7 +75,7 @@ function TabTriggerWithError({ value, children, tabErrors }: TabTriggerWithError
 // ============================================================================
 
 export function ProductTabs() {
-  const { canHaveAffiliates } = usePermissions();
+  const { canHaveAffiliates, canAccessMembersArea } = usePermissions();
   
   // Consumir estado de validação do Context
   const { activeTab, setActiveTab, tabErrors } = useProductContext();
@@ -120,6 +123,11 @@ export function ProductTabs() {
         
         <TabTriggerWithError value="membros" tabErrors={tabErrors}>
           Área de Membros
+          {!canAccessMembersArea && (
+            <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0 h-4">
+              Em Breve
+            </Badge>
+          )}
         </TabTriggerWithError>
       </TabsList>
       
@@ -169,7 +177,14 @@ export function ProductTabs() {
 
       {/* ABA ÁREA DE MEMBROS */}
       <TabsContent value="membros" className="space-y-6">
-        <MembersAreaTab />
+        {canAccessMembersArea ? (
+          <MembersAreaTab />
+        ) : (
+          <ComingSoonPlaceholder 
+            title="Área de Membros"
+            description="Estamos preparando esta funcionalidade. Em breve você poderá criar cursos e conteúdos exclusivos para seus clientes."
+          />
+        )}
       </TabsContent>
     </Tabs>
   );

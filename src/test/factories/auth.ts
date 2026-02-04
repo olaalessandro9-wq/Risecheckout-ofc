@@ -50,6 +50,7 @@ export function createMockPermissions(
     canAccessAdminPanel: role === "owner" || role === "admin",
     canViewSecurityLogs: role === "owner" || role === "admin",
     canManageUsers: role === "owner" || role === "admin",
+    canAccessMembersArea: role === "owner" || role === "admin",
     ...overrides,
   };
 }

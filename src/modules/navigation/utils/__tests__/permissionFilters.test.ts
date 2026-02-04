@@ -229,6 +229,7 @@ describe("permissionFilters", () => {
         canBecomeAffiliate: true,
         canViewSecurityLogs: true,
         canManageUsers: true,
+        canAccessMembersArea: true,
         isLoading: false,
         error: null,
       };
@@ -250,6 +251,7 @@ describe("permissionFilters", () => {
         canBecomeAffiliate: true,
         canViewSecurityLogs: false,
         canManageUsers: false,
+        canAccessMembersArea: false,
         isLoading: false,
         error: null,
       };

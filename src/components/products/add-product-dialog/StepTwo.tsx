@@ -2,16 +2,20 @@
  * Step Two - Tipo de Entrega (3 opções)
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - Componente Puro
+ * @version 1.1.0 - Restrição de Área de Membros por role
  */
 
 import { Mail, Webhook, GraduationCap, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePermissions } from "@/hooks/usePermissions";
+import { cn } from "@/lib/utils";
 import type { DeliveryType } from "@/modules/products/types/product.types";
 import type { AddProductFormData } from "./types";
 
@@ -58,6 +62,8 @@ export function StepTwo({
   onDeliveryUrlChange,
   onValidateUrl,
 }: StepTwoProps) {
+  const { canAccessMembersArea } = usePermissions();
+
   return (
     <div className="space-y-4 py-4">
       {/* Seletor de tipo de entrega */}
@@ -67,33 +73,54 @@ export function StepTwo({
           {DELIVERY_OPTIONS.map((option) => {
             const isSelected = deliveryType === option.id;
             const Icon = option.icon;
+            const isDisabled = option.id === 'members_area' && !canAccessMembersArea;
             
             return (
               <button
                 key={option.id}
                 type="button"
-                onClick={() => onDeliveryTypeChange(option.id)}
-                className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all ${
-                  isSelected 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-border hover:border-muted-foreground/50'
-                }`}
+                onClick={() => !isDisabled && onDeliveryTypeChange(option.id)}
+                disabled={isDisabled}
+                className={cn(
+                  "flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all relative",
+                  isSelected && !isDisabled && "border-primary bg-primary/5",
+                  !isSelected && !isDisabled && "border-border hover:border-muted-foreground/50",
+                  isDisabled && "opacity-50 cursor-not-allowed border-border"
+                )}
               >
-                <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary/10' : 'bg-muted'}`}>
-                  <Icon className={`h-5 w-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                {isDisabled && (
+                  <Badge 
+                    variant="secondary" 
+                    className="absolute top-2 right-2 text-[10px] px-1.5 py-0 h-4"
+                  >
+                    Em Breve
+                  </Badge>
+                )}
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  isSelected && !isDisabled ? "bg-primary/10" : "bg-muted"
+                )}>
+                  <Icon className={cn(
+                    "h-5 w-5",
+                    isSelected && !isDisabled ? "text-primary" : "text-muted-foreground"
+                  )} />
                 </div>
                 <div className="flex-1">
-                  <p className={`font-medium ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  <p className={cn(
+                    "font-medium",
+                    isSelected && !isDisabled ? "text-foreground" : "text-muted-foreground"
+                  )}>
                     {option.label}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {option.description}
                   </p>
                 </div>
-                <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
-                  isSelected ? 'border-primary' : 'border-muted-foreground/50'
-                }`}>
-                  {isSelected && <div className="h-2 w-2 rounded-full bg-primary" />}
+                <div className={cn(
+                  "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                  isSelected && !isDisabled ? "border-primary" : "border-muted-foreground/50"
+                )}>
+                  {isSelected && !isDisabled && <div className="h-2 w-2 rounded-full bg-primary" />}
                 </div>
               </button>
             );
