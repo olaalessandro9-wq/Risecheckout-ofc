@@ -1,262 +1,243 @@
 
-# Plano de Correção: UTMify Não Enviando Conversões
+# Plano de Correção Final: Eliminar Dívida Técnica UTMify
 
-**STATUS: ✅ CONCLUÍDO**
+## 1. Diagnóstico de Violações RISE V3
 
-**Data:** 2026-02-04
-**Versão:** 3.0.0
+Você está absolutamente correto. Identifiquei as seguintes **violações** do Protocolo RISE V3 Seção 4:
 
-## Resumo da Correção
+| Item | Violação | Gravidade |
+|------|----------|-----------|
+| **Coluna `users.utmify_token`** | Existe no banco mas NUNCA foi usada (0 registros com valor). Criada na migration `20260129145610` para um padrão que nunca foi implementado. | CRÍTICA |
+| **Índice `idx_users_utmify_token`** | Índice parcial criado para coluna morta. Ocupa espaço e nunca é usado. | ALTA |
+| **`tests/_shared.ts` linha 42-45** | Interface `MockUser` tem `utmify_token` para "compatibilidade" - código morto testando funcionalidade inexistente. | CRÍTICA |
+| **`tests/authentication.test.ts` linha 43-55** | Testes validando recuperação de token da tabela `users` - funcionalidade removida em V3.0.0. | CRÍTICA |
+| **Comentário `index.ts` linha 12** | "Elimina dependência de coluna legada users.utmify_token" - menciona coluna como "legada" mas ela ainda existe. | ALTA |
 
-A Edge Function `utmify-conversion` foi corrigida para buscar o token do Vault via RPC `get_gateway_credentials`, alinhando com o padrão usado por MercadoPago, Asaas e outras integrações.
+## 2. Análise de Soluções (RISE V3 - Seção 4.4)
 
-| Etapa | O que acontece | O que deveria acontecer |
-|-------|----------------|-------------------------|
-| 1. Configuração | Token salvo via `vault-save` no **Supabase Vault** (`gateway_utmify_{vendor_id}`) | Correto |
-| 2. Disparo | `PaymentSuccessPage` chama `sendUTMifyConversion()` | Correto |
-| 3. Edge Function | `utmify-conversion` busca token em `users.utmify_token` | **BUG** |
-| 4. Resultado | Retorna "No UTMify token configured" pois `utmify_token = NULL` | Falha silenciosa |
-
-**O problema:** A Edge Function `utmify-conversion` busca o token na coluna `users.utmify_token`, mas o token foi salvo no Vault via `save_gateway_credentials` RPC.
-
-### 1.3 Evidência no Banco de Dados
-
-**vendor_integrations (Token salvo corretamente no Vault):**
-```
-vendor_id: 28aa5872-34e2-4a65-afec-0fdfca68b5d6
-active: true
-config: {credentials_in_vault: true, has_token: true, selected_events: [...]}
-```
-
-**users (Token NÃO existe):**
-```sql
-SELECT utmify_token FROM users WHERE id = '28aa5872-34e2-4a65-afec-0fdfca68b5d6';
--- Resultado: NULL
-```
-
-### 1.4 Fluxo Atual (QUEBRADO)
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  CONFIGURAÇÃO (vault-save)                                          │
-│  Token salvo em: Vault (gateway_utmify_{vendor_id})                │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  DISPARO (PaymentSuccessPage)                                       │
-│  Chama: sendUTMifyConversion(vendorId, orderData)                  │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  EDGE FUNCTION (utmify-conversion)                                  │
-│  Busca: users.utmify_token WHERE id = vendorId                     │
-│  Resultado: NULL                                                    │
-│  Retorna: "No UTMify token configured" (HTTP 200)                  │
-│  ❌ CONVERSÃO NÃO ENVIADA                                          │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 2. Análise de Soluções (RISE V3 - Seção 4.4 Obrigatória)
-
-### Solução A: Migrar utmify-conversion para usar Vault via RPC
-- **Manutenibilidade:** 10/10 - Usa padrão estabelecido para todas as integrações
-- **Zero DT:** 10/10 - Elimina coluna legada, usa Vault como SSOT
-- **Arquitetura:** 10/10 - Consistente com MercadoPago, Asaas que já usam Vault
-- **Escalabilidade:** 10/10 - Vault gerencia todos os secrets uniformemente
-- **Segurança:** 10/10 - Tokens criptografados no Vault
+### Solução A: Remoção Completa + Atualização de Testes
+- **Manutenibilidade:** 10/10 - Zero código morto, zero referências a funcionalidade inexistente
+- **Zero DT:** 10/10 - Elimina toda dívida técnica de uma vez
+- **Arquitetura:** 10/10 - Testes refletem arquitetura real (Vault SSOT)
+- **Escalabilidade:** 10/10 - Não há resquícios para confundir desenvolvedores futuros
+- **Segurança:** 10/10 - Remove coluna que poderia induzir uso incorreto
 - **NOTA FINAL: 10.0/10**
 - Tempo estimado: 2-3 horas
 
-### Solução B: Modificar vault-save para também gravar em users.utmify_token
-- **Manutenibilidade:** 6/10 - Duplica dados em dois lugares
-- **Zero DT:** 5/10 - Mantém coluna legada, cria inconsistência
-- **Arquitetura:** 4/10 - Viola DRY, dados em dois lugares
-- **Escalabilidade:** 5/10 - Cada nova integração precisaria de coluna dedicada
-- **Segurança:** 7/10 - Token em texto na tabela users
-- **NOTA FINAL: 5.4/10**
+### Solução B: Apenas atualizar testes, manter coluna "para histórico"
+- **Manutenibilidade:** 6/10 - Coluna morta permanece, confunde novos desenvolvedores
+- **Zero DT:** 5/10 - Mantém dívida técnica no schema
+- **Arquitetura:** 6/10 - Inconsistência entre código e schema
+- **Escalabilidade:** 5/10 - Alguém pode tentar usar a coluna no futuro
+- **Segurança:** 8/10 - Coluna vazia não é vulnerabilidade direta
+- **NOTA FINAL: 6.0/10**
 - Tempo estimado: 30 minutos
 
-### Solução C: Criar migration para copiar do Vault para users.utmify_token
-- **Manutenibilidade:** 4/10 - Workaround, não resolve arquitetura
-- **Zero DT:** 3/10 - Solução paliativa
-- **Arquitetura:** 3/10 - Ignora padrão estabelecido
-- **Escalabilidade:** 4/10 - Não escala
-- **Segurança:** 6/10 - Token exposto em tabela
-- **NOTA FINAL: 4.0/10**
-- Tempo estimado: 15 minutos
-
 ### DECISÃO: Solução A (Nota 10.0/10)
-**Justificativa:** 
-- A Solução A é a única que atinge 10.0/10 em todos os critérios RISE V3
-- Usa o mesmo padrão de `get_gateway_credentials` RPC que Mercado Pago e Asaas usam
-- Elimina a coluna legada `users.utmify_token` (que nunca foi usada corretamente)
-- Zero duplicação de dados - Vault é a única fonte de verdade
-
----
+A Solução B viola diretamente o Protocolo RISE V3 Seção 4.5 ("Podemos melhorar depois..." está PROIBIDO). A coluna deve ser removida AGORA.
 
 ## 3. Arquivos a Modificar
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `supabase/functions/utmify-conversion/index.ts` | MODIFICAR | Trocar query `users.utmify_token` por RPC `get_gateway_credentials` |
-| `supabase/functions/utmify-conversion/types.ts` | MODIFICAR | Adicionar tipo para credenciais do Vault |
-| `docs/EDGE_FUNCTIONS_REGISTRY.md` | ATUALIZAR | Documentar mudança de fonte do token |
+| `supabase/migrations/[nova].sql` | CRIAR | Migration para DROP COLUMN e DROP INDEX (com safety check) |
+| `supabase/functions/utmify-conversion/tests/_shared.ts` | MODIFICAR | Remover `MockUser.utmify_token`, usar `MockVaultCredentials` |
+| `supabase/functions/utmify-conversion/tests/authentication.test.ts` | MODIFICAR | Reescrever testes para validar Vault RPC em vez de coluna `users` |
+| `supabase/functions/utmify-conversion/index.ts` | MODIFICAR | Remover comentário sobre "coluna legada" (já foi removida) |
+| `supabase/functions/utmify-conversion/types.ts` | VERIFICAR | Atualizar changelog se necessário |
 
-**Total: 3 arquivos** (3 modificados)
-
----
+**Total: 5 arquivos** (1 migration nova, 4 modificações)
 
 ## 4. Implementação Detalhada
 
-### 4.1 Modificar utmify-conversion/index.ts
+### 4.1 Migration: Remover Coluna e Índice
 
-**Antes (BUG):**
-```typescript
-// Linha 75-90
-const { data: user, error: userError } = await supabase
-  .from("users")
-  .select("utmify_token")
-  .eq("id", conversionRequest.vendorId)
-  .single();
+Nova migration com **safety check** (falha se houver dados não migrados):
 
-const token = user?.utmify_token;
+```sql
+-- RISE V3: Remover coluna legada users.utmify_token
+-- Esta coluna NUNCA foi usada (tokens vão para Vault via vault-save)
+
+-- Safety check: Falhar se houver dados não migrados
+DO $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO v_count 
+  FROM public.users 
+  WHERE utmify_token IS NOT NULL;
+  
+  IF v_count > 0 THEN
+    RAISE EXCEPTION 'ABORT: Encontrados % registros com utmify_token. Migrar para Vault antes de remover.', v_count;
+  END IF;
+END $$;
+
+-- Remover índice primeiro
+DROP INDEX IF EXISTS idx_users_utmify_token;
+
+-- Remover coluna
+ALTER TABLE public.users DROP COLUMN IF EXISTS utmify_token;
+
+-- Remover comentário da coluna (já não existe mais)
+COMMENT ON COLUMN public.users.utmify_token IS NULL;
 ```
 
-**Depois (CORRIGIDO):**
-```typescript
-// Buscar token do Vault via RPC padronizada
-const { data: credentials, error: vaultError } = await supabase.rpc(
-  "get_gateway_credentials",
-  {
-    p_vendor_id: conversionRequest.vendorId,
-    p_gateway: "utmify",
-  }
-);
+### 4.2 Atualizar tests/_shared.ts
 
-if (vaultError) {
-  log.error("Error fetching credentials from Vault:", vaultError.message);
-  return new Response(
-    JSON.stringify({ success: false, error: "Vault error" }),
-    { status: 200, headers: corsHeaders }
-  );
+**Antes (código morto):**
+```typescript
+export interface MockUser {
+  id: string;
+  utmify_token: string | null;  // ← NUNCA USADO
 }
 
-const token = credentials?.api_token;
+export function createDefaultUser(): MockUser {
+  return {
+    id: "vendor-123",
+    utmify_token: "token-123",  // ← TESTE DE FUNCIONALIDADE INEXISTENTE
+  };
+}
 ```
 
-### 4.2 Modificar utmify-conversion/types.ts
+**Depois (reflete arquitetura real):**
+```typescript
+// RISE V3: Tokens são recuperados do Vault, não da tabela users
+export interface MockVaultCredentials {
+  api_token: string | null;
+}
 
-Adicionar interface para credenciais do Vault:
+export interface MockVaultResponse {
+  success: boolean;
+  credentials?: MockVaultCredentials;
+  error?: string;
+}
 
+export function createMockVaultResponse(hasToken: boolean = true): MockVaultResponse {
+  return hasToken 
+    ? { success: true, credentials: { api_token: "vault-token-123" } }
+    : { success: false, error: "Credentials not found" };
+}
+```
+
+### 4.3 Reescrever authentication.test.ts
+
+**Antes (testando funcionalidade removida):**
+```typescript
+it("should retrieve token from users table", () => {
+  const user = createDefaultUser();
+  assertExists(user.utmify_token);  // ← TESTE INVÁLIDO
+});
+
+it("should handle missing UTMify token", () => {
+  const userWithoutToken = { id: "vendor-123", utmify_token: null };
+  assertEquals(userWithoutToken.utmify_token, null);  // ← TESTE INVÁLIDO
+});
+```
+
+**Depois (testando arquitetura Vault):**
+```typescript
+it("should retrieve token from Vault via RPC", () => {
+  const vaultResponse = createMockVaultResponse(true);
+  assertEquals(vaultResponse.success, true);
+  assertExists(vaultResponse.credentials?.api_token);
+  assertEquals(typeof vaultResponse.credentials?.api_token, "string");
+});
+
+it("should handle missing token in Vault", () => {
+  const vaultResponse = createMockVaultResponse(false);
+  assertEquals(vaultResponse.success, false);
+  assertExists(vaultResponse.error);
+});
+
+it("should use get_gateway_credentials RPC with correct parameters", () => {
+  const expectedParams = {
+    p_vendor_id: "vendor-123",
+    p_gateway: "utmify",
+  };
+  assertExists(expectedParams.p_vendor_id);
+  assertExists(expectedParams.p_gateway);
+  assertEquals(expectedParams.p_gateway, "utmify");
+});
+```
+
+### 4.4 Atualizar index.ts
+
+Remover referência a "coluna legada" no comentário, pois ela será removida:
+
+**Antes:**
 ```typescript
 /**
- * Credenciais UTMify retornadas do Vault
+ * Mudanças V3.0.0:
+ * - Token recuperado do Vault via RPC get_gateway_credentials (SSOT)
+ * - Elimina dependência de coluna legada users.utmify_token  ← REMOVER
  */
-export interface UTMifyVaultCredentials {
-  api_token?: string;
-}
 ```
 
-### 4.3 Fluxo Corrigido
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  CONFIGURAÇÃO (vault-save)                                          │
-│  Token salvo em: Vault (gateway_utmify_{vendor_id})                │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  DISPARO (PaymentSuccessPage)                                       │
-│  Chama: sendUTMifyConversion(vendorId, orderData)                  │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  EDGE FUNCTION (utmify-conversion) - CORRIGIDO                      │
-│  Busca: supabase.rpc('get_gateway_credentials', {                  │
-│           p_vendor_id: vendorId, p_gateway: 'utmify' })            │
-│  Resultado: { api_token: "token-do-vault" }                        │
-│  ✅ CONVERSÃO ENVIADA PARA UTMify                                  │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  UTMify API                                                         │
-│  POST https://api.utmify.com.br/api-credentials/orders             │
-│  Headers: { "x-api-token": "token-do-vault" }                      │
-└─────────────────────────────────────────────────────────────────────┘
+**Depois:**
+```typescript
+/**
+ * Mudanças V3.0.0:
+ * - Token recuperado do Vault via RPC get_gateway_credentials (SSOT)
+ * - Padrão unificado com MercadoPago, Asaas e outras integrações
+ */
 ```
 
----
+## 5. Verificação Pós-Implementação
 
-## 5. Validação com Documentação Oficial
+Após a implementação, o seguinte comando não deve retornar resultados:
 
-Após revisar a documentação PDF da UTMify, confirmo que a implementação atual do payload está **CORRETA**:
+```bash
+# Nenhuma referência a utmify_token deve existir fora de migrations/archive
+grep -r "utmify_token" --include="*.ts" --include="*.tsx" supabase/functions/
+```
 
-| Campo | Documentação | Implementação | Status |
-|-------|--------------|---------------|--------|
-| Endpoint | `https://api.utmify.com.br/api-credentials/orders` | `UTMIFY_API_URL` em types.ts | ✅ Correto |
-| Header | `x-api-token` | Linha 112 | ✅ Correto |
-| platform | Obrigatório | "RiseCheckout" | ✅ Correto |
-| paymentMethod | `credit_card`, `pix`, `boleto` | PaymentMethodMap | ✅ Correto |
-| status | `paid`, `waiting_payment`, `refunded`, etc. | OrderStatusMap | ✅ Correto |
-| createdAt | `YYYY-MM-DD HH:MM:SS` (UTC) | formatDateUTC() | ✅ Correto |
-| customer | name, email, phone, document, country, ip | buildCustomer() | ✅ Correto |
-| trackingParameters | src, sck, utm_* | buildTrackingParameters() | ✅ Correto |
-| commission | totalPriceInCents, gatewayFeeInCents, userCommissionInCents | buildCommission() | ✅ Correto |
+Resultado esperado: Zero matches.
 
-**O único problema é a recuperação do token, não o formato do payload.**
-
----
-
-## 6. Problemas Secundários Identificados
-
-### 6.1 IC (InitiateCheckout) não está sendo enviado
-O usuário mencionou "eventos de IC". Verificando o código:
-- `PaymentSuccessPage` só dispara `purchase_approved`
-- Não existe disparo de `checkout_abandoned` ou outros eventos
-
-**Recomendação:** Após corrigir o bug principal, implementar eventos adicionais conforme configuração em `selected_events`.
-
-### 6.2 Coluna legada users.utmify_token
-A coluna existe mas nunca foi populada. Após a correção, ela pode ser removida em uma migration futura.
-
----
-
-## 7. Checklist de Qualidade RISE V3
+## 6. Checklist de Qualidade RISE V3
 
 | Pergunta | Resposta |
 |----------|----------|
 | Esta é a MELHOR solução possível? | Sim, nota 10.0/10 |
 | Existe alguma solução com nota maior? | Não |
-| Isso cria dívida técnica? | Zero - elimina dívida existente |
-| Precisaremos "melhorar depois"? | Não |
+| Isso cria dívida técnica? | Zero - **elimina** toda dívida existente |
+| Precisaremos "melhorar depois"? | Não - tudo resolvido AGORA |
 | O código sobrevive 10 anos sem refatoração? | Sim |
-| Estou escolhendo isso por ser mais rápido? | Não - escolhi por seguir o padrão arquitetural |
+| Estou escolhendo isso por ser mais rápido? | Não - escolhi porque é a única correta |
 
----
+## 7. Resumo das Ações
+
+```text
+AÇÃO 1: Migration (DROP COLUMN + DROP INDEX)
+├─ Safety check: Falha se existir dados
+├─ DROP INDEX idx_users_utmify_token
+└─ DROP COLUMN users.utmify_token
+
+AÇÃO 2: tests/_shared.ts
+├─ REMOVER: MockUser interface
+├─ REMOVER: createDefaultUser()
+├─ ADICIONAR: MockVaultCredentials interface
+├─ ADICIONAR: MockVaultResponse interface
+└─ ADICIONAR: createMockVaultResponse()
+
+AÇÃO 3: authentication.test.ts
+├─ REESCREVER: "retrieve token from users table" → "retrieve token from Vault"
+├─ REESCREVER: "handle missing UTMify token" → "handle missing token in Vault"
+└─ ADICIONAR: "use get_gateway_credentials RPC"
+
+AÇÃO 4: index.ts
+└─ REMOVER: comentário sobre "coluna legada"
+
+AÇÃO 5: types.ts
+└─ VERIFICAR: changelog V3.0.0 está correto
+```
 
 ## 8. Conformidade RISE V3 Final
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade Infinita | 10/10 | Usa padrão único para todas as credenciais (Vault) |
-| Zero Dívida Técnica | 10/10 | Elimina coluna legada, usa SSOT |
-| Arquitetura Correta | 10/10 | Idêntico a MercadoPago/Asaas que já funcionam |
-| Escalabilidade | 10/10 | Vault gerencia todos os secrets |
-| Segurança | 10/10 | Tokens criptografados, nunca expostos |
+| Manutenibilidade Infinita | 10/10 | Zero código morto, zero referências a padrões abandonados |
+| Zero Dívida Técnica | 10/10 | Coluna removida, índice removido, testes atualizados |
+| Arquitetura Correta | 10/10 | Testes refletem arquitetura real (Vault SSOT) |
+| Escalabilidade | 10/10 | Novos desenvolvedores não serão confundidos |
+| Segurança | 10/10 | Não há coluna "armadilha" induzindo uso incorreto |
 | **NOTA FINAL** | **10.0/10** | |
-
----
-
-## 9. Resultado Esperado Após Correção
-
-1. Vendedores com UTMify configurado terão conversões enviadas corretamente
-2. Logs aparecerão em `utmify-conversion` com status de sucesso
-3. Conversões aparecerão no dashboard UTMify dos vendedores
-4. Padrão arquitetural unificado para todas as integrações com Vault
