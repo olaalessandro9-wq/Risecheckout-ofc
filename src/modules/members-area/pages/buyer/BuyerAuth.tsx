@@ -225,7 +225,7 @@ export default function BuyerAuth() {
         </div>
 
         {/* Right Panel - Visual Branding (Desktop Only) (INVERTED) */}
-        <div className="hidden lg:flex lg:w-1/2 relative bg-[hsl(var(--auth-bg-elevated)/0.03)] backdrop-blur-sm flex-col justify-center gap-16 p-12 pt-24">
+        <div className="hidden lg:flex lg:w-1/2 relative bg-[hsl(var(--auth-bg-elevated)/0.03)] backdrop-blur-sm flex-col justify-between p-12">
           {/* Logo */}
           <div className="relative z-10">
             <Link to="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity">
@@ -242,9 +242,9 @@ export default function BuyerAuth() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="space-y-8"
+              className="space-y-6"
             >
-              <h2 className="text-4xl font-bold text-white leading-relaxed">
+              <h2 className="text-4xl font-bold text-white leading-tight">
                 Acesse seus cursos <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))]">
                   e conteúdos exclusivos
