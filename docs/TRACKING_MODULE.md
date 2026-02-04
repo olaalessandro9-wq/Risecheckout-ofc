@@ -335,7 +335,7 @@ CREATE TABLE vendor_integrations (
 │  │ TikTok.trackPurchase()                  │                             │
 │  │ GoogleAds.trackPurchase()               │                             │
 │  │ Kwai.trackPurchase()                    │                             │
-│  │ UTMify → forward-to-utmify (backend)    │                             │
+│  │ UTMify → utmify-conversion (backend)    │                             │
 │  └─────────────────────────────────────────┘                             │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
