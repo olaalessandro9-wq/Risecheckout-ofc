@@ -3,18 +3,21 @@
  * 
  * Permite escolher entre 3 tipos de entrega:
  * - Entrega Padrão: Rise envia email com link customizado
- * - Área de Membros: Rise envia email com link para área de membros
+ * - Área de Membros: Rise envia email com link para área de membros (admin/owner only)
  * - Entrega Externa: Rise envia email de confirmação, vendedor faz entrega
  * 
- * @version 2.0.0 - Suporte a delivery_type ENUM
+ * @version 2.1.0 - Restrição de Área de Membros por role
  */
 
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link as LinkIcon, Copy, Check, ExternalLink, Webhook, Mail, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
+import { cn } from "@/lib/utils";
 import type { GeneralFormData, DeliveryType } from "../../types/formData.types";
 
 interface ProductDeliverySectionProps {
@@ -22,12 +25,14 @@ interface ProductDeliverySectionProps {
   setForm: React.Dispatch<React.SetStateAction<GeneralFormData>>;
 }
 
-const DELIVERY_OPTIONS: Array<{
+interface DeliveryOption {
   id: DeliveryType;
   icon: React.ElementType;
   label: string;
   description: string;
-}> = [
+}
+
+const DELIVERY_OPTIONS: DeliveryOption[] = [
   {
     id: 'standard',
     icon: Mail,
@@ -52,6 +57,7 @@ export function ProductDeliverySection({
   form, 
   setForm,
 }: ProductDeliverySectionProps) {
+  const { canAccessMembersArea } = usePermissions();
   const [copied, setCopied] = useState(false);
   const [urlError, setUrlError] = useState("");
 
@@ -132,33 +138,54 @@ export function ProductDeliverySection({
             {DELIVERY_OPTIONS.map((option) => {
               const Icon = option.icon;
               const isSelected = currentDeliveryType === option.id;
+              const isDisabled = option.id === 'members_area' && !canAccessMembersArea;
               
               return (
                 <button
                   key={option.id}
                   type="button"
-                  onClick={() => handleDeliveryTypeChange(option.id)}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 text-center transition-all ${
-                    isSelected 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:border-muted-foreground/50'
-                  }`}
+                  onClick={() => !isDisabled && handleDeliveryTypeChange(option.id)}
+                  disabled={isDisabled}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded-lg border-2 text-center transition-all relative",
+                    isSelected && !isDisabled && "border-primary bg-primary/5",
+                    !isSelected && !isDisabled && "border-border hover:border-muted-foreground/50",
+                    isDisabled && "opacity-50 cursor-not-allowed border-border"
+                  )}
                 >
-                  <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary/10' : 'bg-muted'}`}>
-                    <Icon className={`h-5 w-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                  {isDisabled && (
+                    <Badge 
+                      variant="secondary" 
+                      className="absolute top-2 right-2 text-[10px] px-1.5 py-0 h-4"
+                    >
+                      Em Breve
+                    </Badge>
+                  )}
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    isSelected && !isDisabled ? "bg-primary/10" : "bg-muted"
+                  )}>
+                    <Icon className={cn(
+                      "h-5 w-5",
+                      isSelected && !isDisabled ? "text-primary" : "text-muted-foreground"
+                    )} />
                   </div>
                   <div className="flex-1">
-                    <p className={`font-medium text-sm ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    <p className={cn(
+                      "font-medium text-sm",
+                      isSelected && !isDisabled ? "text-foreground" : "text-muted-foreground"
+                    )}>
                       {option.label}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {option.description}
                     </p>
                   </div>
-                  <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
-                    isSelected ? 'border-primary' : 'border-muted-foreground/50'
-                  }`}>
-                    {isSelected && <div className="h-2 w-2 rounded-full bg-primary" />}
+                  <div className={cn(
+                    "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                    isSelected && !isDisabled ? "border-primary" : "border-muted-foreground/50"
+                  )}>
+                    {isSelected && !isDisabled && <div className="h-2 w-2 rounded-full bg-primary" />}
                   </div>
                 </button>
               );

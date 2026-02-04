@@ -15,6 +15,7 @@ interface Props {
   onOfferDeleted: (offerId: string) => void;
   memberGroups?: MemberGroupOption[];
   hasMembersArea?: boolean;
+  canAccessMembersArea?: boolean;
 }
 
 export function ProductOffersSection({
@@ -26,6 +27,7 @@ export function ProductOffersSection({
   onOfferDeleted,
   memberGroups = [],
   hasMembersArea = false,
+  canAccessMembersArea = false,
 }: Props) {
   const { refreshAll } = useProductContext();
 
@@ -45,6 +47,7 @@ export function ProductOffersSection({
       onOfferCreated={handleOfferCreated}
       memberGroups={memberGroups}
       hasMembersArea={hasMembersArea}
+      canAccessMembersArea={canAccessMembersArea}
     />
   );
 }

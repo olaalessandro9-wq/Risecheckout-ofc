@@ -41,4 +41,5 @@ export interface OffersManagerProps {
   onOfferCreated?: () => void;
   memberGroups?: MemberGroupOption[];
   hasMembersArea?: boolean;
+  canAccessMembersArea?: boolean;
 }

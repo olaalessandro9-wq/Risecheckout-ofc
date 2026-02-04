@@ -20,6 +20,7 @@ interface DefaultOfferCardProps {
   onUpdate: (field: keyof Offer, value: Offer[keyof Offer]) => void;
   hasMembersArea: boolean;
   memberGroups: MemberGroupOption[];
+  canAccessMembersArea?: boolean;
 }
 
 export function DefaultOfferCard({
@@ -28,6 +29,7 @@ export function DefaultOfferCard({
   onUpdate,
   hasMembersArea,
   memberGroups,
+  canAccessMembersArea = false,
 }: DefaultOfferCardProps) {
   // Auto-save hook para ofertas existentes
   const { isSaving, showSavedIndicator } = useAutoSaveOffer({
@@ -97,7 +99,7 @@ export function DefaultOfferCard({
         </div>
       </div>
 
-      {hasMembersArea && memberGroups.length > 0 && (
+      {canAccessMembersArea && hasMembersArea && memberGroups.length > 0 && (
         <MemberGroupSelect
           offerId={offer.id}
           value={offer.member_group_id}

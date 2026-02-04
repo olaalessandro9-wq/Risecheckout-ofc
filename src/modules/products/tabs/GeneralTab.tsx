@@ -19,8 +19,10 @@ import {
   ProductSupportSection,
   ProductDeliverySection,
 } from "./general";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export function GeneralTab() {
+  const { canAccessMembersArea } = usePermissions();
 
   const {
     product,
@@ -75,6 +77,7 @@ export function GeneralTab() {
           onOfferDeleted={handleOfferDeleted}
           memberGroups={memberGroups}
           hasMembersArea={hasMembersArea}
+          canAccessMembersArea={canAccessMembersArea}
         />
 
         <ProductSupportSection

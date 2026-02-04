@@ -24,6 +24,7 @@ export function OffersManager({
   onOfferCreated,
   memberGroups = [],
   hasMembersArea = false,
+  canAccessMembersArea = false,
 }: OffersManagerProps) {
   const [isCreating, setIsCreating] = useState(false);
   
@@ -74,6 +75,7 @@ export function OffersManager({
             onUpdate={(field, value) => handleUpdateOffer(defaultOffer.id, field, value)}
             hasMembersArea={hasMembersArea}
             memberGroups={memberGroups}
+            canAccessMembersArea={canAccessMembersArea}
           />
         )}
 
@@ -87,6 +89,7 @@ export function OffersManager({
             onRemove={() => handleRemoveOffer(offer.id)}
             hasMembersArea={hasMembersArea}
             memberGroups={memberGroups}
+            canAccessMembersArea={canAccessMembersArea}
           />
         ))}
 
@@ -98,6 +101,7 @@ export function OffersManager({
             onCancel={handleNewOfferCancel}
             hasMembersArea={hasMembersArea}
             memberGroups={memberGroups}
+            canAccessMembersArea={canAccessMembersArea}
           />
         )}
 

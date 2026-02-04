@@ -21,6 +21,7 @@ interface AdditionalOfferCardProps {
   onRemove: () => void;
   hasMembersArea: boolean;
   memberGroups: MemberGroupOption[];
+  canAccessMembersArea?: boolean;
 }
 
 export function AdditionalOfferCard({
@@ -30,6 +31,7 @@ export function AdditionalOfferCard({
   onRemove,
   hasMembersArea,
   memberGroups,
+  canAccessMembersArea = false,
 }: AdditionalOfferCardProps) {
   // Auto-save hook para ofertas existentes
   const { isSaving, showSavedIndicator } = useAutoSaveOffer({
@@ -105,7 +107,7 @@ export function AdditionalOfferCard({
         </div>
       </div>
 
-      {hasMembersArea && memberGroups.length > 0 && (
+      {canAccessMembersArea && hasMembersArea && memberGroups.length > 0 && (
         <MemberGroupSelect
           offerId={offer.id}
           value={offer.member_group_id}
