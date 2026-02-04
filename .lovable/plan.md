@@ -1,578 +1,245 @@
 
-# Plano de Correção: Sistema de Eventos UTMify - Arquitetura Completa
 
-## 1. Diagnóstico Técnico
+# Diagnóstico Técnico Completo: Sistema UTMify
 
-### Problema Raiz Identificado
-A investigação revelou **múltiplos problemas críticos** que impedem o funcionamento do UTMify:
+## 1. Problemas Identificados
 
+### Problema 1: Token UTMify Rejeitado pela API (PRIORIDADE MÁXIMA)
+
+**Evidência Técnica Direta dos Logs:**
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  PROBLEMA 1: Token UTMify Inválido                                       │
-│  ─────────────────────────────────────────────────────────────────────── │
-│  A API UTMify retorna 404: API_CREDENTIAL_NOT_FOUND                      │
-│  O token salvo no Vault está incorreto, expirado ou foi revogado         │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  PROBLEMA 2: Eventos Disparados Apenas no Frontend                       │
-│  ─────────────────────────────────────────────────────────────────────── │
-│  Apenas "purchase_approved" é disparado (PaymentSuccessPage.tsx)         │
-│  Os demais eventos NÃO têm implementação:                                │
-│  - pix_generated (quando PIX é criado)                                   │
-│  - purchase_refused (cartão recusado)                                    │
-│  - refund (reembolso)                                                    │
-│  - chargeback                                                            │
-│  - checkout_abandoned                                                    │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  PROBLEMA 3: Dependência de Navegação do Usuário                         │
-│  ─────────────────────────────────────────────────────────────────────── │
-│  Se o cliente não chegar em /success, o evento não é disparado           │
-│  Eventos backend (webhooks) não chamam UTMify                            │
-└─────────────────────────────────────────────────────────────────────────┘
+[INFO] UTMify token retrieved from Vault successfully  ← Token FOI recuperado
+[INFO] Sending conversion for order test-debug-001    ← Requisição FOI enviada
+[ERROR] UTMify API error (404): "API_CREDENTIAL_NOT_FOUND"  ← API REJEITOU
 ```
 
-### Evidências da Investigação
+O código está funcionando 100% corretamente. O problema está no token em si.
 
-| Verificação | Resultado | Detalhes |
-|-------------|-----------|----------|
-| Edge Function chamada via curl | ✅ OK | Retornou erro 404 da API UTMify |
-| Token no Vault | ✅ Existe | `gateway_utmify_28aa5872-34e2-4a65-afec-0fdfca68b5d6` |
-| Resposta API UTMify | ❌ ERRO | `{"message":"API_CREDENTIAL_NOT_FOUND"}` |
-| vendor_integrations | ⚠️ VAZIO | Nenhum registro UTMify na tabela |
-| Logs da Edge Function | ✅ | Token recuperado, mas API rejeitou |
+**Possíveis causas:**
+- Token copiado com caracteres invisíveis (espaços, quebras de linha)
+- Token expirou ou foi revogado no painel UTMify
+- Token foi gerado para workspace diferente
+- UTMify tem múltiplos ambientes e token é do errado
+
+**Solução: Adicionar sanitização de token no código**
+
+Mesmo que você diga que copiou correto, podemos adicionar uma camada de proteção no código que:
+1. Remove espaços e caracteres invisíveis do token
+2. Valida o formato do token antes de usar
+3. Loga mais informações para diagnóstico
+
+### Problema 2: MercadoPago NÃO Dispara `pix_generated` (DESCOBERTO NA INVESTIGAÇÃO)
+
+**Comparação entre gateways:**
+
+| Gateway | `pix_generated` | `purchase_approved` | `refund` |
+|---------|-----------------|---------------------|----------|
+| PushinPay | ✅ SIM (linha 202 do index.ts) | ✅ SIM | ✅ SIM |
+| Asaas | ✅ SIM (charge-creator.ts) | ✅ SIM | ✅ SIM |
+| Stripe | ✅ SIM (post-payment.ts) | ✅ SIM | ✅ SIM |
+| **MercadoPago** | ❌ **NÃO** | ✅ SIM | ✅ SIM |
+
+Seu último pedido (`f4623906-2cda-4666-8c33-6e007889004e`) foi via MercadoPago, e o evento `pix_generated` NUNCA foi disparado!
 
 ---
 
 ## 2. Análise de Soluções (RISE V3 Seção 4.4)
 
-### Solução A: Arquitetura de Eventos Backend-First (SSOT)
-- **Manutenibilidade:** 10/10 - Eventos disparados na origem correta
-- **Zero DT:** 10/10 - Todos os eventos implementados corretamente
-- **Arquitetura:** 10/10 - Backend como SSOT para tracking
-- **Escalabilidade:** 10/10 - Funciona independente do frontend
-- **Segurança:** 10/10 - Token nunca exposto ao frontend
+### Solução A: Correção Completa com Sanitização + MercadoPago Integration
+- **Manutenibilidade:** 10/10 - Código robusto e defensivo
+- **Zero DT:** 10/10 - Todos os gateways com mesma funcionalidade
+- **Arquitetura:** 10/10 - Paridade entre gateways
+- **Escalabilidade:** 10/10 - Funciona para qualquer gateway
+- **Segurança:** 10/10 - Token sanitizado, sem exposição
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 2-3 dias
+- Tempo estimado: 2-3 horas
 
-### Solução B: Manter Disparo Frontend + Corrigir Token
-- **Manutenibilidade:** 5/10 - Frontend dependente, eventos perdidos
-- **Zero DT:** 4/10 - Apenas purchase_approved funcionaria
-- **Arquitetura:** 3/10 - Violação de responsabilidades
-- **Escalabilidade:** 5/10 - Problemas com offline/mobile
-- **Segurança:** 6/10 - Token exposto via publicCall
-- **NOTA FINAL: 4.6/10**
-- Tempo estimado: 1 hora
+### Solução B: Apenas corrigir MercadoPago
+- **Manutenibilidade:** 7/10 - Problema do token persiste
+- **Zero DT:** 6/10 - Token pode continuar falhando
+- **Arquitetura:** 8/10 - OK
+- **Escalabilidade:** 8/10 - OK
+- **Segurança:** 7/10 - Token sem sanitização
+- **NOTA FINAL: 7.2/10**
 
 ### DECISÃO: Solução A (Nota 10.0/10)
-Implementar sistema de eventos UTMify no backend, disparando diretamente dos webhooks e handlers onde os eventos ocorrem.
 
 ---
 
-## 3. Arquitetura Proposta
+## 3. Implementação Detalhada
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      FLUXO DE EVENTOS UTMify                             │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  PIX GERADO                                                              │
-│  ─────────                                                               │
-│  pushinpay-create-pix/post-pix.ts                                        │
-│       └─ triggerPixGeneratedWebhook()                                    │
-│            └─ trigger-webhooks                                           │
-│                 └─ [NOVO] Disparar UTMify "pix_generated"               │
-│                                                                          │
-│  PAGAMENTO APROVADO                                                      │
-│  ─────────────────                                                       │
-│  pushinpay-webhook/index.ts (status = paid)                              │
-│       └─ processPostPaymentActions()                                     │
-│            └─ [NOVO] Disparar UTMify "purchase_approved"                │
-│                                                                          │
-│  mercadopago-webhook/index.ts (status = approved)                        │
-│       └─ processPostPaymentActions()                                     │
-│            └─ [NOVO] Disparar UTMify "purchase_approved"                │
-│                                                                          │
-│  PAGAMENTO RECUSADO (Cartão)                                             │
-│  ────────────────────────────                                            │
-│  stripe-webhook/index.ts (charge.failed)                                 │
-│       └─ [NOVO] Disparar UTMify "purchase_refused"                      │
-│                                                                          │
-│  mercadopago-webhook/index.ts (status = rejected)                        │
-│       └─ [NOVO] Disparar UTMify "purchase_refused"                      │
-│                                                                          │
-│  REEMBOLSO                                                               │
-│  ────────                                                                │
-│  webhook-post-refund.ts                                                  │
-│       └─ processPostRefundActions()                                      │
-│            └─ [NOVO] Disparar UTMify "refund"                           │
-│                                                                          │
-│  CHARGEBACK                                                              │
-│  ─────────                                                               │
-│  mercadopago-webhook/index.ts (chargedback)                              │
-│       └─ [NOVO] Disparar UTMify "chargeback"                            │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+### 3.1. Adicionar Sanitização de Token no Dispatcher
 
----
+**Arquivo:** `supabase/functions/_shared/utmify-dispatcher.ts`
 
-## 4. Implementação Detalhada
-
-### 4.1. Criar Helper Centralizado: `_shared/utmify-dispatcher.ts`
-
-Este arquivo centraliza a lógica de disparo do UTMify para todos os eventos.
+Modificar a função `getUTMifyToken` para:
 
 ```typescript
-/**
- * UTMify Event Dispatcher
- * 
- * @module _shared/utmify-dispatcher
- * @version 1.0.0 - RISE Protocol V3
- * 
- * Centraliza disparo de eventos para UTMify no backend.
- * Usado por todos os webhooks que precisam notificar o UTMify.
- */
-
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createLogger } from "./logger.ts";
-
-const log = createLogger("UTMifyDispatcher");
-
-// URL da API UTMify
-const UTMIFY_API_URL = "https://api.utmify.com.br/api-credentials/orders";
-
-// Eventos suportados
-export type UTMifyEventType = 
-  | "pix_generated"
-  | "purchase_approved" 
-  | "purchase_refused"
-  | "refund"
-  | "chargeback";
-
-// Mapeamento de status
-const STATUS_MAP: Record<UTMifyEventType, string> = {
-  pix_generated: "pending",
-  purchase_approved: "paid",
-  purchase_refused: "refused",
-  refund: "refunded",
-  chargeback: "chargedback",
-};
-
-export interface UTMifyOrderData {
-  orderId: string;
-  vendorId: string;
-  paymentMethod: string;
-  createdAt: string;
-  customer: {
-    name: string;
-    email: string;
-    phone?: string | null;
-    document?: string | null;
-    country?: string;
-    ip?: string | null;
-  };
-  products: Array<{
-    id: string;
-    name: string;
-    priceInCents: number;
-    quantity?: number;
-  }>;
-  trackingParameters?: {
-    src?: string | null;
-    sck?: string | null;
-    utm_source?: string | null;
-    utm_medium?: string | null;
-    utm_campaign?: string | null;
-    utm_content?: string | null;
-    utm_term?: string | null;
-  };
-  totalPriceInCents: number;
-  approvedDate?: string | null;
-  refundedAt?: string | null;
-}
-
-/**
- * Verifica se o evento está habilitado para o vendor/produto
- */
-async function isEventEnabled(
-  supabase: SupabaseClient,
-  vendorId: string,
-  eventType: UTMifyEventType,
-  productId?: string
-): Promise<boolean> {
-  const { data: integration } = await supabase
-    .from("vendor_integrations")
-    .select("active, config")
-    .eq("vendor_id", vendorId)
-    .eq("integration_type", "UTMIFY")
-    .maybeSingle();
-
-  if (!integration?.active) {
-    return false;
-  }
-
-  const config = integration.config as Record<string, unknown> | null;
-  const selectedEvents = config?.selected_events as string[] | undefined;
-  const selectedProducts = config?.selected_products as string[] | undefined;
-
-  // Se não há eventos selecionados, considera todos habilitados
-  if (!selectedEvents || selectedEvents.length === 0) {
-    return true;
-  }
-
-  // Verificar se o evento está na lista
-  if (!selectedEvents.includes(eventType)) {
-    return false;
-  }
-
-  // Se há filtro de produtos, verificar
-  if (selectedProducts && selectedProducts.length > 0 && productId) {
-    return selectedProducts.includes(productId);
-  }
-
-  return true;
-}
-
-/**
- * Recupera token UTMify do Vault
- */
 async function getUTMifyToken(
   supabase: SupabaseClient,
   vendorId: string
 ): Promise<string | null> {
-  const { data, error } = await supabase.rpc("get_gateway_credentials", {
-    p_vendor_id: vendorId,
-    p_gateway: "utmify",
-  });
+  try {
+    const { data, error } = await supabase.rpc("get_gateway_credentials", {
+      p_vendor_id: vendorId,
+      p_gateway: "utmify",
+    });
 
-  if (error || !data?.credentials?.api_token) {
+    if (error) {
+      log.warn("Erro ao recuperar credenciais UTMify:", error.message);
+      return null;
+    }
+
+    if (!data?.credentials?.api_token) {
+      return null;
+    }
+
+    // RISE V3: Sanitizar token removendo caracteres invisíveis
+    const rawToken = data.credentials.api_token;
+    const sanitizedToken = rawToken
+      .replace(/[\r\n\t]/g, '')  // Remove quebras de linha e tabs
+      .replace(/\s+/g, '')       // Remove espaços
+      .trim();
+    
+    // Log de diagnóstico (sem expor o token)
+    log.info("Token sanitizado", {
+      originalLength: rawToken.length,
+      sanitizedLength: sanitizedToken.length,
+      hadWhitespace: rawToken.length !== sanitizedToken.length
+    });
+
+    if (sanitizedToken.length === 0) {
+      log.error("Token vazio após sanitização");
+      return null;
+    }
+
+    return sanitizedToken;
+  } catch (error) {
+    log.warn("Exceção ao recuperar token UTMify:", error);
     return null;
   }
-
-  return data.credentials.api_token;
 }
+```
 
-/**
- * Formata data para UTMify (YYYY-MM-DD HH:mm:ss UTC)
- */
-function formatDateUTC(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const hours = String(d.getUTCHours()).padStart(2, "0");
-  const minutes = String(d.getUTCMinutes()).padStart(2, "0");
-  const seconds = String(d.getUTCSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
+### 3.2. Adicionar Evento `pix_generated` no MercadoPago Create Payment
 
-/**
- * Dispara evento para UTMify
- */
-export async function dispatchUTMifyEvent(
-  supabase: SupabaseClient,
-  eventType: UTMifyEventType,
-  orderData: UTMifyOrderData,
-  productId?: string
-): Promise<{ success: boolean; error?: string }> {
-  const { vendorId } = orderData;
+**Arquivo:** `supabase/functions/mercadopago-create-payment/index.ts`
 
-  // 1. Verificar se evento está habilitado
-  const enabled = await isEventEnabled(supabase, vendorId, eventType, productId);
-  if (!enabled) {
-    log.info(`Evento ${eventType} não habilitado para vendor ${vendorId}`);
-    return { success: true }; // Não é erro, apenas não está configurado
-  }
+Adicionar import e disparo após criar PIX:
 
-  // 2. Recuperar token
-  const token = await getUTMifyToken(supabase, vendorId);
-  if (!token) {
-    log.info(`Nenhum token UTMify para vendor ${vendorId}`);
-    return { success: true }; // Não é erro, apenas não configurado
-  }
+```typescript
+// IMPORT no topo
+import { dispatchUTMifyEventForOrder } from '../_shared/utmify-dispatcher.ts';
 
-  // 3. Construir payload conforme API UTMify
-  const payload = {
-    orderId: orderData.orderId,
-    platform: "RiseCheckout",
-    paymentMethod: orderData.paymentMethod,
-    status: STATUS_MAP[eventType],
-    createdAt: formatDateUTC(orderData.createdAt),
-    approvedDate: orderData.approvedDate ? formatDateUTC(orderData.approvedDate) : null,
-    refundedAt: orderData.refundedAt ? formatDateUTC(orderData.refundedAt) : null,
-    customer: {
-      name: orderData.customer.name,
-      email: orderData.customer.email,
-      phone: orderData.customer.phone || null,
-      document: orderData.customer.document || null,
-      country: orderData.customer.country || "BR",
-      ip: orderData.customer.ip || "0.0.0.0",
-    },
-    products: orderData.products.map((p) => ({
-      id: p.id,
-      name: p.name,
-      planId: null,
-      planName: null,
-      quantity: p.quantity || 1,
-      priceInCents: p.priceInCents,
-    })),
-    trackingParameters: {
-      src: orderData.trackingParameters?.src || null,
-      sck: orderData.trackingParameters?.sck || null,
-      utm_source: orderData.trackingParameters?.utm_source || null,
-      utm_campaign: orderData.trackingParameters?.utm_campaign || null,
-      utm_medium: orderData.trackingParameters?.utm_medium || null,
-      utm_content: orderData.trackingParameters?.utm_content || null,
-      utm_term: orderData.trackingParameters?.utm_term || null,
-    },
-    commission: {
-      totalPriceInCents: orderData.totalPriceInCents,
-      gatewayFeeInCents: 0,
-      userCommissionInCents: orderData.totalPriceInCents,
-      currency: "BRL",
-    },
-    isTest: false,
-  };
-
-  // 4. Enviar para UTMify
+// Após linha 276 (após atualizar order com PIX):
+if (paymentMethod === 'pix' && result.qr_code_text) {
+  // ... código existente de update ...
+  
+  // RISE V3: Disparar UTMify pix_generated
   try {
-    log.info(`Disparando ${eventType} para order ${orderData.orderId}`);
-
-    const response = await fetch(UTMIFY_API_URL, {
-      method: "POST",
-      headers: {
-        "x-api-token": token,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      log.error(`UTMify API error (${response.status}):`, responseText);
-      return { success: false, error: responseText };
+    log.info("Disparando UTMify pix_generated para order", { orderId });
+    const utmifyResult = await dispatchUTMifyEventForOrder(supabase, orderId, "pix_generated");
+    if (utmifyResult.success && !utmifyResult.skipped) {
+      log.info("✅ UTMify pix_generated disparado");
+    } else if (utmifyResult.skipped) {
+      log.info("UTMify pulado:", utmifyResult.reason);
     }
-
-    log.info(`✅ UTMify ${eventType} enviado para order ${orderData.orderId}`);
-    return { success: true };
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    log.error(`Erro ao enviar para UTMify:`, errMsg);
-    return { success: false, error: errMsg };
+  } catch (utmifyError) {
+    log.warn("UTMify pix_generated falhou (não crítico):", utmifyError);
   }
 }
 ```
 
-### 4.2. Integrar em `_shared/webhook-post-payment.ts`
+### 3.3. Adicionar Logging Melhorado no Envio para API
 
-Adicionar chamada ao UTMify após ações pós-pagamento:
+**Arquivo:** `supabase/functions/_shared/utmify-dispatcher.ts`
 
-```typescript
-// Importar no topo
-import { dispatchUTMifyEvent } from './utmify-dispatcher.ts';
-
-// Dentro de processPostPaymentActions, após TRIGGER VENDOR WEBHOOKS:
-
-// ========================================================================
-// 4. UTMIFY TRACKING (RISE V3 - Backend SSOT)
-// ========================================================================
-
-try {
-  // Buscar dados completos do pedido para UTMify
-  const { data: fullOrder } = await supabase
-    .from("orders")
-    .select(`
-      id, customer_name, customer_email, customer_phone, customer_document,
-      customer_ip, amount_cents, payment_method, created_at,
-      src, sck, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-      order_items (id, product_id, product_name, amount_cents, quantity)
-    `)
-    .eq("id", input.orderId)
-    .single();
-
-  if (fullOrder) {
-    await dispatchUTMifyEvent(supabase, "purchase_approved", {
-      orderId: fullOrder.id,
-      vendorId: input.vendorId,
-      paymentMethod: fullOrder.payment_method || "pix",
-      createdAt: fullOrder.created_at,
-      approvedDate: new Date().toISOString(),
-      customer: {
-        name: fullOrder.customer_name || "",
-        email: fullOrder.customer_email || "",
-        phone: fullOrder.customer_phone,
-        document: fullOrder.customer_document,
-        ip: fullOrder.customer_ip,
-      },
-      products: fullOrder.order_items?.map((item) => ({
-        id: item.product_id,
-        name: item.product_name,
-        priceInCents: item.amount_cents,
-        quantity: item.quantity || 1,
-      })) || [],
-      trackingParameters: {
-        src: fullOrder.src,
-        sck: fullOrder.sck,
-        utm_source: fullOrder.utm_source,
-        utm_medium: fullOrder.utm_medium,
-        utm_campaign: fullOrder.utm_campaign,
-        utm_content: fullOrder.utm_content,
-        utm_term: fullOrder.utm_term,
-      },
-      totalPriceInCents: fullOrder.amount_cents,
-    });
-  }
-} catch (utmifyError) {
-  logger.warn("UTMify tracking falhou (não crítico):", utmifyError);
-}
-```
-
-### 4.3. Integrar `pix_generated` em `pushinpay-create-pix/post-pix.ts`
-
-Após criar o PIX, disparar evento para UTMify:
+Antes de enviar para API, logar mais detalhes:
 
 ```typescript
-// Importar no topo
-import { dispatchUTMifyEvent } from '../../_shared/utmify-dispatcher.ts';
-
-// Na função que dispara webhook, adicionar:
-export async function dispatchPixGeneratedUTMify(
-  supabase: SupabaseClient,
-  orderId: string,
-  log: Logger
-): Promise<void> {
-  try {
-    const { data: order } = await supabase
-      .from("orders")
-      .select(`
-        id, vendor_id, customer_name, customer_email, customer_phone, 
-        customer_document, customer_ip, amount_cents, created_at,
-        src, sck, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-        order_items (id, product_id, product_name, amount_cents, quantity)
-      `)
-      .eq("id", orderId)
-      .single();
-
-    if (!order) {
-      log.warn("Order not found for UTMify pix_generated");
-      return;
-    }
-
-    await dispatchUTMifyEvent(supabase, "pix_generated", {
-      orderId: order.id,
-      vendorId: order.vendor_id,
-      paymentMethod: "pix",
-      createdAt: order.created_at,
-      customer: {
-        name: order.customer_name || "",
-        email: order.customer_email || "",
-        phone: order.customer_phone,
-        document: order.customer_document,
-        ip: order.customer_ip,
-      },
-      products: order.order_items?.map((item) => ({
-        id: item.product_id,
-        name: item.product_name,
-        priceInCents: item.amount_cents,
-        quantity: item.quantity || 1,
-      })) || [],
-      trackingParameters: {
-        src: order.src,
-        sck: order.sck,
-        utm_source: order.utm_source,
-        utm_medium: order.utm_medium,
-        utm_campaign: order.utm_campaign,
-        utm_content: order.utm_content,
-        utm_term: order.utm_term,
-      },
-      totalPriceInCents: order.amount_cents,
-    });
-
-    log.info(`✅ UTMify pix_generated disparado para order ${orderId}`);
-  } catch (error) {
-    log.warn("UTMify pix_generated falhou (não crítico):", error);
-  }
-}
-```
-
-### 4.4. Integrar `refund` em `_shared/webhook-post-refund.ts`
-
-```typescript
-// Importar no topo
-import { dispatchUTMifyEvent } from './utmify-dispatcher.ts';
-
-// Dentro de processPostRefundActions:
-await dispatchUTMifyEvent(supabase, "refund", {
-  orderId: order.id,
-  vendorId: order.vendor_id,
-  paymentMethod: order.payment_method || "unknown",
-  createdAt: order.created_at,
-  refundedAt: new Date().toISOString(),
-  customer: { ... },
-  products: [ ... ],
-  totalPriceInCents: order.amount_cents,
+// Antes do fetch, adicionar:
+log.info("Enviando para UTMify API", {
+  orderId,
+  eventType,
+  tokenFirstChars: token.substring(0, 4) + "...",
+  tokenLength: token.length,
+  payloadSize: JSON.stringify(payload).length
 });
 ```
 
-### 4.5. Remover Disparo do Frontend
+### 3.4. Validar Token no Momento de Salvar
 
-Remover o código de disparo UTMify do `PaymentSuccessPage.tsx` para evitar duplicação (o backend agora é SSOT).
+**Arquivo:** `supabase/functions/vault-save/index.ts`
+
+Adicionar validação específica para UTMify:
+
+```typescript
+// Após linha 179, antes de salvar no Vault:
+if (normalizedType === 'UTMIFY' && vaultCredentials.api_token) {
+  // Sanitizar token antes de salvar
+  const original = vaultCredentials.api_token;
+  vaultCredentials.api_token = original
+    .replace(/[\r\n\t]/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+  
+  if (original !== vaultCredentials.api_token) {
+    log.warn("Token UTMify foi sanitizado - tinha caracteres invisíveis");
+  }
+  
+  if (vaultCredentials.api_token.length < 10) {
+    return new Response(
+      JSON.stringify({ error: 'Token UTMify parece inválido (muito curto)' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+```
 
 ---
 
-## 5. Arquivos a Criar/Modificar
+## 4. Arquivos a Modificar
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `supabase/functions/_shared/utmify-dispatcher.ts` | **CRIAR** | Helper centralizado para disparo de eventos |
-| `supabase/functions/_shared/webhook-post-payment.ts` | MODIFICAR | Integrar `purchase_approved` |
-| `supabase/functions/_shared/webhook-post-refund.ts` | MODIFICAR | Integrar `refund` |
-| `supabase/functions/pushinpay-create-pix/handlers/post-pix.ts` | MODIFICAR | Integrar `pix_generated` |
-| `supabase/functions/asaas-create-payment/handlers/charge-creator.ts` | MODIFICAR | Integrar `pix_generated` |
-| `supabase/functions/stripe-create-payment/handlers/post-payment.ts` | MODIFICAR | Integrar `pix_generated` |
-| `supabase/functions/mercadopago-webhook/index.ts` | MODIFICAR | Integrar `purchase_refused`, `chargeback` |
-| `supabase/functions/stripe-webhook/index.ts` | MODIFICAR | Integrar `purchase_refused` |
-| `src/pages/PaymentSuccessPage.tsx` | MODIFICAR | Remover disparo frontend (opcional) |
+| `supabase/functions/_shared/utmify-dispatcher.ts` | MODIFICAR | Sanitização de token + logging melhorado |
+| `supabase/functions/mercadopago-create-payment/index.ts` | MODIFICAR | Adicionar disparo `pix_generated` |
+| `supabase/functions/vault-save/index.ts` | MODIFICAR | Sanitização ao salvar token |
 
 ---
 
-## 6. Ação Imediata Necessária do Usuário
+## 5. Verificação de Todos os Eventos por Gateway
 
-**CRÍTICO:** Antes de qualquer correção de código, você precisa:
+Após implementação, a tabela ficará assim:
 
-1. **Acessar o painel UTMify** em https://app.utmify.com.br
-2. **Gerar uma nova API Token** (ou verificar se a existente é válida)
-3. **Reconfigurar a integração UTMify** no painel administrativo do RiseCheckout
-4. **Testar manualmente** a API com o novo token
-
-Sem um token válido, NENHUMA das correções de código funcionará.
-
----
-
-## 7. Checklist de Qualidade RISE V3
-
-| Pergunta | Resposta |
-|----------|----------|
-| Esta é a MELHOR solução possível? | Sim - Backend como SSOT para tracking |
-| Existe alguma solução com nota maior? | Não |
-| Isso cria dívida técnica? | Zero - todos os eventos implementados |
-| Precisaremos "melhorar depois"? | Não |
-| O código sobrevive 10 anos sem refatoração? | Sim |
-| Estou escolhendo isso por ser mais rápido? | Não |
+| Gateway | `pix_generated` | `purchase_approved` | `purchase_refused` | `refund` | `chargeback` |
+|---------|-----------------|---------------------|-------------------|----------|--------------|
+| PushinPay | ✅ | ✅ | ✅ (webhook) | ✅ | ✅ |
+| Asaas | ✅ | ✅ | ✅ (webhook) | ✅ | ✅ |
+| Stripe | ✅ | ✅ | ✅ | ✅ | ✅ |
+| MercadoPago | ✅ (NOVO) | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
-## 8. Conformidade RISE V3 Final
+## 6. Teste de Validação
+
+Após deploy:
+
+1. **Salvar novo token UTMify** com logs ativados
+2. **Gerar PIX via MercadoPago** e verificar logs para `pix_generated`
+3. **Verificar no Dashboard UTMify** se evento apareceu
+4. **Aprovar pagamento** e verificar `purchase_approved`
+
+---
+
+## 7. Conformidade RISE V3
 
 | Critério | Nota | Justificativa |
 |----------|------|---------------|
-| Manutenibilidade Infinita | 10/10 | Helper centralizado, DRY |
-| Zero Dívida Técnica | 10/10 | Todos os 6 eventos implementados |
-| Arquitetura Correta | 10/10 | Backend SSOT, não depende de frontend |
-| Escalabilidade | 10/10 | Funciona para qualquer volume/gateway |
-| Segurança | 10/10 | Token nunca exposto ao frontend |
+| Manutenibilidade Infinita | 10/10 | Sanitização defensiva, paridade de gateways |
+| Zero Dívida Técnica | 10/10 | Todos os gateways iguais, código robusto |
+| Arquitetura Correta | 10/10 | Backend SSOT mantido |
+| Escalabilidade | 10/10 | Funciona para qualquer gateway novo |
+| Segurança | 10/10 | Token sanitizado sem exposição |
 | **NOTA FINAL** | **10.0/10** | |
+
