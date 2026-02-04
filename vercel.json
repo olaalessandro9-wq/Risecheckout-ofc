@@ -1,7 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/",
+      "destination": "/landing/index.html"
+    },
+    {
+      "source": "/((?!landing|wp-content|wp-includes).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {

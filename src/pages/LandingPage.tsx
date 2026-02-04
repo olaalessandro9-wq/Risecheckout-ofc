@@ -1,41 +1,49 @@
-import { useScroll, useTransform } from "framer-motion";
-import {
-  LandingThemeProvider,
-  LandingHeader,
-  HeroSection,
-  FeaturesSection,
-  ConversionSection,
-  BuilderSection,
-  IntegrationsSection,
-  StepsSection,
-  TestimonialsSection,
-  CtaSection,
-  LandingFooter
-} from "@/components/landing";
+/**
+ * LandingPage Component
+ * 
+ * NOTA: Este componente tem ISENÇÃO do RISE Protocol V3
+ * Critério único: Fidelidade 100% ao design WordPress original
+ * 
+ * Renderiza a landing page do WordPress via iframe
+ * para garantir 100% de fidelidade visual (CSS, fontes, animações).
+ */
+
+import { useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 
 export default function LandingPage() {
-  const { scrollYProgress } = useScroll();
-  const headerOpacity = useTransform(scrollYProgress, [0, 0.1], [0, 1]);
-  const headerY = useTransform(scrollYProgress, [0, 0.1], [-20, 0]);
+  useEffect(() => {
+    // Remover scroll do body quando iframe está ativo
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
 
   return (
-    <LandingThemeProvider>
-      {/* Dynamic Background */}
-      <div className="fixed inset-0 z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--landing-accent)/0.1)] blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--landing-purple)/0.1)] blur-[120px]" />
-      </div>
-
-      <LandingHeader headerOpacity={headerOpacity} headerY={headerY} />
-      <HeroSection />
-      <FeaturesSection />
-      <ConversionSection />
-      <BuilderSection />
-      <IntegrationsSection />
-      <StepsSection />
-      <TestimonialsSection />
-      <CtaSection />
-      <LandingFooter />
-    </LandingThemeProvider>
+    <>
+      <Helmet>
+        <title>Rise Community - A plataforma de checkout mais completa do Brasil</title>
+        <meta name="description" content="Venda seus produtos digitais com criativos. Transforme cada acesso em pagamento com um checkout personalizável, rápido e otimizado para escalar." />
+      </Helmet>
+      
+      <iframe
+        src="/landing/index.html"
+        title="RiseCheckout Landing Page"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          margin: 0,
+          padding: 0,
+          overflow: 'hidden',
+          zIndex: 999999
+        }}
+      />
+    </>
   );
 }
