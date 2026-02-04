@@ -3914,7 +3914,6 @@ export type Database = {
           timezone: string | null
           updated_at: string | null
           user_type: string | null
-          utmify_token: string | null
         }
         Insert: {
           account_status?:
@@ -3953,7 +3952,6 @@ export type Database = {
           timezone?: string | null
           updated_at?: string | null
           user_type?: string | null
-          utmify_token?: string | null
         }
         Update: {
           account_status?:
@@ -3992,7 +3990,6 @@ export type Database = {
           timezone?: string | null
           updated_at?: string | null
           user_type?: string | null
-          utmify_token?: string | null
         }
         Relationships: []
       }
