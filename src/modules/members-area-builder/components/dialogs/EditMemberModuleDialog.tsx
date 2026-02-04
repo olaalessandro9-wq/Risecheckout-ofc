@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, ImageIcon, X, Upload, Crop, Trash2 } from 'lucide-react';
-import { ImageCropDialog } from '@/modules/members-area/components/dialogs/ImageCropDialog';
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import type { MemberModule } from '@/modules/members-area/types/module.types';
 
 interface EditMemberModuleDialogProps {
@@ -377,6 +377,7 @@ export function EditMemberModuleDialog({
           onOpenChange={setCropDialogOpen}
           imageFile={fileToCrop}
           onCropComplete={handleCropComplete}
+          preset="module"
         />
       )}
     </>

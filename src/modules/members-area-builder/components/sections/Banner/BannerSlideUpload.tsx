@@ -15,7 +15,7 @@ import { Upload, X, ImageIcon, Loader2, Crop } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadViaEdge } from '@/lib/storage/storageProxy';
 import { createLogger } from '@/lib/logger';
-import { BannerImageCropDialog } from '../../dialogs/BannerImageCropDialog';
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 
 const log = createLogger('BannerSlideUpload');
 
@@ -291,7 +291,7 @@ export function BannerSlideUpload({
 
       {/* Crop Dialog */}
       {fileToCrop && (
-        <BannerImageCropDialog
+        <ImageCropDialog
           open={cropDialogOpen}
           onOpenChange={(open) => {
             setCropDialogOpen(open);
@@ -302,6 +302,7 @@ export function BannerSlideUpload({
           }}
           imageFile={fileToCrop}
           onCropComplete={originalFile ? handleCropComplete : handleReCropComplete}
+          preset="banner"
         />
       )}
     </div>

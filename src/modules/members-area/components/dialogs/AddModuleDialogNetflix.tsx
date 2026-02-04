@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUploadZoneCompact } from "../ImageUploadZoneCompact";
 import { ModuleCardPreview } from "../ModuleCardPreview";
-import { ImageCropDialog } from "./ImageCropDialog";
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 
 interface AddModuleDialogNetflixProps {
   open: boolean;
@@ -186,6 +186,7 @@ export function AddModuleDialogNetflix({
           onOpenChange={setIsCropOpen}
           imageFile={originalImageFile}
           onCropComplete={handleCropComplete}
+          preset="module"
         />
       )}
     </>
