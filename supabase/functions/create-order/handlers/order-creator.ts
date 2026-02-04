@@ -71,12 +71,16 @@ export interface OrderCreationInput {
   utm_term?: string;
   src?: string;
   sck?: string;
+  
+  // RISE V3: Idempotency key per checkout submission attempt
+  idempotency_key?: string;
 }
 
 interface ExistingOrder {
   id: string;
   status: string;
   created_at: string;
+  access_token: string;
 }
 
 interface CreatedOrder {
@@ -125,45 +129,39 @@ export async function createOrder(
     utm_content,
     utm_term,
     src,
-    sck
+    sck,
+    // RISE V3: Idempotency key per checkout submission attempt
+    idempotency_key
   } = input;
 
-  // Verificar idempotência (pedidos duplicados)
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-  
-  const { data: existingOrders } = await supabase
-    .from("orders")
-    .select("id, status, created_at")
-    .eq("customer_email", customer_email)
-    .eq("offer_id", validatedOfferId || product_id)
-    .eq("amount_cents", amountInCents)
-    .gte("created_at", fiveMinutesAgo)
-    .limit(1);
-
-  if (existingOrders && existingOrders.length > 0) {
-    const existing = existingOrders[0] as ExistingOrder;
-    log.info(`Pedido duplicado: ${existing.id}`);
-
-    // CRITICAL FIX: Buscar access_token do pedido existente para não quebrar o fluxo PIX
-    const { data: orderWithToken } = await supabase
+  // RISE V3: Idempotency by idempotency_key (NOT by email/offer/amount)
+  // This allows same customer to create multiple orders while preventing
+  // accidental duplicates from double-clicks or network retries
+  if (idempotency_key) {
+    const { data: existingByKey } = await supabase
       .from("orders")
-      .select("access_token")
-      .eq("id", existing.id)
-      .single();
+      .select("id, status, created_at, access_token")
+      .eq("idempotency_key", idempotency_key)
+      .limit(1);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        order_id: existing.id,
-        access_token: (orderWithToken as { access_token: string } | null)?.access_token || '',
-        message: "Pedido já existe",
-        duplicate: true
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+    if (existingByKey && existingByKey.length > 0) {
+      const existing = existingByKey[0] as ExistingOrder;
+      log.info(`Pedido existente por idempotency_key: ${existing.id}`);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          order_id: existing.id,
+          access_token: existing.access_token || '',
+          message: "Pedido já existe (idempotency)",
+          duplicate: true
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
   }
 
   // Gerar access token
@@ -190,7 +188,7 @@ export async function createOrder(
   }
 
   // Inserir pedido com dados criptografados
-  // RISE V3: Incluir customer_ip + UTM params para UTMify backend SSOT
+  // RISE V3: Incluir customer_ip + UTM params + idempotency_key
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -222,7 +220,9 @@ export async function createOrder(
       utm_content: utm_content || null,
       utm_term: utm_term || null,
       src: src || null,
-      sck: sck || null
+      sck: sck || null,
+      // RISE V3: Idempotency key per checkout submission attempt
+      idempotency_key: idempotency_key || null
     })
     .select()
     .single();

@@ -60,6 +60,9 @@ export const initialCheckoutContext: CheckoutPublicContext = {
   // === Card Form Data ===
   cardFormData: null,
   
+  // === Idempotency Key (RISE V3: per-attempt deduplication) ===
+  orderAttemptKey: null,
+  
   // === Error State ===
   error: null,
   

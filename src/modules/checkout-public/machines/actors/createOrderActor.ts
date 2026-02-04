@@ -35,6 +35,8 @@ export interface CreateOrderInput {
   couponId: string | null;
   gateway: string;
   paymentMethod: 'pix' | 'credit_card';
+  // RISE V3: Idempotency key per checkout submission attempt
+  idempotencyKey: string | null;
 }
 
 export interface CreateOrderOutput {
@@ -80,6 +82,8 @@ export const createOrderActor = fromPromise<CreateOrderOutput, CreateOrderInput>
       payment_method: input.paymentMethod,
       coupon_id: input.couponId,
       affiliate_code: getAffiliateCode(),
+      // RISE V3: Idempotency key per checkout submission attempt
+      idempotency_key: input.idempotencyKey,
     };
 
     const { data, error } = await publicApi.call<{

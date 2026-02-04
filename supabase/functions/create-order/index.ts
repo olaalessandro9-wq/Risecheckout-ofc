@@ -59,6 +59,8 @@ interface ValidatedOrderData {
   utm_term?: string;
   src?: string;
   sck?: string;
+  // RISE V3: Idempotency key per checkout submission attempt
+  idempotency_key?: string;
 }
 
 interface ProductData {
@@ -145,7 +147,9 @@ serve(withSentry('create-order', async (req) => {
       utm_content,
       utm_term,
       src,
-      sck
+      sck,
+      // RISE V3: Idempotency key per checkout submission attempt
+      idempotency_key
     } = validatedData;
 
     // RISE V3: Capturar IP real do cliente para UTMify e análise de fraude
@@ -203,7 +207,7 @@ serve(withSentry('create-order', async (req) => {
       allOrderItems
     });
 
-    // 8. CRIAR PEDIDO (RISE V3: Inclui customer_ip + UTM params para UTMify)
+    // 8. CRIAR PEDIDO (RISE V3: Inclui customer_ip + UTM params + idempotency_key)
     const orderResult = await createOrder(
       supabase,
       {
@@ -235,7 +239,9 @@ serve(withSentry('create-order', async (req) => {
         utm_content,
         utm_term,
         src,
-        sck
+        sck,
+        // RISE V3: Idempotency key per checkout submission attempt
+        idempotency_key
       },
       corsHeaders
     );

@@ -217,6 +217,9 @@ export function createMockCheckoutPublicContext(
     // Card Form Data
     cardFormData: null,
     
+    // Idempotency Key (RISE V3)
+    orderAttemptKey: null,
+    
     // Error State
     error: null,
     

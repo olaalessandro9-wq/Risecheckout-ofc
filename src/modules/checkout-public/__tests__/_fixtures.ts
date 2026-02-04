@@ -253,6 +253,7 @@ export const mockInitialContext: CheckoutPublicContext = {
   paymentData: null,
   navigationData: null,
   cardFormData: null,
+  orderAttemptKey: null,
   error: null,
   loadedAt: null,
   retryCount: 0,

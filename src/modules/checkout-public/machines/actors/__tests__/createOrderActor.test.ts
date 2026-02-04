@@ -55,6 +55,7 @@ function createMockInput(overrides: Partial<CreateOrderInput> = {}): CreateOrder
     couponId: null,
     gateway: "mercadopago",
     paymentMethod: "pix",
+    idempotencyKey: "test-attempt-key-123",
     ...overrides,
   };
 }

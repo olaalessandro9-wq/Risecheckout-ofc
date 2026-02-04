@@ -61,6 +61,8 @@ export function createOrderInput(context: CheckoutPublicContext) {
       ? context.resolvedGateways.pix 
       : context.resolvedGateways.creditCard,
     paymentMethod: context.selectedPaymentMethod,
+    // RISE V3: Idempotency key per checkout submission attempt
+    idempotencyKey: context.orderAttemptKey,
   };
 }
 

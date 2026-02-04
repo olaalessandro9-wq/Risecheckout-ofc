@@ -146,6 +146,8 @@ export const checkoutPublicMachine = setup({
                   formData: event.snapshot ? { ...context.formData, ...event.snapshot } : context.formData,
                   cardFormData: event.cardData || null,
                   formErrors: {}, // Limpar erros anteriores
+                  // RISE V3: Generate new idempotency key per submit attempt
+                  orderAttemptKey: crypto.randomUUID(),
                 })),
               },
               {
