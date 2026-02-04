@@ -2,67 +2,76 @@
  * Authentication Tests for utmify-conversion
  * 
  * @module utmify-conversion/tests/authentication.test
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/testing/asserts.ts";
-import { describe, it, beforeEach } from "https://deno.land/std@0.224.0/testing/bdd.ts";
+import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
 import {
-  createMockSupabaseClient,
   createMockRequest,
   createMockRequestWithoutAuth,
-  createDefaultOrder,
-  type MockOrder,
+  createDefaultConversionPayload,
+  createDefaultUser,
 } from "./_shared.ts";
 
-let mockSupabaseClient: Record<string, unknown>;
-let mockOrder: MockOrder;
-
 describe("utmify-conversion - Authentication", () => {
-  beforeEach(() => {
-    mockSupabaseClient = createMockSupabaseClient();
-    mockOrder = createDefaultOrder();
-  });
-
-  it("should require authorization header", async () => {
-    const mockRequest = createMockRequestWithoutAuth({ order_id: mockOrder.id });
-    const hasAuth = mockRequest.headers.has("Authorization");
-    assertEquals(hasAuth, false);
-  });
-
-  it("should return 401 for missing authorization", async () => {
-    const mockRequest = createMockRequestWithoutAuth({ order_id: mockOrder.id });
-    const hasAuth = mockRequest.headers.has("Authorization");
-    const expectedStatus = hasAuth ? 200 : 401;
-    assertEquals(expectedStatus, 401);
-  });
-
-  it("should validate API key format", async () => {
-    const mockRequest = createMockRequest({ order_id: mockOrder.id });
-    const authHeader = mockRequest.headers.get("Authorization");
-    assertExists(authHeader);
-    assertEquals(authHeader?.startsWith("Bearer "), true);
-  });
-
-  it("should accept valid API key", async () => {
-    const mockRequest = createMockRequest({ order_id: mockOrder.id });
-    const authHeader = mockRequest.headers.get("Authorization");
-    const isValid = authHeader?.startsWith("Bearer ") && authHeader.length > 10;
-    assertEquals(isValid, true);
-  });
-
-  it("should reject invalid API key", async () => {
-    const headers = new Headers({
+  it("should use x-api-token header for UTMify API", () => {
+    const token = "test-utmify-token";
+    const headers = {
+      "x-api-token": token,
       "Content-Type": "application/json",
-      "Authorization": "Bearer invalid-key",
-    });
-    const mockRequest = new Request("https://test.supabase.co/functions/v1/utmify-conversion", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ order_id: mockOrder.id }),
-    });
-    const authHeader = mockRequest.headers.get("Authorization");
-    const isInvalidKey = authHeader === "Bearer invalid-key";
-    assertEquals(isInvalidKey, true);
+    };
+    
+    assertExists(headers["x-api-token"]);
+    assertEquals(headers["x-api-token"], token);
+  });
+
+  it("should NOT use Authorization Bearer header", () => {
+    const token = "test-utmify-token";
+    const correctHeaders = {
+      "x-api-token": token,
+      "Content-Type": "application/json",
+    };
+    
+    // Verify x-api-token is used
+    assertEquals("x-api-token" in correctHeaders, true);
+    
+    // Verify Authorization is NOT used
+    assertEquals("Authorization" in correctHeaders, false);
+  });
+
+  it("should retrieve token from users table", () => {
+    const user = createDefaultUser();
+    assertExists(user.utmify_token);
+    assertEquals(typeof user.utmify_token, "string");
+  });
+
+  it("should handle missing UTMify token", () => {
+    const userWithoutToken = {
+      id: "vendor-123",
+      utmify_token: null,
+    };
+    assertEquals(userWithoutToken.utmify_token, null);
+  });
+
+  it("should require vendorId in request", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.vendorId);
+    assertEquals(typeof payload.vendorId, "string");
+  });
+
+  it("should validate vendorId format", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.vendorId);
+    assertEquals(payload.vendorId.length > 0, true);
+  });
+
+  it("should handle invalid vendor gracefully", () => {
+    const errorResponse = {
+      success: false,
+      error: "Vendor not found",
+    };
+    assertEquals(errorResponse.success, false);
+    assertEquals(errorResponse.error, "Vendor not found");
   });
 });

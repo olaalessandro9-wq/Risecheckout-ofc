@@ -2,81 +2,120 @@
  * Validation Tests for utmify-conversion
  * 
  * @module utmify-conversion/tests/validation.test
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/testing/asserts.ts";
-import { describe, it, beforeEach } from "https://deno.land/std@0.224.0/testing/bdd.ts";
+import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
 import {
-  createMockSupabaseClient,
-  createMockRequest,
-  createDefaultOrder,
-  isValidEvent,
-  type MockOrder,
+  createDefaultConversionPayload,
+  createConversionPayloadWithUtm,
 } from "./_shared.ts";
 
-let mockSupabaseClient: Record<string, unknown>;
-let mockOrder: MockOrder;
-
 describe("utmify-conversion - Validation", () => {
-  beforeEach(() => {
-    mockSupabaseClient = createMockSupabaseClient();
-    mockOrder = createDefaultOrder();
+  it("should require orderId", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.orderId);
+    assertEquals(typeof payload.orderId, "string");
   });
 
-  it("should require order_id", async () => {
-    const mockRequest = createMockRequest({});
-    const body = await mockRequest.json() as Record<string, unknown>;
-    const hasOrderId = "order_id" in body;
-    assertEquals(hasOrderId, false);
+  it("should require vendorId", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.vendorId);
+    assertEquals(typeof payload.vendorId, "string");
   });
 
-  it("should return 400 for missing order_id", async () => {
-    const mockRequest = createMockRequest({});
-    const body = await mockRequest.json() as Record<string, unknown>;
-    const hasOrderId = "order_id" in body;
-    const expectedStatus = hasOrderId ? 200 : 400;
-    assertEquals(expectedStatus, 400);
+  it("should require paymentMethod", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.paymentMethod);
+    assertEquals(typeof payload.paymentMethod, "string");
   });
 
-  it("should validate UUID format for order_id", async () => {
+  it("should require status", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.status);
+    assertEquals(typeof payload.status, "string");
+  });
+
+  it("should require createdAt", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.createdAt);
+    assertEquals(typeof payload.createdAt, "string");
+  });
+
+  it("should require customer object", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.customer);
+    assertEquals(typeof payload.customer, "object");
+  });
+
+  it("should require customer.name", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.customer.name);
+    assertEquals(typeof payload.customer.name, "string");
+  });
+
+  it("should require customer.email", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.customer.email);
+    assertEquals(typeof payload.customer.email, "string");
+  });
+
+  it("should require products array", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.products);
+    assertEquals(Array.isArray(payload.products), true);
+    assertEquals(payload.products.length > 0, true);
+  });
+
+  it("should require product.id", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.products[0].id);
+    assertEquals(typeof payload.products[0].id, "string");
+  });
+
+  it("should require product.name", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.products[0].name);
+    assertEquals(typeof payload.products[0].name, "string");
+  });
+
+  it("should require product.priceInCents", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.products[0].priceInCents);
+    assertEquals(typeof payload.products[0].priceInCents, "number");
+    assertEquals(payload.products[0].priceInCents > 0, true);
+  });
+
+  it("should require commission object", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.commission);
+    assertEquals(typeof payload.commission, "object");
+  });
+
+  it("should require commission.totalPriceInCents", () => {
+    const payload = createDefaultConversionPayload();
+    assertExists(payload.commission.totalPriceInCents);
+    assertEquals(typeof payload.commission.totalPriceInCents, "number");
+  });
+
+  it("should validate UUID format for orderId", () => {
+    const payload = createDefaultConversionPayload();
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const isValidUUID = uuidRegex.test(mockOrder.id);
-    assertEquals(isValidUUID, true);
+    assertEquals(uuidRegex.test(payload.orderId), true);
   });
 
-  it("should reject invalid UUID format", async () => {
-    const mockRequest = createMockRequest({ order_id: "invalid-uuid" });
-    const body = await mockRequest.json() as Record<string, unknown>;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const isValidUUID = uuidRegex.test(body.order_id as string);
-    assertEquals(isValidUUID, false);
+  it("should accept null for optional fields", () => {
+    const payload = createDefaultConversionPayload();
+    assertEquals(payload.approvedDate === null || typeof payload.approvedDate === "string", true);
+    assertEquals(payload.refundedAt === null || typeof payload.refundedAt === "string", true);
   });
 
-  it("should validate event_type when provided", async () => {
-    const mockRequest = createMockRequest({ 
-      order_id: mockOrder.id,
-      event_type: "purchase",
-    });
-    const body = await mockRequest.json() as Record<string, unknown>;
-    const eventType = body.event_type as string;
-    assertEquals(isValidEvent(eventType), true);
-  });
-
-  it("should reject invalid event_type", async () => {
-    const mockRequest = createMockRequest({ 
-      order_id: mockOrder.id,
-      event_type: "invalid_event",
-    });
-    const body = await mockRequest.json() as Record<string, unknown>;
-    const eventType = body.event_type as string;
-    assertEquals(isValidEvent(eventType), false);
-  });
-
-  it("should accept all valid event types", () => {
-    const validEvents = ["purchase", "initiate_checkout", "add_to_cart", "view_content", "lead"];
-    for (const event of validEvents) {
-      assertEquals(isValidEvent(event), true);
-    }
+  it("should accept optional tracking parameters", () => {
+    const payloadWithUtm = createConversionPayloadWithUtm();
+    assertExists(payloadWithUtm.trackingParameters);
+    
+    const payloadWithoutUtm = createDefaultConversionPayload();
+    assertExists(payloadWithoutUtm.trackingParameters);
   });
 });

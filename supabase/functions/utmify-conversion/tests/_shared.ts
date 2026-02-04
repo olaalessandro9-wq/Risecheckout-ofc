@@ -2,26 +2,22 @@
  * Shared Test Utilities for utmify-conversion
  * 
  * @module utmify-conversion/tests/_shared
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant
+ * 
+ * Atualizado para refletir a estrutura correta da API UTMify
  */
 
 // ============================================
-// CONSTANTS
+// CONSTANTS - CORRECTED PER DOCUMENTATION
 // ============================================
 
 export const FUNCTION_URL = "https://test.supabase.co/functions/v1/utmify-conversion";
 
-export const UTMIFY_API_URL = "https://api.utmify.com.br/api/v1/conversion";
+/** URL correta conforme documentação oficial */
+export const UTMIFY_API_URL = "https://api.utmify.com.br/api-credentials/orders";
 
-export const VALID_EVENTS = [
-  "purchase",
-  "initiate_checkout",
-  "add_to_cart",
-  "view_content",
-  "lead",
-] as const;
-
-export type UtmifyEventType = typeof VALID_EVENTS[number];
+/** Nome da plataforma enviado para UTMify */
+export const PLATFORM_NAME = "RiseCheckout";
 
 // ============================================
 // TYPES
@@ -35,6 +31,7 @@ export interface MockOrder {
   amount_cents: number;
   status: string;
   customer_email: string | null;
+  customer_name: string | null;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
@@ -47,9 +44,54 @@ export interface MockUser {
   utmify_token: string | null;
 }
 
+export interface MockCustomer {
+  name: string;
+  email: string;
+  phone?: string | null;
+  document?: string | null;
+  country?: string;
+  ip?: string | null;
+}
+
+export interface MockProduct {
+  id: string;
+  name: string;
+  planId?: string | null;
+  planName?: string | null;
+  quantity?: number;
+  priceInCents: number;
+}
+
+export interface MockTrackingParameters {
+  src?: string | null;
+  sck?: string | null;
+  utm_source?: string | null;
+  utm_campaign?: string | null;
+  utm_medium?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+}
+
+export interface MockCommission {
+  totalPriceInCents: number;
+  gatewayFeeInCents?: number;
+  userCommissionInCents?: number;
+  currency?: string;
+}
+
 export interface ConversionPayload {
-  order_id: string;
-  event_type?: string;
+  orderId: string;
+  vendorId: string;
+  paymentMethod: string;
+  status: string;
+  createdAt: string;
+  approvedDate?: string | null;
+  refundedAt?: string | null;
+  customer: MockCustomer;
+  products: MockProduct[];
+  trackingParameters?: MockTrackingParameters;
+  commission: MockCommission;
+  isTest?: boolean;
 }
 
 // ============================================
@@ -118,7 +160,7 @@ export function createInvalidJsonRequest(): Request {
 }
 
 // ============================================
-// DEFAULT MOCK DATA
+// DEFAULT MOCK DATA - UPDATED FOR V2
 // ============================================
 
 export function createDefaultOrder(): MockOrder {
@@ -130,6 +172,7 @@ export function createDefaultOrder(): MockOrder {
     amount_cents: 9990,
     status: "paid",
     customer_email: "customer@example.com",
+    customer_name: "Test Customer",
     utm_source: null,
     utm_medium: null,
     utm_campaign: null,
@@ -147,6 +190,7 @@ export function createOrderWithUtm(): MockOrder {
     amount_cents: 14990,
     status: "paid",
     customer_email: "customer@example.com",
+    customer_name: "Test Customer",
     utm_source: "google",
     utm_medium: "cpc",
     utm_campaign: "summer_sale",
@@ -162,10 +206,102 @@ export function createDefaultUser(): MockUser {
   };
 }
 
+export function createDefaultConversionPayload(): ConversionPayload {
+  const order = createDefaultOrder();
+  return {
+    orderId: order.id,
+    vendorId: "vendor-123",
+    paymentMethod: "pix",
+    status: "paid",
+    createdAt: new Date().toISOString(),
+    approvedDate: new Date().toISOString(),
+    refundedAt: null,
+    customer: {
+      name: order.customer_name || "Test Customer",
+      email: order.customer_email || "test@example.com",
+      phone: null,
+      document: null,
+      country: "BR",
+      ip: null,
+    },
+    products: [{
+      id: order.product_id,
+      name: order.product_name,
+      planId: null,
+      planName: null,
+      quantity: 1,
+      priceInCents: order.amount_cents,
+    }],
+    trackingParameters: {
+      src: null,
+      sck: null,
+      utm_source: order.utm_source,
+      utm_campaign: order.utm_campaign,
+      utm_medium: order.utm_medium,
+      utm_content: order.utm_content,
+      utm_term: order.utm_term,
+    },
+    commission: {
+      totalPriceInCents: order.amount_cents,
+      gatewayFeeInCents: 0,
+      userCommissionInCents: order.amount_cents,
+      currency: "BRL",
+    },
+    isTest: false,
+  };
+}
+
+export function createConversionPayloadWithUtm(): ConversionPayload {
+  const order = createOrderWithUtm();
+  return {
+    orderId: order.id,
+    vendorId: "vendor-123",
+    paymentMethod: "credit_card",
+    status: "paid",
+    createdAt: new Date().toISOString(),
+    approvedDate: new Date().toISOString(),
+    refundedAt: null,
+    customer: {
+      name: order.customer_name || "Test Customer",
+      email: order.customer_email || "test@example.com",
+      phone: "11999999999",
+      document: "12345678900",
+      country: "BR",
+      ip: "192.168.1.1",
+    },
+    products: [{
+      id: order.product_id,
+      name: order.product_name,
+      planId: null,
+      planName: null,
+      quantity: 1,
+      priceInCents: order.amount_cents,
+    }],
+    trackingParameters: {
+      src: null,
+      sck: null,
+      utm_source: order.utm_source,
+      utm_campaign: order.utm_campaign,
+      utm_medium: order.utm_medium,
+      utm_content: order.utm_content,
+      utm_term: order.utm_term,
+    },
+    commission: {
+      totalPriceInCents: order.amount_cents,
+      gatewayFeeInCents: 300,
+      userCommissionInCents: order.amount_cents - 300,
+      currency: "BRL",
+    },
+    isTest: false,
+  };
+}
+
 // ============================================
-// VALIDATION HELPERS
+// VALIDATION HELPERS - REMOVED LEGACY
 // ============================================
 
-export function isValidEvent(event: string): event is UtmifyEventType {
-  return VALID_EVENTS.includes(event as UtmifyEventType);
+/** @deprecated Use validators.ts instead */
+export function isValidEvent(_event: string): boolean {
+  // Events are no longer used in V2 - status is used instead
+  return true;
 }

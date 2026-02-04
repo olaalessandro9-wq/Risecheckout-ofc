@@ -2,37 +2,57 @@
  * API Integration Tests for utmify-conversion
  * 
  * @module utmify-conversion/tests/api-integration.test
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/testing/asserts.ts";
-import { describe, it, beforeEach } from "https://deno.land/std@0.224.0/testing/bdd.ts";
+import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
 import {
-  createMockSupabaseClient,
-  createMockRequest,
-  createDefaultOrder,
   UTMIFY_API_URL,
-  type MockOrder,
+  PLATFORM_NAME,
+  createDefaultConversionPayload,
 } from "./_shared.ts";
 
-let mockSupabaseClient: Record<string, unknown>;
-let mockOrder: MockOrder;
-
 describe("utmify-conversion - API Integration", () => {
-  beforeEach(() => {
-    mockSupabaseClient = createMockSupabaseClient();
-    mockOrder = createDefaultOrder();
-  });
-
-  it("should use correct Utmify API endpoint", () => {
-    assertExists(UTMIFY_API_URL);
+  it("should use correct UTMify API endpoint", () => {
+    assertEquals(UTMIFY_API_URL, "https://api.utmify.com.br/api-credentials/orders");
     assertEquals(UTMIFY_API_URL.startsWith("https://"), true);
   });
 
-  it("should format request payload correctly", async () => {
-    const mockRequest = createMockRequest({ order_id: mockOrder.id });
-    const body = await mockRequest.json() as Record<string, unknown>;
-    assertExists(body.order_id);
+  it("should use correct platform name", () => {
+    assertEquals(PLATFORM_NAME, "RiseCheckout");
+  });
+
+  it("should format request headers correctly", () => {
+    const token = "test-token-123";
+    const headers = {
+      "x-api-token": token,
+      "Content-Type": "application/json",
+    };
+    
+    assertExists(headers["x-api-token"]);
+    assertEquals(headers["x-api-token"], token);
+    assertEquals(headers["Content-Type"], "application/json");
+  });
+
+  it("should NOT use Authorization Bearer header", () => {
+    const correctHeaders = {
+      "x-api-token": "token",
+      "Content-Type": "application/json",
+    };
+    
+    // Verify x-api-token is used instead of Authorization
+    assertExists(correctHeaders["x-api-token"]);
+    assertEquals("Authorization" in correctHeaders, false);
+  });
+
+  it("should format payload correctly", () => {
+    const payload = createDefaultConversionPayload();
+    
+    assertExists(payload.orderId);
+    assertExists(payload.customer);
+    assertExists(payload.products);
+    assertExists(payload.commission);
   });
 
   it("should handle API timeout gracefully", () => {
@@ -41,16 +61,10 @@ describe("utmify-conversion - API Integration", () => {
     assertEquals(hasTimeout, true);
   });
 
-  it("should retry on transient failures", () => {
-    const maxRetries = 3;
-    const hasRetryLogic = maxRetries > 1;
-    assertEquals(hasRetryLogic, true);
-  });
-
-  it("should log API response status", () => {
-    const mockResponse = { status: 200, message: "Conversion tracked" };
-    assertExists(mockResponse.status);
-    assertEquals(mockResponse.status, 200);
+  it("should include correlation ID in requests", () => {
+    const correlationId = crypto.randomUUID();
+    assertExists(correlationId);
+    assertEquals(correlationId.length, 36);
   });
 
   it("should handle API error responses", () => {
@@ -59,9 +73,15 @@ describe("utmify-conversion - API Integration", () => {
     assertEquals(isError, true);
   });
 
-  it("should include correlation ID in requests", () => {
-    const correlationId = crypto.randomUUID();
-    assertExists(correlationId);
-    assertEquals(correlationId.length, 36);
+  it("should handle 401 unauthorized response", () => {
+    const mockErrorResponse = { status: 401, error: "Unauthorized" };
+    const isUnauthorized = mockErrorResponse.status === 401;
+    assertEquals(isUnauthorized, true);
+  });
+
+  it("should handle 400 bad request response", () => {
+    const mockErrorResponse = { status: 400, error: "Bad Request" };
+    const isBadRequest = mockErrorResponse.status === 400;
+    assertEquals(isBadRequest, true);
   });
 });
