@@ -152,12 +152,16 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // 7. Build test payload
+    const nowFormatted = new Date().toISOString().replace("T", " ").slice(0, 19);
+    
     const testPayload = {
       orderId: `test_${Date.now()}`,
       platform: PLATFORM_NAME,
       paymentMethod: "pix",
       status: "waiting_payment",
-      createdAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+      createdAt: nowFormatted,
+      approvedDate: nowFormatted,
+      refundedAt: null,
       customer: {
         name: "Test Customer",
         email: "test@risecheckout.com",
