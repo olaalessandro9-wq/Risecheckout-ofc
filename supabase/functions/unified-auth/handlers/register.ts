@@ -24,6 +24,7 @@ interface RegisterRequest {
   password: string;
   name?: string;
   phone?: string;
+  cpf_cnpj?: string;
   registrationType?: "producer" | "affiliate" | "buyer";
 }
 
@@ -34,7 +35,7 @@ export async function handleRegister(
 ): Promise<Response> {
   try {
     const body: RegisterRequest = await req.json();
-    const { email, password, name, phone, registrationType = "buyer" } = body;
+    const { email, password, name, phone, cpf_cnpj, registrationType = "buyer" } = body;
     
     // Validate input
     if (!email || !password) {
@@ -47,6 +48,10 @@ export async function handleRegister(
     
     const normalizedEmail = email.toLowerCase().trim();
     
+    // RISE V3: Normalizar phone e cpf_cnpj (remover máscara)
+    const normalizedPhone = phone?.replace(/\D/g, '') || null;
+    const normalizedCpfCnpj = cpf_cnpj?.replace(/\D/g, '') || null;
+    
     // Check if email already exists
     const { data: existingUser } = await supabase
       .from("users")
@@ -56,6 +61,32 @@ export async function handleRegister(
     
     if (existingUser) {
       return errorResponse("Este email já está cadastrado", corsHeaders, 409);
+    }
+    
+    // RISE V3: Verificar unicidade de phone
+    if (normalizedPhone) {
+      const { data: existingPhone } = await supabase
+        .from("users")
+        .select("id")
+        .eq("phone", normalizedPhone)
+        .single();
+      
+      if (existingPhone) {
+        return errorResponse("Este telefone já está cadastrado", corsHeaders, 409);
+      }
+    }
+    
+    // RISE V3: Verificar unicidade de cpf_cnpj
+    if (normalizedCpfCnpj) {
+      const { data: existingDoc } = await supabase
+        .from("users")
+        .select("id")
+        .eq("cpf_cnpj", normalizedCpfCnpj)
+        .single();
+      
+      if (existingDoc) {
+        return errorResponse("Este CPF/CNPJ já está cadastrado", corsHeaders, 409);
+      }
     }
     
     // Hash password
@@ -79,7 +110,8 @@ export async function handleRegister(
         password_hash: passwordHash,
         password_hash_version: CURRENT_HASH_VERSION,
         name: name || null,
-        phone: phone || null,
+        phone: normalizedPhone,
+        cpf_cnpj: normalizedCpfCnpj,
         account_status: "active",
         is_active: true,
         registration_source: registrationSourceValue,
