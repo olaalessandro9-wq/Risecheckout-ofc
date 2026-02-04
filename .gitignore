@@ -50,6 +50,7 @@ KEYS_SUPABASE.md
 !supabase/functions/_shared/gateway-credentials.ts
 !supabase/functions/_shared/kernel/types/affiliate/credentials.ts
 !supabase/functions/asaas-validate-credentials/
+!supabase/functions/utmify-validate-credentials/
 !supabase/functions/check-secrets/
 
 # Security incident evidence
