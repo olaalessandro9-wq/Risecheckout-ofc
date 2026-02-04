@@ -9,7 +9,6 @@
  * 
  * Mudanças V3.0.0:
  * - Token recuperado do Vault via RPC get_gateway_credentials (SSOT)
- * - Elimina dependência de coluna legada users.utmify_token
  * - Padrão unificado com MercadoPago, Asaas e outras integrações
  * 
  * Mudanças V2.0.0:

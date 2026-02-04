@@ -2,9 +2,11 @@
  * Shared Test Utilities for utmify-conversion
  * 
  * @module utmify-conversion/tests/_shared
- * @version 2.0.0 - RISE Protocol V3 Compliant
+ * @version 3.0.0 - RISE Protocol V3 Compliant - Vault SSOT
  * 
- * Atualizado para refletir a estrutura correta da API UTMify
+ * Atualizado para refletir a arquitetura real:
+ * - Tokens recuperados do Vault via RPC get_gateway_credentials
+ * - Zero referências a coluna legada users.utmify_token (REMOVIDA)
  */
 
 // ============================================
@@ -37,11 +39,6 @@ export interface MockOrder {
   utm_campaign: string | null;
   utm_content: string | null;
   utm_term: string | null;
-}
-
-export interface MockUser {
-  id: string;
-  utmify_token: string | null;
 }
 
 export interface MockCustomer {
@@ -119,10 +116,68 @@ export interface FrontendPayload {
 }
 
 // ============================================
+// VAULT CREDENTIALS TYPES (RISE V3 - SSOT)
+// ============================================
+
+/**
+ * Credenciais retornadas do Vault via RPC get_gateway_credentials
+ * Estrutura: { success: true, credentials: { api_token: "..." } }
+ */
+export interface MockVaultCredentials {
+  api_token: string | null;
+}
+
+/**
+ * Resposta completa do RPC get_gateway_credentials
+ */
+export interface MockVaultResponse {
+  success: boolean;
+  credentials?: MockVaultCredentials;
+  error?: string;
+}
+
+/**
+ * Cria uma resposta mock do Vault RPC
+ * @param hasToken - Se true, retorna token válido; se false, retorna erro
+ */
+export function createMockVaultResponse(hasToken: boolean = true): MockVaultResponse {
+  if (hasToken) {
+    return {
+      success: true,
+      credentials: { api_token: "vault-token-123" },
+    };
+  }
+  return {
+    success: false,
+    error: "Credentials not found for gateway: utmify",
+  };
+}
+
+/**
+ * Parâmetros esperados para chamada ao RPC get_gateway_credentials
+ */
+export interface VaultRPCParams {
+  p_vendor_id: string;
+  p_gateway: string;
+}
+
+/**
+ * Cria parâmetros mock para chamada ao Vault RPC
+ */
+export function createMockVaultRPCParams(vendorId: string = "vendor-123"): VaultRPCParams {
+  return {
+    p_vendor_id: vendorId,
+    p_gateway: "utmify",
+  };
+}
+
+// ============================================
 // MOCK FACTORIES
 // ============================================
 
-export function createMockSupabaseClient() {
+export function createMockSupabaseClient(vaultResponse?: MockVaultResponse) {
+  const defaultVaultResponse = vaultResponse ?? createMockVaultResponse(true);
+  
   return {
     from: () => ({
       select: () => ({
@@ -135,6 +190,12 @@ export function createMockSupabaseClient() {
         eq: () => Promise.resolve({ error: null }),
       }),
     }),
+    rpc: (functionName: string, params: unknown) => {
+      if (functionName === "get_gateway_credentials") {
+        return Promise.resolve({ data: defaultVaultResponse, error: null });
+      }
+      return Promise.resolve({ data: null, error: { message: `Unknown RPC: ${functionName}` } });
+    },
   };
 }
 
@@ -184,7 +245,7 @@ export function createInvalidJsonRequest(): Request {
 }
 
 // ============================================
-// DEFAULT MOCK DATA - UPDATED FOR V2
+// DEFAULT MOCK DATA
 // ============================================
 
 export function createDefaultOrder(): MockOrder {
@@ -220,13 +281,6 @@ export function createOrderWithUtm(): MockOrder {
     utm_campaign: "summer_sale",
     utm_content: "banner_1",
     utm_term: "test keyword",
-  };
-}
-
-export function createDefaultUser(): MockUser {
-  return {
-    id: "vendor-123",
-    utmify_token: "token-123",
   };
 }
 
@@ -428,14 +482,4 @@ export function createNestedFrontendPayloadWithUtm(): FrontendPayload {
     eventType: "purchase",
     productId: order.product_id,
   };
-}
-
-// ============================================
-// VALIDATION HELPERS - REMOVED LEGACY
-// ============================================
-
-/** @deprecated Use validators.ts instead */
-export function isValidEvent(_event: string): boolean {
-  // Events are no longer used in V2 - status is used instead
-  return true;
 }

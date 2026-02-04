@@ -83,9 +83,8 @@ function buildCustomer(input: UTMifyConversionRequest["customer"]): UTMifyCustom
     phone: input.phone || null,
     document: input.document || null,
     country: input.country || "BR",
-    // IP é obrigatório na API UTMify - usa string vazia como fallback
-    // O frontend deve idealmente capturar e enviar o IP real
-    ip: input.ip || "",
+    // IP é opcional - null é aceito pela API UTMify
+    ip: input.ip || null,
   };
 }
 
