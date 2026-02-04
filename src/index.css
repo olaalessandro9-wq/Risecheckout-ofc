@@ -282,9 +282,18 @@
     
     /* Auth Accent Tokens (Blue Theme - RISE V3) */
     --auth-accent: 217 91% 60%;            /* blue-500 */
+    --auth-accent-hover: 217 91% 70%;      /* blue-400 - hover state */
     --auth-accent-secondary: 199 89% 48%;  /* cyan-500 - tema azul consistente */
     --auth-accent-tertiary: 221 83% 53%;   /* blue-600 */
     --auth-accent-glow: 217 91% 60%;       /* blue-500 para shadows */
+    
+    /* Auth Semantic Colors (RISE V3 - SSOT) */
+    --auth-error: 0 84% 60%;               /* red-500 - error states */
+    --auth-success: 142 76% 36%;           /* green-600 - success states */
+    
+    /* Auth Panel Tokens (Cards/Panels) */
+    --auth-panel-bg: 0 0% 100%;            /* white - Para uso com opacity (white/5) */
+    --auth-panel-bg-hover: 0 0% 100%;      /* white - Para uso com opacity (white/8) */
     
     /* Auth Gradient Tokens (Blue Theme) */
     --auth-gradient-start: 199 89% 48%;    /* cyan-500 */
