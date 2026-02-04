@@ -1,11 +1,12 @@
 /**
  * ImageCropDialogProduct - Modal profissional para recortar imagem de produto
  * 
- * Implementação com react-image-crop (PADRÃO DE MERCADO REAL)
- * - Handles visuais nos cantos e laterais (UX intuitiva)
- * - Área de crop redimensionável visualmente
- * - Background escurecido ao redor da área de crop
- * - UX profissional igual Kiwify, Hotmart, Cakto
+ * Implementação com react-cropper (SOLUÇÃO DA CAKTO)
+ * - Background xadrez (mostra claramente o que está dentro/fora)
+ * - Imagem COMPLETA visível (nunca fica torta)
+ * - Área de crop centralizada e destacada
+ * - Slider de zoom visível
+ * - Imagem se adapta automaticamente
  * - Proporção 4:3 para imagens de produto
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
@@ -13,8 +14,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createLogger } from "@/lib/logger";
-import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
-import "react-image-crop/dist/ReactCrop.css";
+import Cropper, { ReactCropperElement } from "react-cropper";
+import "cropperjs/dist/cropper.css";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { Loader2 } from "lucide-react";
 
 const log = createLogger("ImageCropDialogProduct");
@@ -45,16 +47,9 @@ export function ImageCropDialogProduct({
   onCropComplete,
 }: ImageCropDialogProductProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [crop, setCrop] = useState<Crop>({
-    unit: "%",
-    width: 75,
-    height: 56.25,
-    x: 12.5,
-    y: 21.875,
-  });
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+  const [zoom, setZoom] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const cropperRef = useRef<ReactCropperElement>(null);
 
   // Load image URL when imageFile changes
   useEffect(() => {
@@ -65,65 +60,35 @@ export function ImageCropDialogProduct({
     }
   }, [imageFile, open]);
 
-  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = e.currentTarget;
-    log.debug("Image loaded", { width, height });
+  const handleZoomChange = useCallback((value: number[]) => {
+    const zoomValue = value[0];
+    setZoom(zoomValue);
     
-    // Define crop inicial centralizado (4:3)
-    const aspectRatio = 4 / 3;
-    let cropWidth = 75;
-    let cropHeight = (cropWidth * height) / width / aspectRatio;
-    
-    if (cropHeight > 75) {
-      cropHeight = 75;
-      cropWidth = (cropHeight * width * aspectRatio) / height;
+    if (cropperRef.current?.cropper) {
+      // Zoom range: -1 to 1 (cropperjs uses ratio)
+      const zoomRatio = zoomValue / 100;
+      cropperRef.current.cropper.zoomTo(zoomRatio);
     }
-    
-    setCrop({
-      unit: "%",
-      width: cropWidth,
-      height: cropHeight,
-      x: (100 - cropWidth) / 2,
-      y: (100 - cropHeight) / 2,
-    });
   }, []);
 
   const handleSaveCrop = useCallback(async () => {
-    if (!completedCrop || !imgRef.current) {
-      log.warn("No crop or image ref available");
+    if (!cropperRef.current?.cropper) {
+      log.warn("No cropper instance available");
       return;
     }
 
     setIsSaving(true);
 
     try {
-      const image = imgRef.current;
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      if (!ctx) {
-        throw new Error("No 2d context");
-      }
-
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
-
-      // Set canvas to output size
-      canvas.width = OUTPUT_WIDTH;
-      canvas.height = OUTPUT_HEIGHT;
-
-      // Draw cropped image scaled to output size
-      ctx.drawImage(
-        image,
-        completedCrop.x * scaleX,
-        completedCrop.y * scaleY,
-        completedCrop.width * scaleX,
-        completedCrop.height * scaleY,
-        0,
-        0,
-        OUTPUT_WIDTH,
-        OUTPUT_HEIGHT
-      );
+      const cropper = cropperRef.current.cropper;
+      
+      // Get cropped canvas with output dimensions
+      const canvas = cropper.getCroppedCanvas({
+        width: OUTPUT_WIDTH,
+        height: OUTPUT_HEIGHT,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: "high",
+      });
 
       canvas.toBlob(
         (blob) => {
@@ -151,39 +116,60 @@ export function ImageCropDialogProduct({
       log.error("Error cropping image", error);
       setIsSaving(false);
     }
-  }, [completedCrop, imageFile, onCropComplete, onOpenChange]);
+  }, [imageFile, onCropComplete, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[90vw] max-h-[90vh] overflow-hidden">
+      <DialogContent className="sm:max-w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Recortar imagem do produto</DialogTitle>
+          <DialogTitle>Editar Imagem</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Ajuste a imagem para o tamanho desejado
+          </p>
         </DialogHeader>
 
-        <div className="flex flex-col items-center justify-center py-4 max-h-[70vh] overflow-auto bg-black/5 rounded-lg">
-          {imageUrl && (
-            <ReactCrop
-              crop={crop}
-              onChange={(c) => setCrop(c)}
-              onComplete={(c) => setCompletedCrop(c)}
-              aspect={ASPECT_RATIO}
-              className="max-w-full"
-            >
-              <img
-                ref={imgRef}
+        <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
+          {/* Cropper Area */}
+          <div className="flex-1 flex items-center justify-center bg-black/5 rounded-lg overflow-hidden min-h-[400px]">
+            {imageUrl && (
+              <Cropper
+                ref={cropperRef}
                 src={imageUrl}
-                alt="Crop preview"
-                onLoad={onImageLoad}
-                className="max-w-full max-h-[60vh] object-contain"
-                style={{ display: "block" }}
+                style={{ height: "100%", width: "100%" }}
+                initialAspectRatio={ASPECT_RATIO}
+                aspectRatio={ASPECT_RATIO}
+                guides={true}
+                viewMode={1}
+                background={true}
+                responsive={true}
+                autoCropArea={0.8}
+                checkOrientation={false}
+                zoomable={true}
+                zoomOnWheel={true}
+                wheelZoomRatio={0.1}
+                cropBoxMovable={true}
+                cropBoxResizable={true}
+                toggleDragModeOnDblclick={false}
               />
-            </ReactCrop>
-          )}
-        </div>
+            )}
+          </div>
 
-        <p className="text-sm text-muted-foreground text-center">
-          Arraste as alças nos cantos e laterais para ajustar a área de recorte (proporção 4:3)
-        </p>
+          {/* Zoom Control */}
+          <div className="flex items-center gap-4 px-4">
+            <span className="text-sm font-medium whitespace-nowrap">Zoom:</span>
+            <Slider
+              value={[zoom]}
+              onValueChange={handleZoomChange}
+              min={0}
+              max={200}
+              step={1}
+              className="flex-1"
+            />
+            <span className="text-sm text-muted-foreground whitespace-nowrap w-12 text-right">
+              {zoom.toFixed(0)}%
+            </span>
+          </div>
+        </div>
 
         <DialogFooter>
           <Button
@@ -193,12 +179,9 @@ export function ImageCropDialogProduct({
           >
             Cancelar
           </Button>
-          <Button
-            onClick={handleSaveCrop}
-            disabled={isSaving || !completedCrop}
-          >
+          <Button onClick={handleSaveCrop} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salvar corte
+            Salvar
           </Button>
         </DialogFooter>
       </DialogContent>
