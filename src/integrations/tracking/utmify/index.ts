@@ -2,23 +2,31 @@
  * Barrel Export - UTMify Module
  * Módulo: src/integrations/tracking/utmify
  * 
- * @version 3.1.0 - RISE Protocol V3 Compliant - Modularizado
+ * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
  * 
- * Este arquivo exporta a interface pública do módulo UTMify.
- * Permite importar tudo com: import * as UTMify from "@/integrations/tracking/utmify"
+ * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
+ * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+ * 
+ * Este módulo exporta apenas:
+ * - Tipos (para tipagem de dados)
+ * - Utils (extractUTMParameters, formatDateForUTMify - usados pelo createOrderActor)
+ * - Hooks (useUTMifyConfig, shouldRunUTMify - usados pelo painel admin)
+ * - Tracker (componente de logging/debug)
+ * 
+ * @see docs/EDGE_FUNCTIONS_REGISTRY.md - UTMify Backend SSOT
  */
 
 // Tipos
 export * from "./types";
 
-// Utils (extraídos para modularização)
+// Utils (usados pelo createOrderActor para persistir UTMs no pedido)
 export * from "./utils";
 
-// Eventos
+// Events (re-exports de utils para compatibilidade)
 export * from "./events";
 
-// Hooks
+// Hooks (usados pelo painel admin para configuração)
 export * from "./hooks";
 
-// Componente
+// Componente (logging/debug)
 export { Tracker } from "./Tracker";

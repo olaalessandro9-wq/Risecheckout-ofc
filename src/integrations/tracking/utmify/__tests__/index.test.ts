@@ -1,7 +1,11 @@
 /**
  * @file index.test.ts
  * @description Tests for UTMify barrel exports
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
+ * 
+ * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
+ * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
  */
 
 import { describe, it, expect } from "vitest";
@@ -17,16 +21,35 @@ describe("UTMify Barrel Exports", () => {
       expect(typeof UTMify.formatDateForUTMify).toBe("function");
     });
 
-    it("should export event functions", () => {
-      expect(UTMify.sendUTMifyConversion).toBeDefined();
-      expect(typeof UTMify.sendUTMifyConversion).toBe("function");
+    it("should export conversion functions", () => {
+      expect(UTMify.convertToCents).toBeDefined();
+      expect(typeof UTMify.convertToCents).toBe("function");
+
+      expect(UTMify.convertToReais).toBeDefined();
+      expect(typeof UTMify.convertToReais).toBe("function");
+    });
+
+    it("should export hooks", () => {
+      expect(UTMify.useUTMifyConfig).toBeDefined();
+      expect(typeof UTMify.useUTMifyConfig).toBe("function");
+
+      expect(UTMify.shouldRunUTMify).toBeDefined();
+      expect(typeof UTMify.shouldRunUTMify).toBe("function");
+    });
+
+    it("should export Tracker component", () => {
+      expect(UTMify.Tracker).toBeDefined();
     });
   });
 
   describe("Export Count", () => {
     it("should export expected number of members", () => {
       const exports = Object.keys(UTMify);
-      expect(exports.length).toBeGreaterThanOrEqual(4);
+      // Utils: extractUTMParameters, formatDateForUTMify, convertToCents, convertToReais
+      // Hooks: useUTMifyConfig, shouldRunUTMify, useUTMifyForProduct, isEventEnabledForUTMify
+      // Component: Tracker
+      // Types are not counted as they are not runtime values
+      expect(exports.length).toBeGreaterThanOrEqual(8);
     });
   });
 
@@ -36,13 +59,33 @@ describe("UTMify Barrel Exports", () => {
       const expectedExports = [
         "extractUTMParameters",
         "formatDateForUTMify",
-        "sendUTMifyConversion",
+        "convertToCents",
+        "convertToReais",
+        "useUTMifyConfig",
+        "shouldRunUTMify",
         "Tracker",
       ];
 
       expectedExports.forEach((exportName) => {
         expect(exports).toContain(exportName);
       });
+    });
+  });
+
+  describe("Removed Exports (Backend SSOT)", () => {
+    it("should NOT export sendUTMifyConversion (now backend-only)", () => {
+      // @ts-expect-error - Verificando que não existe
+      expect(UTMify.sendUTMifyConversion).toBeUndefined();
+    });
+
+    it("should NOT export trackPurchase (now backend-only)", () => {
+      // @ts-expect-error - Verificando que não existe
+      expect(UTMify.trackPurchase).toBeUndefined();
+    });
+
+    it("should NOT export trackRefund (now backend-only)", () => {
+      // @ts-expect-error - Verificando que não existe
+      expect(UTMify.trackRefund).toBeUndefined();
     });
   });
 });

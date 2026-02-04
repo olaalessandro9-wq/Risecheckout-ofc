@@ -1,21 +1,26 @@
 /**
  * Hook: useTrackingService
  * 
- * Responsabilidade Única: Centralizar a execução de scripts de tracking.
+ * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
  * 
- * RISE Protocol V3: UTMify usa hook separado. 
- * Apenas UTMify permanece pois não migrou para product_pixels.
- * Outros pixels (Facebook, Google Ads, TikTok, Kwai) agora são disparados
+ * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
+ * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+ * 
+ * Este hook permanece para compatibilidade de API, mas NÃO dispara mais
+ * eventos UTMify no frontend - isso é feito pelo backend.
+ * 
+ * Outros pixels (Facebook, Google Ads, TikTok, Kwai) são disparados
  * automaticamente pelos componentes de pixel via TrackingManager.
+ * 
+ * @see docs/EDGE_FUNCTIONS_REGISTRY.md - UTMify Backend SSOT
  */
 
 import { useCallback } from "react";
-import { toReais } from "@/lib/money";
 import type { PurchaseData, OrderBump } from "@/types/checkout";
 import type { UTMifyIntegration } from "@/integrations/tracking/utmify/types";
+import { createLogger } from "@/lib/logger";
 
-// Tracking Module (apenas UTMify)
-import * as UTMify from "@/integrations/tracking/utmify";
+const log = createLogger("TrackingService");
 
 // ============================================================================
 // INTERFACE DO HOOK
@@ -44,55 +49,50 @@ interface UseTrackingServiceReturn {
 /**
  * Hook para gerenciar o tracking de eventos do checkout.
  * 
- * NOTA: Com a migração para product_pixels, este hook agora gerencia apenas UTMify.
- * Os outros pixels (Facebook, Google Ads, TikTok, Kwai) são renderizados pelo 
+ * RISE V3 - Backend SSOT: UTMify tracking é feito exclusivamente no backend
+ * via _shared/utmify-dispatcher.ts. Este hook NÃO dispara mais eventos UTMify.
+ * 
+ * Outros pixels (Facebook, Google Ads, TikTok, Kwai) são renderizados pelo 
  * TrackingManager e disparam eventos automaticamente.
  * 
  * @param props - Configurações de tracking
- * @returns Funções para disparar eventos de tracking
+ * @returns Funções para disparar eventos de tracking (no-op para UTMify)
  */
 export function useTrackingService({
   vendorId,
   productId,
   productName,
-  trackingConfig,
+  trackingConfig: _trackingConfig,
 }: UseTrackingServiceProps): UseTrackingServiceReturn {
-  const { utmifyConfig } = trackingConfig;
-
   // Disparar evento de início de checkout
-  // NOTA: UTMify não tem evento de InitiateCheckout, apenas Purchase
+  // NOTA: UTMify não tem evento de InitiateCheckout
+  // Outros pixels são gerenciados pelo TrackingManager
   const fireInitiateCheckout = useCallback(
     (_selectedBumps: Set<string>, _orderBumps: OrderBump[]) => {
       if (!productId || !productName) return;
-      // UTMify não dispara evento de InitiateCheckout
-      // Outros pixels agora são gerenciados pelo TrackingManager
+      // No-op: pixels são gerenciados pelo TrackingManager
     },
     [productId, productName]
   );
 
   // Disparar evento de compra
+  // RISE V3: UTMify tracking é feito exclusivamente no backend
   const firePurchase = useCallback(
     (purchaseData: PurchaseData) => {
-      if (!productId || !productName) return;
+      if (!productId || !productName || !vendorId) return;
 
-      const { orderId, totalCents, customerData } = purchaseData;
+      // RISE V3 - Backend SSOT: UTMify tracking é feito no backend
+      // via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+      // Este código foi removido para evitar disparo duplicado.
+      log.debug("firePurchase chamado (no-op: UTMify é backend SSOT)", {
+        orderId: purchaseData.orderId,
+        vendorId,
+        productId,
+      });
 
-      // UTMify
-      if (UTMify.shouldRunUTMify(utmifyConfig, productId) && vendorId) {
-        const utmParams = UTMify.extractUTMParameters();
-        UTMify.trackPurchase(vendorId, {
-          orderId,
-          paymentMethod: "credit_card",
-          status: "approved",
-          createdAt: UTMify.formatDateForUTMify(new Date()),
-          customer: customerData,
-          products: [{ id: productId, name: productName, priceInCents: totalCents }],
-          trackingParameters: utmParams,
-          totalPriceInCents: totalCents,
-        });
-      }
+      // Outros pixels são gerenciados pelo TrackingManager
     },
-    [productId, productName, vendorId, utmifyConfig]
+    [productId, productName, vendorId]
   );
 
   return {

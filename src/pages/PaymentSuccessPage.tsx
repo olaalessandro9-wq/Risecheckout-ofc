@@ -1,23 +1,23 @@
 /**
  * PaymentSuccessPage - Página de sucesso de pagamento
  * 
- * @version 3.0.0 - RISE Protocol V3 - UTMify centralizado aqui
+ * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
  * 
- * SSOT para tracking de compra: Dispara UTMify para TODOS os gateways
- * (Cartão, PIX MercadoPago, PIX Asaas, PIX Stripe, PIX PushinPay)
+ * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
+ * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+ * Este componente NÃO dispara mais eventos UTMify - ZERO duplicação.
  * 
- * MIGRATED: Uses api.publicCall() instead of supabase.functions.invoke()
+ * @see docs/EDGE_FUNCTIONS_REGISTRY.md - UTMify Backend SSOT
  * @see RISE Protocol V3 - Zero database access from frontend
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, Mail, MessageCircle, Copy, Check, Package, ShoppingBag, GraduationCap, ArrowRight, Loader2 } from "lucide-react";
 import { publicApi } from "@/lib/api/public-client";
 import { Button } from "@/components/ui/button";
 import { createLogger } from "@/lib/logger";
 import { SuccessThemeProvider } from "@/components/theme-providers";
-import { sendUTMifyConversion, formatDateForUTMify } from "@/integrations/tracking/utmify";
 
 const log = createLogger("PaymentSuccessPage");
 
@@ -80,9 +80,6 @@ export const PaymentSuccessPage = () => {
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [accessingMembersArea, setAccessingMembersArea] = useState(false);
-  
-  // RISE V3: Ref para garantir que UTMify só dispare uma vez
-  const utmifyFiredRef = useRef(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -116,72 +113,9 @@ export const PaymentSuccessPage = () => {
     fetchOrderDetails();
   }, [orderId, token]);
 
-  // RISE V3: Disparar UTMify quando orderDetails carregar (SSOT)
-  useEffect(() => {
-    if (!orderDetails || utmifyFiredRef.current) return;
-    if (!orderDetails.vendor_id) {
-      log.debug("Sem vendor_id, não disparando UTMify");
-      return;
-    }
-
-    utmifyFiredRef.current = true;
-
-    const trackPurchase = async () => {
-      log.info("🎯 Disparando UTMify para ordem:", orderId);
-
-      try {
-        await sendUTMifyConversion(
-          orderDetails.vendor_id!,
-          {
-            orderId: orderId!,
-            paymentMethod: orderDetails.payment_method || "unknown",
-            status: "paid",
-            createdAt: formatDateForUTMify(orderDetails.created_at || new Date()),
-            approvedDate: formatDateForUTMify(new Date()),
-            refundedAt: null,
-            customer: {
-              name: orderDetails.customer_name || "",
-              email: orderDetails.customer_email || "",
-              phone: orderDetails.customer_phone || null,
-              document: orderDetails.customer_document || null,
-              country: "BR",
-              ip: orderDetails.customer_ip || "",
-            },
-            products: orderDetails.order_items?.map(item => ({
-              id: item.id,
-              name: item.product_name,
-              priceInCents: item.amount_cents,
-              quantity: item.quantity,
-            })) || [],
-            trackingParameters: orderDetails.tracking_parameters || {
-              src: null,
-              sck: null,
-              utm_source: null,
-              utm_medium: null,
-              utm_campaign: null,
-              utm_content: null,
-              utm_term: null,
-            },
-            totalPriceInCents: orderDetails.amount_cents,
-            commission: {
-              totalPriceInCents: orderDetails.amount_cents,
-              gatewayFeeInCents: 0,
-              userCommissionInCents: orderDetails.amount_cents,
-              currency: "BRL",
-            },
-            isTest: false,
-          },
-          "purchase_approved",
-          orderDetails.product_id
-        );
-        log.info("✅ UTMify disparado com sucesso");
-      } catch (err) {
-        log.error("❌ Erro ao disparar UTMify:", err);
-      }
-    };
-
-    trackPurchase();
-  }, [orderDetails, orderId]);
+  // RISE V3 - Backend SSOT: UTMify tracking é feito exclusivamente no backend
+  // via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+  // Não há mais código de tracking aqui para evitar duplicação.
 
   const handleCopyOrderId = () => {
     if (orderId) {

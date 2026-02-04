@@ -1,34 +1,57 @@
 /**
  * useTrackingService Hook Tests
  * 
- * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
+ * 
+ * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
+ * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+ * 
+ * Estes testes verificam que o hook existe e funciona como no-op.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useTrackingService } from "./useTrackingService";
-import * as UTMify from "@/integrations/tracking/utmify";
-
-vi.mock("@/integrations/tracking/utmify", () => ({
-  shouldRunUTMify: vi.fn(),
-  extractUTMParameters: vi.fn(),
-  trackPurchase: vi.fn(),
-  formatDateForUTMify: vi.fn(),
-}));
 
 describe("useTrackingService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(UTMify.extractUTMParameters).mockReturnValue({
-      src: "", sck: "", utm_source: "", utm_campaign: "", 
-      utm_medium: "", utm_content: "", utm_term: "",
-    });
-    vi.mocked(UTMify.formatDateForUTMify).mockReturnValue("2024-01-15");
   });
 
-  it("should not fire purchase if vendorId is null", () => {
-    vi.mocked(UTMify.shouldRunUTMify).mockReturnValue(true);
+  it("should return fireInitiateCheckout and firePurchase functions", () => {
+    const { result } = renderHook(() =>
+      useTrackingService({
+        vendorId: "vendor-1",
+        productId: "prod-1",
+        productName: "Test Product",
+        trackingConfig: {},
+      })
+    );
 
+    expect(typeof result.current.fireInitiateCheckout).toBe("function");
+    expect(typeof result.current.firePurchase).toBe("function");
+  });
+
+  it("should not throw when firePurchase is called (no-op)", () => {
+    const { result } = renderHook(() =>
+      useTrackingService({
+        vendorId: "vendor-1",
+        productId: "prod-1",
+        productName: "Test Product",
+        trackingConfig: {},
+      })
+    );
+
+    expect(() => {
+      result.current.firePurchase({
+        orderId: "order-123",
+        totalCents: 9900,
+        customerData: { name: "John", email: "john@example.com", phone: "11999999999" },
+      });
+    }).not.toThrow();
+  });
+
+  it("should not throw when vendorId is null", () => {
     const { result } = renderHook(() =>
       useTrackingService({
         vendorId: null,
@@ -38,13 +61,13 @@ describe("useTrackingService", () => {
       })
     );
 
-    result.current.firePurchase({
-      orderId: "order-123",
-      totalCents: 9900,
-      customerData: { name: "John", email: "john@example.com", phone: "11999999999" },
-    });
-
-    expect(UTMify.trackPurchase).not.toHaveBeenCalled();
+    expect(() => {
+      result.current.firePurchase({
+        orderId: "order-123",
+        totalCents: 9900,
+        customerData: { name: "John", email: "john@example.com", phone: "11999999999" },
+      });
+    }).not.toThrow();
   });
 
   it("should accept null utmifyConfig", () => {
@@ -57,6 +80,21 @@ describe("useTrackingService", () => {
           trackingConfig: { utmifyConfig: null },
         })
       );
+    }).not.toThrow();
+  });
+
+  it("should not throw when fireInitiateCheckout is called (no-op)", () => {
+    const { result } = renderHook(() =>
+      useTrackingService({
+        vendorId: "vendor-1",
+        productId: "prod-1",
+        productName: "Test Product",
+        trackingConfig: {},
+      })
+    );
+
+    expect(() => {
+      result.current.fireInitiateCheckout(new Set(["bump-1"]), []);
     }).not.toThrow();
   });
 });
