@@ -10,16 +10,19 @@
  * - Remover buyer de grupos do produto afetado
  * - Registrar evento de auditoria
  * - Disparar webhooks do vendedor
+ * - Disparar evento UTMify (refund/chargeback)
  * 
  * POLÍTICA: QUALQUER reembolso (parcial ou total) revoga o acesso.
  * 
- * Versão: 1.0.0
+ * Versão: 2.0.0 - RISE Protocol V3 + UTMify Backend SSOT
  * Data de Criação: 2026-01-23
+ * Última Atualização: 2026-02-04
  * ============================================================================
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { type Logger } from './webhook-helpers.ts';
+import { dispatchUTMifyEventForOrder, type UTMifyEventType } from './utmify-dispatcher.ts';
 
 // ============================================================================
 // TYPES
@@ -58,6 +61,8 @@ export interface PostRefundResult {
   groupsRemoved: number;
   /** Se os webhooks externos foram disparados */
   webhooksTriggered: boolean;
+  /** Se o UTMify foi notificado */
+  utmifyDispatched: boolean;
   /** Lista de erros não-críticos encontrados */
   errors: string[];
 }
@@ -92,6 +97,7 @@ export async function processPostRefundActions(
     buyerId: null,
     groupsRemoved: 0,
     webhooksTriggered: false,
+    utmifyDispatched: false,
     errors: [],
   };
 
@@ -258,7 +264,41 @@ export async function processPostRefundActions(
   }
 
   // ========================================================================
-  // 4. LOG FINAL
+  // 4. UTMIFY TRACKING (RISE V3 - Backend SSOT)
+  // ========================================================================
+
+  try {
+    // Mapear reason para UTMify event type
+    const utmifyEventType: UTMifyEventType = input.reason === 'chargeback' 
+      ? 'chargeback' 
+      : 'refund';
+
+    logger.info(`Disparando evento UTMify ${utmifyEventType}`, { orderId: input.orderId });
+    
+    const utmifyResult = await dispatchUTMifyEventForOrder(
+      supabase,
+      input.orderId,
+      utmifyEventType,
+      { refundedAt: new Date().toISOString() }
+    );
+
+    if (utmifyResult.success && !utmifyResult.skipped) {
+      result.utmifyDispatched = true;
+      logger.info(`✅ UTMify ${utmifyEventType} disparado com sucesso`);
+    } else if (utmifyResult.skipped) {
+      logger.info('UTMify pulado:', utmifyResult.reason);
+    } else {
+      result.errors.push(`UTMify: ${utmifyResult.error}`);
+      logger.warn('⚠️ Erro ao disparar UTMify (não crítico)', utmifyResult.error);
+    }
+  } catch (utmifyError) {
+    const errorMsg = utmifyError instanceof Error ? utmifyError.message : 'Erro desconhecido';
+    result.errors.push(`UTMify: ${errorMsg}`);
+    logger.warn('⚠️ Exceção ao disparar UTMify (não crítico)', utmifyError);
+  }
+
+  // ========================================================================
+  // 5. LOG FINAL
   // ========================================================================
 
   logger.info('Ações pós-reembolso concluídas', {
@@ -268,6 +308,7 @@ export async function processPostRefundActions(
     buyerId: result.buyerId,
     groupsRemoved: result.groupsRemoved,
     webhooksTriggered: result.webhooksTriggered,
+    utmifyDispatched: result.utmifyDispatched,
     errorsCount: result.errors.length,
   });
 

@@ -2,8 +2,11 @@
  * Charge Creator Handler - asaas-create-payment
  * 
  * Responsável por criar cobranças na API do Asaas
+ * 
+ * @version 2.0.0 - RISE Protocol V3 + UTMify Backend SSOT
  */
 
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AsaasSplitRule } from "./split-builder.ts";
 import { createLogger } from "../../_shared/logger.ts";
 import { fetchWithTimeout } from "../../_shared/http/index.ts";
@@ -178,5 +181,35 @@ export async function triggerPixGeneratedWebhook(
     }
   } catch (error) {
     log.warn("Error triggering webhook:", error);
+  }
+}
+
+// ============================================================================
+// UTMIFY PIX_GENERATED EVENT (RISE V3 - Backend SSOT)
+// ============================================================================
+
+import { dispatchUTMifyEventForOrder } from "../../_shared/utmify-dispatcher.ts";
+
+/**
+ * Dispara evento pix_generated para UTMify
+ */
+export async function dispatchAsaasPixGeneratedUTMify(
+  supabase: SupabaseClient,
+  orderId: string
+): Promise<void> {
+  try {
+    log.info(`Disparando UTMify pix_generated para order ${orderId}`);
+    
+    const result = await dispatchUTMifyEventForOrder(supabase, orderId, "pix_generated");
+    
+    if (result.success && !result.skipped) {
+      log.info(`✅ UTMify pix_generated disparado com sucesso`);
+    } else if (result.skipped) {
+      log.info(`UTMify pulado: ${result.reason}`);
+    } else {
+      log.warn(`Erro ao disparar UTMify: ${result.error}`);
+    }
+  } catch (error) {
+    log.warn("Exceção ao disparar UTMify pix_generated (não crítico):", error);
   }
 }

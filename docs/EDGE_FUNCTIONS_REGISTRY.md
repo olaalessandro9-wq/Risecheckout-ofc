@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-02-04 (UTMify V3.0 - Vault SSOT migration)  
+> Última atualização: 2026-02-04 (UTMify Backend SSOT - Eventos completos no backend)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -242,14 +242,16 @@
 
 ### Tracking & Analytics
 
-| Nome | URL | No Repo? | Auth |
-|------|-----|----------|------|
-| `utmify-conversion` | `.../utmify-conversion` | ✅ | public |
-| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public |
-| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | sessions |
-| `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | public |
-| `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | internal |
-| `track-visit` | `.../track-visit` | ✅ | public |
+| Nome | URL | No Repo? | Auth | Descrição |
+|------|-----|----------|------|-----------|
+| `utmify-conversion` | `.../utmify-conversion` | ✅ | public | Legacy frontend call (deprecated) |
+| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public | Conversões Facebook CAPI |
+| `dashboard-analytics` | `.../dashboard-analytics` | ✅ | sessions | Analytics do produtor |
+| `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | public | Heartbeat de checkout ativo |
+| `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | internal | Detecção de checkouts abandonados |
+| `track-visit` | `.../track-visit` | ✅ | public | Tracking de visitas |
+
+> **RISE V3 - UTMify Backend SSOT**: Eventos UTMify (`pix_generated`, `purchase_approved`, `purchase_refused`, `refund`, `chargeback`) são agora disparados diretamente no backend via `_shared/utmify-dispatcher.ts`, integrado nos webhooks de pagamento e handlers de criação de PIX. O endpoint `utmify-conversion` é mantido apenas para compatibilidade.
 
 ### Orders
 

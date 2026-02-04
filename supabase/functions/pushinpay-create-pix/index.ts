@@ -24,7 +24,7 @@ import {
 import { createLogger } from "../_shared/logger.ts";
 import { determineSmartSplit } from "./handlers/smart-split.ts";
 import { buildPixPayload, callPushinPayApi, type PushinPayResponse } from "./handlers/pix-builder.ts";
-import { updateOrderWithPixData, triggerPixGeneratedWebhook, logManualPaymentIfNeeded } from "./handlers/post-pix.ts";
+import { updateOrderWithPixData, triggerPixGeneratedWebhook, logManualPaymentIfNeeded, dispatchPixGeneratedUTMify } from "./handlers/post-pix.ts";
 
 const log = createLogger("pushinpay-create-pix");
 
@@ -195,13 +195,16 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     // 8. Atualizar pedido
     await updateOrderWithPixData({ supabase, orderId, pixData, logPrefix: 'pushinpay-create-pix' });
 
-    // 9. Disparar webhook
+    // 9. Disparar webhook pix_generated (vendor webhooks)
     await triggerPixGeneratedWebhook({ supabaseUrl, orderId, logPrefix: 'pushinpay-create-pix' });
 
-    // 10. Logar pagamento manual se necessário
+    // 10. Disparar UTMify pix_generated (RISE V3 - Backend SSOT)
+    await dispatchPixGeneratedUTMify({ supabase, orderId, logPrefix: 'pushinpay-create-pix' });
+
+    // 11. Logar pagamento manual se necessário
     await logManualPaymentIfNeeded({ supabase, orderId, smartSplit, logPrefix: 'pushinpay-create-pix' });
 
-    // 11. Retornar resposta
+    // 12. Retornar resposta
     const responseData: PixResponseData = {
       ok: true,
       pix: {
