@@ -13,6 +13,7 @@ import { Suspense } from "react";
 import type { RouteObject } from "react-router-dom";
 import { BuyerRoute } from "@/components/guards";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { AuthPageLoader } from "@/components/auth/AuthPageLoader";
 
 // ============================================================================
 // LAZY IMPORTS (with auto-retry for network failures)
@@ -39,30 +40,33 @@ function PageLoader() {
   );
 }
 
+// Use AuthPageLoader for auth pages to prevent theme flash
+// Use PageLoader for protected pages (inside StudentShell)
+
 // ============================================================================
 // ROUTE DEFINITIONS
 // ============================================================================
 export const buyerRoutes: RouteObject[] = [
-  // Rotas públicas de autenticação buyer
+  // Rotas públicas de autenticação buyer (usam AuthPageLoader para evitar flash de tema)
   { 
     path: "/minha-conta", 
-    element: <Suspense fallback={<PageLoader />}><BuyerAuth /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><BuyerAuth /></Suspense> 
   },
   { 
     path: "/minha-conta/cadastro", 
-    element: <Suspense fallback={<PageLoader />}><BuyerCadastro /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><BuyerCadastro /></Suspense> 
   },
   { 
     path: "/minha-conta/recuperar-senha", 
-    element: <Suspense fallback={<PageLoader />}><BuyerRecuperarSenha /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><BuyerRecuperarSenha /></Suspense> 
   },
   { 
     path: "/minha-conta/redefinir-senha", 
-    element: <Suspense fallback={<PageLoader />}><BuyerResetPassword /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><BuyerResetPassword /></Suspense> 
   },
   { 
     path: "/minha-conta/setup-acesso", 
-    element: <Suspense fallback={<PageLoader />}><SetupAccess /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><SetupAccess /></Suspense> 
   },
   
   // Rotas protegidas com StudentShell
