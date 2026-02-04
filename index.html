@@ -6,7 +6,6 @@
     
     <!-- Security Headers -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <!-- X-Frame-Options removido: só funciona como HTTP header, não como meta tag -->
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     
@@ -14,8 +13,6 @@
     <title>Risecheckout</title>
     <meta name="description" content="Plataforma completa para gestão e venda de produtos digitais com sistema de afiliados">
     <meta name="author" content="RiseCheckout" />
-
-    
     
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/og-image.png" />
@@ -24,7 +21,7 @@
     <meta name="twitter:site" content="@risecheckout" />
     <meta name="twitter:image" content="/og-image.png" />
     
-    <!-- Google Fonts - Apenas Inter (reduzido de 5 famílias para 1) -->
+    <!-- Google Fonts - Apenas Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -40,28 +37,17 @@
         var t = localStorage.getItem('theme');
         if (t === 'dark') document.documentElement.classList.add('dark');
       } catch (e) {}
-      // Removido scrollbar-gutter: stable (causava espaço vazio na direita)
-      // try {
-      //   document.documentElement.style.scrollbarGutter = 'stable';
-      // } catch (e) {}
     </script>
     
-  
-  
-  
-  
-  
-  
-  
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <meta property="og:title" content="Risecheckout">
-  <meta name="twitter:title" content="Risecheckout">
-  <meta property="og:description" content="Plataforma completa para gestão e venda de produtos digitais com sistema de afiliados">
-  <meta name="twitter:description" content="Plataforma completa para gestão e venda de produtos digitais com sistema de afiliados">
-</head>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <meta property="og:title" content="Risecheckout">
+    <meta name="twitter:title" content="Risecheckout">
+    <meta property="og:description" content="Plataforma completa para gestão e venda de produtos digitais com sistema de afiliados">
+    <meta name="twitter:description" content="Plataforma completa para gestão e venda de produtos digitais com sistema de afiliados">
+  </head>
 
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx?v=build_20251103_5"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

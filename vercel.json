@@ -1,12 +1,35 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-{
+  "redirects": [
+    {
       "source": "/",
-      "destination": "/index.html"
+      "destination": "/auth",
+      "permanent": false
     },
     {
-      "source": "/((?!landing|wp-content|wp-includes).*)",
+      "source": "/landing/:path*",
+      "destination": "/auth",
+      "permanent": false
+    },
+    {
+      "source": "/wp-content/:path*",
+      "destination": "/auth",
+      "permanent": false
+    },
+    {
+      "source": "/wp-includes/:path*",
+      "destination": "/auth",
+      "permanent": false
+    },
+    {
+      "source": "/wp-json/:path*",
+      "destination": "/auth",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
