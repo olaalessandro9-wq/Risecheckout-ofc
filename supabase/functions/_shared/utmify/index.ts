@@ -27,7 +27,7 @@ export { formatDateUTC } from "./date-formatter.ts";
 export { mapPaymentMethod } from "./payment-mapper.ts";
 
 // Core Functions
-export { isEventEnabled } from "./config-checker.ts";
+export { isEventEnabled, listEnabledEvents } from "./config-checker.ts";
 export { getUTMifyToken } from "./token-retriever.ts";
 export { fetchOrderForUTMify } from "./order-fetcher.ts";
 export { buildUTMifyPayload, buildUTMifyOrderData } from "./payload-builder.ts";
