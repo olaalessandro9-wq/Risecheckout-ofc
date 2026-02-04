@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { useUTMifyContext } from "../context";
 import { TokenInput } from "./TokenInput";
+import { ValidateCredentialsButton } from "./ValidateCredentialsButton";
 import { ProductSelector } from "./ProductSelector";
 import { EventSelector } from "./EventSelector";
 
@@ -108,6 +109,7 @@ export function UTMifyForm() {
       
       <CardContent className="space-y-4">
         <TokenInput />
+        <ValidateCredentialsButton />
         <ProductSelector />
         <EventSelector />
 
