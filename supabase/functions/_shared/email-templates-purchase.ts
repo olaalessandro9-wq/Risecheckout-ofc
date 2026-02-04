@@ -24,7 +24,7 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background-color: #F8F9FA; color: #343A40; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
       .container { max-width: 600px; margin: 40px auto; background-color: #FFFFFF; border: 1px solid #E9ECEF; border-radius: 8px; overflow: hidden; }
       .header { text-align: center; padding: 40px 20px; border-bottom: 1px solid #E9ECEF; }
-      .header img { max-width: 180px; }
+      .header img { width: 100%; max-width: 400px; height: auto; }
       .content { padding: 32px; }
       .content h1 { font-size: 24px; font-weight: 700; color: #212529; margin: 0 0 12px; }
       .content p { font-size: 16px; line-height: 1.6; margin: 0 0 24px; color: #495057; }
@@ -66,17 +66,14 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       <div class="order-details">
         <h2>Resumo do Pedido</h2>
         <div class="order-item">
-          <span class="order-label">Produto: </span>
-          <span class="order-value">${data.productName}</span>
+          <span class="order-label">Produto:</span> <span class="order-value">${data.productName}</span>
         </div>
         <div class="order-item">
-          <span class="order-label">Nº do Pedido: </span>
-          <span class="order-value">#${data.orderId.substring(0, 8).toUpperCase()}</span>
+          <span class="order-label">Nº do Pedido:</span> <span class="order-value">#${data.orderId.substring(0, 8).toUpperCase()}</span>
         </div>
         ${data.paymentMethod ? `
         <div class="order-item">
-          <span class="order-label">Forma de Pagamento: </span>
-          <span class="order-value">${data.paymentMethod}</span>
+          <span class="order-label">Forma de Pagamento:</span> <span class="order-value">${data.paymentMethod}</span>
         </div>
         ` : ''}
         <div class="total-row">
