@@ -2,6 +2,7 @@
  * BuyerAuth - Login page for student panel
  * 
  * MIGRATED to useUnifiedAuth (RISE Protocol V3)
+ * Uses AuthInput primitives for consistent styling
  * 
  * Features:
  * - Login only (registration via invite token or purchase)
@@ -15,8 +16,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthInput } from "@/components/auth/ui";
 import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -143,18 +144,15 @@ export default function BuyerAuth() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-[hsl(var(--auth-text-primary))]">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--auth-text-muted))]" />
-                  <Input
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onBlur={handleEmailBlur}
-                    className="pl-10 bg-[hsl(var(--auth-input-bg))] border-[hsl(var(--auth-border))] text-white placeholder:text-[hsl(var(--auth-text-muted))] focus:border-[hsl(var(--auth-accent))] focus:ring-[hsl(var(--auth-accent)/0.2)]"
-                    required
-                  />
-                </div>
+                <AuthInput
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={handleEmailBlur}
+                  leftIcon={<Mail className="h-4 w-4" />}
+                  required
+                />
               </div>
 
               {needsPasswordSetup && (
@@ -169,25 +167,24 @@ export default function BuyerAuth() {
                 <Label className="text-[hsl(var(--auth-text-primary))]">
                   {needsPasswordSetup ? "Defina sua Senha" : "Senha"}
                 </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--auth-text-muted))]" />
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder={needsPasswordSetup ? "Mínimo 6 caracteres" : "••••••••"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 bg-[hsl(var(--auth-input-bg))] border-[hsl(var(--auth-border))] text-white placeholder:text-[hsl(var(--auth-text-muted))] focus:border-[hsl(var(--auth-accent))] focus:ring-[hsl(var(--auth-accent)/0.2)]"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))]"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                <AuthInput
+                  type={showPassword ? "text" : "password"}
+                  placeholder={needsPasswordSetup ? "Mínimo 6 caracteres" : "••••••••"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  leftIcon={<Lock className="h-4 w-4" />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-[hsl(var(--auth-text-muted))] hover:text-[hsl(var(--auth-text-primary))] transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
+                  required
+                  minLength={6}
+                />
               </div>
 
               <Button

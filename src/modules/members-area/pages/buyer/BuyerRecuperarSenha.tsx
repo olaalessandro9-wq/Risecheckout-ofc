@@ -2,8 +2,9 @@
  * BuyerRecuperarSenha - Recuperação de senha para alunos
  * 
  * RISE Protocol V3 - Uses unified-auth as SSOT
+ * Uses AuthInput primitives for consistent styling
  * 
- * @version 3.0.0 - Blue Theme + Inverted Layout (Form Left, Branding Right)
+ * @version 3.1.0 - Blue Theme + AuthInput primitives
  * 
  * Estados:
  * 1. form - Formulário para digitar email
@@ -17,8 +18,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthInput } from "@/components/auth/ui";
 import { api } from "@/lib/api";
 import { createLogger } from "@/lib/logger";
 
@@ -126,14 +127,14 @@ export default function BuyerRecuperarSenha() {
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-[hsl(var(--auth-text-primary))]">E-mail</Label>
-                      <Input
+                      <AuthInput
                         id="email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="seu@email.com"
                         disabled={viewState === "loading"}
-                        className="h-12 bg-[hsl(var(--auth-input-bg))] border-[hsl(var(--auth-border))] text-[hsl(var(--auth-text-primary))] placeholder:text-[hsl(var(--auth-text-muted))] focus:border-[hsl(var(--auth-accent)/0.5)] focus:ring-[hsl(var(--auth-accent)/0.2)]"
+                        hasError={!!errorMessage && viewState === "form"}
                       />
                       {errorMessage && viewState === "form" && (
                         <p className="text-sm text-[hsl(var(--auth-error))]">{errorMessage}</p>

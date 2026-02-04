@@ -2,7 +2,9 @@
  * BuyerCadastro - Student registration/profile choice page
  * Shows options: "Quero ver minhas compras", "Sou produtor", or "Quero ser afiliado"
  * 
- * @version 3.0.0 - Blue Theme + Inverted Layout (Form Left, Branding Right)
+ * RISE Protocol V3 - Uses auth design tokens correctly
+ * 
+ * @version 3.1.0 - Blue Theme + Correct token usage with opacity
  */
 
 import { useState } from "react";
@@ -68,10 +70,10 @@ export default function BuyerCadastro() {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Buyer Option */}
+                  {/* Buyer Option - RISE V3: Correct opacity usage */}
                   <button
                     onClick={handleBuyerChoice}
-                    className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border))] bg-[hsl(var(--auth-panel-bg))] hover:bg-[hsl(var(--auth-panel-bg-hover))] hover:border-[hsl(var(--auth-accent)/0.5)] transition-all duration-300 text-left group"
+                    className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border)/0.1)] bg-[hsl(var(--auth-panel-bg)/0.05)] hover:bg-[hsl(var(--auth-panel-bg-hover)/0.08)] hover:border-[hsl(var(--auth-accent)/0.5)] transition-all duration-300 text-left group"
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
@@ -88,10 +90,10 @@ export default function BuyerCadastro() {
                     </div>
                   </button>
 
-                  {/* Producer Option */}
+                  {/* Producer Option - RISE V3: Correct opacity usage */}
                   <button
                     onClick={handleProducerChoice}
-                    className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border))] bg-[hsl(var(--auth-panel-bg))] hover:bg-[hsl(var(--auth-panel-bg-hover))] hover:border-[hsl(var(--auth-accent-secondary)/0.5)] transition-all duration-300 text-left group"
+                    className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border)/0.1)] bg-[hsl(var(--auth-panel-bg)/0.05)] hover:bg-[hsl(var(--auth-panel-bg-hover)/0.08)] hover:border-[hsl(var(--auth-accent-secondary)/0.5)] transition-all duration-300 text-left group"
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent-secondary))] to-[hsl(var(--auth-accent-tertiary))] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg shadow-[hsl(var(--auth-accent-secondary)/0.3)]">
@@ -108,10 +110,10 @@ export default function BuyerCadastro() {
                     </div>
                   </button>
 
-                  {/* Affiliate Option */}
+                  {/* Affiliate Option - RISE V3: Correct opacity usage */}
                   <button
                     onClick={handleAffiliateChoice}
-                    className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border))] bg-[hsl(var(--auth-panel-bg))] hover:bg-[hsl(var(--auth-panel-bg-hover))] hover:border-emerald-500/50 transition-all duration-300 text-left group"
+                    className="w-full p-6 rounded-2xl border border-[hsl(var(--auth-border)/0.1)] bg-[hsl(var(--auth-panel-bg)/0.05)] hover:bg-[hsl(var(--auth-panel-bg-hover)/0.08)] hover:border-emerald-500/50 transition-all duration-300 text-left group"
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/30">
@@ -153,7 +155,8 @@ export default function BuyerCadastro() {
                   </h1>
                 </div>
 
-                <div className="p-6 rounded-xl border border-[hsl(var(--auth-border))] bg-[hsl(var(--auth-panel-bg))] space-y-4">
+                {/* RISE V3: Correct opacity usage for panel */}
+                <div className="p-6 rounded-xl border border-[hsl(var(--auth-border)/0.1)] bg-[hsl(var(--auth-panel-bg)/0.05)] space-y-4">
                   <p className="text-[hsl(var(--auth-text-primary))] text-center">
                     <strong>Muito bem!</strong> Se você realizou uma compra ou recebeu um convite, você já tem uma conta no RiseCheckout!
                   </p>
