@@ -1,7 +1,17 @@
 /**
- * LandingPage Component
+ * LandingPage Component - ARQUIVADO
  * 
- * NOTA: Este componente tem ISENÇÃO do RISE Protocol V3
+ * STATUS: INACESSÍVEL - Código preservado para uso futuro
+ * DATA: 04 de Fevereiro de 2026
+ * 
+ * Este componente não está mais roteado. A rota "/" agora
+ * redireciona diretamente para "/auth".
+ * 
+ * Para reativar: restaurar a rota em publicRoutes.tsx
+ * 
+ * ---
+ * 
+ * NOTA ORIGINAL: Este componente tinha ISENÇÃO do RISE Protocol V3
  * Critério único: Fidelidade 100% ao design WordPress original
  * 
  * Renderiza a landing page do WordPress via iframe

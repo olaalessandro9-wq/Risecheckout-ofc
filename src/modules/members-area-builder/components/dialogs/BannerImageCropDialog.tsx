@@ -11,8 +11,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createLogger } from "@/lib/logger";
-import Cropper from "react-easy-crop";
-import { Area, Point } from "react-easy-crop/types";
+import Cropper, { Area, Point } from "react-easy-crop";
 import {
   Dialog,
   DialogContent,

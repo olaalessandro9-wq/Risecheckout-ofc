@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    {
+{
       "source": "/",
-      "destination": "/landing/index.html"
+      "destination": "/index.html"
     },
     {
       "source": "/((?!landing|wp-content|wp-includes).*)",
