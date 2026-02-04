@@ -41,6 +41,7 @@ import { handleCorsV2 } from '../_shared/cors-v2.ts';
 import { requireAuthenticatedProducer, unauthorizedResponse } from '../_shared/unified-auth.ts';
 import { createLogger } from '../_shared/logger.ts';
 import { normalizeUTMifyToken } from '../_shared/utmify/token-normalizer.ts';
+import { UTMIFY_TOKEN_LENGTH } from '../_shared/utmify/constants.ts';
 
 const log = createLogger('vault-save');
 
@@ -192,9 +193,10 @@ Deno.serve(async (req) => {
         });
       }
       
-      if (result.normalized.length < 10) {
+      // RISE V3: Validação exata de 36 caracteres
+      if (result.normalized.length !== UTMIFY_TOKEN_LENGTH) {
         return new Response(
-          JSON.stringify({ error: 'Token UTMify parece inválido (muito curto)' }),
+          JSON.stringify({ error: `Token UTMify inválido. Deve conter exatamente ${UTMIFY_TOKEN_LENGTH} caracteres.` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

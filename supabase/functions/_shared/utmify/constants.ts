@@ -32,3 +32,9 @@ export const STATUS_MAP: Record<UTMifyEventType, string> = {
   refund: "refunded",
   chargeback: "chargedback",
 };
+
+/**
+ * Tamanho exato do token UTMify (36 caracteres)
+ * Exemplo: "A7KU9Mgyb4ihqg0R5Ybh4wbURToU3cU8tt93"
+ */
+export const UTMIFY_TOKEN_LENGTH = 36;

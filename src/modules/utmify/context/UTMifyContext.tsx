@@ -14,6 +14,7 @@ import type { UTMifyStateValue } from "../machines";
 import type { Product } from "../types";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { toast } from "sonner";
+import { UTMIFY_TOKEN_LENGTH, UTMIFY_TOKEN_ERROR_MESSAGE } from "../constants";
 
 // ============================================================================
 // CONTEXT VALUE TYPE
@@ -117,6 +118,12 @@ export function UTMifyProvider({ children }: UTMifyProviderProps) {
     
     if (!token.trim() && !config?.hasToken) {
       toast.error("API Token é obrigatório");
+      return;
+    }
+
+    // RISE V3: Validação de tamanho exato (36 caracteres)
+    if (token.trim() && token.trim().length !== UTMIFY_TOKEN_LENGTH) {
+      toast.error(UTMIFY_TOKEN_ERROR_MESSAGE);
       return;
     }
 
