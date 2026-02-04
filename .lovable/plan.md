@@ -1,192 +1,471 @@
 
-## Contexto e restrição assumida (não-negociável)
-Você afirmou que **o token UTMify está correto e ativo**. Vou tratar isso como verdade. Logo, o problema não é “token inválido”, e sim **o sistema não está usando exatamente esse token no disparo**, ou está **alterando o token** (normalização/sanitização/encoding), ou há **desalinhamento de ambiente** (o token salvo no Vault do ambiente que dispara não é o mesmo).
+# Plano de Refatoração Estrutural: Módulo UTMify (RISE V3 Compliance)
 
-Além disso: você acabou de colar um segredo em chat. Pelo RISE V3, isso exige ação de segurança: **rotacionar a credencial** depois que terminarmos o diagnóstico (não porque o token era “inválido”, e sim porque foi exposto).
+## Diagnóstico Atual
 
----
+### Violações RISE V3 Identificadas
 
-## O que eu vi no código (e por que isso importa)
-Hoje existem **3 pontos** que podem alterar o token antes de chegar na UTMify:
+| Arquivo | Linhas | Status | Problema |
+|---------|--------|--------|----------|
+| `_shared/utmify-dispatcher.ts` | 515 | **VIOLAÇÃO CRÍTICA** | "God Object" - contém tipos, helpers, main function, database helpers, convenience wrappers |
+| `vault-save/index.ts` | 308 | **VIOLAÇÃO MARGINAL** | Ligeiramente acima, mas aceitável por ser edge function |
 
-1) `supabase/functions/vault-save/index.ts`
-- Sanitização UTMify:
-  - remove `[\r\n\t]`
-  - remove **todos** os whitespace via `\s+` (isso inclui espaços internos)
-  - remove aspas “envolventes” com `^["']|["']$` (remove só 1 por lado)
-- Isso pode **transformar o token** no momento do save.
+### Duplicação de Lógica (Dívida Técnica)
 
-2) `supabase/functions/_shared/utmify-dispatcher.ts`
-- Recupera do Vault via RPC `get_gateway_credentials(p_vendor_id, 'utmify')`
-- Sanitiza **de novo** com a mesma regra (`\s+` e regex de aspas simples)
-- Envia em `x-api-token`
+A mesma lógica de sanitização aparece em **3 locais diferentes**:
 
-3) `supabase/functions/utmify-conversion/index.ts`
-- Também sanitiza com a mesma regra
+```text
+1. vault-save/index.ts (linhas 182-196)
+   .replace(/[\r\n\t]/g, '').replace(/\s+/g, '').replace(/^["']|["']$/g, '').trim()
 
-Ponto crítico: a documentação oficial da UTMify (PDF) mostra exemplo de token com **espaço** no meio. Se isso for um espaço real (e não artefato do PDF), o código atual **corrompe** tokens que contenham espaços internos. Mesmo que o seu token atual não tenha, essa normalização agressiva é uma fonte real de inconsistências e “funcionava antes / parou depois”.
+2. utmify-dispatcher.ts (linhas 185-189)
+   .replace(/[\r\n\t]/g, '').replace(/\s+/g, '').replace(/^["']|["']$/g, '').trim()
 
----
+3. utmify-conversion/index.ts (linhas 117-121)
+   .replace(/[\r\n\t]/g, '').replace(/\s+/g, '').replace(/^["']|["']$/g, '').trim()
+```
 
-## Objetivo técnico (o único que resolve sem discussão)
-Construir um diagnóstico “prova matemática” de que:
-1) **Qual token (fingerprint) está no Vault** (sem expor o segredo)
-2) **Qual token (fingerprint) está sendo enviado no dispatch**
-3) **Se a UTMify aceita esse token** (requisição real, controlada, em modo teste)
-4) Detectar automaticamente se há **alteração por sanitização**, **caractere invisível**, **unicode/encoding**, ou **ambiente divergente**
+Esta duplicação:
+- Cria inconsistências (se uma é corrigida, as outras não)
+- Dificulta debugging (qual versão está sendo usada?)
+- Viola o princípio DRY
 
-Isso atende seu pedido (“teste você mesmo”) sem violar segurança.
+### Tipos Duplicados
 
----
-
-## Análise de Soluções (RISE V3)
-
-### Solução A: “Só testar PIX de novo e olhar painel”
-- Manutenibilidade: 1/10
-- Zero DT: 1/10
-- Arquitetura: 1/10
-- Escalabilidade: 1/10
-- Segurança: 6/10
-- **NOTA FINAL: 1.7/10**
-- Tempo estimado: curto, mas não resolve a causa raiz
-
-### Solução B: Ajustar sanitização (parar de remover `\s+`) e torcer
-- Manutenibilidade: 6/10
-- Zero DT: 5/10
-- Arquitetura: 6/10
-- Escalabilidade: 6/10
-- Segurança: 9/10
-- **NOTA FINAL: 6.4/10**
-- Tempo estimado: baixo, mas ainda fica “cego” (sem prova/fingerprint/health)
-
-### Solução C (SSOT + Prova Criptográfica): Validador backend + fingerprint + health check + normalização robusta centralizada
-- Manutenibilidade: 10/10
-- Zero DT: 10/10
-- Arquitetura: 10/10
-- Escalabilidade: 10/10
-- Segurança: 10/10
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: médio (mas é a melhor solução, obrigatória no RISE V3)
-
-### DECISÃO: Solução C (10.0/10)
-É a única que:
-- prova se o sistema está usando o token correto
-- detecta e impede corrupção do token
-- dá diagnóstico objetivo em produção
-- evita regressões futuras
+`utmify-dispatcher.ts` define seus próprios tipos que são quase idênticos aos de `utmify-conversion/types.ts`:
+- `UTMifyOrderData` vs `UTMifyConversionRequest`
+- `UTMifyEventType` definido inline
+- `STATUS_MAP` duplicado
 
 ---
 
-## Plano de Implementação (Solução C)
+## Arquitetura Proposta (RISE V3 - Nota 10.0/10)
 
-### Fase 0 — Segurança (obrigatória após diagnóstico)
-- Assim que confirmarmos o fluxo, **rotacionar a credencial no dashboard da UTMify** e salvar novamente no RiseCheckout (porque o token foi exposto em chat).
-- Isso não tem relação com “token inválido”; é higiene de segurança.
+### Nova Estrutura de Arquivos
 
-### Fase 1 — Criar um módulo SSOT de normalização (backend)
-Criar um helper único (shared) usado por:
-- `vault-save` (no momento de salvar)
-- `utmify-dispatcher` (no momento de disparar)
-- `utmify-conversion` (legado/compatibilidade)
+```text
+supabase/functions/_shared/utmify/
+├── index.ts                    (~30 linhas)  - Barrel export
+├── types.ts                    (~80 linhas)  - Tipos unificados
+├── constants.ts                (~25 linhas)  - URL, status map, platform
+├── token-normalizer.ts         (~60 linhas)  - SSOT normalização de token
+├── date-formatter.ts           (~35 linhas)  - Formatação UTC
+├── payment-mapper.ts           (~30 linhas)  - Mapeamento de métodos
+├── config-checker.ts           (~60 linhas)  - Verificação habilitado/produtos
+├── token-retriever.ts          (~50 linhas)  - Recuperação do Vault
+├── payload-builder.ts          (~80 linhas)  - Construção do payload API
+├── order-fetcher.ts            (~50 linhas)  - Busca pedido no DB
+├── dispatcher.ts               (~90 linhas)  - Função principal de disparo
+└── tests/
+    ├── token-normalizer.test.ts
+    ├── payload-builder.test.ts
+    └── dispatcher.test.ts
+```
 
-**Regras de normalização (robustas e seguras):**
-- `raw.normalize('NFKC')` (evita unicode “parecido”)
-- remover caracteres invisíveis/control:
-  - C0/C1, `\u200B-\u200F`, `\uFEFF`, `\u00A0` (NBSP), etc.
-- `trim()` apenas nas bordas
-- remover aspas nas bordas com regex correta: `^["']+|["']+$`
-- **não** remover espaços internos automaticamente (porque pode ser significativo).  
-  Em vez disso, tratar “espaços internos” como caso especial a ser validado na Fase 2.
+**Total estimado**: ~590 linhas → **10 arquivos (~59 linhas média)**
 
-**Entrega adicional: testes unitários (Deno) para normalização**
-- casos com tabs/CRLF
-- casos com NBSP
-- casos com 1/2/3 aspas
-- caso com espaço interno (mantém)
+### Responsabilidades Claras (Single Responsibility)
 
-### Fase 2 — Nova Edge Function de diagnóstico: `utmify-validate-credentials`
-Criar `supabase/functions/utmify-validate-credentials/index.ts` com:
-- Auth:
-  - modo “sessions” (para painel do produtor) e/ou modo “internal/admin”
-- Fonte do token:
-  - por padrão: buscar do Vault via `get_gateway_credentials(vendor_id, 'utmify')`
-- Saída **sem expor segredo**:
-  - `token_length`
-  - `token_fingerprint_sha256_12` (ex: primeiros 12 chars do hex)
-  - `has_spaces`, `has_invisible_chars_detected`
-  - `normalization_diff` (ex: “removed 2 invisible chars”, “removed surrounding quotes”)
-- Teste real contra UTMify:
-  - enviar payload `isTest: true` com status coerente (`waiting_payment`)
-  - retornar `utmify_http_status` + `utmify_body_truncated`
-- Se token contiver espaço interno:
-  - tentar duas variantes **somente no validador**:
-    1) token normalizado (com espaços)
-    2) token com espaços removidos
-  - retornar qual variante foi aceita (se alguma), e recomendar salvar a forma canônica aceita
-
-Resultado: isso cumpre seu “teste você mesmo” de forma auditável e sem vazar token.
-
-### Fase 3 — Observabilidade no dispatcher (prova de qual token foi usado)
-Atualizar `supabase/functions/_shared/utmify-dispatcher.ts` para:
-- logar `token_fingerprint_sha256_12` junto com `orderId/eventType` (sem token)
-- logar também `normalization_applied` (boolean + diffs)
-- quando falhar, registrar em tabela de erros/telemetria existente (ex: `edge_function_errors`) com:
-  - `order_id`, `vendor_id`, `event_type`, `utmify_status`, `fingerprint`
-
-Isso resolve definitivamente o debate “o sistema enviou esse token mesmo?”.
-
-### Fase 4 — UI do painel (produtor) com “Testar Conexão”
-Atualizar `src/modules/utmify` para incluir:
-- botão “Testar Conexão UTMify”
-- chama `utmify-validate-credentials`
-- mostra resultado:
-  - “Conexão OK” ou erro com mensagem específica da UTMify
-- exibir fingerprint retornado (12 chars) para auditoria
-
-### Fase 5 — Ajuste do fluxo de salvar (bloquear corrupção)
-Atualizar `vault-save`:
-- usar normalização SSOT (Fase 1)
-- remover a normalização agressiva `\s+` (ou, se mantida para algum cenário, que seja baseada em validação real do token, não suposição)
-- opcional: após salvar token, rodar validação server-side e gravar `validated_at` no `vendor_integrations.config` (saúde da integração)
-
-### Fase 6 — Docs (SSOT)
-Atualizar `docs/EDGE_FUNCTIONS_REGISTRY.md`:
-- registrar `utmify-validate-credentials`
-- descrever fingerprint/health check
-- declarar regra: “token nunca aparece em logs; apenas fingerprint”
+| Arquivo | Responsabilidade |
+|---------|------------------|
+| `types.ts` | Todas as interfaces e tipos UTMify |
+| `constants.ts` | URL da API, STATUS_MAP, PLATFORM_NAME |
+| `token-normalizer.ts` | **SSOT** - Normalização de tokens (Unicode, invisíveis, aspas) |
+| `date-formatter.ts` | Formatação de datas para UTC conforme API |
+| `payment-mapper.ts` | Mapeamento pix/credit_card/boleto |
+| `config-checker.ts` | Verifica se evento está habilitado para vendor/produtos |
+| `token-retriever.ts` | Recupera e normaliza token do Vault |
+| `payload-builder.ts` | Constrói payload conforme especificação UTMify |
+| `order-fetcher.ts` | Busca dados do pedido com order_items |
+| `dispatcher.ts` | Orquestra: verifica config → token → payload → envia |
 
 ---
 
-## Como vamos comprovar o resultado (checklist)
-1) Você gera um PIX (MercadoPago) no seu domínio de produção.
-2) Logs do `utmify-dispatcher` mostram:
-   - fingerprint X
-   - request enviado
-3) `utmify-validate-credentials` retorna:
-   - fingerprint X (mesmo do dispatcher)
-   - status 200/201 (ou o erro real)
-4) Se o status for erro:
-   - agora teremos a resposta real + fingerprint para isolar se é credencial, payload, ou outro fator
+## Detalhamento por Arquivo
+
+### 1. `types.ts` (~80 linhas)
+```typescript
+// Tipos unificados para UTMify
+export type UTMifyEventType = 
+  | "pix_generated" | "purchase_approved" | "purchase_refused" | "refund" | "chargeback";
+
+export interface UTMifyCustomer { ... }
+export interface UTMifyProduct { ... }
+export interface UTMifyTrackingParameters { ... }
+export interface UTMifyCommission { ... }
+export interface UTMifyOrderData { ... }
+export interface UTMifyDispatchResult { ... }
+export interface DatabaseOrder { ... }
+export interface TokenNormalizationResult { ... }
+```
+
+### 2. `constants.ts` (~25 linhas)
+```typescript
+export const UTMIFY_API_URL = "https://api.utmify.com.br/api-credentials/orders";
+export const PLATFORM_NAME = "RiseCheckout";
+
+export const STATUS_MAP: Record<UTMifyEventType, string> = {
+  pix_generated: "waiting_payment",
+  purchase_approved: "paid",
+  purchase_refused: "refused",
+  refund: "refunded",
+  chargeback: "chargedback",
+};
+```
+
+### 3. `token-normalizer.ts` (~60 linhas) **SSOT CRÍTICO**
+```typescript
+/**
+ * Normaliza token UTMify removendo caracteres problemáticos
+ * 
+ * REGRAS (ordem importa):
+ * 1. NFKC normalization (unicode "parecido")
+ * 2. Remove invisible chars (U+200B-200F, U+FEFF, NBSP, control)
+ * 3. Trim bordas
+ * 4. Remove aspas envolventes (1 ou mais: /^["']+|["']+$/g)
+ * 5. NÃO remove espaços internos (podem ser significativos)
+ */
+export interface TokenNormalizationResult {
+  normalized: string;
+  originalLength: number;
+  normalizedLength: number;
+  changes: string[];
+}
+
+export function normalizeUTMifyToken(raw: string): TokenNormalizationResult;
+export function computeTokenFingerprint(token: string): string; // SHA-256 primeiros 12 chars
+```
+
+### 4. `date-formatter.ts` (~35 linhas)
+```typescript
+/**
+ * Formata data para UTMify (YYYY-MM-DD HH:mm:ss UTC)
+ */
+export function formatDateUTC(date: Date | string): string;
+```
+
+### 5. `payment-mapper.ts` (~30 linhas)
+```typescript
+export function mapPaymentMethod(method: string): string;
+```
+
+### 6. `config-checker.ts` (~60 linhas)
+```typescript
+export async function isEventEnabled(
+  supabase: SupabaseClient,
+  vendorId: string,
+  eventType: UTMifyEventType,
+  productIds?: string[]
+): Promise<boolean>;
+```
+
+### 7. `token-retriever.ts` (~50 linhas)
+```typescript
+import { normalizeUTMifyToken, computeTokenFingerprint } from './token-normalizer.ts';
+
+export interface TokenRetrievalResult {
+  token: string | null;
+  fingerprint: string | null;
+  normalizationApplied: boolean;
+}
+
+export async function getUTMifyToken(
+  supabase: SupabaseClient,
+  vendorId: string
+): Promise<TokenRetrievalResult>;
+```
+
+### 8. `payload-builder.ts` (~80 linhas)
+```typescript
+export function buildUTMifyPayload(orderData: UTMifyOrderData, eventType: UTMifyEventType): UTMifyAPIPayload;
+export function buildUTMifyOrderData(order: DatabaseOrder, overrides?: Partial<UTMifyOrderData>): UTMifyOrderData;
+```
+
+### 9. `order-fetcher.ts` (~50 linhas)
+```typescript
+export async function fetchOrderForUTMify(
+  supabase: SupabaseClient,
+  orderId: string
+): Promise<DatabaseOrder | null>;
+```
+
+### 10. `dispatcher.ts` (~90 linhas)
+```typescript
+export async function dispatchUTMifyEvent(
+  supabase: SupabaseClient,
+  eventType: UTMifyEventType,
+  orderData: UTMifyOrderData,
+  productIds?: string[]
+): Promise<UTMifyDispatchResult>;
+
+export async function dispatchUTMifyEventForOrder(
+  supabase: SupabaseClient,
+  orderId: string,
+  eventType: UTMifyEventType,
+  overrides?: Partial<UTMifyOrderData>
+): Promise<UTMifyDispatchResult>;
+```
+
+### 11. `index.ts` (~30 linhas) - Barrel Export
+```typescript
+// Re-export everything for easy imports
+export * from './types.ts';
+export * from './constants.ts';
+export * from './token-normalizer.ts';
+export * from './dispatcher.ts';
+export { fetchOrderForUTMify } from './order-fetcher.ts';
+export { buildUTMifyOrderData } from './payload-builder.ts';
+```
 
 ---
 
-## Escopo de arquivos (previsto)
+## Atualização dos Consumidores
 
-### Novos
-- `supabase/functions/utmify-validate-credentials/index.ts`
-- `supabase/functions/_shared/utmify-token-normalizer.ts` (ou equivalente)
-- testes Deno para normalizer e validador
+### Antes (import atual)
+```typescript
+import { 
+  dispatchUTMifyEventForOrder, 
+  type UTMifyEventType 
+} from '../_shared/utmify-dispatcher.ts';
+```
 
-### Modificados
-- `supabase/functions/vault-save/index.ts`
-- `supabase/functions/_shared/utmify-dispatcher.ts`
-- `supabase/functions/utmify-conversion/index.ts` (consistência)
-- `src/modules/utmify/machines/utmifyMachine.ts`
-- `src/modules/utmify/components/UTMifyForm.tsx`
-- `docs/EDGE_FUNCTIONS_REGISTRY.md`
+### Depois (import refatorado)
+```typescript
+import { 
+  dispatchUTMifyEventForOrder, 
+  type UTMifyEventType 
+} from '../_shared/utmify/index.ts';
+```
+
+### Arquivos a Atualizar (8 consumidores)
+1. `_shared/webhook-post-refund.ts`
+2. `_shared/webhook-post-payment.ts`
+3. `mercadopago-webhook/index.ts`
+4. `mercadopago-create-payment/index.ts`
+5. `pushinpay-create-pix/handlers/post-pix.ts`
+6. `stripe-create-payment/handlers/post-payment.ts`
+7. `asaas-create-payment/handlers/charge-creator.ts`
+8. `stripe-webhook/index.ts`
 
 ---
 
-## Nota importante sobre o token que você colou
-Eu não vou repetir o token em logs/UI/planos futuros. Ele foi exposto aqui, então a etapa de rotação após o diagnóstico é obrigatória para manter RISE V3 10/10.
+## Atualização do `vault-save/index.ts`
 
+Remover sanitização inline e usar o SSOT:
+
+```typescript
+// ANTES (linhas 182-196)
+vaultCredentials.api_token = original
+  .replace(/[\r\n\t]/g, '')
+  .replace(/\s+/g, '')
+  .replace(/^["']|["']$/g, '')
+  .trim();
+
+// DEPOIS
+import { normalizeUTMifyToken } from '../_shared/utmify/token-normalizer.ts';
+
+const result = normalizeUTMifyToken(original);
+vaultCredentials.api_token = result.normalized;
+if (result.changes.length > 0) {
+  log.warn("Token UTMify normalizado", {
+    changes: result.changes,
+    originalLength: result.originalLength,
+    normalizedLength: result.normalizedLength
+  });
+}
+```
+
+---
+
+## Atualização do `utmify-conversion/index.ts`
+
+Remover sanitização inline e usar o SSOT:
+
+```typescript
+// ANTES (linhas 117-121)
+const token = rawToken
+  .replace(/[\r\n\t]/g, '')
+  .replace(/\s+/g, '')
+  .replace(/^["']|["']$/g, '')
+  .trim();
+
+// DEPOIS
+import { normalizeUTMifyToken } from '../_shared/utmify/token-normalizer.ts';
+
+const { normalized: token, changes } = normalizeUTMifyToken(rawToken);
+if (changes.length > 0) {
+  log.warn("Token UTMify normalizado", { changes });
+}
+```
+
+---
+
+## Testes Unitários
+
+### `token-normalizer.test.ts`
+```typescript
+Deno.test("normalizeUTMifyToken removes tabs and newlines", () => { ... });
+Deno.test("normalizeUTMifyToken removes NBSP", () => { ... });
+Deno.test("normalizeUTMifyToken removes multiple surrounding quotes", () => { ... });
+Deno.test("normalizeUTMifyToken preserves internal spaces", () => { ... });
+Deno.test("normalizeUTMifyToken removes zero-width chars", () => { ... });
+Deno.test("computeTokenFingerprint returns 12 char hex", () => { ... });
+```
+
+---
+
+## Documentação
+
+### Atualização do `docs/EDGE_FUNCTIONS_REGISTRY.md`
+
+Adicionar seção:
+```markdown
+### UTMify Shared Module (RISE V3)
+
+| Arquivo | Linhas | Responsabilidade |
+|---------|--------|------------------|
+| `_shared/utmify/types.ts` | ~80 | Tipos unificados |
+| `_shared/utmify/constants.ts` | ~25 | Constantes |
+| `_shared/utmify/token-normalizer.ts` | ~60 | SSOT normalização |
+| `_shared/utmify/dispatcher.ts` | ~90 | Função principal |
+| ... | ... | ... |
+
+> **Regra**: Token nunca aparece em logs; apenas fingerprint (SHA-256 primeiros 12 chars)
+```
+
+---
+
+## Ordem de Execução
+
+1. **Criar diretório e arquivos base** (`_shared/utmify/`)
+2. **Extrair tipos e constantes** (types.ts, constants.ts)
+3. **Criar normalizador SSOT** (token-normalizer.ts) - **CRÍTICO**
+4. **Extrair helpers** (date-formatter, payment-mapper)
+5. **Extrair lógica de config** (config-checker.ts)
+6. **Extrair token retrieval** (token-retriever.ts) - usa normalizador
+7. **Extrair payload builder** (payload-builder.ts)
+8. **Extrair order fetcher** (order-fetcher.ts)
+9. **Criar dispatcher refatorado** (dispatcher.ts) - orquestra tudo
+10. **Criar barrel export** (index.ts)
+11. **Atualizar consumidores** (8 arquivos)
+12. **Atualizar vault-save** (usar normalizeUTMifyToken)
+13. **Atualizar utmify-conversion** (usar normalizeUTMifyToken)
+14. **Deletar arquivo antigo** (utmify-dispatcher.ts)
+15. **Adicionar testes** (token-normalizer.test.ts, etc)
+16. **Atualizar docs** (EDGE_FUNCTIONS_REGISTRY.md)
+
+---
+
+## Métricas de Sucesso (RISE V3)
+
+| Métrica | Antes | Depois | Status |
+|---------|-------|--------|--------|
+| Arquivo maior | 515 linhas | ~90 linhas | **COMPLIANT** |
+| Duplicação sanitização | 3 locais | 1 (SSOT) | **ZERO DT** |
+| Single Responsibility | Violado | Respeitado | **SOLID** |
+| Testabilidade | Baixa | Alta | **10/10** |
+| Rastreabilidade (fingerprint) | Nenhuma | SHA-256 | **Auditável** |
+
+---
+
+## Detalhamento Técnico: `token-normalizer.ts`
+
+Este é o arquivo mais crítico - resolve o problema de debugging atual:
+
+```typescript
+/**
+ * Token Normalizer - SSOT (Single Source of Truth)
+ * 
+ * @module _shared/utmify/token-normalizer
+ * @version 1.0.0 - RISE Protocol V3
+ * 
+ * Centraliza TODA a lógica de normalização de tokens UTMify.
+ * Usado por:
+ * - vault-save (no momento de salvar)
+ * - token-retriever (no momento de recuperar)
+ * - utmify-conversion (compatibilidade)
+ */
+
+export interface TokenNormalizationResult {
+  normalized: string;
+  originalLength: number;
+  normalizedLength: number;
+  changes: string[];
+}
+
+/**
+ * Regex para caracteres invisíveis conhecidos
+ */
+const INVISIBLE_CHARS_REGEX = /[\u0000-\u001F\u007F\u00A0\u200B-\u200F\uFEFF\u2028\u2029]/g;
+
+/**
+ * Normaliza token UTMify removendo caracteres problemáticos
+ * 
+ * REGRAS (ordem importa):
+ * 1. NFKC normalization (unicode "parecido")
+ * 2. Remove invisible chars
+ * 3. Trim bordas
+ * 4. Remove aspas envolventes (múltiplas)
+ * 5. NÃO remove espaços internos (podem ser significativos)
+ */
+export function normalizeUTMifyToken(raw: string): TokenNormalizationResult {
+  const changes: string[] = [];
+  let token = raw;
+  const originalLength = raw.length;
+  
+  // 1. NFKC normalization
+  const nfkc = token.normalize('NFKC');
+  if (nfkc !== token) {
+    changes.push('applied_nfkc');
+    token = nfkc;
+  }
+  
+  // 2. Remove invisible chars
+  const noInvisible = token.replace(INVISIBLE_CHARS_REGEX, '');
+  if (noInvisible !== token) {
+    changes.push(`removed_${token.length - noInvisible.length}_invisible_chars`);
+    token = noInvisible;
+  }
+  
+  // 3. Remove tabs, CR, LF (explícito)
+  const noWhitespace = token.replace(/[\r\n\t]/g, '');
+  if (noWhitespace !== token) {
+    changes.push('removed_tabs_or_newlines');
+    token = noWhitespace;
+  }
+  
+  // 4. Trim bordas (espaços normais)
+  const trimmed = token.trim();
+  if (trimmed !== token) {
+    changes.push('trimmed_edges');
+    token = trimmed;
+  }
+  
+  // 5. Remove aspas envolventes (múltiplas)
+  const noQuotes = token.replace(/^["']+|["']+$/g, '');
+  if (noQuotes !== token) {
+    changes.push('removed_surrounding_quotes');
+    token = noQuotes;
+  }
+  
+  return {
+    normalized: token,
+    originalLength,
+    normalizedLength: token.length,
+    changes,
+  };
+}
+
+/**
+ * Computa fingerprint seguro do token (para logs)
+ * Retorna primeiros 12 caracteres do SHA-256 hex
+ */
+export async function computeTokenFingerprint(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex.substring(0, 12);
+}
+```
