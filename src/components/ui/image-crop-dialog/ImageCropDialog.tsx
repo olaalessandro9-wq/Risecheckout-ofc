@@ -1,7 +1,12 @@
 /**
  * ImageCropDialog - Componente Unificado de Crop de Imagem
  * 
- * Implementação com react-cropper que suporta múltiplos presets:
+ * MIGRADO para react-advanced-cropper (RISE V3 - Solução 10.0/10)
+ * 
+ * Esta biblioteca é TypeScript-nativa, sem dependência de cropperjs,
+ * eliminando permanentemente os problemas de build com CSS imports.
+ * 
+ * Presets suportados:
  * - module: 2:3 (320x480) - Thumbnails de módulos
  * - banner: 16:9 (1920x1080) - Banners widescreen
  * - product: 4:3 (800x600) - Imagens de produto
@@ -10,29 +15,16 @@
  * - videoThumbnail: 16:9 (1280x720) - Previews de vídeo
  * - card: 3:2 (600x400) - Cards
  * 
- * Features:
- * - Background xadrez para transparência
- * - Imagem completa visível
- * - Área de crop centralizada
- * - Slider de zoom
- * - Zoom com scroll do mouse
- * - Crop box movível e redimensionável
- * 
  * @example
- * // Usando preset
  * <ImageCropDialog preset="module" ... />
- * 
- * @example
- * // Usando configuração customizada
- * <ImageCropDialog customConfig={{ aspectRatio: 5/4, outputWidth: 500, outputHeight: 400 }} ... />
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createLogger } from "@/lib/logger";
-import Cropper, { ReactCropperElement } from "react-cropper";
-import "cropperjs/dist/cropper.css";
+import { Cropper, CropperRef } from "react-advanced-cropper";
+import "react-advanced-cropper/dist/style.css";
 import {
   Dialog,
   DialogContent,
@@ -42,12 +34,16 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Loader2 } from "lucide-react";
+import { Loader2, ZoomIn, ZoomOut } from "lucide-react";
 import { getCropConfig } from "./presets";
 import type { ImageCropDialogProps } from "./types";
 
 const log = createLogger("ImageCropDialog");
 
+/**
+ * Componente principal de crop de imagem
+ * Usa react-advanced-cropper - biblioteca TypeScript-nativa sem dependências problemáticas
+ */
 export function ImageCropDialog({
   open,
   onOpenChange,
@@ -62,9 +58,9 @@ export function ImageCropDialog({
   const config = getCropConfig(preset, customConfig);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(0);
+  const [zoom, setZoom] = useState(100);
   const [isSaving, setIsSaving] = useState(false);
-  const cropperRef = useRef<ReactCropperElement>(null);
+  const cropperRef = useRef<CropperRef>(null);
 
   // Load image URL when imageFile changes
   useEffect(() => {
@@ -78,22 +74,41 @@ export function ImageCropDialog({
   // Reset zoom quando a imagem muda
   useEffect(() => {
     if (open) {
-      setZoom(0);
+      setZoom(100);
     }
   }, [open, imageFile]);
 
+  // Handler para mudança de zoom via slider
   const handleZoomChange = useCallback((value: number[]) => {
     const zoomValue = value[0];
     setZoom(zoomValue);
 
-    if (cropperRef.current?.cropper) {
-      const zoomRatio = zoomValue / 100;
-      cropperRef.current.cropper.zoomTo(zoomRatio);
+    if (cropperRef.current) {
+      // Calcula o fator de zoom relativo ao zoom atual
+      const currentState = cropperRef.current.getState();
+      if (currentState) {
+        const zoomFactor = zoomValue / zoom;
+        cropperRef.current.zoomImage(zoomFactor, { transitions: true });
+      }
+    }
+  }, [zoom]);
+
+  // Handler chamado quando o cropper atualiza (inclui zoom via scroll)
+  const handleUpdate = useCallback((cropper: CropperRef) => {
+    const state = cropper.getState();
+    if (state && state.transforms) {
+      // O zoom é relativo à escala base
+      const baseScale = state.transforms.rotate ? 1 : 1;
+      const visibleAreaScale = state.visibleArea 
+        ? (state.boundary.width / state.visibleArea.width) 
+        : 1;
+      setZoom(Math.round(visibleAreaScale * 100));
     }
   }, []);
 
+  // Salvar imagem recortada
   const handleSaveCrop = useCallback(async () => {
-    if (!cropperRef.current?.cropper) {
+    if (!cropperRef.current) {
       log.warn("No cropper instance available");
       return;
     }
@@ -101,15 +116,17 @@ export function ImageCropDialog({
     setIsSaving(true);
 
     try {
-      const cropper = cropperRef.current.cropper;
-
-      // Get cropped canvas with output dimensions from config
-      const canvas = cropper.getCroppedCanvas({
+      // Obtém o canvas com as dimensões de saída configuradas
+      const canvas = cropperRef.current.getCanvas({
         width: config.outputWidth,
         height: config.outputHeight,
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: "high",
       });
+
+      if (!canvas) {
+        log.error("Failed to get canvas from cropper");
+        setIsSaving(false);
+        return;
+      }
 
       canvas.toBlob(
         (blob) => {
@@ -153,43 +170,50 @@ export function ImageCropDialog({
 
         <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
           {/* Cropper Area */}
-          <div className="flex-1 flex items-center justify-center bg-black/5 rounded-lg overflow-hidden min-h-[400px]">
+          <div 
+            className="flex-1 flex items-center justify-center rounded-lg overflow-hidden min-h-[400px]"
+            style={{
+              background: `
+                linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%),
+                linear-gradient(-45deg, hsl(var(--muted)) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, hsl(var(--muted)) 75%),
+                linear-gradient(-45deg, transparent 75%, hsl(var(--muted)) 75%)
+              `,
+              backgroundSize: '20px 20px',
+              backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+            }}
+          >
             {imageUrl && (
               <Cropper
                 ref={cropperRef}
                 src={imageUrl}
-                style={{ height: "100%", width: "100%" }}
-                initialAspectRatio={config.aspectRatio}
-                aspectRatio={config.aspectRatio}
-                guides={true}
-                viewMode={1}
-                background={true}
-                responsive={true}
-                autoCropArea={0.8}
-                checkOrientation={false}
-                zoomable={true}
-                zoomOnWheel={true}
-                wheelZoomRatio={0.1}
-                cropBoxMovable={true}
-                cropBoxResizable={true}
-                toggleDragModeOnDblclick={false}
+                className="h-full w-full"
+                stencilProps={{
+                  aspectRatio: config.aspectRatio,
+                  movable: true,
+                  resizable: true,
+                  grid: true,
+                }}
+                transitions={true}
+                onUpdate={handleUpdate}
               />
             )}
           </div>
 
           {/* Zoom Control */}
           <div className="flex items-center gap-4 px-4">
-            <span className="text-sm font-medium whitespace-nowrap">Zoom:</span>
+            <ZoomOut className="h-4 w-4 text-muted-foreground" />
             <Slider
               value={[zoom]}
               onValueChange={handleZoomChange}
-              min={0}
-              max={200}
+              min={50}
+              max={300}
               step={1}
               className="flex-1"
             />
+            <ZoomIn className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground whitespace-nowrap w-12 text-right">
-              {zoom.toFixed(0)}%
+              {zoom}%
             </span>
           </div>
         </div>
