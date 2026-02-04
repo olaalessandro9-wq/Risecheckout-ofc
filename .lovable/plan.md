@@ -1,130 +1,216 @@
 
-## Objetivo (escopo estrito)
-Corrigir APENAS o bug descrito: ao sair da aba/app e voltar, a animação do quiz do `/cadastro` roda, e em milissegundos “reinicia do 0” (parece duas animações seguidas). O mesmo comportamento acontece no primeiro carregamento do quiz.
+# Plano: Redirecionar "/" para "/auth" (Landing Pages Arquivadas)
 
-## Diagnóstico de Causa Raiz (confirmado por leitura de código)
-### Sintoma observado = “animação reinicia”
-Em React + Framer Motion isso quase sempre significa **remount** (desmonta/monta) do subtree animado — não é “só re-render”.
+## Objetivo
 
-### Causa raiz específica no seu projeto
-No arquivo `src/pages/Cadastro.tsx`, existem **componentes definidos dentro da função** `Cadastro()`:
+Tornar as landing pages (WordPress e React nativas) inacessíveis ao público, redirecionando o acesso à raiz (`/`) diretamente para `/auth`.
 
-- `PageLayout`
-- `ChooseProfileView`
-- `AlreadyHasAccountView`
+## Estado Atual
 
-Exemplo (trecho real):
-- `const PageLayout = (...) => (...)`
-- `const ChooseProfileView = () => (...)`
-- `const AlreadyHasAccountView = () => (...)`
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    ARQUIVOS DE LANDING PAGE                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. WordPress (public/landing/)                             │
+│     └── index.html + wp-content/ + wp-includes/             │
+│     Status: MANTIDO (arquivado)                             │
+│                                                              │
+│  2. React Nativo (src/components/landing/)                  │
+│     └── HeroSection, FeaturesSection, etc.                  │
+│     Status: MANTIDO (arquivado)                             │
+│                                                              │
+│  3. Página Wrapper (src/pages/LandingPage.tsx)              │
+│     └── Carrega WordPress via iframe                        │
+│     Status: SERÁ MODIFICADO                                 │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│                    ROTEAMENTO ATUAL                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  React Router (publicRoutes.tsx):                           │
+│  "/" → LandingPage.tsx (iframe WordPress)                   │
+│                                                              │
+│  Vercel (vercel.json):                                      │
+│  "/" → /landing/index.html (rewrite direto)                 │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Isso é um anti-pattern crítico em React:
+## Novo Comportamento Desejado
 
-- A cada re-render do componente `Cadastro`, essas funções são recriadas (novas referências).
-- Para o React, **isso muda o “tipo do componente”**, então ele **desmonta e monta novamente** aquele subtree.
-- Ao montar de novo, o `motion.div` executa `initial → animate` novamente.
-- Resultado visual: **uma animação “normal” + outra “do zero” imediatamente depois**.
+```text
+┌─────────────────────────────────────────────────────────────┐
+│               APÓS IMPLEMENTAÇÃO                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Acesso a risecheckout.com/ (ou preview/)                   │
+│                    │                                         │
+│                    ▼                                         │
+│  ┌────────────────────────────────────────┐                 │
+│  │   REDIRECT IMEDIATO → /auth            │                 │
+│  └────────────────────────────────────────┘                 │
+│                                                              │
+│  Landing Pages:                                              │
+│  ┌────────────────────────────────────────┐                 │
+│  │  public/landing/ → ARQUIVADO           │                 │
+│  │  src/components/landing/ → ARQUIVADO   │                 │
+│  │  (código preservado, mas inacessível)  │                 │
+│  └────────────────────────────────────────┘                 │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### Por que isso dispara quando você troca de aba?
-Porque `useUnifiedAuth()` está configurado para revalidar no foco:
+---
 
-`src/hooks/useUnifiedAuth.ts`
-- `refetchOnWindowFocus: true`
-- `staleTime: 0`
-- `refetchOnMount: 'always'`
+## Implementação
 
-Ao voltar para a aba:
-- React Query refaz o fetch → o hook re-renderiza `Cadastro`.
-- Esse re-render é suficiente para disparar o bug **porque os subcomponentes são inline** (recriados) → remount → animação reinicia.
+### Arquivo 1: `src/routes/publicRoutes.tsx`
 
-### Por que também acontece no “primeiro load” do quiz?
-Primeira visita:
-- `useUnifiedAuth` começa carregando e depois resolve a validação (mesmo que `valid: false`).
-- Essa resolução muda o estado interno do hook → causa re-render de `Cadastro`.
-- Re-render → recria subcomponentes → remount → animação roda de novo.
+**Mudança:** Substituir a rota `/` de `LandingPage` para um redirect para `/auth`
 
-## Análise de Soluções (RISE Protocol V3)
+```tsx
+// ANTES (linhas 46-51):
+{ 
+  path: "/", 
+  element: <Suspense fallback={<PageLoader />}><LandingPage /></Suspense> 
+},
 
-### Solução A: Remover a causa raiz (Extrair componentes inline para module-scope + estabilizar configs do Framer)
-- Manutenibilidade: 10/10 (remove anti-pattern estrutural)
-- Zero DT: 10/10 (correção definitiva e canônica)
-- Arquitetura: 10/10 (React idiomático; componentes com identidade estável)
-- Escalabilidade: 10/10 (padrão replicável em qualquer fluxo com animação)
-- Segurança: 10/10 (não altera garantias de validação de sessão)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 1–3 horas (refactor limpo + testes manuais)
+// DEPOIS:
+{ 
+  path: "/", 
+  element: <Navigate to="/auth" replace /> 
+},
+```
 
-### Solução B: Desligar `refetchOnWindowFocus` (global ou condicional)
-- Manutenibilidade: 6/10 (mexe na semântica do auth para resolver sintoma de UI)
-- Zero DT: 7/10 (pode mascarar casos reais de sessão expirada ao retornar)
-- Arquitetura: 6/10 (acoplamento “UI depende de política de refetch”)
-- Escalabilidade: 7/10
-- Segurança: 8/10 (potencial janela de sessão “stale”)
-- **NOTA FINAL: 6.8/10**
-- Tempo estimado: 15–45 min
+**Adicionar import:**
+```tsx
+import { Navigate } from "react-router-dom";
+```
 
-### Solução C: Workaround no Framer Motion (ex.: `initial={false}` controlado por ref, ou “debounce” de animação)
-- Manutenibilidade: 4/10 (complexidade artificial)
-- Zero DT: 3/10 (gira em torno do sintoma, não da causa)
-- Arquitetura: 4/10
-- Escalabilidade: 4/10
-- Segurança: 10/10
-- **NOTA FINAL: 4.5/10**
-- Tempo estimado: 30–90 min
+**Remover import não utilizado:**
+```tsx
+// REMOVER:
+const LandingPage = lazyWithRetry(() => import("@/pages/LandingPage"));
+```
 
-### DECISÃO: Solução A (10.0/10)
-As outras alternativas são inferiores porque não removem a causa raiz: a identidade instável dos componentes inline que provoca remount e reinício das animações.
+---
 
-## Implementação (mudanças planejadas — focadas só no bug de “trocar de aba”)
+### Arquivo 2: `vercel.json`
 
-### 1) Refatorar `src/pages/Cadastro.tsx` para eliminar componentes inline
-Objetivo: garantir que **re-render por refetch do auth** não provoque remount.
+**Mudança:** Alterar o rewrite da raiz para redirecionar para `/auth`
 
-Abordagem “melhor” (também resolve o limite 300 linhas):
-- Criar um pequeno módulo para o cadastro e deixar `src/pages/Cadastro.tsx` como re-export.
+```json
+// ANTES (linhas 4-7):
+{
+  "source": "/",
+  "destination": "/landing/index.html"
+}
 
-#### Nova estrutura proposta
-- `src/pages/Cadastro.tsx` (fica pequeno, só re-export)
-- `src/pages/cadastro/CadastroPage.tsx` (estado + orquestração: view, navigation, handlers, hooks)
-- `src/pages/cadastro/components/CadastroLayout.tsx` (layout + painel direito)
-- `src/pages/cadastro/components/ChooseProfileView.tsx` (quiz 3 opções)
-- `src/pages/cadastro/components/AlreadyHasAccountView.tsx` (tela “você já tem conta”)
-- `src/pages/cadastro/motion.ts` (constantes/variants/transitions estáveis)
+// DEPOIS:
+{
+  "source": "/",
+  "destination": "/index.html"
+}
+```
 
-Isso garante:
-- Componentes têm **referência estável** (module scope)
-- Framer Motion recebe configs estáveis (opcional, mas “nota 10”)
+Isso faz com que a Vercel sirva o React SPA, que então executa o redirect para `/auth`.
 
-### 2) Manter `useUnifiedAuth` intacto (por enquanto)
-Escopo atual NÃO é mudar política de auth.
-Após remover o remount, o refetch no foco continuará existindo (como deve), porém sem causar reinício de animação.
+---
 
-### 3) Ajuste específico no Framer Motion para robustez
-No novo `motion.ts`:
-- definir `const` para `transition` e/ou `variants` (ex.: `fadeInUp`), evitando recriar objetos inline desnecessariamente.
-Isso não é “workaround”; é higiene arquitetural para animação previsível.
+### Arquivo 3: `src/pages/LandingPage.tsx`
 
-### 4) Critérios de Aceite (o que precisa ficar perfeito)
-1. Entrar em `/cadastro` pela primeira vez:
-   - animação de entrada acontece 1 vez
-   - não deve haver “reset” em milissegundos
-2. Estando em qualquer view do quiz (inclusive depois de clicar em opções):
-   - sair da aba/app e voltar:
-     - não pode ocorrer a segunda animação “do zero”
-3. Trocar `view` (choose-profile → already-has-account → back etc):
-   - animações de transição continuam funcionando normalmente (sem quebrar UX)
-4. Não introduzir novos loaders/flash de tema (já existe `AuthPageLoader` na rota).
+**Opção:** Manter como está (código morto mas arquivado) OU adicionar comentário de arquivamento.
 
-## Riscos / Pontos de Atenção
-- Como hoje `PageLayout` inclui `AuthThemeProvider`, ao extrair componentes precisamos manter a mesma ordem de providers para não reintroduzir “flash” de tema.
-- Garantir que `ProducerRegistrationForm` continue recebendo `registrationSource` e `onBack` exatamente como hoje.
-- Não alterar regras de redirect (`if (!authLoading && isAuthenticated) navigate("/dashboard")`).
+Recomendo adicionar um comentário no topo para documentar que está arquivado:
 
-## Plano de Teste (manual, objetivo)
-- Abrir `/cadastro`
-  - observar: animação única
-- Alternar para outro app/aba por 2–5s e voltar
-  - observar: sem reinício duplo
-- Repetir o ciclo 5–10 vezes
-- Clicar em cada opção do quiz e repetir o ciclo de sair/voltar
-  - observar: sem reinício duplo em nenhuma das 3 opções
+```tsx
+/**
+ * LandingPage Component - ARQUIVADO
+ * 
+ * STATUS: INACESSÍVEL - Código preservado para uso futuro
+ * DATA: 04 de Fevereiro de 2026
+ * 
+ * Este componente não está mais roteado. A rota "/" agora
+ * redireciona diretamente para "/auth".
+ * 
+ * Para reativar: restaurar a rota em publicRoutes.tsx
+ */
+```
+
+---
+
+## Arquivos Afetados
+
+| Arquivo | Alteração | Linhas |
+|---------|-----------|--------|
+| `src/routes/publicRoutes.tsx` | Trocar rota `/` para `Navigate` | ~5 linhas |
+| `vercel.json` | Remover rewrite para landing | ~2 linhas |
+| `src/pages/LandingPage.tsx` | Adicionar comentário ARQUIVADO | ~5 linhas |
+
+---
+
+## Arquivos Preservados (Não Deletados)
+
+| Diretório/Arquivo | Conteúdo | Status |
+|-------------------|----------|--------|
+| `public/landing/` | WordPress HTML + assets | Arquivado |
+| `src/components/landing/` | Componentes React nativos | Arquivado |
+| `src/pages/LandingPage.tsx` | Wrapper do iframe | Arquivado |
+
+---
+
+## Fluxo Final
+
+```text
+┌───────────────────────────────────────────────────────────────┐
+│              ACESSO: risecheckout.com/                        │
+└───────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────────┐
+│  Vercel serve /index.html (React SPA)                         │
+└───────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────────┐
+│  React Router: "/" → Navigate to="/auth" replace              │
+└───────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────────┐
+│  Usuário é redirecionado para /auth                           │
+│  (Página de login/cadastro)                                   │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Critérios de Aceite
+
+1. Acessar `risecheckout.com/` redireciona para `/auth`
+2. Acessar preview do Lovable `/` redireciona para `/auth`
+3. Arquivos de landing page permanecem no repositório (não deletados)
+4. Nenhum link interno quebrado
+5. Todas as outras rotas funcionam normalmente
+
+---
+
+## RISE V3 Score: 10.0/10
+
+| Critério | Nota | Justificativa |
+|----------|------|---------------|
+| Manutenibilidade | 10/10 | Código preservado, fácil reativar no futuro |
+| Zero DT | 10/10 | Nenhuma gambiarra, redirect limpo via Navigate |
+| Arquitetura | 10/10 | Segue padrão React Router, sem hacks |
+| Escalabilidade | 10/10 | Não adiciona complexidade |
+| Segurança | 10/10 | Sem exposição de conteúdo não desejado |
+
+---
+
+## Próximos Passos Após Aprovação
+
+1. Implementar as 3 alterações
+2. Testar no preview do Lovable
+3. Sincronizar com GitHub para deploy na Vercel
+4. Verificar `risecheckout.com` após deploy
