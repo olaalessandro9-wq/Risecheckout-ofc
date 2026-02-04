@@ -4,15 +4,27 @@
  * ============================================================================
  * 
  * @module _shared/utmify/config-checker
- * @version 1.0.0 - RISE Protocol V3
+ * @version 1.1.0 - RISE Protocol V3
  * 
  * Verifica se um evento UTMify está habilitado para um vendor/produto.
+ * Inclui função de diagnóstico para listar eventos habilitados.
  * ============================================================================
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "../logger.ts";
 import type { UTMifyEventType } from "./types.ts";
+
+/**
+ * Todos os eventos UTMify suportados
+ */
+const ALL_UTMIFY_EVENTS: UTMifyEventType[] = [
+  "pix_generated",
+  "purchase_approved",
+  "purchase_refused",
+  "refund",
+  "chargeback",
+];
 
 const log = createLogger("UTMifyConfigChecker");
 
@@ -72,5 +84,48 @@ export async function isEventEnabled(
   } catch (error) {
     log.warn("Erro ao verificar configuração UTMify:", error);
     return false;
+  }
+}
+
+/**
+ * Lista todos os eventos habilitados para um vendor
+ * 
+ * Usado para diagnóstico e validação de configuração.
+ * 
+ * @param supabase - Cliente Supabase
+ * @param vendorId - ID do vendedor
+ * @returns Lista de eventos habilitados
+ */
+export async function listEnabledEvents(
+  supabase: SupabaseClient,
+  vendorId: string
+): Promise<string[]> {
+  try {
+    const { data: integration } = await supabase
+      .from("vendor_integrations")
+      .select("active, config")
+      .eq("vendor_id", vendorId)
+      .eq("integration_type", "UTMIFY")
+      .maybeSingle();
+
+    if (!integration?.active) {
+      return [];
+    }
+
+    const config = integration.config as Record<string, unknown> | null;
+    const selectedEvents = config?.selected_events as string[] | undefined;
+
+    // Se não há eventos selecionados, considera todos habilitados
+    if (!selectedEvents || selectedEvents.length === 0) {
+      return [...ALL_UTMIFY_EVENTS];
+    }
+
+    // Retorna apenas os eventos válidos
+    return selectedEvents.filter(e => 
+      ALL_UTMIFY_EVENTS.includes(e as UTMifyEventType)
+    );
+  } catch (error) {
+    log.warn("Erro ao listar eventos UTMify:", error);
+    return [];
   }
 }

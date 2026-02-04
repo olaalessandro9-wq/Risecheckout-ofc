@@ -245,6 +245,7 @@
 | Nome | URL | No Repo? | Auth | Descrição |
 |------|-----|----------|------|-----------|
 | `utmify-conversion` | `.../utmify-conversion` | ✅ | public | **DEPRECATED** - Backend-only, não usar no frontend |
+| `utmify-validate-credentials` | `.../utmify-validate-credentials` | ✅ | sessions | Diagnóstico de tokens UTMify |
 | `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public | Conversões Facebook CAPI |
 | `dashboard-analytics` | `.../dashboard-analytics` | ✅ | sessions | Analytics do produtor |
 | `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | public | Heartbeat de checkout ativo |
