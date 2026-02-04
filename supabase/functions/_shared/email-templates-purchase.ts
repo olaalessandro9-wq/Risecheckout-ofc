@@ -66,16 +66,16 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       <div class="order-details">
         <h2>Resumo do Pedido</h2>
         <div class="order-item">
-          <span class="order-label">Produto</span>
+          <span class="order-label">Produto: </span>
           <span class="order-value">${data.productName}</span>
         </div>
         <div class="order-item">
-          <span class="order-label">Nº do Pedido</span>
+          <span class="order-label">Nº do Pedido: </span>
           <span class="order-value">#${data.orderId.substring(0, 8).toUpperCase()}</span>
         </div>
         ${data.paymentMethod ? `
         <div class="order-item">
-          <span class="order-label">Forma de Pagamento</span>
+          <span class="order-label">Forma de Pagamento: </span>
           <span class="order-value">${data.paymentMethod}</span>
         </div>
         ` : ''}
