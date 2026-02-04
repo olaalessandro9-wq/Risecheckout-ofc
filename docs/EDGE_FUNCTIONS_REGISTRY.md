@@ -244,14 +244,28 @@
 
 | Nome | URL | No Repo? | Auth | Descrição |
 |------|-----|----------|------|-----------|
-| `utmify-conversion` | `.../utmify-conversion` | ✅ | public | Legacy frontend call (deprecated) |
+| `utmify-conversion` | `.../utmify-conversion` | ✅ | public | **DEPRECATED** - Backend-only, não usar no frontend |
 | `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public | Conversões Facebook CAPI |
 | `dashboard-analytics` | `.../dashboard-analytics` | ✅ | sessions | Analytics do produtor |
 | `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | public | Heartbeat de checkout ativo |
 | `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | internal | Detecção de checkouts abandonados |
 | `track-visit` | `.../track-visit` | ✅ | public | Tracking de visitas |
 
-> **RISE V3 - UTMify Backend SSOT**: Eventos UTMify (`pix_generated`, `purchase_approved`, `purchase_refused`, `refund`, `chargeback`) são agora disparados diretamente no backend via `_shared/utmify-dispatcher.ts`, integrado nos webhooks de pagamento e handlers de criação de PIX. O endpoint `utmify-conversion` é mantido apenas para compatibilidade.
+> **🔴 RISE V3 - UTMify Backend SSOT (ATUALIZADO 2026-02-04)**:
+> 
+> Eventos UTMify são disparados **EXCLUSIVAMENTE** pelo backend via `_shared/utmify-dispatcher.ts`:
+> 
+> | Evento | Disparado em | Gateway |
+> |--------|--------------|---------|
+> | `pix_generated` | `mercadopago-create-payment`, `pushinpay-create-pix`, `asaas-create-payment`, `stripe-create-payment` | Todos |
+> | `purchase_approved` | `webhook-post-payment.ts` | Todos |
+> | `purchase_refused` | `stripe-webhook`, `mercadopago-webhook` | Stripe, MercadoPago |
+> | `refund` | `webhook-post-refund.ts` | Todos |
+> | `chargeback` | `webhook-post-refund.ts` | Todos |
+> 
+> **O frontend (PaymentSuccessPage.tsx) NÃO dispara mais eventos UTMify** - código legado foi removido em v4.0.0.
+> 
+> O endpoint `utmify-conversion` permanece deployado apenas para compatibilidade com integrações externas, mas NÃO deve ser chamado pelo frontend.
 
 ### Orders
 
