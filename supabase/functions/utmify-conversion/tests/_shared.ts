@@ -94,6 +94,30 @@ export interface ConversionPayload {
   isTest?: boolean;
 }
 
+/**
+ * Frontend payload structure (with nested orderData)
+ * This is what the frontend actually sends via events.ts
+ */
+export interface FrontendPayload {
+  vendorId: string;
+  orderData: {
+    orderId: string;
+    paymentMethod?: string;
+    status: string;
+    createdAt: string;
+    approvedDate?: string | null;
+    refundedAt?: string | null;
+    customer: MockCustomer;
+    products: MockProduct[];
+    trackingParameters?: MockTrackingParameters;
+    commission?: MockCommission;
+    totalPriceInCents: number;
+    isTest?: boolean;
+  };
+  eventType?: string;
+  productId?: string;
+}
+
 // ============================================
 // MOCK FACTORIES
 // ============================================
@@ -293,6 +317,116 @@ export function createConversionPayloadWithUtm(): ConversionPayload {
       currency: "BRL",
     },
     isTest: false,
+  };
+}
+
+// ============================================
+// FRONTEND PAYLOAD FACTORIES (Nested Structure)
+// ============================================
+
+/**
+ * Creates a mock frontend payload with nested orderData (default, no UTM)
+ */
+export function createNestedFrontendPayload(): FrontendPayload {
+  const order = createDefaultOrder();
+  return {
+    vendorId: "vendor-123",
+    orderData: {
+      orderId: order.id,
+      paymentMethod: "pix",
+      status: "paid",
+      createdAt: new Date().toISOString(),
+      approvedDate: new Date().toISOString(),
+      refundedAt: null,
+      customer: {
+        name: order.customer_name || "Test Customer",
+        email: order.customer_email || "test@example.com",
+        phone: null,
+        document: null,
+        country: "BR",
+        ip: null,
+      },
+      products: [{
+        id: order.product_id,
+        name: order.product_name,
+        planId: null,
+        planName: null,
+        quantity: 1,
+        priceInCents: order.amount_cents,
+      }],
+      trackingParameters: {
+        src: null,
+        sck: null,
+        utm_source: null,
+        utm_campaign: null,
+        utm_medium: null,
+        utm_content: null,
+        utm_term: null,
+      },
+      commission: {
+        totalPriceInCents: order.amount_cents,
+        gatewayFeeInCents: 0,
+        userCommissionInCents: order.amount_cents,
+        currency: "BRL",
+      },
+      totalPriceInCents: order.amount_cents,
+      isTest: false,
+    },
+    eventType: "purchase",
+    productId: order.product_id,
+  };
+}
+
+/**
+ * Creates a mock frontend payload with nested orderData (with UTM params)
+ */
+export function createNestedFrontendPayloadWithUtm(): FrontendPayload {
+  const order = createOrderWithUtm();
+  return {
+    vendorId: "vendor-123",
+    orderData: {
+      orderId: order.id,
+      paymentMethod: "credit_card",
+      status: "paid",
+      createdAt: new Date().toISOString(),
+      approvedDate: new Date().toISOString(),
+      refundedAt: null,
+      customer: {
+        name: order.customer_name || "Test Customer",
+        email: order.customer_email || "test@example.com",
+        phone: "11999999999",
+        document: "12345678900",
+        country: "BR",
+        ip: "192.168.1.1",
+      },
+      products: [{
+        id: order.product_id,
+        name: order.product_name,
+        planId: null,
+        planName: null,
+        quantity: 1,
+        priceInCents: order.amount_cents,
+      }],
+      trackingParameters: {
+        src: null,
+        sck: null,
+        utm_source: order.utm_source,
+        utm_campaign: order.utm_campaign,
+        utm_medium: order.utm_medium,
+        utm_content: order.utm_content,
+        utm_term: order.utm_term,
+      },
+      commission: {
+        totalPriceInCents: order.amount_cents,
+        gatewayFeeInCents: 300,
+        userCommissionInCents: order.amount_cents - 300,
+        currency: "BRL",
+      },
+      totalPriceInCents: order.amount_cents,
+      isTest: false,
+    },
+    eventType: "purchase",
+    productId: order.product_id,
   };
 }
 

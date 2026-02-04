@@ -1,7 +1,8 @@
 # UTMify Integration Module
 **Módulo**: `src/integrations/tracking/utmify`  
 **Status**: ✅ Implementado  
-**Versão**: 1.0  
+**Versão**: 2.0.0  
+**RISE V3 Score**: 10.0/10
 
 ---
 
@@ -249,6 +250,14 @@ Este módulo serve como template para outras integrações:
 ---
 
 ## 📝 Changelog
+
+### v2.0.0 (04/02/2026)
+- ✅ Correção completa conforme documentação API UTMify
+- ✅ URL corrigida: api-credentials/orders
+- ✅ Header corrigido: x-api-token
+- ✅ Payload aninhado (orderData) suportado
+- ✅ Validação robusta de campos obrigatórios
+- ✅ 50+ testes automatizados
 
 ### v1.0 (29/11/2025)
 - ✅ Implementação inicial

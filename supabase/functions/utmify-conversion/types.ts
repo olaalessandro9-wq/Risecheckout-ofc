@@ -184,6 +184,34 @@ export interface UTMifyAPIPayload {
 }
 
 // ============================================================================
+// FRONTEND REQUEST TYPE (What the frontend actually sends)
+// ============================================================================
+
+/**
+ * Payload recebido do frontend via src/integrations/tracking/utmify/events.ts
+ * O frontend envia orderData aninhado, junto com vendorId e campos extras
+ */
+export interface FrontendUTMifyRequest {
+  vendorId: string;
+  orderData: {
+    orderId: string;
+    paymentMethod?: string;
+    status: string;
+    createdAt: string;
+    approvedDate?: string | null;
+    refundedAt?: string | null;
+    customer: CustomerInput;
+    products: ProductInput[];
+    trackingParameters?: TrackingParametersInput;
+    commission?: CommissionInput;
+    totalPriceInCents: number;
+    isTest?: boolean;
+  };
+  eventType?: string;
+  productId?: string;
+}
+
+// ============================================================================
 // RESPONSE TYPES
 // ============================================================================
 

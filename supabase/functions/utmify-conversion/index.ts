@@ -50,9 +50,9 @@ serve(async (req) => {
       );
     }
 
-    // Validate request
+    // Validate and normalize request (handles both flat and nested orderData payloads)
     const validation = validateRequest(requestData);
-    if (!validation.valid) {
+    if (!validation.valid || !validation.normalizedPayload) {
       log.error("Validation failed:", validation.errors);
       return new Response(
         JSON.stringify({ 
@@ -64,7 +64,8 @@ serve(async (req) => {
       );
     }
 
-    const conversionRequest = requestData as UTMifyConversionRequest;
+    // Use normalized payload (extracted from orderData if frontend format)
+    const conversionRequest = validation.normalizedPayload;
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
