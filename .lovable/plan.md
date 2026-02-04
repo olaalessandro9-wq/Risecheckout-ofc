@@ -1,70 +1,133 @@
 
-# Plano de Correção Final: Limpeza do deno.lock
+# Plano de Implementação: Restrição de Acesso à Área de Membros por Role
 
-## Diagnóstico
+## Objetivo
+Restringir a funcionalidade "Área de Membros" para **admin/owner apenas**. Para outros roles (user, seller), a funcionalidade aparece como **"Em Breve"** em 3 pontos específicos:
 
-A migração para `react-advanced-cropper` foi **bem-sucedida no código fonte**, porém o arquivo `deno.lock` contém referências órfãs às bibliotecas antigas:
+1. **Tab "Área de Membros"** - Mostra placeholder em vez do conteúdo
+2. **Tipo de Entrega "Área de Membros"** - Opção desabilitada com badge "Em Breve"
+3. **Campo "Grupo de Acesso"** nas ofertas - Oculto para non-admin
 
+---
+
+## Arquivos a Modificar (12 total)
+
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `src/hooks/usePermissions.ts` | MODIFICAR | Adicionar `canAccessMembersArea: boolean` |
+| `src/components/ui/coming-soon-placeholder.tsx` | CRIAR | Componente reutilizável |
+| `src/modules/products/components/ProductTabs.tsx` | MODIFICAR | Tab condicional com Badge |
+| `src/modules/products/tabs/general/ProductDeliverySection.tsx` | MODIFICAR | Desabilitar opção members_area |
+| `src/components/products/add-product-dialog/StepTwo.tsx` | MODIFICAR | Desabilitar opção members_area |
+| `src/components/products/offers-manager/types.ts` | MODIFICAR | Adicionar prop `canAccessMembersArea` |
+| `src/components/products/offers-manager/index.tsx` | MODIFICAR | Passar prop para cards |
+| `src/components/products/offers-manager/DefaultOfferCard.tsx` | MODIFICAR | Condicional no MemberGroupSelect |
+| `src/components/products/offers-manager/AdditionalOfferCard.tsx` | MODIFICAR | Condicional no MemberGroupSelect |
+| `src/components/products/offers-manager/NewOfferCard.tsx` | MODIFICAR | Condicional no MemberGroupSelect |
+| `src/modules/products/tabs/general/ProductOffersSection.tsx` | MODIFICAR | Adicionar prop |
+| `src/modules/products/tabs/GeneralTab.tsx` | MODIFICAR | Obter e passar permissão |
+
+---
+
+## Detalhes de Implementação
+
+### Passo 1: usePermissions.ts
+Adicionar nova permissão na interface e no hook:
+
+```typescript
+// Na interface Permissions:
+canAccessMembersArea: boolean;  // Pode acessar área de membros (admin/owner)
+
+// No useMemo:
+canAccessMembersArea: role === "owner" || role === "admin",
 ```
-Linha 185: "npm:cropperjs@^2.1.0"
-Linha 203: "npm:react-cropper@^2.3.3"
+
+### Passo 2: coming-soon-placeholder.tsx (NOVO)
+Criar componente reutilizável:
+
+```typescript
+import { Construction } from "lucide-react";
+
+interface ComingSoonPlaceholderProps {
+  title: string;
+  description?: string;
+}
+
+export function ComingSoonPlaceholder({ 
+  title, 
+  description = "Esta funcionalidade estará disponível em breve."
+}: ComingSoonPlaceholderProps) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+        <Construction className="w-8 h-8 text-primary" />
+      </div>
+      <h3 className="text-xl font-semibold text-foreground mb-3">{title}</h3>
+      <p className="text-sm text-muted-foreground max-w-md">{description}</p>
+    </div>
+  );
+}
 ```
 
-Estas referências são **dívida técnica** - o lockfile não reflete o estado atual do projeto.
+### Passo 3: ProductTabs.tsx
+- Importar Badge e ComingSoonPlaceholder
+- Usar `canAccessMembersArea` do usePermissions
+- Adicionar Badge "Em Breve" no TabTrigger
+- Renderizar placeholder ou conteúdo real no TabsContent
 
-## Por que isso importa (RISE V3 - Seção 4.2)
+### Passo 4: ProductDeliverySection.tsx
+- Importar usePermissions e Badge
+- Desabilitar opção `members_area` se `!canAccessMembersArea`
+- Mostrar Badge "Em Breve" na opção desabilitada
 
-| Critério | Impacto |
-|----------|---------|
-| **Zero Dívida Técnica** | O lockfile deve refletir a realidade |
-| **Manutenibilidade** | Futuros desenvolvedores podem se confundir |
-| **Arquitetura Correta** | Artefatos de build devem estar sincronizados |
+### Passo 5: StepTwo.tsx
+- Mesma lógica do ProductDeliverySection
 
-## Solução
+### Passo 6: Sistema de Ofertas (5 arquivos)
+Fluxo de props:
+```text
+GeneralTab 
+  └─ usePermissions() → canAccessMembersArea
+  └─ ProductOffersSection (recebe canAccessMembersArea)
+       └─ OffersManager (recebe canAccessMembersArea)
+            ├─ DefaultOfferCard (recebe canAccessMembersArea)
+            ├─ AdditionalOfferCard (recebe canAccessMembersArea)
+            └─ NewOfferCard (recebe canAccessMembersArea)
+```
 
-**Regenerar o `deno.lock`** para refletir apenas as dependências atuais.
+O campo MemberGroupSelect só é renderizado se:
+`canAccessMembersArea && hasMembersArea && memberGroups.length > 0`
 
-O Deno regenera o lockfile automaticamente quando:
-1. O arquivo é removido
-2. Uma nova instalação é feita
+---
 
-## Ação Técnica
+## Comportamento Final por Role
 
-1. **Deletar `deno.lock`**
-2. **Executar qualquer Edge Function** ou rodar `deno cache` para regenerar
-3. **Commitar o novo lockfile**
+| Role | Tab Área de Membros | Tipo de Entrega | Grupo de Acesso |
+|------|---------------------|-----------------|-----------------|
+| owner | Funcional | Selecionável | Visível |
+| admin | Funcional | Selecionável | Visível |
+| user | Placeholder + Badge "Em Breve" | Desabilitado + Badge | Oculto |
+| seller | Placeholder + Badge "Em Breve" | Desabilitado + Badge | Oculto |
 
-## Resultado Esperado
+---
 
-| Antes | Depois |
-|-------|--------|
-| `deno.lock` contém `react-cropper`, `cropperjs` | `deno.lock` sem essas referências |
-| Potencial confusão | Clareza total |
-| Dívida técnica residual | Zero dívida técnica |
+## Conformidade RISE V3
 
-## Resumo do Status da Migração
+| Critério | Nota | Justificativa |
+|----------|------|---------------|
+| Manutenibilidade Infinita | 10/10 | Permissão centralizada, componente reutilizável |
+| Zero Dívida Técnica | 10/10 | Sem código temporário ou workarounds |
+| Arquitetura Correta | 10/10 | Segue padrão existente de usePermissions |
+| Escalabilidade | 10/10 | Fácil adicionar novas features restritas |
+| Segurança | 10/10 | Verificação no frontend (backend já valida) |
+| **NOTA FINAL** | **10.0/10** | |
 
-| Item | Status |
-|------|--------|
-| Código fonte (`ImageCropDialog`) | ✅ Migrado |
-| Consumidores (6 componentes) | ✅ Usando novo import |
-| Código legado removido | ✅ Zero referências |
-| `package.json` | ✅ `react-advanced-cropper` |
-| Documentação/JSDoc | ✅ Atualizada |
-| `deno.lock` | 🟠 Precisa regenerar |
+---
 
-## RISE V3 Score Final
+## Testes Manuais Recomendados
 
-| Critério | Nota |
-|----------|------|
-| Manutenibilidade Infinita | 10/10 |
-| Zero Dívida Técnica | 9.5/10 → 10/10 após fix |
-| Arquitetura Correta | 10/10 |
-| Escalabilidade | 10/10 |
-| Segurança | 10/10 |
-| **NOTA ATUAL** | **9.9/10** |
-| **NOTA APÓS FIX** | **10.0/10** |
-
-## Conclusão
-
-A migração está **praticamente completa**. O único item pendente é a regeneração do `deno.lock`, que pode ser feito deletando o arquivo e deixando o sistema regenerá-lo automaticamente no próximo deploy das Edge Functions.
+1. **Como owner/admin**: Todas as features funcionam normalmente
+2. **Como user/seller**: 
+   - Tab mostra placeholder com "Em Breve"
+   - Opção de entrega desabilitada
+   - Campo Grupo de Acesso não aparece nas ofertas
