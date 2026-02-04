@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useUTMifyContext } from "../context";
 import { toast } from "@/hooks/use-toast";
 
@@ -57,6 +58,7 @@ type ValidationState = "idle" | "loading" | "success" | "error";
 export function ValidateCredentialsButton() {
   const { user } = useUnifiedAuth();
   const { hasExistingToken } = useUTMifyContext();
+  const { canAccessAdminPanel } = usePermissions();
   
   const [state, setState] = useState<ValidationState>("idle");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -94,8 +96,8 @@ export function ValidateCredentialsButton() {
     setDialogOpen(true);
   };
 
-  // Only show if token exists
-  if (!hasExistingToken) {
+  // Only show for admin/owner with existing token (debug tool)
+  if (!hasExistingToken || !canAccessAdminPanel) {
     return null;
   }
 
