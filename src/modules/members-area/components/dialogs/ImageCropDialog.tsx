@@ -1,11 +1,15 @@
 /**
- * ImageCropDialog - Modal para recortar imagem na proporção 2:3
+ * ImageCropDialog - Modal para recortar imagem na proporção 2:3 (módulos)
+ * 
+ * Comportamento inteligente:
+ * - Se imagem já está em 2:3 → crop ocupa 100% (sem zoom desnecessário)
+ * - Se não → maximiza área de crop mantendo proporção
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createLogger } from "@/lib/logger";
-
-const log = createLogger("ImageCropDialog");
 import {
   Dialog,
   DialogContent,
@@ -14,7 +18,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, Info } from "lucide-react";
+import { calculateOptimalCrop, ASPECT_RATIOS } from "@/modules/members-area-builder/utils/cropUtils";
+
+const log = createLogger("ImageCropDialog");
 
 interface ImageCropDialogProps {
   open: boolean;
@@ -23,7 +30,7 @@ interface ImageCropDialogProps {
   onCropComplete: (croppedFile: File) => void;
 }
 
-const ASPECT_RATIO = 2 / 3; // 320x480
+const ASPECT_RATIO = ASPECT_RATIOS.MODULE_THUMBNAIL; // 2:3
 
 export function ImageCropDialog({
   open,
@@ -36,6 +43,8 @@ export function ImageCropDialog({
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isExactRatio, setIsExactRatio] = useState(false);
+  const [ratioMessage, setRatioMessage] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -44,43 +53,38 @@ export function ImageCropDialog({
     if (imageFile && open) {
       const url = URL.createObjectURL(imageFile);
       setImageUrl(url);
-      // Reset crop area for fresh calculation
       setCropArea({ x: 0, y: 0, width: 0, height: 0 });
+      setIsExactRatio(false);
+      setRatioMessage("");
       return () => URL.revokeObjectURL(url);
     }
   }, [imageFile, open]);
 
-  // Calculate initial crop area when image loads
+  // Calculate initial crop area when image loads - using intelligent detection
   const handleImageLoad = useCallback(() => {
     if (!imageRef.current || !containerRef.current) return;
 
     const img = imageRef.current;
-    const container = containerRef.current;
-    const containerRect = container.getBoundingClientRect();
-
-    // Calculate crop area that fits within image maintaining aspect ratio
-    let cropWidth: number;
-    let cropHeight: number;
-
-    // Use the displayed dimensions of the image
     const displayedWidth = img.clientWidth;
     const displayedHeight = img.clientHeight;
 
-    if (displayedWidth / displayedHeight > ASPECT_RATIO) {
-      // Image is wider - fit by height
-      cropHeight = displayedHeight * 0.85;
-      cropWidth = cropHeight * ASPECT_RATIO;
-    } else {
-      // Image is taller - fit by width
-      cropWidth = displayedWidth * 0.85;
-      cropHeight = cropWidth / ASPECT_RATIO;
-    }
+    // Use intelligent crop calculation
+    const cropCalc = calculateOptimalCrop(
+      displayedWidth,
+      displayedHeight,
+      ASPECT_RATIO,
+      0.02 // 2% tolerance
+    );
 
-    // Center the crop area within the displayed image
-    const x = (displayedWidth - cropWidth) / 2;
-    const y = (displayedHeight - cropHeight) / 2;
+    setCropArea({
+      x: cropCalc.x,
+      y: cropCalc.y,
+      width: cropCalc.width,
+      height: cropCalc.height,
+    });
 
-    setCropArea({ x, y, width: cropWidth, height: cropHeight });
+    setIsExactRatio(cropCalc.isExactRatio);
+    setRatioMessage(cropCalc.ratioMessage);
   }, []);
 
   // Handle mouse events for dragging
@@ -99,8 +103,8 @@ export function ImageCropDialog({
       let newY = e.clientY - dragStart.y;
 
       // Constrain to image bounds
-      newX = Math.max(0, Math.min(newX, img.width - cropArea.width));
-      newY = Math.max(0, Math.min(newY, img.height - cropArea.height));
+      newX = Math.max(0, Math.min(newX, img.clientWidth - cropArea.width));
+      newY = Math.max(0, Math.min(newY, img.clientHeight - cropArea.height));
 
       setCropArea((prev) => ({ ...prev, x: newX, y: newY }));
     },
@@ -135,8 +139,8 @@ export function ImageCropDialog({
       if (!ctx) throw new Error("Could not get canvas context");
 
       // Scale factor between displayed and natural size
-      const scaleX = img.naturalWidth / img.width;
-      const scaleY = img.naturalHeight / img.height;
+      const scaleX = img.naturalWidth / img.clientWidth;
+      const scaleY = img.naturalHeight / img.clientHeight;
 
       // Output size (fixed for consistency)
       canvas.width = 320;
@@ -186,6 +190,24 @@ export function ImageCropDialog({
         <DialogHeader>
           <DialogTitle>Recortar imagem</DialogTitle>
         </DialogHeader>
+
+        {/* Status message */}
+        {ratioMessage && (
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${
+              isExactRatio
+                ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+            }`}
+          >
+            {isExactRatio ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <Info className="h-4 w-4" />
+            )}
+            <span>{ratioMessage}</span>
+          </div>
+        )}
 
         <div
           ref={containerRef}
@@ -239,7 +261,9 @@ export function ImageCropDialog({
 
               {/* Área de crop arrastável */}
               <div
-                className="absolute border-2 border-white cursor-move"
+                className={`absolute cursor-move transition-colors ${
+                  isExactRatio ? "border-2 border-green-500" : "border-2 border-white"
+                }`}
                 style={{
                   left: cropArea.x,
                   top: cropArea.y,
@@ -249,17 +273,35 @@ export function ImageCropDialog({
                 onMouseDown={handleMouseDown}
               >
                 {/* Corner handles */}
-                <div className="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-sm" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-sm" />
-                <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white rounded-sm" />
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-sm" />
+                <div
+                  className={`absolute -top-1 -left-1 w-3 h-3 rounded-sm ${
+                    isExactRatio ? "bg-green-500" : "bg-white"
+                  }`}
+                />
+                <div
+                  className={`absolute -top-1 -right-1 w-3 h-3 rounded-sm ${
+                    isExactRatio ? "bg-green-500" : "bg-white"
+                  }`}
+                />
+                <div
+                  className={`absolute -bottom-1 -left-1 w-3 h-3 rounded-sm ${
+                    isExactRatio ? "bg-green-500" : "bg-white"
+                  }`}
+                />
+                <div
+                  className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-sm ${
+                    isExactRatio ? "bg-green-500" : "bg-white"
+                  }`}
+                />
               </div>
             </div>
           )}
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Arraste a área de seleção para ajustar o enquadramento
+          {isExactRatio
+            ? "Imagem em proporção 2:3 — você pode ajustar a posição ou salvar diretamente"
+            : "Arraste a área de seleção para ajustar o enquadramento (proporção 2:3)"}
         </p>
 
         <DialogFooter>
@@ -268,7 +310,7 @@ export function ImageCropDialog({
           </Button>
           <Button onClick={handleSaveCrop} disabled={isSaving}>
             {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Salvar corte
+            {isExactRatio ? "Salvar" : "Salvar corte"}
           </Button>
         </DialogFooter>
       </DialogContent>
