@@ -22,10 +22,10 @@ import { getSiteBaseUrl } from "./site-urls.ts";
 export function getLogoUrl(): string {
   try {
     const baseUrl = getSiteBaseUrl('default');
-    return `${baseUrl}/logo-risecheckout-v2.png`;
+    return `${baseUrl}/risecheckout-logo.jpg`;
   } catch {
     // Fallback for edge cases where env is not available
-    return 'https://www.risecheckout.com/logo-risecheckout-v2.png';
+    return 'https://www.risecheckout.com/risecheckout-logo.jpg';
   }
 }
 
