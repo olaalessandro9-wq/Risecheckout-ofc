@@ -57,8 +57,8 @@ const AuthInput = React.forwardRef<HTMLInputElement, AuthInputProps>(
             // Error state
             hasError && "border-[hsl(var(--auth-error)/0.5)] focus:border-[hsl(var(--auth-error))] focus:ring-[hsl(var(--auth-error)/0.2)]",
             // Padding adjustments for icons
-            leftIcon ? "pl-10" : "px-4",
-            rightIcon ? "pr-10" : "px-4",
+            leftIcon ? "pl-12" : "pl-4",
+            rightIcon ? "pr-12" : "pr-4",
             // Custom classes
             className
           )}
