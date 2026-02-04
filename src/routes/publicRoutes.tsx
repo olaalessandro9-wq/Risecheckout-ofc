@@ -4,10 +4,14 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Rotas acessíveis sem autenticação:
- * - Landing page, auth, checkout público, pagamentos, LGPD
+ * - Auth, checkout público, pagamentos, LGPD
+ * 
+ * NOTA: Landing pages arquivadas em 04/02/2026
+ * A rota "/" agora redireciona para "/auth"
  */
 
 import { Suspense } from "react";
+import { Navigate } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { AuthPageLoader } from "@/components/auth/AuthPageLoader";
@@ -15,13 +19,11 @@ import { AuthPageLoader } from "@/components/auth/AuthPageLoader";
 // ============================================================================
 // LAZY IMPORTS (with auto-retry for network failures)
 // ============================================================================
-const LandingPage = lazyWithRetry(() => import("@/pages/LandingPage"));
 const Auth = lazyWithRetry(() => import("@/pages/Auth"));
 const Cadastro = lazyWithRetry(() => import("@/pages/Cadastro"));
 const RecuperarSenha = lazyWithRetry(() => import("@/pages/RecuperarSenha"));
 const RedefinirSenha = lazyWithRetry(() => import("@/pages/RedefinirSenha"));
 const PublicCheckoutV2 = lazyWithRetry(() => import("@/pages/PublicCheckoutV2"));
-
 const PixPaymentPage = lazyWithRetry(() => import("@/pages/PixPaymentPage"));
 const MercadoPagoPayment = lazyWithRetry(() => import("@/pages/MercadoPagoPayment").then(m => ({ default: m.MercadoPagoPayment })));
 const PaymentSuccessPage = lazyWithRetry(() => import("@/pages/PaymentSuccessPage"));
@@ -44,10 +46,10 @@ function PageLoader() {
 // ROUTE DEFINITIONS
 // ============================================================================
 export const publicRoutes: RouteObject[] = [
-  // Landing
+  // Root redirect to auth (landing pages archived 04/02/2026)
   { 
     path: "/", 
-    element: <Suspense fallback={<PageLoader />}><LandingPage /></Suspense> 
+    element: <Navigate to="/auth" replace /> 
   },
   
   // Auth (use AuthPageLoader to prevent theme flash)
