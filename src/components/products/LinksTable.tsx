@@ -48,9 +48,10 @@ export function LinksTable({ links, onToggleStatus }: LinksTableProps) {
     link.slug.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Use centralized URL builder (SSOT) - replaces hardcoded risecheckout.com
+  // RISE V3: Usando 'default' até subdomínios serem configurados
+  // TODO: Mudar para 'checkout' quando pay.risecheckout.com estiver ativo
   const getCorrectUrl = (originalUrl: string): string => {
-    return toProductionUrl(originalUrl, 'checkout');
+    return toProductionUrl(originalUrl, 'default');
   };
 
   const copyToClipboard = (url: string) => {
