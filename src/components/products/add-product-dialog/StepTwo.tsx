@@ -41,16 +41,16 @@ const DELIVERY_OPTIONS: Array<{
     description: 'Rise envia email com link de acesso personalizado',
   },
   {
-    id: 'members_area',
-    icon: GraduationCap,
-    label: 'Área de Membros',
-    description: 'Rise envia email com acesso à área de membros do produto',
-  },
-  {
     id: 'external',
     icon: Webhook,
     label: 'Entrega Externa',
     description: 'Meu sistema faz a entrega (webhook, N8N, automação)',
+  },
+  {
+    id: 'members_area',
+    icon: GraduationCap,
+    label: 'Área de Membros',
+    description: 'Rise envia email com acesso à área de membros do produto',
   },
 ];
 
