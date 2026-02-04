@@ -74,6 +74,8 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     updateMultipleFields,
     toggleBump,
     setPaymentMethod,
+    applyCoupon,
+    removeCoupon,
     submit,
     // Phase 2: BFF Unified Data
     productPixels,
@@ -200,8 +202,8 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     enabled: true 
   });
 
-  // Coupon state for form manager compatibility
-  const [localAppliedCoupon, setLocalAppliedCoupon] = React.useState<typeof appliedCoupon>(appliedCoupon);
+  // RISE V3: Cupom é gerenciado exclusivamente pela máquina XState (SSOT)
+  // Removido: localAppliedCoupon - estado duplicado causava bug de desconto não aplicado
 
   // Convert selectedBumps array to Set for OrderBumpList component
   const selectedBumpsSet = useMemo(() => new Set(selectedBumps), [selectedBumps]);
@@ -219,12 +221,12 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     }
     
     // Apply coupon discount (RISE V3: apenas porcentagem suportado)
-    if (localAppliedCoupon) {
-      total = total * (1 - localAppliedCoupon.discount_value / 100);
+    if (appliedCoupon) {
+      total = total * (1 - appliedCoupon.discount_value / 100);
     }
     
     return total;
-  }, [product.price, selectedBumps, orderBumps, localAppliedCoupon]);
+  }, [product.price, selectedBumps, orderBumps, appliedCoupon]);
 
   // Form data adapter: Machine FormData -> CheckoutFormData (public interface)
   // Uses dedicated adapter for explicit conversion (RISE V3 - Zero ambiguity)
@@ -238,9 +240,15 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     setPaymentMethod(method);
   }, [setPaymentMethod]);
 
-  const handleTotalChange = useCallback((_total: number, coupon: typeof localAppliedCoupon) => {
-    setLocalAppliedCoupon(coupon);
-  }, []);
+  // RISE V3: Sincronizar cupom com máquina XState (SSOT)
+  // Antes: apenas atualizava estado local, cupom não era enviado ao backend
+  const handleTotalChange = useCallback((_total: number, coupon: typeof appliedCoupon) => {
+    if (coupon) {
+      applyCoupon(coupon);
+    } else if (appliedCoupon) {
+      removeCoupon();
+    }
+  }, [applyCoupon, removeCoupon, appliedCoupon]);
 
   // Tracking Service (apenas UTMify) - cast to expected type or null
   const { fireInitiateCheckout } = useTrackingService({
