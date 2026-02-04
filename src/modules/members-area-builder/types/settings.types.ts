@@ -27,6 +27,8 @@ export interface GradientOverlayConfig {
 export interface FixedHeaderSettings {
   type: 'fixed_header';
   bg_image_url: string;
+  /** URL da imagem original (sem crop) para re-crop sem perda de qualidade */
+  bg_image_original_url?: string;
   
   // Title
   title: string;
@@ -60,6 +62,8 @@ export interface FixedHeaderSettings {
 export interface BannerSlide {
   id: string;
   image_url: string;
+  /** URL da imagem original (sem crop) para re-crop sem perda de qualidade */
+  original_image_url?: string;
   link?: string;
   alt?: string;
 }

@@ -1,13 +1,15 @@
 /**
  * BannerImageCropDialog - Modal para recortar imagem de banner na proporção 16:9
  * 
- * @see RISE ARCHITECT PROTOCOL
+ * Comportamento inteligente:
+ * - Se imagem já está em 16:9 → crop ocupa 100% (sem zoom desnecessário)
+ * - Se não → maximiza área de crop mantendo proporção
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createLogger } from "@/lib/logger";
-
-const log = createLogger("BannerImageCropDialog");
 import {
   Dialog,
   DialogContent,
@@ -16,7 +18,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, Info } from "lucide-react";
+import { calculateOptimalCrop, ASPECT_RATIOS } from "../../utils/cropUtils";
+
+const log = createLogger("BannerImageCropDialog");
 
 interface BannerImageCropDialogProps {
   open: boolean;
@@ -25,7 +30,7 @@ interface BannerImageCropDialogProps {
   onCropComplete: (croppedFile: File) => void;
 }
 
-const ASPECT_RATIO = 16 / 9; // 1920x1080
+const ASPECT_RATIO = ASPECT_RATIOS.BANNER; // 16:9
 const OUTPUT_WIDTH = 1920;
 const OUTPUT_HEIGHT = 1080;
 
@@ -40,6 +45,8 @@ export function BannerImageCropDialog({
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isExactRatio, setIsExactRatio] = useState(false);
+  const [ratioMessage, setRatioMessage] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -49,11 +56,13 @@ export function BannerImageCropDialog({
       const url = URL.createObjectURL(imageFile);
       setImageUrl(url);
       setCropArea({ x: 0, y: 0, width: 0, height: 0 });
+      setIsExactRatio(false);
+      setRatioMessage("");
       return () => URL.revokeObjectURL(url);
     }
   }, [imageFile, open]);
 
-  // Calculate initial crop area when image loads
+  // Calculate initial crop area when image loads - using intelligent detection
   const handleImageLoad = useCallback(() => {
     if (!imageRef.current || !containerRef.current) return;
 
@@ -61,33 +70,23 @@ export function BannerImageCropDialog({
     const displayedWidth = img.clientWidth;
     const displayedHeight = img.clientHeight;
 
-    let cropWidth: number;
-    let cropHeight: number;
+    // Use intelligent crop calculation
+    const cropCalc = calculateOptimalCrop(
+      displayedWidth,
+      displayedHeight,
+      ASPECT_RATIO,
+      0.02 // 2% tolerance
+    );
 
-    if (displayedWidth / displayedHeight > ASPECT_RATIO) {
-      // Image is wider - fit by height
-      cropHeight = displayedHeight * 0.85;
-      cropWidth = cropHeight * ASPECT_RATIO;
-    } else {
-      // Image is taller - fit by width
-      cropWidth = displayedWidth * 0.85;
-      cropHeight = cropWidth / ASPECT_RATIO;
-    }
+    setCropArea({
+      x: cropCalc.x,
+      y: cropCalc.y,
+      width: cropCalc.width,
+      height: cropCalc.height,
+    });
 
-    // Ensure crop doesn't exceed image bounds
-    if (cropWidth > displayedWidth) {
-      cropWidth = displayedWidth;
-      cropHeight = cropWidth / ASPECT_RATIO;
-    }
-    if (cropHeight > displayedHeight) {
-      cropHeight = displayedHeight;
-      cropWidth = cropHeight * ASPECT_RATIO;
-    }
-
-    const x = (displayedWidth - cropWidth) / 2;
-    const y = (displayedHeight - cropHeight) / 2;
-
-    setCropArea({ x, y, width: cropWidth, height: cropHeight });
+    setIsExactRatio(cropCalc.isExactRatio);
+    setRatioMessage(cropCalc.ratioMessage);
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -186,6 +185,24 @@ export function BannerImageCropDialog({
           <DialogTitle>Recortar imagem do banner</DialogTitle>
         </DialogHeader>
 
+        {/* Status message */}
+        {ratioMessage && (
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm ${
+              isExactRatio
+                ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+            }`}
+          >
+            {isExactRatio ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <Info className="h-4 w-4" />
+            )}
+            <span>{ratioMessage}</span>
+          </div>
+        )}
+
         <div
           ref={containerRef}
           className="relative w-full h-[400px] bg-black/90 rounded-lg overflow-hidden flex items-center justify-center"
@@ -234,7 +251,9 @@ export function BannerImageCropDialog({
 
               {/* Área de crop arrastável */}
               <div
-                className="absolute border-2 border-white cursor-move"
+                className={`absolute cursor-move transition-colors ${
+                  isExactRatio ? "border-2 border-green-500" : "border-2 border-white"
+                }`}
                 style={{
                   left: cropArea.x,
                   top: cropArea.y,
@@ -243,17 +262,36 @@ export function BannerImageCropDialog({
                 }}
                 onMouseDown={handleMouseDown}
               >
-                <div className="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-sm" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-sm" />
-                <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white rounded-sm" />
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-sm" />
+                {/* Corner handles */}
+                <div
+                  className={`absolute -top-1 -left-1 w-3 h-3 rounded-sm ${
+                    isExactRatio ? "bg-green-500" : "bg-white"
+                  }`}
+                />
+                <div
+                  className={`absolute -top-1 -right-1 w-3 h-3 rounded-sm ${
+                    isExactRatio ? "bg-green-500" : "bg-white"
+                  }`}
+                />
+                <div
+                  className={`absolute -bottom-1 -left-1 w-3 h-3 rounded-sm ${
+                    isExactRatio ? "bg-green-500" : "bg-white"
+                  }`}
+                />
+                <div
+                  className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-sm ${
+                    isExactRatio ? "bg-green-500" : "bg-white"
+                  }`}
+                />
               </div>
             </div>
           )}
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Arraste para ajustar o enquadramento (proporção 16:9)
+          {isExactRatio
+            ? "Imagem em proporção 16:9 — você pode ajustar a posição ou salvar diretamente"
+            : "Arraste para ajustar o enquadramento (proporção 16:9)"}
         </p>
 
         <DialogFooter>
@@ -262,7 +300,7 @@ export function BannerImageCropDialog({
           </Button>
           <Button onClick={handleSaveCrop} disabled={isSaving}>
             {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Salvar corte
+            {isExactRatio ? "Salvar" : "Salvar corte"}
           </Button>
         </DialogFooter>
       </DialogContent>
