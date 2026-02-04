@@ -1,245 +1,199 @@
 
+## Objetivo (sem suposições, com prova técnica)
 
-# Diagnóstico Técnico Completo: Sistema UTMify
+Você está certo em exigir foco no código. Eu encontrei **um bug objetivo e reproduzível** que impede o disparo dos eventos UTMify via backend, **independente do token**:
 
-## 1. Problemas Identificados
+- O módulo **`_shared/utmify-dispatcher.ts`** e o handler **`checkout-public-data/handlers/order-handler.ts`** fazem `SELECT utm_source, utm_campaign, src, sck...` na tabela `orders`.
+- **Essas colunas NÃO EXISTEM** no schema atual da tabela `orders`.
+- Resultado: o Supabase retorna erro SQL (ex.: `column "src" does not exist`), e o dispatcher trata qualquer erro como “pedido não encontrado”, **pulando o envio**.
 
-### Problema 1: Token UTMify Rejeitado pela API (PRIORIDADE MÁXIMA)
+Isso explica por que os eventos “não disparam”: **o backend não chega nem a chamar a API da UTMify** na maioria dos fluxos.
 
-**Evidência Técnica Direta dos Logs:**
-```text
-[INFO] UTMify token retrieved from Vault successfully  ← Token FOI recuperado
-[INFO] Sending conversion for order test-debug-001    ← Requisição FOI enviada
-[ERROR] UTMify API error (404): "API_CREDENTIAL_NOT_FOUND"  ← API REJEITOU
-```
+Além disso, há um segundo gap real:
+- **MercadoPago** hoje **não dispara `pix_generated`** no momento de criação do PIX (`mercadopago-create-payment`), enquanto PushinPay/Asaas/Stripe já disparam.
 
-O código está funcionando 100% corretamente. O problema está no token em si.
-
-**Possíveis causas:**
-- Token copiado com caracteres invisíveis (espaços, quebras de linha)
-- Token expirou ou foi revogado no painel UTMify
-- Token foi gerado para workspace diferente
-- UTMify tem múltiplos ambientes e token é do errado
-
-**Solução: Adicionar sanitização de token no código**
-
-Mesmo que você diga que copiou correto, podemos adicionar uma camada de proteção no código que:
-1. Remove espaços e caracteres invisíveis do token
-2. Valida o formato do token antes de usar
-3. Loga mais informações para diagnóstico
-
-### Problema 2: MercadoPago NÃO Dispara `pix_generated` (DESCOBERTO NA INVESTIGAÇÃO)
-
-**Comparação entre gateways:**
-
-| Gateway | `pix_generated` | `purchase_approved` | `refund` |
-|---------|-----------------|---------------------|----------|
-| PushinPay | ✅ SIM (linha 202 do index.ts) | ✅ SIM | ✅ SIM |
-| Asaas | ✅ SIM (charge-creator.ts) | ✅ SIM | ✅ SIM |
-| Stripe | ✅ SIM (post-payment.ts) | ✅ SIM | ✅ SIM |
-| **MercadoPago** | ❌ **NÃO** | ✅ SIM | ✅ SIM |
-
-Seu último pedido (`f4623906-2cda-4666-8c33-6e007889004e`) foi via MercadoPago, e o evento `pix_generated` NUNCA foi disparado!
+E há um terceiro ponto de correção:
+- O filtro por produto no dispatcher considera apenas o **primeiro item** do pedido; pedidos com 2 itens (produto + bump) podem ser filtrados incorretamente.
 
 ---
 
-## 2. Análise de Soluções (RISE V3 Seção 4.4)
-
-### Solução A: Correção Completa com Sanitização + MercadoPago Integration
-- **Manutenibilidade:** 10/10 - Código robusto e defensivo
-- **Zero DT:** 10/10 - Todos os gateways com mesma funcionalidade
-- **Arquitetura:** 10/10 - Paridade entre gateways
-- **Escalabilidade:** 10/10 - Funciona para qualquer gateway
-- **Segurança:** 10/10 - Token sanitizado, sem exposição
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 2-3 horas
-
-### Solução B: Apenas corrigir MercadoPago
-- **Manutenibilidade:** 7/10 - Problema do token persiste
-- **Zero DT:** 6/10 - Token pode continuar falhando
-- **Arquitetura:** 8/10 - OK
-- **Escalabilidade:** 8/10 - OK
-- **Segurança:** 7/10 - Token sem sanitização
-- **NOTA FINAL: 7.2/10**
-
-### DECISÃO: Solução A (Nota 10.0/10)
+## Limite de comunicação (necessário)
+Eu vou continuar resolvendo o problema com profundidade e sem “chutar”, mas **não vou interagir sob insultos/ameaças**. Mantendo o foco técnico e o respeito mínimo, seguimos.
 
 ---
 
-## 3. Implementação Detalhada
+## Análise de Soluções (RISE V3 — obrigatório)
 
-### 3.1. Adicionar Sanitização de Token no Dispatcher
+### Solução A: Persistir tracking no `orders` + alinhar queries + corrigir dispatch MercadoPago + filtro multi-itens (recomendado)
+- Manutenibilidade: 10/10 (schema explícito, leitura simples em todo o backend)
+- Zero DT: 10/10 (remove causa raiz + elimina falsos “order_not_found”)
+- Arquitetura: 9.8/10 (dados de tracking ficam no domínio Order; SSOT real)
+- Escalabilidade: 10/10 (sem joins caros; indexável)
+- Segurança: 10/10 (sem secrets no frontend; só params UTM)
+- **NOTA FINAL: 9.96/10**
+- Tempo estimado: 1–2 dias (inclui testes + migração)
 
-**Arquivo:** `supabase/functions/_shared/utmify-dispatcher.ts`
+### Solução B: Criar tabela `order_tracking_parameters` e fazer join no dispatcher
+- Manutenibilidade: 9/10 (modelo mais “normalizado”, mas adiciona join e sincronização)
+- Zero DT: 9/10 (bom, mas aumenta superfície de bugs de consistência)
+- Arquitetura: 10/10 (separação formal)
+- Escalabilidade: 9/10 (join frequente nos webhooks)
+- Segurança: 10/10
+- **NOTA FINAL: 9.4/10**
 
-Modificar a função `getUTMifyToken` para:
+### Solução C: Tentar inferir UTM a partir de `checkout_visits` (sem salvar no pedido)
+- Manutenibilidade: 4/10 (heurística; sem vínculo forte com order)
+- Zero DT: 3/10 (eventos errados em tráfego real)
+- Arquitetura: 5/10
+- Escalabilidade: 6/10
+- Segurança: 10/10
+- **NOTA FINAL: 5.6/10**
 
-```typescript
-async function getUTMifyToken(
-  supabase: SupabaseClient,
-  vendorId: string
-): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.rpc("get_gateway_credentials", {
-      p_vendor_id: vendorId,
-      p_gateway: "utmify",
-    });
-
-    if (error) {
-      log.warn("Erro ao recuperar credenciais UTMify:", error.message);
-      return null;
-    }
-
-    if (!data?.credentials?.api_token) {
-      return null;
-    }
-
-    // RISE V3: Sanitizar token removendo caracteres invisíveis
-    const rawToken = data.credentials.api_token;
-    const sanitizedToken = rawToken
-      .replace(/[\r\n\t]/g, '')  // Remove quebras de linha e tabs
-      .replace(/\s+/g, '')       // Remove espaços
-      .trim();
-    
-    // Log de diagnóstico (sem expor o token)
-    log.info("Token sanitizado", {
-      originalLength: rawToken.length,
-      sanitizedLength: sanitizedToken.length,
-      hadWhitespace: rawToken.length !== sanitizedToken.length
-    });
-
-    if (sanitizedToken.length === 0) {
-      log.error("Token vazio após sanitização");
-      return null;
-    }
-
-    return sanitizedToken;
-  } catch (error) {
-    log.warn("Exceção ao recuperar token UTMify:", error);
-    return null;
-  }
-}
-```
-
-### 3.2. Adicionar Evento `pix_generated` no MercadoPago Create Payment
-
-**Arquivo:** `supabase/functions/mercadopago-create-payment/index.ts`
-
-Adicionar import e disparo após criar PIX:
-
-```typescript
-// IMPORT no topo
-import { dispatchUTMifyEventForOrder } from '../_shared/utmify-dispatcher.ts';
-
-// Após linha 276 (após atualizar order com PIX):
-if (paymentMethod === 'pix' && result.qr_code_text) {
-  // ... código existente de update ...
-  
-  // RISE V3: Disparar UTMify pix_generated
-  try {
-    log.info("Disparando UTMify pix_generated para order", { orderId });
-    const utmifyResult = await dispatchUTMifyEventForOrder(supabase, orderId, "pix_generated");
-    if (utmifyResult.success && !utmifyResult.skipped) {
-      log.info("✅ UTMify pix_generated disparado");
-    } else if (utmifyResult.skipped) {
-      log.info("UTMify pulado:", utmifyResult.reason);
-    }
-  } catch (utmifyError) {
-    log.warn("UTMify pix_generated falhou (não crítico):", utmifyError);
-  }
-}
-```
-
-### 3.3. Adicionar Logging Melhorado no Envio para API
-
-**Arquivo:** `supabase/functions/_shared/utmify-dispatcher.ts`
-
-Antes de enviar para API, logar mais detalhes:
-
-```typescript
-// Antes do fetch, adicionar:
-log.info("Enviando para UTMify API", {
-  orderId,
-  eventType,
-  tokenFirstChars: token.substring(0, 4) + "...",
-  tokenLength: token.length,
-  payloadSize: JSON.stringify(payload).length
-});
-```
-
-### 3.4. Validar Token no Momento de Salvar
-
-**Arquivo:** `supabase/functions/vault-save/index.ts`
-
-Adicionar validação específica para UTMify:
-
-```typescript
-// Após linha 179, antes de salvar no Vault:
-if (normalizedType === 'UTMIFY' && vaultCredentials.api_token) {
-  // Sanitizar token antes de salvar
-  const original = vaultCredentials.api_token;
-  vaultCredentials.api_token = original
-    .replace(/[\r\n\t]/g, '')
-    .replace(/\s+/g, '')
-    .trim();
-  
-  if (original !== vaultCredentials.api_token) {
-    log.warn("Token UTMify foi sanitizado - tinha caracteres invisíveis");
-  }
-  
-  if (vaultCredentials.api_token.length < 10) {
-    return new Response(
-      JSON.stringify({ error: 'Token UTMify parece inválido (muito curto)' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-}
-```
+### DECISÃO: Solução A (9.96/10)
+É a única que elimina a causa raiz (schema mismatch) e transforma o backend SSOT em algo que funciona em qualquer gateway e evento.
 
 ---
 
-## 4. Arquivos a Modificar
+## O que será verdade após a correção (respostas objetivas)
 
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `supabase/functions/_shared/utmify-dispatcher.ts` | MODIFICAR | Sanitização de token + logging melhorado |
-| `supabase/functions/mercadopago-create-payment/index.ts` | MODIFICAR | Adicionar disparo `pix_generated` |
-| `supabase/functions/vault-save/index.ts` | MODIFICAR | Sanitização ao salvar token |
+### 1) “Se eu desmarcar purchase_approved, não envia venda aprovada?”
+Sim. A lógica atual em `isEventEnabled()` já respeita `selected_events`.  
+Após a correção, isso continuará verdadeiro e será testado.
 
----
+### 2) “Todos gateways disparam eventos corretamente?”
+- PushinPay: `pix_generated` já integrado; `purchase_approved/refund/chargeback` via flows atuais.
+- Asaas: `pix_generated` já integrado.
+- Stripe: `pix_generated` já integrado.
+- MercadoPago: **falta `pix_generated` no create PIX** (será implementado).
+- Compra recusada: já há chamadas no `stripe-webhook` e `mercadopago-webhook`.
 
-## 5. Verificação de Todos os Eventos por Gateway
-
-Após implementação, a tabela ficará assim:
-
-| Gateway | `pix_generated` | `purchase_approved` | `purchase_refused` | `refund` | `chargeback` |
-|---------|-----------------|---------------------|-------------------|----------|--------------|
-| PushinPay | ✅ | ✅ | ✅ (webhook) | ✅ | ✅ |
-| Asaas | ✅ | ✅ | ✅ (webhook) | ✅ | ✅ |
-| Stripe | ✅ | ✅ | ✅ | ✅ | ✅ |
-| MercadoPago | ✅ (NOVO) | ✅ | ✅ | ✅ | ✅ |
+### 3) “O problema é o código?”
+Sim: hoje o backend SSOT está quebrado porque lê colunas inexistentes em `orders`. Isso é 100% código/schema.
 
 ---
 
-## 6. Teste de Validação
+## Plano de Implementação (passo a passo)
 
-Após deploy:
+### Fase 1 — Corrigir a causa raiz: Schema e persistência de tracking no pedido
 
-1. **Salvar novo token UTMify** com logs ativados
-2. **Gerar PIX via MercadoPago** e verificar logs para `pix_generated`
-3. **Verificar no Dashboard UTMify** se evento apareceu
-4. **Aprovar pagamento** e verificar `purchase_approved`
+1) **Migração SQL: adicionar colunas UTM na tabela `orders`**
+   - Adicionar colunas (todas `text null`):
+     - `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `src`, `sck`
+   - (Opcional, recomendado) índice parcial em `vendor_id` + `created_at` já existe via queries comuns; para UTM não é crítico agora.
+
+2) **Frontend: enviar tracking parameters no create-order**
+   - Em `src/modules/checkout-public/machines/actors/createOrderActor.ts`:
+     - usar `extractUTMParameters()` (já existe em `src/integrations/tracking/utmify/utils.ts`)
+     - incluir no payload:
+       - `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `src`, `sck`
+   - Atualizar/expandir testes em `createOrderActor.test.ts` para garantir que o payload inclui os campos.
+
+3) **Backend: aceitar e validar tracking no create-order**
+   - Em `supabase/functions/_shared/validators.ts`:
+     - estender `CreateOrderInput` e `validateCreateOrderInput` para aceitar os campos UTM (strings opcionais, com trim, e tamanho máximo).
+   - Em `supabase/functions/create-order/index.ts`:
+     - extrair os novos campos do payload validado.
+   - Em `supabase/functions/create-order/handlers/order-creator.ts`:
+     - incluir as colunas no `.insert({ ... })` da tabela `orders`.
+
+Resultado: qualquer pedido novo terá tracking persistido no banco, e o backend consegue montar payload UTMify sem depender do frontend.
 
 ---
 
-## 7. Conformidade RISE V3
+### Fase 2 — Consertar o dispatcher e o success handler (parar de falhar silenciosamente)
 
-| Critério | Nota | Justificativa |
-|----------|------|---------------|
-| Manutenibilidade Infinita | 10/10 | Sanitização defensiva, paridade de gateways |
-| Zero Dívida Técnica | 10/10 | Todos os gateways iguais, código robusto |
-| Arquitetura Correta | 10/10 | Backend SSOT mantido |
-| Escalabilidade | 10/10 | Funciona para qualquer gateway novo |
-| Segurança | 10/10 | Token sanitizado sem exposição |
-| **NOTA FINAL** | **10.0/10** | |
+4) **`utmify-dispatcher.ts`: corrigir o SELECT e logs de erro**
+   - Em `fetchOrderForUTMify()`:
+     - manter o `select` somente com colunas que existem (agora existirão após migração).
+   - Melhorar o log quando houver `error`:
+     - logar `error.message` e `error.code` (sem dados sensíveis) em vez de “Pedido não encontrado”.
+
+5) **`checkout-public-data/handlers/order-handler.ts`: corrigir SELECT e normalização de status**
+   - Atualizar o `select` para colunas existentes (após migração).
+   - Ajustar `isPaid` para trabalhar com status normalizado (`paid`/`PAID`), evitando falso negativo.
+
+---
+
+### Fase 3 — Garantir paridade total: MercadoPago `pix_generated`
+
+6) **`supabase/functions/mercadopago-create-payment/index.ts`**
+   - Após atualizar `orders` com `pix_qr_code`/`pix_id`/`pix_status`, disparar:
+     - `dispatchUTMifyEventForOrder(supabase, orderId, "pix_generated")`
+   - Garantir que:
+     - só dispare quando `paymentMethod === 'pix'` e houver QR code.
+     - logue claramente: enviado / pulado / erro.
+
+---
+
+### Fase 4 — Filtro por produto correto (multi-itens)
+
+7) **Corrigir filtro por produto no dispatcher**
+   - Hoje: `dispatchUTMifyEventForOrder()` passa apenas `order.order_items?.[0]?.product_id`
+   - Novo: passar **todos** `product_id` dos itens e considerar habilitado se houver interseção com `selected_products`
+   - Com isso:
+     - pedidos com bump não serão erroneamente bloqueados por “primeiro item não selecionado”.
+
+---
+
+### Fase 5 — Token: tornar impossível “estar certo e falhar por formatação” (sem culpar usuário)
+
+8) **Normalização determinística do token (sem expor)**
+   - Em `vault-save/index.ts`:
+     - para UTMIFY: aplicar sanitização segura (trim + remoção de `\r\n\t` + remoção de aspas envolventes `"token"`)
+   - Em `_shared/utmify-dispatcher.ts` e `utmify-conversion/index.ts`:
+     - repetir normalização defensiva ao ler do Vault.
+     - adicionar logs **não sensíveis**:
+       - `tokenLength`, `containsWhitespace`, `containsZeroWidth` (boolean)
+       - `tokenFingerprint`: SHA-256 do token (primeiros 8 chars do hash), para auditoria.
+   - Isso não trata como “possibilidade”; é **hardening** para eliminar qualquer ambiguidade.
+
+---
+
+## Testes (obrigatórios)
+
+9) **Unit tests / Integration tests**
+   - Atualizar/adicionar testes para:
+     - `validateCreateOrderInput` aceitar e normalizar UTM fields.
+     - `utmify-dispatcher` respeitar `selected_events` (desmarcou `purchase_approved` → skip `not_enabled`).
+     - filtro por produtos com múltiplos itens (1 selecionado + 1 não selecionado → deve enviar).
+     - MercadoPago PIX cria `pix_generated` (mock).
+
+10) **Teste end-to-end manual**
+   - Gerar PIX em MercadoPago e confirmar:
+     - log de `pix_generated` no edge function.
+   - Aprovar pagamento e confirmar:
+     - `purchase_approved` disparado (ou pulado se desmarcado no painel).
+   - Executar reembolso/chargeback (quando aplicável) e confirmar logs.
+
+---
+
+## Arquivos que serão alterados/criados
+
+### Alterações (frontend)
+- `src/modules/checkout-public/machines/actors/createOrderActor.ts`
+- `src/modules/checkout-public/machines/actors/__tests__/createOrderActor.test.ts` (se existir cobertura para payload)
+
+### Alterações (edge functions)
+- `supabase/functions/_shared/validators.ts`
+- `supabase/functions/create-order/index.ts`
+- `supabase/functions/create-order/handlers/order-creator.ts`
+- `supabase/functions/_shared/utmify-dispatcher.ts`
+- `supabase/functions/utmify-conversion/index.ts` (normalização + fingerprint)
+- `supabase/functions/checkout-public-data/handlers/order-handler.ts`
+- `supabase/functions/mercadopago-create-payment/index.ts`
+- `supabase/functions/vault-save/index.ts`
+
+### Migração (DB)
+- Novo arquivo em `supabase/migrations/` adicionando colunas em `orders`:
+  - `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `src`, `sck`
+
+---
+
+## Critérios de Aceite (binários)
+
+1) Criar pedido via checkout → linhas em `orders` devem conter UTM fields (mesmo que null).
+2) `utmify-dispatcher` não pode mais logar “Pedido não encontrado” por erro de coluna inexistente.
+3) MercadoPago PIX deve disparar `pix_generated` (quando habilitado).
+4) Desmarcar `purchase_approved` no painel UTMify → `purchase_approved` deve ser pulado com reason `not_enabled`.
+5) Pedido com 2 itens (produto + bump) deve respeitar seleção por interseção (não “primeiro item apenas”).
 
