@@ -19,9 +19,10 @@ import { useNavigate } from "react-router-dom";
 import { publicApi } from "@/lib/api/public-client";
 import { toast } from "sonner";
 import { getOrderForPaymentRpc } from "@/lib/rpc/rpcProxy";
-import { sendUTMifyConversion, formatDateForUTMify } from "@/lib/utmify-helper";
 import { createLogger } from "@/lib/logger";
 import type { GatewayType, PaymentStatus, OrderDataFromRpc } from "../types";
+
+// RISE V3: UTMify removido daqui - agora centralizado em PaymentSuccessPage
 
 const log = createLogger("UsePixPaymentStatus");
 
@@ -130,53 +131,8 @@ export function usePixPaymentStatus({
         setPaymentStatus("paid");
         toast.success("Pagamento confirmado!");
         
-        // Enviar conversão UTMify
-        if (orderData) {
-          const productsArray = orderData.product ? [{
-            id: orderData.product.id,
-            name: orderData.product.name,
-            priceInCents: orderData.amount_cents || 0,
-            quantity: 1
-          }] : [];
-          
-          const productId = orderData.product?.id || orderData.product_id || null;
-          
-          log.info("Enviando conversão UTMify:", productId, productsArray);
-          
-          sendUTMifyConversion(
-            orderData.vendor_id,
-            {
-              orderId: orderId,
-              paymentMethod: "pix",
-              status: "paid",
-              createdAt: formatDateForUTMify(orderData.created_at || new Date()),
-              approvedDate: formatDateForUTMify(new Date()),
-              refundedAt: null,
-              customer: {
-                name: orderData.customer_name || "",
-                email: orderData.customer_email || "",
-                phone: orderData.customer_phone || null,
-                document: orderData.customer_document || null,
-                country: "BR",
-                ip: "0.0.0.0"
-              },
-              products: productsArray,
-              trackingParameters: orderData.tracking_parameters || {},
-              totalPriceInCents: orderData.amount_cents || 0,
-              commission: {
-                totalPriceInCents: orderData.amount_cents || 0,
-                gatewayFeeInCents: 0,
-                userCommissionInCents: orderData.amount_cents || 0,
-                currency: "BRL"
-              },
-              isTest: false
-            },
-            "purchase_approved",
-            productId
-          ).catch(err => {
-            log.error("Não foi possível atualizar status UTMify:", err);
-          });
-        }
+        // RISE V3: UTMify agora é disparado na PaymentSuccessPage (SSOT)
+        // Não disparamos aqui para evitar duplicação
         
         setTimeout(() => {
           navigate(`/success/${orderId}`);

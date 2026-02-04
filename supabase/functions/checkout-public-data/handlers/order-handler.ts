@@ -30,8 +30,20 @@ export async function handleOrderByToken(ctx: HandlerContext): Promise<Response>
       amount_cents,
       customer_email,
       customer_name,
+      customer_phone,
+      customer_document,
       coupon_code,
       discount_amount_cents,
+      payment_method,
+      vendor_id,
+      created_at,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_content,
+      utm_term,
+      src,
+      sck,
       order_items (
         id,
         product_name,
@@ -52,7 +64,24 @@ export async function handleOrderByToken(ctx: HandlerContext): Promise<Response>
     return jsonResponse({ error: "Pedido não encontrado" }, 404);
   }
 
-  return jsonResponse({ success: true, data });
+  // RISE V3: Estruturar tracking_parameters para UTMify
+  const trackingParameters = {
+    src: data.src || null,
+    sck: data.sck || null,
+    utm_source: data.utm_source || null,
+    utm_medium: data.utm_medium || null,
+    utm_campaign: data.utm_campaign || null,
+    utm_content: data.utm_content || null,
+    utm_term: data.utm_term || null,
+  };
+
+  // Retornar dados estruturados para tracking
+  const responseData = {
+    ...data,
+    tracking_parameters: trackingParameters,
+  };
+
+  return jsonResponse({ success: true, data: responseData });
 }
 
 export async function handleCheckOrderPaymentStatus(ctx: HandlerContext): Promise<Response> {
