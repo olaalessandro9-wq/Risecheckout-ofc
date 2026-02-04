@@ -29,6 +29,7 @@ export interface OrderCreationInput {
   customer_email: string;
   customer_phone?: string;
   customer_cpf?: string;
+  customer_ip?: string | null;  // RISE V3: IP real para UTMify e análise de fraude
   
   // Dados do produto
   product_id: string;
@@ -91,6 +92,7 @@ export async function createOrder(
     customer_email,
     customer_phone,
     customer_cpf,
+    customer_ip,
     product_id,
     product_name,
     vendor_id,
@@ -171,6 +173,7 @@ export async function createOrder(
   }
 
   // Inserir pedido com dados criptografados
+  // RISE V3: Incluir customer_ip para UTMify e análise de fraude
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -183,6 +186,7 @@ export async function createOrder(
       customer_email,
       customer_phone: encryptedPhone,      // ✅ Criptografado
       customer_document: encryptedCpf,     // ✅ Criptografado
+      customer_ip: customer_ip || null,    // ✅ IP real para UTMify
       payment_method: payment_method || "pix",
       gateway: gateway || "pushinpay",
       product_name,

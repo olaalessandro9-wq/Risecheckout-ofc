@@ -21,7 +21,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
+import { rateLimitOnlyMiddleware, getIdentifier, getClientIP, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { validateCreateOrderInput, createValidationErrorResponse } from "../_shared/validators.ts";
@@ -132,11 +132,14 @@ serve(withSentry('create-order', async (req) => {
       affiliate_code
     } = validatedData;
 
+    // RISE V3: Capturar IP real do cliente para UTMify e análise de fraude
+    const customerIP = getClientIP(req);
     log.info('Processando', {
       email: maskEmail(customer_email),
       product_id,
       bumps_count: order_bump_ids?.length || 0,
-      affiliate_code: affiliate_code || "N/A"
+      affiliate_code: affiliate_code || "N/A",
+      customer_ip: customerIP || "unknown"
     });
 
     // 4. VALIDAR PRODUTO/OFERTA/CHECKOUT
@@ -184,7 +187,7 @@ serve(withSentry('create-order', async (req) => {
       allOrderItems
     });
 
-    // 8. CRIAR PEDIDO
+    // 8. CRIAR PEDIDO (RISE V3: Inclui customer_ip para UTMify)
     const orderResult = await createOrder(
       supabase,
       {
@@ -192,6 +195,7 @@ serve(withSentry('create-order', async (req) => {
         customer_email,
         customer_phone,
         customer_cpf,
+        customer_ip: customerIP,
         product_id,
         product_name: productName,
         vendor_id: productData.user_id,
