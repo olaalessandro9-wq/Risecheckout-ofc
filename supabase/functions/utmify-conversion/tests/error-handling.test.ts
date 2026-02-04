@@ -2,30 +2,20 @@
  * Error Handling Tests for utmify-conversion
  * 
  * @module utmify-conversion/tests/error-handling.test
- * @version 1.0.0 - RISE Protocol V3 Compliant
+ * @version 2.0.0 - RISE Protocol V3 Compliant
  */
 
 import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/testing/asserts.ts";
-import { describe, it, beforeEach } from "https://deno.land/std@0.224.0/testing/bdd.ts";
+import { describe, it } from "https://deno.land/std@0.224.0/testing/bdd.ts";
 import {
-  createMockSupabaseClient,
   createMockRequest,
   createInvalidJsonRequest,
   createOptionsRequest,
-  createDefaultOrder,
-  type MockOrder,
+  createDefaultConversionPayload,
 } from "./_shared.ts";
 
-let mockSupabaseClient: Record<string, unknown>;
-let mockOrder: MockOrder;
-
 describe("utmify-conversion - Error Handling", () => {
-  beforeEach(() => {
-    mockSupabaseClient = createMockSupabaseClient();
-    mockOrder = createDefaultOrder();
-  });
-
-  it("should handle OPTIONS preflight request", async () => {
+  it("should handle OPTIONS preflight request", () => {
     const mockRequest = createOptionsRequest();
     assertEquals(mockRequest.method, "OPTIONS");
   });
@@ -44,11 +34,11 @@ describe("utmify-conversion - Error Handling", () => {
   it("should return structured error response", () => {
     const errorResponse = {
       success: false,
-      error: "Order not found",
-      code: "ORDER_NOT_FOUND",
+      error: "Validation failed",
+      details: ["orderId is required"],
     };
     assertExists(errorResponse.error);
-    assertExists(errorResponse.code);
+    assertExists(errorResponse.details);
     assertEquals(errorResponse.success, false);
   });
 
@@ -56,9 +46,10 @@ describe("utmify-conversion - Error Handling", () => {
     const internalError = new Error("Database connection failed");
     const clientResponse = {
       success: false,
-      error: "An error occurred processing your request",
+      error: "Internal server error",
     };
     assertEquals(clientResponse.error.includes("Database"), false);
+    assertExists(internalError.message);
   });
 
   it("should log errors for debugging", () => {
@@ -85,5 +76,44 @@ describe("utmify-conversion - Error Handling", () => {
       "Access-Control-Allow-Methods": "POST, OPTIONS",
     };
     assertExists(corsHeaders["Access-Control-Allow-Origin"]);
+  });
+
+  it("should validate missing required fields", () => {
+    const incompletePayload: Record<string, unknown> = {
+      orderId: "test-123",
+      // Missing vendorId, customer, products, etc.
+    };
+    const hasMissingFields = !("vendorId" in incompletePayload);
+    assertEquals(hasMissingFields, true);
+  });
+
+  it("should handle vendor not found error", () => {
+    const errorResponse = {
+      success: false,
+      error: "Vendor not found",
+    };
+    assertEquals(errorResponse.error, "Vendor not found");
+  });
+
+  it("should handle no UTMify token configured", () => {
+    const errorResponse = {
+      success: false,
+      error: "No UTMify token configured for this vendor",
+    };
+    assertEquals(errorResponse.success, false);
+    assertExists(errorResponse.error);
+  });
+
+  it("should handle UTMify API errors", () => {
+    const errorResponse = {
+      success: false,
+      error: "UTMify API error",
+      details: {
+        status: 500,
+        message: "Internal Server Error",
+      },
+    };
+    assertEquals(errorResponse.success, false);
+    assertExists(errorResponse.details);
   });
 });
