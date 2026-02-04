@@ -1,41 +1,73 @@
-import { useScroll, useTransform } from "framer-motion";
-import {
-  LandingThemeProvider,
-  LandingHeader,
-  HeroSection,
-  FeaturesSection,
-  ConversionSection,
-  BuilderSection,
-  IntegrationsSection,
-  StepsSection,
-  TestimonialsSection,
-  CtaSection,
-  LandingFooter
-} from "@/components/landing";
+/**
+ * LandingPage Component
+ * 
+ * NOTA: Este componente tem ISENÇÃO do RISE Protocol V3
+ * Critério único: Fidelidade 100% ao design WordPress original
+ * 
+ * Carrega e renderiza a landing page migrada do WordPress/Elementor
+ * mantendo 100% da fidelidade visual.
+ */
+
+import { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 
 export default function LandingPage() {
-  const { scrollYProgress } = useScroll();
-  const headerOpacity = useTransform(scrollYProgress, [0, 0.1], [0, 1]);
-  const headerY = useTransform(scrollYProgress, [0, 0.1], [-20, 0]);
+  const [htmlContent, setHtmlContent] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Carregar HTML do WordPress
+    fetch('/landing-wordpress.html')
+      .then(response => response.text())
+      .then(html => {
+        setHtmlContent(html);
+        setIsLoading(false);
+      })
+      .catch(error => {
+        console.error('Erro ao carregar landing page:', error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!htmlContent) return;
+
+    // Executar scripts do WordPress após renderização
+    const scripts = document.querySelectorAll('.wordpress-landing script');
+    scripts.forEach(oldScript => {
+      const newScript = document.createElement('script');
+      Array.from(oldScript.attributes).forEach(attr => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+      newScript.textContent = oldScript.textContent;
+      oldScript.parentNode?.replaceChild(newScript, oldScript);
+    });
+  }, [htmlContent]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0e27]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00d9ff]" />
+      </div>
+    );
+  }
 
   return (
-    <LandingThemeProvider>
-      {/* Dynamic Background */}
-      <div className="fixed inset-0 z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--landing-accent)/0.1)] blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[hsl(var(--landing-purple)/0.1)] blur-[120px]" />
-      </div>
-
-      <LandingHeader headerOpacity={headerOpacity} headerY={headerY} />
-      <HeroSection />
-      <FeaturesSection />
-      <ConversionSection />
-      <BuilderSection />
-      <IntegrationsSection />
-      <StepsSection />
-      <TestimonialsSection />
-      <CtaSection />
-      <LandingFooter />
-    </LandingThemeProvider>
+    <>
+      <Helmet>
+        <title>Rise Community - A plataforma de checkout mais completa do Brasil</title>
+        <meta name="description" content="Venda seus produtos digitais com criativos. Transforme cada acesso em pagamento com um checkout personalizável, rápido e otimizado para escalar." />
+      </Helmet>
+      
+      <div 
+        className="wordpress-landing"
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+        style={{
+          width: '100%',
+          minHeight: '100vh',
+          overflow: 'auto'
+        }}
+      />
+    </>
   );
 }
