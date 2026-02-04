@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ImageCropDialogProduct } from "./ImageCropDialogProduct";
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 
 interface ImageSelectorProps {
   imageUrl?: string | null;
@@ -128,11 +128,12 @@ export function ImageSelector({
 
         {/* Dialog de crop */}
         {originalFile && (
-          <ImageCropDialogProduct
+          <ImageCropDialog
             open={isCropOpen}
             onOpenChange={setIsCropOpen}
             imageFile={originalFile}
             onCropComplete={handleCropComplete}
+            preset="product"
           />
         )}
       </div>
@@ -202,11 +203,12 @@ export function ImageSelector({
 
       {/* Dialog de crop (para quando selecionar arquivo) */}
       {originalFile && (
-        <ImageCropDialogProduct
+        <ImageCropDialog
           open={isCropOpen}
           onOpenChange={setIsCropOpen}
           imageFile={originalFile}
           onCropComplete={handleCropComplete}
+          preset="product"
         />
       )}
     </div>

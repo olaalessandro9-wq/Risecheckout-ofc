@@ -1,13 +1,30 @@
 /**
- * ImageCropDialog - Modal profissional para recortar imagem de módulos
+ * ImageCropDialog - Componente Unificado de Crop de Imagem
  * 
- * Implementação com react-cropper (SOLUÇÃO DA CAKTO)
- * - Background xadrez (mostra claramente o que está dentro/fora)
- * - Imagem COMPLETA visível (nunca fica torta)
- * - Área de crop centralizada e destacada
- * - Slider de zoom visível
- * - Imagem se adapta automaticamente
- * - Proporção 2:3 para thumbnails de módulos
+ * Implementação com react-cropper que suporta múltiplos presets:
+ * - module: 2:3 (320x480) - Thumbnails de módulos
+ * - banner: 16:9 (1920x1080) - Banners widescreen
+ * - product: 4:3 (800x600) - Imagens de produto
+ * - square: 1:1 (400x400) - Avatares
+ * - story: 9:16 (1080x1920) - Stories verticais
+ * - videoThumbnail: 16:9 (1280x720) - Previews de vídeo
+ * - card: 3:2 (600x400) - Cards
+ * 
+ * Features:
+ * - Background xadrez para transparência
+ * - Imagem completa visível
+ * - Área de crop centralizada
+ * - Slider de zoom
+ * - Zoom com scroll do mouse
+ * - Crop box movível e redimensionável
+ * 
+ * @example
+ * // Usando preset
+ * <ImageCropDialog preset="module" ... />
+ * 
+ * @example
+ * // Usando configuração customizada
+ * <ImageCropDialog customConfig={{ aspectRatio: 5/4, outputWidth: 500, outputHeight: 400 }} ... />
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
@@ -26,26 +43,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Loader2 } from "lucide-react";
+import { getCropConfig } from "./presets";
+import type { ImageCropDialogProps } from "./types";
 
 const log = createLogger("ImageCropDialog");
-
-interface ImageCropDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  imageFile: File;
-  onCropComplete: (croppedFile: File) => void;
-}
-
-const ASPECT_RATIO = 2 / 3; // Portrait ratio for module thumbnails
-const OUTPUT_WIDTH = 320;
-const OUTPUT_HEIGHT = 480;
 
 export function ImageCropDialog({
   open,
   onOpenChange,
   imageFile,
   onCropComplete,
+  preset,
+  customConfig,
+  title = "Editar Imagem",
+  subtitle = "Ajuste a imagem para o tamanho desejado",
 }: ImageCropDialogProps) {
+  // Obtém a configuração de crop baseado no preset ou config customizada
+  const config = getCropConfig(preset, customConfig);
+
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,12 +75,18 @@ export function ImageCropDialog({
     }
   }, [imageFile, open]);
 
+  // Reset zoom quando a imagem muda
+  useEffect(() => {
+    if (open) {
+      setZoom(0);
+    }
+  }, [open, imageFile]);
+
   const handleZoomChange = useCallback((value: number[]) => {
     const zoomValue = value[0];
     setZoom(zoomValue);
-    
+
     if (cropperRef.current?.cropper) {
-      // Zoom range: -1 to 1 (cropperjs uses ratio)
       const zoomRatio = zoomValue / 100;
       cropperRef.current.cropper.zoomTo(zoomRatio);
     }
@@ -81,11 +102,11 @@ export function ImageCropDialog({
 
     try {
       const cropper = cropperRef.current.cropper;
-      
-      // Get cropped canvas with output dimensions
+
+      // Get cropped canvas with output dimensions from config
       const canvas = cropper.getCroppedCanvas({
-        width: OUTPUT_WIDTH,
-        height: OUTPUT_HEIGHT,
+        width: config.outputWidth,
+        height: config.outputHeight,
         imageSmoothingEnabled: true,
         imageSmoothingQuality: "high",
       });
@@ -104,7 +125,11 @@ export function ImageCropDialog({
             { type: "image/jpeg" }
           );
 
-          log.info("Crop completed successfully");
+          log.info("Crop completed successfully", {
+            preset,
+            config: config.label,
+            outputSize: `${config.outputWidth}x${config.outputHeight}`,
+          });
           onCropComplete(croppedFile);
           onOpenChange(false);
           setIsSaving(false);
@@ -116,16 +141,14 @@ export function ImageCropDialog({
       log.error("Error cropping image", error);
       setIsSaving(false);
     }
-  }, [imageFile, onCropComplete, onOpenChange]);
+  }, [imageFile, onCropComplete, onOpenChange, config, preset]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Editar Imagem</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Ajuste a imagem para o tamanho desejado
-          </p>
+          <DialogTitle>{title}</DialogTitle>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
         </DialogHeader>
 
         <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
@@ -136,8 +159,8 @@ export function ImageCropDialog({
                 ref={cropperRef}
                 src={imageUrl}
                 style={{ height: "100%", width: "100%" }}
-                initialAspectRatio={ASPECT_RATIO}
-                aspectRatio={ASPECT_RATIO}
+                initialAspectRatio={config.aspectRatio}
+                aspectRatio={config.aspectRatio}
                 guides={true}
                 viewMode={1}
                 background={true}

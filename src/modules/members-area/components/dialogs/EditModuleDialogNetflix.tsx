@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUploadZoneCompact } from "../ImageUploadZoneCompact";
 import { ModuleCardPreview } from "../ModuleCardPreview";
-import { ImageCropDialog } from "./ImageCropDialog";
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import type { EditingModuleData } from "@/modules/members-area/types";
 
 interface EditModuleDialogNetflixProps {
@@ -210,6 +210,7 @@ export function EditModuleDialogNetflix({
           onOpenChange={setIsCropOpen}
           imageFile={originalImageFile}
           onCropComplete={handleCropComplete}
+          preset="module"
         />
       )}
     </>
