@@ -21,6 +21,7 @@ export async function handleOrderByToken(ctx: HandlerContext): Promise<Response>
     return jsonResponse({ error: "orderId and token required" }, 400);
   }
 
+  // RISE V3: Incluir customer_ip no SELECT para UTMify tracking
   const { data, error } = await supabase
     .from("orders")
     .select(`
@@ -32,6 +33,7 @@ export async function handleOrderByToken(ctx: HandlerContext): Promise<Response>
       customer_name,
       customer_phone,
       customer_document,
+      customer_ip,
       coupon_code,
       discount_amount_cents,
       payment_method,

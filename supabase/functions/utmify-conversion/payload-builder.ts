@@ -74,7 +74,12 @@ export function mapStatus(status: string): string {
 
 /**
  * Constrói o objeto customer conforme documentação UTMify
- * NOTA: ip é obrigatório na API UTMify - usa valor padrão se não fornecido
+ * 
+ * RISE V3: A API UTMify REJEITA null para o campo ip com erro:
+ * {"customer.ip": "customer.ip cannot be null"}
+ * 
+ * Apesar da documentação indicar opcional, na prática é obrigatório.
+ * Usamos "0.0.0.0" como fallback seguro quando IP não disponível.
  */
 function buildCustomer(input: UTMifyConversionRequest["customer"]): UTMifyCustomer {
   return {
@@ -83,8 +88,8 @@ function buildCustomer(input: UTMifyConversionRequest["customer"]): UTMifyCustom
     phone: input.phone || null,
     document: input.document || null,
     country: input.country || "BR",
-    // IP é opcional - null é aceito pela API UTMify
-    ip: input.ip || null,
+    // RISE V3: API UTMify rejeita null - usar fallback "0.0.0.0"
+    ip: input.ip || "0.0.0.0",
   };
 }
 
