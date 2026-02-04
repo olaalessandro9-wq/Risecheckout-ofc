@@ -10,6 +10,7 @@
 import { Suspense } from "react";
 import type { RouteObject } from "react-router-dom";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { AuthPageLoader } from "@/components/auth/AuthPageLoader";
 
 // ============================================================================
 // LAZY IMPORTS (with auto-retry for network failures)
@@ -29,7 +30,7 @@ const SolicitarAfiliacao = lazyWithRetry(() => import("@/pages/SolicitarAfiliaca
 const TermosDeUso = lazyWithRetry(() => import("@/pages/TermosDeUso"));
 
 // ============================================================================
-// PAGE LOADER
+// PAGE LOADER (for non-auth pages)
 // ============================================================================
 function PageLoader() {
   return (
@@ -49,22 +50,22 @@ export const publicRoutes: RouteObject[] = [
     element: <Suspense fallback={<PageLoader />}><LandingPage /></Suspense> 
   },
   
-  // Auth
+  // Auth (use AuthPageLoader to prevent theme flash)
   { 
     path: "/auth", 
-    element: <Suspense fallback={<PageLoader />}><Auth /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><Auth /></Suspense> 
   },
   { 
     path: "/cadastro", 
-    element: <Suspense fallback={<PageLoader />}><Cadastro /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><Cadastro /></Suspense> 
   },
   { 
     path: "/recuperar-senha", 
-    element: <Suspense fallback={<PageLoader />}><RecuperarSenha /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><RecuperarSenha /></Suspense> 
   },
   { 
     path: "/redefinir-senha", 
-    element: <Suspense fallback={<PageLoader />}><RedefinirSenha /></Suspense> 
+    element: <Suspense fallback={<AuthPageLoader />}><RedefinirSenha /></Suspense> 
   },
   
   // Checkout & Payments

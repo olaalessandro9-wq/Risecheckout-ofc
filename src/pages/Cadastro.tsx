@@ -70,16 +70,8 @@ export default function Cadastro() {
     setView("choose-profile");
   };
 
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <AuthThemeProvider>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="w-8 h-8 text-[hsl(var(--auth-accent))] animate-spin" />
-        </div>
-      </AuthThemeProvider>
-    );
-  }
+  // RISE V3: Loading state removed - AuthPageLoader in Suspense handles this
+  // The component renders immediately, useEffect handles redirect if authenticated
 
   // Shared layout wrapper
   const PageLayout = ({ children }: { children: React.ReactNode }) => (
