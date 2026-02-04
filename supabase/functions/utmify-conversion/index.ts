@@ -2,10 +2,15 @@
  * UTMify Conversion Edge Function
  * 
  * @module utmify-conversion
- * @version 2.0.0 - RISE Protocol V3 Compliant
+ * @version 3.0.0 - RISE Protocol V3 Compliant - Vault SSOT
  * 
  * Envia dados de conversão para a API UTMify conforme documentação oficial:
  * https://api.utmify.com.br/api-credentials/orders
+ * 
+ * Mudanças V3.0.0:
+ * - Token recuperado do Vault via RPC get_gateway_credentials (SSOT)
+ * - Elimina dependência de coluna legada users.utmify_token
+ * - Padrão unificado com MercadoPago, Asaas e outras integrações
  * 
  * Mudanças V2.0.0:
  * - URL corrigida: api-credentials/orders (não api/v1/conversion)
@@ -72,25 +77,34 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get UTMify token from users table (SSOT)
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("utmify_token")
-      .eq("id", conversionRequest.vendorId)
-      .single();
+    // Get UTMify token from Vault via RPC (RISE V3 - SSOT)
+    // Pattern: Same as MercadoPago, Asaas, and other gateway integrations
+    // RPC returns: { success: boolean, credentials?: { api_token: string }, error?: string }
+    const { data: vaultResponse, error: vaultError } = await supabase.rpc(
+      "get_gateway_credentials",
+      {
+        p_vendor_id: conversionRequest.vendorId,
+        p_gateway: "utmify",
+      }
+    );
 
-    if (userError) {
-      log.error("Error fetching vendor:", userError.message);
+    if (vaultError) {
+      log.error("Error calling Vault RPC:", vaultError.message);
       return new Response(
-        JSON.stringify({ success: false, error: "Vendor not found" } satisfies EdgeFunctionResponse),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          success: false, 
+          error: "Failed to retrieve UTMify credentials" 
+        } satisfies EdgeFunctionResponse),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const token = user?.utmify_token;
+    // Extract token from RPC response structure
+    // vaultResponse = { success: true, credentials: { api_token: "..." } }
+    const token = vaultResponse?.credentials?.api_token;
 
     if (!token) {
-      log.info("No UTMify token configured for vendor:", conversionRequest.vendorId);
+      log.info(`No UTMify token configured for vendor: ${conversionRequest.vendorId} - Response: ${JSON.stringify(vaultResponse)}`);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -99,6 +113,8 @@ serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    log.info("UTMify token retrieved from Vault successfully");
 
     // Build payload according to UTMify API documentation
     const payload = buildUTMifyPayload(conversionRequest);

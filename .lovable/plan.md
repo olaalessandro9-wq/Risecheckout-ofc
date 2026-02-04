@@ -1,12 +1,14 @@
 
 # Plano de Correção: UTMify Não Enviando Conversões
 
-## 1. Diagnóstico Completo
+**STATUS: ✅ CONCLUÍDO**
 
-### 1.1 Problema Identificado
-O UTMify está configurado pelos vendedores, mas **ZERO conversões estão sendo enviadas** para a API da UTMify. A Edge Function `utmify-conversion` não possui nenhum log recente, indicando que ou não está sendo chamada, ou falha silenciosamente antes de enviar.
+**Data:** 2026-02-04
+**Versão:** 3.0.0
 
-### 1.2 Causa Raiz Técnica (BUG CRÍTICO)
+## Resumo da Correção
+
+A Edge Function `utmify-conversion` foi corrigida para buscar o token do Vault via RPC `get_gateway_credentials`, alinhando com o padrão usado por MercadoPago, Asaas e outras integrações.
 
 | Etapa | O que acontece | O que deveria acontecer |
 |-------|----------------|-------------------------|
