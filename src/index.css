@@ -444,6 +444,25 @@
   *::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
   }
+
+  /* ========================================
+     ULTRAWIDE PERFORMANCE OPTIMIZATIONS
+     Desabilita efeitos pesados em monitores ≥2560px
+     ======================================== */
+  @media (min-width: 2560px) {
+    /* Animações instantâneas */
+    *:not(.no-perf-override) {
+      animation-duration: 0.001ms !important;
+      transition-duration: 100ms !important;
+    }
+    
+    /* Remove backdrop-blur (GPU intensive) */
+    .backdrop-blur-sm,
+    .backdrop-blur {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+  }
 }
 
 /* ========================================

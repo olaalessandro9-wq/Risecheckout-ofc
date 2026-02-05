@@ -4,12 +4,12 @@
  * @module dashboard
  * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Página principal do Dashboard - ~80 linhas.
+ * Página principal do Dashboard - ~70 linhas.
  * Zero useState - usa useDashboard como SSOT.
- * Otimizado para ultrawide com UltrawidePerformanceContext.
+ * ZERO framer-motion - CSS puro para máxima performance.
+ * Otimizado para ultrawide com CSS containment.
  */
 
-import { motion } from "framer-motion";
 import { useDashboard } from "../hooks";
 import {
   DashboardHeader,
@@ -19,35 +19,19 @@ import {
 } from "../components";
 import { RecentCustomersTable } from "@/components/dashboard/recent-customers";
 import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
-
-const PAGE_ANIMATION = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const { state, actions, data, isLoading, refetch } = useDashboard();
-  const { isUltrawide, disableAnimations } = useUltrawidePerformance();
-
-  // Wrapper condicional: div simples em ultrawide (sem staggerChildren)
-  const Wrapper = disableAnimations ? "div" : motion.div;
-  const wrapperProps = disableAnimations
-    ? {}
-    : {
-        initial: "hidden",
-        animate: "show",
-        variants: PAGE_ANIMATION,
-      };
+  const { disableAllAnimations } = useUltrawidePerformance();
 
   return (
-    <Wrapper
-      {...wrapperProps}
-      className="space-y-4 md:space-y-6 lg:space-y-8"
+    <div
+      className={cn(
+        "space-y-4 md:space-y-6 lg:space-y-8",
+        !disableAllAnimations && "animate-in fade-in duration-300"
+      )}
+      style={{ contain: "layout style" }}
     >
       {/* Header com título e filtro de data */}
       <DashboardHeader state={state} actions={actions} />
@@ -87,6 +71,6 @@ export default function Dashboard() {
           onRefresh={() => refetch()}
         />
       </div>
-    </Wrapper>
+    </div>
   );
 }
