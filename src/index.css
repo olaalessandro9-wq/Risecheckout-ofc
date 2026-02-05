@@ -466,21 +466,6 @@
 }
 
 /* ========================================
-   COMPOSITOR-SAFE TRANSITION OVERRIDE
-   Neutraliza transition-all para animar apenas
-   propriedades compositor-safe (cores, opacidade, sombras).
-   Protege contra layout thrashing acidental.
-   ======================================== */
-
-@layer base {
-  .transition-all {
-    transition-property: color, background-color, border-color,
-      text-decoration-color, fill, stroke, opacity,
-      box-shadow, outline-color !important;
-  }
-}
-
-/* ========================================
    CHECKOUT COMPONENTS - Classes Globais
    ======================================== */
 
