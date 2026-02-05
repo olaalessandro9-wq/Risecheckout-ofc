@@ -1,205 +1,188 @@
 
-# Plano: Reescrever Template de Compra Mantendo Visual Idêntico
+# Plano de Correção Pós-Auditoria RISE V3
 
-## Diagnóstico Confirmado
+## Relatório de Auditoria Completo
 
-| Aspecto | Template Atual (PROBLEMA) | Templates que Funcionam |
-|---------|---------------------------|-------------------------|
-| CSS | 100% inline | `<style>` tag com classes |
-| Fontes | Arial, Helvetica | Google Fonts (Inter) via `@import` |
-| Estrutura | Divs com style inline | Classes (.container, .header, .content) |
-| Gmail | 3 PONTINHOS | COMPLETO |
+### Status da Implementação Anterior
 
-## Estratégia de Conversão
+| Item | Status | Nota |
+|------|--------|------|
+| Template `email-templates-purchase.ts` reescrito | ✅ OK | 10/10 |
+| Testes atualizados | ✅ OK | 10/10 |
+| Código funciona no Gmail | ⏳ AGUARDANDO TESTE | - |
+| Documentação criada | ❌ FALTANDO | 0/10 |
+| Código morto eliminado | ❌ PARCIAL | 5/10 |
+| Consistência arquitetural | ❌ PROBLEMA | 4/10 |
 
-Vou manter **exatamente os mesmos textos e layout visual** do template atual:
-- "Sua compra foi confirmada!"
-- "Olá, [nome], obrigado por comprar conosco..."
-- Seção "Seu acesso está liberado!" (quando tem deliveryUrl)
-- Tabela "Resumo do Pedido"
-- Footer com suporte e Rise Checkout
+### Problemas Identificados
 
-Apenas a **estrutura técnica** muda para usar o padrão que funciona.
+**PROBLEMA 1: Funções Legadas ainda exportadas e usadas**
+
+O arquivo `email-templates-base.ts` ainda exporta `getBaseStyles()` e `getEmailWrapper()` que usam `@import` de Google Fonts. Estas funções são usadas por:
+
+- `email-templates-seller.ts` (linha 9, 85)
+- `email-templates-payment.ts` (linha 9, 70)
+- `email-templates.ts` (linha 18-21 - re-export)
+- `email-templates-base.test.ts` (testes específicos)
+
+**PROBLEMA 2: send-confirmation-email com HTML hardcoded**
+
+O arquivo `supabase/functions/send-confirmation-email/index.ts` tem HTML inline hardcoded (linhas 83-109) e NÃO usa os templates refatorados. Análise:
+
+- Esta função é chamada via endpoint direto
+- O fluxo principal usa `webhook-post-payment.ts` → `send-order-emails.ts`
+- `send-confirmation-email` parece ser função legada ou alternativa
+
+**PROBLEMA 3: Documentação não criada**
+
+O plano prometia criar `docs/memories/EMAIL_TEMPLATE_STANDARD.md` - não foi feito.
+
+**PROBLEMA 4: Inconsistência entre templates**
+
+| Template | Arquitetura CSS | Status |
+|----------|-----------------|--------|
+| `purchase` | `<style>` inline próprio | ✅ Refatorado |
+| `members-area` | `<style>` inline próprio | ✅ Funciona |
+| `external` | `<style>` inline próprio | ✅ Funciona |
+| `seller` | `getEmailWrapper()` | ⚠️ Usa wrapper legado |
+| `payment` | `getEmailWrapper()` | ⚠️ Usa wrapper legado |
+
+---
+
+## Análise de Soluções (RISE V3 Seção 4.4)
+
+### Solução A: Corrigir apenas o essencial
+
+Criar a documentação e marcar funções como deprecated.
+
+- Manutenibilidade: 6/10 (código legado permanece)
+- Zero DT: 5/10 (dívida técnica mantida)
+- Arquitetura: 5/10 (inconsistência permanece)
+- Escalabilidade: 5/10 (novos devs podem usar wrapper errado)
+- Segurança: 10/10
+- **NOTA FINAL: 6.2/10**
+
+### Solução B: Unificação Completa (RECOMENDADA)
+
+1. Reescrever `email-templates-seller.ts` com CSS inline próprio
+2. Reescrever `email-templates-payment.ts` com CSS inline próprio
+3. Deprecar `getBaseStyles()` e `getEmailWrapper()` em `email-templates-base.ts`
+4. Remover re-exports das funções deprecated de `email-templates.ts`
+5. Atualizar `send-confirmation-email/index.ts` para usar o template correto
+6. Criar documentação `EMAIL_TEMPLATE_STANDARD.md`
+7. Atualizar testes conforme nova arquitetura
+
+- Manutenibilidade: 10/10 (padrão único)
+- Zero DT: 10/10 (código legado eliminado)
+- Arquitetura: 10/10 (consistência total)
+- Escalabilidade: 10/10 (qualquer template segue o padrão)
+- Segurança: 10/10
+- **NOTA FINAL: 10.0/10**
+
+### Solução C: Manter dual-architecture
+
+Documentar que existem dois padrões válidos.
+
+- Manutenibilidade: 4/10 (dois padrões = confusão)
+- Zero DT: 3/10 (dívida técnica alta)
+- Arquitetura: 3/10 (anti-pattern)
+- Escalabilidade: 4/10
+- Segurança: 10/10
+- **NOTA FINAL: 4.8/10**
+
+### DECISÃO: Solução B (Nota 10.0)
+
+---
 
 ## Implementação Detalhada
 
-### Etapa 1: Reescrever email-templates-purchase.ts
+### Etapa 1: Reescrever email-templates-seller.ts
 
-**Conversão de estrutura:**
+Converter de `getEmailWrapper()` para CSS inline próprio, mantendo:
+- Visual idêntico (cores, layout)
+- Mesmos textos e estrutura
+- Gradiente verde do header
 
-```text
-ANTES (inline CSS):                    DEPOIS (classes CSS):
-─────────────────────                  ─────────────────────
-<div style="max-width:600px...">       .container { max-width: 600px... }
-<div style="text-align:center...">     .header { text-align: center... }
-<table style="border:1px solid...">    .order-details { border: 1px solid... }
-```
+### Etapa 2: Reescrever email-templates-payment.ts
 
-**Estrutura do novo template:**
+Converter de `getEmailWrapper()` para CSS inline próprio, mantendo:
+- Visual idêntico
+- Gradiente amarelo/laranja do header
+- QR Code PIX
 
-```html
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmação de Compra</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; ... }
-    .container { max-width: 600px; margin: 40px auto; ... }
-    .header { text-align: center; padding: 0; line-height: 0; }
-    .header img { display: block; width: 100%; max-width: 400px; height: auto; margin: 0 auto; }
-    .content { padding: 32px; }
-    .content h1 { ... }
-    .content p { ... }
-    .cta-section { background-color: #F1F3F5; ... }
-    .cta-button { display: inline-block; background-color: #007BFF; ... }
-    .order-details { border: 1px solid #E9ECEF; ... }
-    .order-item { display: flex; justify-content: space-between; ... }
-    .total-row { ... }
-    .support { text-align: center; ... }
-    .footer { ... }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <img src="${logoUrl}" alt="Rise Checkout" width="400">
-    </div>
-    <div class="content">
-      <h1>Sua compra foi confirmada!</h1>
-      <p>Olá, ${data.customerName}, obrigado por comprar conosco...</p>
-      
-      <!-- CTA Section (se tiver deliveryUrl) -->
-      <div class="cta-section">
-        <h2>Seu acesso está liberado!</h2>
-        <p>Clique no botão abaixo para acessar o conteúdo.</p>
-        <a href="${data.deliveryUrl}" class="cta-button">Acessar meu produto</a>
-      </div>
-      
-      <!-- Order Details -->
-      <div class="order-details">
-        <h2>Resumo do Pedido</h2>
-        <div class="order-item">
-          <span class="order-label">Produto: </span>
-          <span class="order-value">${data.productName}</span>
-        </div>
-        ...
-      </div>
-    </div>
-    <div class="support">...</div>
-    <div class="footer">...</div>
-  </div>
-</body>
-</html>
-```
+### Etapa 3: Deprecar funções legadas
 
-### Textos Preservados (100% Idênticos)
+Em `email-templates-base.ts`:
+- Adicionar comentário `@deprecated` em `getBaseStyles()`
+- Adicionar comentário `@deprecated` em `getEmailWrapper()`
+- Manter as funções (para não quebrar testes existentes)
 
-| Elemento | Texto Atual (Mantido) |
-|----------|----------------------|
-| Título | "Sua compra foi confirmada!" |
-| Saudação | "Olá, {nome}, obrigado por comprar conosco. Seu pagamento foi processado com sucesso." |
-| CTA Título | "Seu acesso está liberado!" |
-| CTA Subtítulo | "Clique no botão abaixo para acessar o conteúdo." |
-| CTA Botão | "Acessar meu produto" |
-| Seção Pedido | "Resumo do Pedido" |
-| Labels | "Produto: ", "Nº do Pedido: ", "Forma de Pagamento: ", "Total: " |
-| Suporte | "Em caso de dúvidas, entre em contato: {email}" |
-| Vendedor | "Vendido por: {nome}" |
-| Footer | "Pagamento processado com segurança por Rise Checkout." |
+### Etapa 4: Atualizar re-exports
 
-### Cores Preservadas
+Em `email-templates.ts`:
+- Remover `getBaseStyles` e `getEmailWrapper` dos exports
+- Manter apenas exports de funções úteis: `formatCurrency`, `getLogoUrl`, types
 
-| Elemento | Cor Atual (Mantida) |
-|----------|---------------------|
-| Background body | #F8F9FA |
-| Container background | #FFFFFF |
-| Bordas | #E9ECEF |
-| Título h1 | #212529 |
-| Texto parágrafo | #495057 |
-| CTA background | #F1F3F5 |
-| Botão CTA | #007BFF (azul) |
-| Total row background | #F8F9FA |
-| Footer texto | #6C757D |
-| Links | #007BFF |
+### Etapa 5: Corrigir send-confirmation-email
 
-### Etapa 2: Otimizar Logo
+Atualizar `supabase/functions/send-confirmation-email/index.ts`:
+- Importar `getPurchaseConfirmationTemplate`
+- Substituir HTML hardcoded pelo template
 
-Adicionar atributo `width` explícito para carregamento mais rápido:
+### Etapa 6: Criar documentação
 
-```html
-<img src="${logoUrl}" alt="Rise Checkout" 
-     style="display:block;width:100%;max-width:400px;height:auto;margin:0 auto;"
-     width="400">
-```
+Criar `docs/memories/EMAIL_TEMPLATE_STANDARD.md`:
+- Padrão obrigatório: CSS inline próprio em cada template
+- Proibições: `getEmailWrapper()`, `getBaseStyles()`
+- Estrutura de referência
+- Checklist de validação
 
-### Etapa 3: Atualizar Testes
+### Etapa 7: Atualizar testes
 
-Os testes atuais verificam:
-- `<!DOCTYPE html>` 
-- Textos como "João Silva", "Curso de Marketing Digital"
-- "Acessar meu produto", "Rise Checkout"
+- Atualizar `email-templates-base.test.ts` para marcar testes de funções deprecated
+- Adicionar testes para seller e payment verificando estrutura inline
 
-Adicionar verificações para a nova estrutura:
-- Presença de `<style>` tag
-- Presença de classes `.container`, `.header`, `.content`
-
-### Etapa 4: Versão Texto
-
-A versão texto (`getPurchaseConfirmationTextTemplate`) já está correta e permanece inalterada.
+---
 
 ## Arquivos a Modificar
 
-| Arquivo | Ação | Mudança |
-|---------|------|---------|
-| `email-templates-purchase.ts` | REESCREVER | Usar `<style>` + classes, manter textos |
-| `email-templates-purchase.test.ts` | ATUALIZAR | Adicionar verificação de `<style>` |
+| Arquivo | Ação |
+|---------|------|
+| `email-templates-seller.ts` | REESCREVER com CSS inline |
+| `email-templates-payment.ts` | REESCREVER com CSS inline |
+| `email-templates-base.ts` | DEPRECAR funções wrapper |
+| `email-templates.ts` | REMOVER exports deprecated |
+| `send-confirmation-email/index.ts` | CORRIGIR para usar template |
+| `docs/memories/EMAIL_TEMPLATE_STANDARD.md` | CRIAR |
+| `email-templates-base.test.ts` | ATUALIZAR comentários |
 
-## Comparação Visual
+---
 
-```text
-ANTES                              DEPOIS
-──────────────────────────────     ──────────────────────────────
-┌─────────────────────────────┐    ┌─────────────────────────────┐
-│           LOGO              │    │           LOGO              │
-├─────────────────────────────┤    ├─────────────────────────────┤
-│ Sua compra foi confirmada!  │    │ Sua compra foi confirmada!  │
-│ Olá, João, obrigado...      │    │ Olá, João, obrigado...      │
-├─────────────────────────────┤    ├─────────────────────────────┤
-│ Seu acesso está liberado!   │    │ Seu acesso está liberado!   │
-│ [Acessar meu produto]       │    │ [Acessar meu produto]       │
-├─────────────────────────────┤    ├─────────────────────────────┤
-│ Resumo do Pedido            │    │ Resumo do Pedido            │
-│ Produto: Curso...           │    │ Produto: Curso...           │
-│ Nº: #ABC12345               │    │ Nº: #ABC12345               │
-│ Total: R$ 199,00            │    │ Total: R$ 199,00            │
-├─────────────────────────────┤    ├─────────────────────────────┤
-│ suporte@...                 │    │ suporte@...                 │
-│ Vendido por: XYZ            │    │ Vendido por: XYZ            │
-│ Rise Checkout               │    │ Rise Checkout               │
-└─────────────────────────────┘    └─────────────────────────────┘
+## Checklist Final RISE V3
 
-     100% inline (QUEBRA)              <style> + classes (FUNCIONA)
-```
+Após implementação completa:
 
-## Verificação Final
+- [ ] Template purchase funciona no Gmail (sem 3 pontinhos)
+- [ ] Template seller funciona no Gmail
+- [ ] Template payment funciona no Gmail
+- [ ] Nenhum template usa `getEmailWrapper()`
+- [ ] Documentação criada
+- [ ] Zero código morto
+- [ ] Zero dívida técnica
+- [ ] Testes passando
+- [ ] Edge functions deployadas
 
-Após implementação:
+---
 
-1. Fazer uma compra de teste ou usar "Preview de Emails" no Admin
-2. Verificar no Gmail:
-   - Email chega COMPLETO (sem 3 pontinhos)
-   - Logo carrega rapidamente
-   - Visual idêntico ao atual
-3. Comparar com outros templates para garantir consistência
+## Resumo Executivo
 
-## Checklist RISE Protocol V3
+A implementação anterior corrigiu o template principal (`purchase`), mas deixou:
+1. Templates secundários usando arquitetura legada
+2. Funções deprecated ainda exportadas
+3. Documentação não criada
+4. Inconsistência arquitetural
 
-- [x] Visual 100% preservado (mesmos textos, cores, layout)
-- [x] Estrutura técnica alinhada com templates que funcionam
-- [x] Logo otimizada com width explícito
-- [x] Testes atualizados
-- [x] Zero dívida técnica
-- [x] Manutenibilidade infinita (padrão único)
+Esta correção completa elimina toda a dívida técnica e estabelece um padrão único para todos os templates de email do sistema.
+
+**Score Atual: 6.5/10**
+**Score Após Correção: 10.0/10**
