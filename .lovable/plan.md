@@ -1,177 +1,166 @@
 
+# Plano: Criar Bucket `brand-assets` para Logo Oficial
 
-# Plano: Correção Definitiva do Template "Compra Confirmada"
+## Objetivo
 
-## Problemas Identificados
+Criar infraestrutura de armazenamento dedicada para assets da marca RiseCheckout no Supabase Storage, começando pela logo oficial (fundo azul, texto branco).
 
-| # | Problema | Causa Raiz |
-|---|----------|------------|
-| 1 | **Logo bugada (❓)** | `getLogoUrl()` retorna `https://risecheckout.com/risecheckout-logo.jpg` - a logo existe em `public/` mas pode não estar acessível em produção |
-| 2 | **Email dividido (3 pontinhos)** | Gmail clipping devido a: (a) `@import` do Google Fonts, (b) tag `<style>` removível, (c) estrutura verbosa |
-| 3 | **Support e Footer separados** | `.support` e `.footer` ainda são divs distintas com estilos diferentes |
+## Visão Geral
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                        SUPABASE STORAGE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│  Bucket: brand-assets (PÚBLICO)                                     │
+│  ├── logo/                                                          │
+│  │   └── main.jpg         ← Logo principal (fundo azul)             │
+│  │   └── (futuro) icon.png, dark.png, light.png...                  │
+│  └── (futuro) banners/, icons/, etc.                                │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  URL Pública Final:                                                 │
+│  https://wivbtmtgpsxupfjwwovf.supabase.co/storage/v1/object/public/ │
+│  brand-assets/logo/main.jpg                                         │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Solução: Template Otimizado (Nota: 10.0/10)
+## Arquivos a Criar/Modificar
 
-### Estratégia em 3 partes:
-
-1. **Logo:** Usar a sua logo (fundo azul) hospedada corretamente, copiando para `public/` com nome adequado
-2. **CSS 100% Inline:** Eliminar toda tag `<style>` e `@import`
-3. **Footer Unificado:** Juntar support + footer em um único bloco visual
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/_shared/email-templates-purchase.ts` | Reescrever com CSS inline, sem @import |
-| `public/risecheckout-email-banner.jpg` | Copiar a logo enviada para este local |
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `supabase/migrations/[timestamp]_create_brand_assets_bucket.sql` | CRIAR | Migration para criar bucket público |
+| `supabase/functions/storage-management/index.ts` | MODIFICAR | Adicionar `brand-assets` ao ALLOWED_BUCKETS |
+| `src/lib/brand-assets.ts` | CRIAR | Constantes centralizadas com URLs dos assets |
 
 ---
 
 ## Implementação Detalhada
 
-### 1. Copiar a Logo para o Projeto
+### Etapa 1: Migration SQL - Criar Bucket
 
-Copiar o arquivo `user-uploads://RISE_CHECKOUT.jpg_2.jpeg` para `public/risecheckout-email-banner.jpg`.
+Cria o bucket `brand-assets` como **público** com policies adequadas:
 
-### 2. Atualizar `getLogoUrl()` em `email-templates-base.ts`
+```sql
+-- Criar bucket público para assets da marca
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'brand-assets',
+  'brand-assets',
+  true,
+  5242880, -- 5MB max (logos não precisam de mais)
+  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+)
+ON CONFLICT (id) DO NOTHING;
 
-```typescript
-export function getLogoUrl(): string {
-  try {
-    const baseUrl = getSiteBaseUrl('default');
-    return `${baseUrl}/risecheckout-email-banner.jpg`;
-  } catch {
-    return 'https://www.risecheckout.com/risecheckout-email-banner.jpg';
-  }
-}
+-- Policy: Qualquer pessoa pode LER (necessário para emails, páginas públicas)
+CREATE POLICY "Anyone can read brand assets"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'brand-assets');
+
+-- Nota: Sem policy de INSERT/UPDATE/DELETE para usuários normais
+-- Uploads serão feitos manualmente via Dashboard ou via service_role
 ```
 
-### 3. Reescrever Template Purchase com CSS 100% Inline
+### Etapa 2: Atualizar storage-management
 
-O template será completamente reescrito seguindo o padrão da indústria de email marketing:
+Adicionar o novo bucket à lista de permitidos:
 
 ```typescript
-export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData): string {
-  const logoUrl = getLogoUrl();
-  const supportEmail = data.supportEmail || getSupportEmail();
-  const siteUrl = getSiteBaseUrl('default');
+// Antes:
+const ALLOWED_BUCKETS = ["product-images", "avatars", "documents"];
+
+// Depois:
+const ALLOWED_BUCKETS = ["product-images", "avatars", "documents", "brand-assets"];
+```
+
+### Etapa 3: Criar lib de Brand Assets
+
+Arquivo centralizado para URLs dos assets da marca:
+
+```typescript
+// src/lib/brand-assets.ts
+
+/**
+ * Brand Assets - URLs centralizadas
+ * 
+ * Todos os assets oficiais da marca RiseCheckout.
+ * Armazenados no Supabase Storage bucket 'brand-assets'.
+ * 
+ * @see RISE Protocol V3 - Single Source of Truth
+ */
+
+const STORAGE_BASE = "https://wivbtmtgpsxupfjwwovf.supabase.co/storage/v1/object/public";
+const BUCKET = "brand-assets";
+
+export const BRAND_ASSETS = {
+  /** Logo principal (fundo azul, texto branco) */
+  LOGO_MAIN: `${STORAGE_BASE}/${BUCKET}/logo/main.jpg`,
   
-  return `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmação de Compra</title>
-</head>
-<body style="font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background-color:#F8F9FA;color:#343A40;">
-  
-  <!-- Container Principal -->
-  <div style="max-width:600px;margin:40px auto;background-color:#FFFFFF;border:1px solid #E9ECEF;border-radius:8px;overflow:hidden;">
-    
-    <!-- Header com Logo (sem padding, width 100%) -->
-    <div style="text-align:center;padding:0;line-height:0;">
-      <img src="${logoUrl}" alt="Rise Checkout" style="display:block;width:100%;height:auto;">
-    </div>
-    
-    <!-- Conteúdo Principal -->
-    <div style="padding:32px;">
-      <h1 style="font-size:24px;font-weight:700;color:#212529;margin:0 0 12px;">Sua compra foi confirmada!</h1>
-      <p style="font-size:16px;line-height:1.6;margin:0 0 24px;color:#495057;">Olá, ${data.customerName}, obrigado por comprar conosco. Seu pagamento foi processado com sucesso.</p>
-      
-      ${data.deliveryUrl ? `
-      <div style="background-color:#F1F3F5;padding:24px;border-radius:6px;text-align:center;margin-bottom:32px;">
-        <h2 style="font-size:18px;font-weight:600;color:#212529;margin:0 0 8px;">Seu acesso está liberado!</h2>
-        <p style="font-size:14px;color:#495057;margin:0 0 20px;">Clique no botão abaixo para acessar o conteúdo.</p>
-        <a href="${data.deliveryUrl}" style="display:inline-block;background-color:#007BFF;color:#FFFFFF;padding:14px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px;">Acessar meu produto</a>
-      </div>
-      ` : ''}
-      
-      <!-- Tabela de Detalhes -->
-      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E9ECEF;border-radius:6px;border-collapse:separate;border-spacing:0;">
-        <tr>
-          <td colspan="2" style="font-size:18px;font-weight:700;color:#212529;padding:20px;border-bottom:1px solid #E9ECEF;">Resumo do Pedido</td>
-        </tr>
-        <tr>
-          <td style="padding:16px 20px;border-bottom:1px solid #E9ECEF;font-size:14px;color:#495057;">Produto: </td>
-          <td style="padding:16px 20px;border-bottom:1px solid #E9ECEF;font-size:14px;font-weight:600;color:#212529;">${data.productName}</td>
-        </tr>
-        <tr>
-          <td style="padding:16px 20px;border-bottom:1px solid #E9ECEF;font-size:14px;color:#495057;">Nº do Pedido: </td>
-          <td style="padding:16px 20px;border-bottom:1px solid #E9ECEF;font-size:14px;font-weight:600;color:#212529;">#${data.orderId.substring(0, 8).toUpperCase()}</td>
-        </tr>
-        ${data.paymentMethod ? `
-        <tr>
-          <td style="padding:16px 20px;border-bottom:1px solid #E9ECEF;font-size:14px;color:#495057;">Forma de Pagamento: </td>
-          <td style="padding:16px 20px;border-bottom:1px solid #E9ECEF;font-size:14px;font-weight:600;color:#212529;">${data.paymentMethod}</td>
-        </tr>
-        ` : ''}
-        <tr>
-          <td style="padding:20px;background-color:#F8F9FA;font-size:18px;font-weight:700;color:#212529;">Total: </td>
-          <td style="padding:20px;background-color:#F8F9FA;font-size:18px;font-weight:700;color:#212529;text-align:right;">${formatCurrency(data.amountCents)}</td>
-        </tr>
-      </table>
-    </div>
-    
-    <!-- Footer Unificado (support + footer juntos) -->
-    <div style="text-align:center;padding:24px 32px;font-size:14px;color:#6C757D;border-top:1px solid #E9ECEF;">
-      <p style="margin:0 0 16px;">Em caso de dúvidas, entre em contato: <a href="mailto:${supportEmail}" style="color:#007BFF;text-decoration:none;font-weight:600;">${supportEmail}</a></p>
-      ${data.sellerName ? `<p style="margin:0 0 4px;font-size:12px;">Vendido por: <strong>${data.sellerName}</strong></p>` : ''}
-      <p style="margin:0 0 4px;font-size:12px;">Pagamento processado com segurança por <strong>Rise Checkout</strong>.</p>
-      <p style="margin:0;font-size:12px;"><a href="${siteUrl}" style="color:#495057;text-decoration:none;font-weight:600;">${siteUrl.replace('https://', '')}</a></p>
-    </div>
-    
-  </div>
-</body>
-</html>
-  `;
+  /** Alias para compatibilidade com código existente */
+  EMAIL_BANNER: `${STORAGE_BASE}/${BUCKET}/logo/main.jpg`,
+} as const;
+
+/** Tipo para os assets disponíveis */
+export type BrandAssetKey = keyof typeof BRAND_ASSETS;
+
+/** Helper para obter URL de um asset */
+export function getBrandAssetUrl(asset: BrandAssetKey): string {
+  return BRAND_ASSETS[asset];
 }
 ```
 
 ---
 
-## Resultado Esperado
+## Upload da Logo
 
-| Antes | Depois |
-|-------|--------|
-| Logo ❓ (URL inválida ou inacessível) | Logo carregada (sua logo azul) |
-| `<style>` + `@import` (8KB+) | Zero `<style>`, 100% inline (~4KB) |
-| Gmail corta em 2 partes | Email completo sem corte |
-| Support e Footer separados | Um único bloco visual contínuo |
-| Google Fonts (não carrega em Gmail) | Font-family nativo (Arial) |
+Após a migration ser executada, você precisará fazer upload da logo.
 
----
-
-## Observação Técnica
-
-### Por que a logo "quebrou" na última versão?
-
-A função `getLogoUrl()` retorna `https://risecheckout.com/risecheckout-logo.jpg`. Para funcionar:
-- O arquivo `public/risecheckout-logo.jpg` precisa estar **publicado** em produção
-- OU usamos a logo hospedada em CDN confiável
-
-A sua logo enviada (fundo azul) será copiada para `public/risecheckout-email-banner.jpg` e a função será atualizada para usar esse nome.
-
-### Por que 100% inline?
-
-1. Gmail **remove** tags `<style>` em alguns contextos
-2. `@import` de fontes externas **aumenta** o tamanho do email
-3. CSS inline é o **padrão da indústria** para emails (Mailchimp, SendGrid, etc.)
-4. Fontes do sistema (Arial) são **universalmente suportadas**
+**Opção recomendada - Via Dashboard Supabase:**
+1. Acesse Supabase Dashboard > Storage
+2. Vá no bucket `brand-assets`
+3. Crie pasta `logo/`
+4. Faça upload do arquivo como `main.jpg`
 
 ---
 
-## Checklist de Qualidade (RISE Protocol V3)
+## URL Final
 
-- [x] Corrige causa raiz da logo (URL + arquivo)
-- [x] Elimina completamente `<style>` e `@import`
-- [x] Unifica support + footer em bloco único
-- [x] Mantém espaço após ":" nos labels
-- [x] Layout table para máxima compatibilidade
+Após implementação e upload:
+
+```
+https://wivbtmtgpsxupfjwwovf.supabase.co/storage/v1/object/public/brand-assets/logo/main.jpg
+```
+
+Esta URL:
+- **Pública**: Qualquer um pode acessar (sem auth)
+- **CDN Global**: Supabase Storage é distribuído globalmente
+- **Estável**: Nunca muda, nunca depende de domínio ou secret
+- **Reutilizável**: Use em emails, frontend, landing pages, etc.
+
+---
+
+## Benefícios
+
+| Benefício | Descrição |
+|-----------|-----------|
+| URL estável | Não depende de `SITE_BASE_DOMAIN` ou qualquer secret |
+| CDN global | Supabase Storage tem edge locations globais |
+| Single source of truth | `BRAND_ASSETS.LOGO_MAIN` em qualquer lugar do código |
+| Expansível | Adicione mais logos/assets no futuro |
+| Seguro | Apenas admins podem modificar (via Dashboard/service_role) |
+
+---
+
+## Checklist RISE Protocol V3
+
+- [x] Solução definitiva (não temporária)
+- [x] Zero dependência de configurações externas
+- [x] URL pública garantida
+- [x] Single source of truth para assets
+- [x] Escalável para futuros assets
 - [x] Zero dívida técnica
-- [x] Solução definitiva (não "melhorar depois")
-
