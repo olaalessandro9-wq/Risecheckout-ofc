@@ -9,19 +9,11 @@
  * React.memo previne re-renders durante background auth sync.
  */
 
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SidebarContent } from "./SidebarContent";
-import { SIDEBAR_WIDTHS } from "../../types/navigation.types";
 import type { UseNavigationReturn } from "../../hooks/useNavigation";
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-/** Largura fixa do sidebar (sempre 280px no DOM, nunca muda) */
-const SIDEBAR_FIXED_WIDTH = SIDEBAR_WIDTHS.expanded; // 280
 
 // ============================================================================
 // TYPES
@@ -40,6 +32,7 @@ export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
   const {
     state,
     showLabels,
+    currentWidth,
     visibleItems,
     setMobileOpen,
     handleMobileNavigate,
@@ -48,17 +41,6 @@ export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
     handleMouseEnter,
     handleMouseLeave,
   } = navigation;
-
-  // Calcular translateX baseado no estado (COMPOSITOR-ONLY)
-  const translateX = useMemo(() => {
-    if (state.sidebarState === "hidden") {
-      return -SIDEBAR_FIXED_WIDTH; // -280: esconde tudo
-    }
-    if (state.sidebarState === "collapsed" && !state.isHovering) {
-      return -(SIDEBAR_FIXED_WIDTH - SIDEBAR_WIDTHS.collapsed); // -200: mostra 80px
-    }
-    return 0; // expanded ou collapsed+hovering: mostra tudo
-  }, [state.sidebarState, state.isHovering]);
 
   // Props compartilhados para SidebarContent
   const contentProps = {
@@ -104,19 +86,16 @@ export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop Sidebar - FULL COMPOSITOR: largura fixa, animação via transform */}
+      {/* Desktop Sidebar - width real para ícones visíveis em collapsed */}
       <aside
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={cn(
           "hidden md:flex fixed left-0 top-0 z-50 h-screen shrink-0 flex-col",
           "border-r border-border/40 bg-background",
-          "transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
-        style={{
-          width: `${SIDEBAR_FIXED_WIDTH}px`,
-          transform: `translateX(${translateX}px)`,
-        }}
+        style={{ width: `${currentWidth}px` }}
       >
         <SidebarContent {...contentProps} />
       </aside>
