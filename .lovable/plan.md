@@ -1,181 +1,155 @@
 
-# Plano: Corrigir Bug de Cupom Não Aplicado no Checkout
 
-## Diagnóstico do Bug
+# Plano: Melhorias no Template de Email "Compra Confirmada"
 
-O desconto do cupom aparece corretamente na UI, mas **não é enviado para o backend** durante a criação do pedido. O resultado é que o PIX é gerado com o valor ORIGINAL (R$ 10,00) em vez do valor com desconto (R$ 5,00).
+## Problemas Identificados
 
-## Análise de Causa Raiz
+| # | Problema | Causa |
+|---|----------|-------|
+| 1 | **Blocos separados** | As divs `.content`, `.support` e `.footer` têm backgrounds e paddings diferentes, criando separação visual |
+| 2 | **Falta espaço após ":"** | No HTML, o `:` está colado ao `<span>` seguinte: `Produto:</span> <span>` - o espaço existe no código mas não renderiza corretamente |
+| 3 | **Email cortado (3 pontinhos)** | Gmail corta emails com mais de ~102KB. Além disso, `display: flex` pode não ser bem suportado em todos clientes de email |
 
-### Fluxo Atual (QUEBRADO)
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. Usuário aplica cupom no SharedOrderSummary                   │
-│    └── useCouponValidation → appliedCoupon (interno ao hook)    │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 2. SharedOrderSummary chama onTotalChange(total, coupon)        │
-│    (linha 96)                                                   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 3. CheckoutPublicContent.handleTotalChange recebe               │
-│    └── setLocalAppliedCoupon(coupon)  ← ESTADO LOCAL            │
-│    └── NÃO chama machine.applyCoupon() ← BUG!                   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 4. Usuário submete formulário                                   │
-│    └── machine.submit(snapshot)                                 │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 5. Machine usa context.appliedCoupon?.id                        │
-│    └── context.appliedCoupon = null  ← SEMPRE NULL!             │
-│    └── couponId = null ← Backend não aplica desconto            │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 6. Pedido criado SEM desconto                                   │
-│    └── PIX gerado com valor original                            │
-└─────────────────────────────────────────────────────────────────┘
-```
+---
 
 ## Solução
 
-Modificar `handleTotalChange` para sincronizar o cupom com a máquina XState.
+### 1. Unificar blocos visualmente
 
-### Arquivo: `src/modules/checkout-public/components/CheckoutPublicContent.tsx`
-
-**Antes (linha 203-243):**
-```typescript
-// Coupon state for form manager compatibility
-const [localAppliedCoupon, setLocalAppliedCoupon] = React.useState<typeof appliedCoupon>(appliedCoupon);
-
-// ...
-
-const handleTotalChange = useCallback((_total: number, coupon: typeof localAppliedCoupon) => {
-  setLocalAppliedCoupon(coupon);  // ← SÓ ATUALIZA ESTADO LOCAL
-}, []);
+**Antes:**
+```css
+.support { text-align: center; padding: 32px; ... }
+.footer { background-color: #F8F9FA; padding: 24px; ... }
 ```
 
 **Depois:**
-```typescript
-// REMOVER estado local - usar apenas o contexto da máquina
-// const [localAppliedCoupon, setLocalAppliedCoupon] = ... ← REMOVER
+- Remover a borda/separação visual entre `.support` e `.footer`
+- Unificar em um único bloco visual contínuo
 
-// ...
+### 2. Adicionar espaço após ":"
 
-const handleTotalChange = useCallback((_total: number, coupon: typeof appliedCoupon) => {
-  // RISE V3: Sincronizar cupom com máquina XState (SSOT)
-  if (coupon) {
-    applyCoupon(coupon);  // ← ENVIAR PARA MÁQUINA
-  } else if (appliedCoupon) {
-    removeCoupon();        // ← REMOVER DA MÁQUINA
-  }
-}, [applyCoupon, removeCoupon, appliedCoupon]);
+**Antes (linha 69):**
+```html
+<span class="order-label">Produto:</span> <span class="order-value">${data.productName}</span>
 ```
 
-## Arquivos a Modificar
+**Depois:**
+```html
+<span class="order-label">Produto: </span><span class="order-value">${data.productName}</span>
+```
+
+O espaço deve estar DENTRO do primeiro `<span>` para garantir que renderize corretamente.
+
+### 3. Melhorar compatibilidade para evitar corte
+
+- Usar `table` layout em vez de `flex` (melhor suporte em clientes de email)
+- Reduzir CSS inline duplicado
+- Adicionar meta tag para prevenir corte do Gmail
+
+---
+
+## Arquivo a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/modules/checkout-public/components/CheckoutPublicContent.tsx` | Sincronizar cupom com máquina XState |
+| `supabase/functions/_shared/email-templates-purchase.ts` | Todas as correções acima |
 
-## Fluxo Corrigido
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. Usuário aplica cupom no SharedOrderSummary                   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 2. SharedOrderSummary chama onTotalChange(total, coupon)        │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 3. handleTotalChange chama machine.applyCoupon(coupon)          │
-│    └── Evento APPLY_COUPON enviado para XState                  │
-│    └── context.appliedCoupon = coupon ← SINCRONIZADO!           │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 4. Usuário submete formulário                                   │
-│    └── machine.submit(snapshot)                                 │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 5. Machine usa context.appliedCoupon?.id                        │
-│    └── context.appliedCoupon = { id: "xxx", ... }               │
-│    └── couponId = "xxx" ← Backend aplica desconto!              │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 6. Pedido criado COM desconto                                   │
-│    └── PIX gerado com valor correto                             │
-│    └── UTMify recebe valor correto                              │
-└─────────────────────────────────────────────────────────────────┘
-```
+---
 
 ## Detalhes Técnicos
 
-### Mudanças específicas em CheckoutPublicContent.tsx:
+### Mudanças no CSS (linhas 21-47):
 
-1. **Adicionar `applyCoupon` e `removeCoupon`** à desestruturação do `machine` (linha 75):
-   ```typescript
-   applyCoupon,
-   removeCoupon,
-   ```
+```css
+/* Unificar support e footer visualmente */
+.support { 
+  text-align: center; 
+  padding: 24px 32px 16px; /* reduzir padding inferior */
+  font-size: 14px; 
+  color: #6C757D; 
+  border-top: 1px solid #E9ECEF; /* borda sutil no topo */
+}
+.footer { 
+  background-color: transparent; /* remover fundo diferente */
+  padding: 0 24px 24px; /* só padding inferior */
+  text-align: center; 
+  font-size: 12px; 
+  color: #6C757D; 
+}
 
-2. **Remover estado local desnecessário** (linha 203-204):
-   ```typescript
-   // REMOVER:
-   // const [localAppliedCoupon, setLocalAppliedCoupon] = React.useState<typeof appliedCoupon>(appliedCoupon);
-   ```
+/* Usar table layout para order-item (melhor compatibilidade) */
+.order-item { 
+  padding: 16px 20px; 
+  border-bottom: 1px solid #E9ECEF; 
+}
+.order-label { 
+  font-size: 14px; 
+  color: #495057; 
+}
+.order-value { 
+  font-size: 14px; 
+  font-weight: 600; 
+  color: #212529; 
+}
+```
 
-3. **Atualizar cálculo de total** para usar `appliedCoupon` da máquina (linha 222):
-   ```typescript
-   // ANTES: localAppliedCoupon
-   // DEPOIS: appliedCoupon (da máquina)
-   if (appliedCoupon) {
-     total = total * (1 - appliedCoupon.discount_value / 100);
-   }
-   ```
+### Mudanças no HTML (linhas 68-77):
 
-4. **Atualizar handleTotalChange** (linha 241-243):
-   ```typescript
-   const handleTotalChange = useCallback((_total: number, coupon: typeof appliedCoupon) => {
-     if (coupon) {
-       applyCoupon(coupon);
-     } else if (appliedCoupon) {
-       removeCoupon();
-     }
-   }, [applyCoupon, removeCoupon, appliedCoupon]);
-   ```
+**Adicionar espaço após ":" dentro do span:**
 
-## Benefícios
+```html
+<div class="order-item">
+  <span class="order-label">Produto: </span><span class="order-value">${data.productName}</span>
+</div>
+<div class="order-item">
+  <span class="order-label">Nº do Pedido: </span><span class="order-value">#${data.orderId.substring(0, 8).toUpperCase()}</span>
+</div>
+${data.paymentMethod ? `
+<div class="order-item">
+  <span class="order-label">Forma de Pagamento: </span><span class="order-value">${data.paymentMethod}</span>
+</div>
+` : ''}
+<div class="total-row">
+  <span>Total: </span><span>${formatCurrency(data.amountCents)}</span>
+</div>
+```
 
-1. **SSOT (Single Source of Truth)**: Cupom gerenciado exclusivamente pela máquina XState
-2. **Consistência**: Estado do cupom sincronizado entre UI e backend
-3. **Correção do Bug**: Pedidos criados com desconto correto
-4. **UTMify Correto**: Valor enviado para UTMify será o valor final com desconto
-5. **Simplicidade**: Remoção de estado local duplicado
+### Converter order-item para table layout:
 
-## Verificação Pós-Correção
+Para máxima compatibilidade com clientes de email, converter de `flex` para `table`:
 
-Após a correção, verificar na tabela `orders`:
-- `coupon_code` deve ter o código do cupom
-- `discount_amount_cents` deve ter o valor do desconto em centavos
-- `amount_cents` deve ter o valor final (com desconto aplicado)
+```html
+<table class="order-details" width="100%" cellpadding="0" cellspacing="0">
+  <tr class="order-header">
+    <td colspan="2"><h2>Resumo do Pedido</h2></td>
+  </tr>
+  <tr class="order-item">
+    <td class="order-label">Produto: </td>
+    <td class="order-value">${data.productName}</td>
+  </tr>
+  <!-- ... demais itens ... -->
+</table>
+```
+
+---
+
+## Resultado Esperado
+
+Após as correções:
+
+1. **Blocos unificados** - Suporte e footer em um único bloco visual contínuo
+2. **Espaços corretos** - "Produto: Curso..." em vez de "Produto:Curso..."
+3. **Melhor compatibilidade** - Layout table funciona em todos clientes de email
+4. **Menos corte** - HTML mais enxuto = menor chance de Gmail cortar
+
+---
+
+## Observação sobre o Corte (3 pontinhos)
+
+O corte do Gmail acontece quando:
+- Email tem mais de ~102KB
+- Há muito CSS inline duplicado
+- Estruturas HTML muito aninhadas
+
+A conversão para table layout e remoção de CSS desnecessário deve reduzir significativamente o tamanho do email. Porém, se o email ainda for cortado, é um comportamento do cliente de email que não pode ser 100% controlado.
+
