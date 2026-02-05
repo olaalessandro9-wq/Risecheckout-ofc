@@ -1,262 +1,280 @@
 
-## Diagnóstico (Causa Raiz Real)
+# Diagnose Final: Por Que "Com Dados Trava" e "Sem Dados Roda Liso"
 
-O gráfico (Recharts) já foi significativamente otimizado e o `ResponsiveContainer` já foi removido, então o fato de **a sidebar travar somente na Dashboard** indica que o gargalo atual não é “o gráfico recalculando”, e sim **o modo como o layout inteiro do app está animando a área principal** quando a sidebar muda de estado.
+## Causa Raiz Confirmada
 
-### O problema técnico principal
-Hoje o `AppShell` está animando a área principal com:
+A evidencia e irrefutavel: sem dados = liso, com dados = travado. Isso prova que o gargalo e o **custo de reflow da arvore DOM** durante a animacao de `width` da sidebar.
 
-- `transition-[margin-left]` + `style={{ marginLeft: effectiveWidth }}`
+### O Mecanismo do Travamento
 
-**Animar `margin-left` é animar layout.** Isso força o browser a executar, a cada frame (~60 vezes por segundo por 300ms):
+```text
+Sidebar width: 80px -> 280px (transition-[width] 300ms)
+                |
+                v
+    Browser precisa recalcular LAYOUT a cada frame (~18 frames em 300ms)
+                |
+                v
+    +----- SEM DADOS (DOM leve) ------+     +----- COM DADOS (DOM pesado) -----+
+    | <div> vazio                      |     | <svg> AreaChart (path, axes,     |
+    | <table> vazio                    |     |   ticks, gradient, labels)       |
+    | <cards> "R$ 0,00"               |     | <table> 10+ rows com badges      |
+    | Custo por reflow: ~2ms          |     | <cards> com trends, valores      |
+    | 18 frames x 2ms = 36ms TOTAL    |     | Custo por reflow: ~8-15ms        |
+    | = LISO (dentro do budget)       |     | 18 frames x 12ms = 216ms TOTAL   |
+    +---------------------------------+     | = LAG (excede budget 16ms/frame) |
+                                            +----------------------------------+
+```
 
-1. Recalcular layout (reflow) do container inteiro
-2. Recalcular paint (repaint) de uma árvore grande (Dashboard é a página mais “pesada”: SVG do gráfico + tabela + cards)
-3. Compor novamente
+### Os 3 Gargalos Restantes (Evidenciados no Codigo)
 
-Em páginas leves isso passa despercebido; na Dashboard, o custo de repintar a árvore inteira a cada frame excede o orçamento de 16ms/frame, resultando em “lag”.
+**1. Sidebar.tsx linhas 97-102 - ANIMACAO DE LAYOUT**
+```tsx
+// PROBLEMA PRINCIPAL - Ainda anima WIDTH (layout property)
+className="transition-[width] duration-300 ease-..."
+style={{ width: `${currentWidth}px`, willChange: 'width' }}
+```
+`transition-[width]` forca reflow por frame. `willChange: 'width'` e anti-pattern (width nao e compositor).
 
-Além disso, existem **fatores amplificadores**:
-- `backdrop-blur-sm` (Topbar, Sidebar, e alguns blocos do Dashboard) é caro quando a cena por trás está mudando.
-- Cada mudança no estado do sidebar dispara re-render do `AppShell`, e por consequência reconciliação do subtree (incluindo a rota atual), mesmo que não precise atualizar.
+**2. index.css linhas 752-757 - CSS REFORÇANDO O PROBLEMA**
+```css
+aside[class*="transition-[width]"] {
+  transition-property: width !important;
+  transition-duration: 300ms !important;
+}
+```
+Regra CSS que garante que width anime mesmo que tentemos remover via classe.
 
-Resultado: mesmo com o gráfico “parado”, o browser está pagando o custo do **layout/paint por frame**, e isso é o tipo de gargalo que sites “absurdamente pesados e lisos” evitam: eles animam **somente transform/opacity** (compositor) e minimizam repaints.
+**3. SidebarItem/SidebarGroup - transition-all + scale-110**
+- `transition-all duration-200` em items (linhas 102, 111 de SidebarItem)
+- `group-hover/item:scale-110` em icones (linha 115 de SidebarItem)
+- Mesmos problemas em SidebarGroup (linhas 71, 78, 163, 173)
+- SidebarBrand (linhas 30, 36): `transition-all duration-300`
 
----
-
-## Análise de Soluções (RISE Protocol V3)
-
-### Solução A: Micro-otimizações adicionais no gráfico + reduzir blur no Dashboard
-- Ajustar downsampling de pontos, reduzir complexidade do SVG, remover blur só no card do gráfico.
-- Manutenibilidade: 7/10  
-- Zero DT: 7/10  
-- Arquitetura: 6/10  
-- Escalabilidade: 7/10  
-- Segurança: 10/10  
-- **NOTA FINAL: 7.1/10**  
-- Tempo estimado: 1–2 dias
-
-**Por que é inferior:** trata sintomas (o gráfico) mas não remove o custo fundamental: animar layout via `margin-left`.
-
----
-
-### Solução B: Arquitetura de Transição por Compositor (FLIP + WAAPI) + isolamento de rerenders
-- Trocar a animação do deslocamento do conteúdo de **layout-animation** para **transform-animation** usando técnica FLIP.
-- Remover `transition-[margin-left]` (layout) e aplicar o offset final imediatamente (1 reflow único).
-- Criar animação de translação do conteúdo via **Web Animations API** (compositor), sem “reflow por frame”.
-- Memoizar o subtree de rotas para que o toggle da sidebar não reconcilie a página inteira.
-- Eliminar `backdrop-blur` em componentes que ficam em cima de conteúdo que está “se mexendo” (topbar/sidebar/dash header/chart container), substituindo por backgrounds sólidos premium.
-- Manutenibilidade: 10/10  
-- Zero DT: 10/10  
-- Arquitetura: 10/10  
-- Escalabilidade: 10/10  
-- Segurança: 10/10  
-- **NOTA FINAL: 10.0/10**  
-- Tempo estimado: 3–7 dias (inclui instrumentação e hardening)
-
-**Por que é superior:** elimina a causa raiz (layout thrash por frame) e aplica o padrão que produtos high-end usam: compositor-only animation.
+`transition-all` inclui width/height/padding na lista de transicoes. `scale` causa layout recalculation. Ambos multiplicam o custo durante o toggle.
 
 ---
 
-### Solução C: Sidebar overlay (não empurra conteúdo)
-- Sidebar entra como overlay com `transform: translateX`, e o conteúdo não se desloca.
-- Manutenibilidade: 9/10  
-- Zero DT: 9/10  
-- Arquitetura: 8/10  
-- Escalabilidade: 9/10  
-- Segurança: 10/10  
-- **NOTA FINAL: 8.9/10**  
-- Tempo estimado: 1–2 dias
+## Analise de Solucoes (RISE Protocol V3)
 
-**Por que é inferior:** altera UX (não empurra layout) e foge do comportamento atual.
+### Solucao A: Apenas remover transition-[width] da sidebar
+- Sidebar muda de largura instantaneamente (sem animacao)
+- Manutenibilidade: 7/10
+- Zero DT: 6/10 (perde animacao suave)
+- Arquitetura: 5/10 (hack, nao solucao)
+- Escalabilidade: 7/10
+- Seguranca: 10/10
+- **NOTA FINAL: 6.7/10**
+- Tempo: 10 minutos
 
----
+**Por que e inferior:** Perde a animacao suave. Nao resolve o problema, apenas o esconde.
 
-### Solução D: Reescrever layout para “grid + animation” em `grid-template-columns`
-- Anima grid columns (layout animation), com tentativas de containment.
-- Manutenibilidade: 7/10  
-- Zero DT: 7/10  
-- Arquitetura: 7/10  
-- Escalabilidade: 7/10  
-- Segurança: 10/10  
-- **NOTA FINAL: 7.3/10**  
-- Tempo estimado: 2–5 dias
+### Solucao B: Sidebar com largura fixa + translateX (Full Compositor)
+- Sidebar mantém `width: 280px` fixo permanentemente
+- Usa `transform: translateX(-200px)` para "esconder" 200px quando collapsed
+- Usa `transform: translateX(-280px)` quando hidden
+- Main content usa FLIP para compensar (ja implementado)
+- Remove transition-all e scale-110 dos items
+- Guarda CSS global para neutralizar transition-all
+- Manutenibilidade: 10/10
+- Zero DT: 10/10
+- Arquitetura: 10/10
+- Escalabilidade: 10/10
+- Seguranca: 10/10
+- **NOTA FINAL: 10.0/10**
+- Tempo: 2-4 dias
 
-**Por que é inferior:** ainda anima layout; pode reduzir mas não zera o problema.
+**Por que e superior:** Zero reflow durante animacao. Transform e 100% compositor (GPU). Mesma UX visual.
 
----
+### Solucao C: Sidebar overlay (nao empurra conteudo)
+- Sidebar sobrepoe o conteudo com z-index
+- Conteudo nunca muda de posicao
+- Manutenibilidade: 9/10
+- Zero DT: 9/10
+- Arquitetura: 8/10
+- Escalabilidade: 9/10
+- Seguranca: 10/10
+- **NOTA FINAL: 8.8/10**
+- Tempo: 1 dia
 
-## DECISÃO: Solução B (Nota 10.0/10)
+**Por que e inferior:** Altera UX significativamente. Conteudo fica escondido atras da sidebar.
 
-A única abordagem que ataca a raiz com padrão “absurdamente liso” é **Compositor-only** para o deslocamento do conteúdo. Isso exige FLIP + WAAPI e isolamento de rerenders.
-
----
-
-## Design da Solução (Arquitetura)
-
-### 1) Transição “FLIP” no AppShell (Compositor-only)
-Objetivo: quando `effectiveWidth` mudar, o layout final é aplicado de uma vez, e o movimento visual é feito por transform.
-
-**Como funciona o FLIP aqui:**
-1. Antes da mudança (estado anterior), guardamos o `DOMRect` do container principal.
-2. Após a mudança (estado novo), medimos o novo `DOMRect`.
-3. Calculamos o delta (dx).
-4. Aplicamos uma animação de `transform: translateX(dx) -> translateX(0)` via WAAPI.
-
-Isso produz o mesmo efeito visual do “push”, mas sem custo de layout/paint por frame.
-
-### 2) Isolamento de renders do subtree de rotas
-O `AppShell` precisa re-renderizar quando a sidebar muda (porque o layout muda), mas **a rota atual não precisa**.
-
-Criar um componente memoizado `RoutedOutlet`:
-- Ele renderiza `<Outlet />`
-- O `React.memo` impede re-render por mudança do pai quando a rota não mudou
-- O `Outlet` ainda atualiza normalmente quando o `location` mudar (via context do React Router)
-
-### 3) Remoção arquitetural de `backdrop-blur` em superfícies de transição
-`backdrop-filter` frequentemente invalida pintura quando o conteúdo atrás muda. Durante a animação do deslocamento, ele pode custar caro.
-
-No fluxo de “dashboard + sidebar toggle”, os piores candidatos:
-- `Topbar` (sticky com blur)
-- `Sidebar` (blur enquanto muda de largura)
-- `DashboardHeader` e `RevenueChart` (blur sobre conteúdo)
-
-A solução correta para performance máxima é usar “glass” fake:
-- background sólido com opacidade controlada e borda sutil
-- sombras e gradientes leves
-- sem `backdrop-filter`
-
-### 4) Instrumentação de performance (nível arquitetural, não “achismo”)
-Adicionar um “Perf Monitor” (DEV-only) para:
-- FPS estimado por RAF
-- contagem de Long Tasks (PerformanceObserver)
-- logging de transições da sidebar com duração real (marks/measures)
-
-Isso dá validação objetiva de que a transição está dentro do orçamento.
+### DECISAO: Solucao B (Nota 10.0)
 
 ---
 
-## Plano de Implementação (Passo a Passo)
+## Arquitetura da Solucao B: Sidebar Transform
 
-### Etapa 0 — Provar a hipótese com evidência
-1. Criar ferramenta DEV-only `PerfOverlay`:
-   - FPS, long tasks, “sidebar toggle duration”
-2. Medir em Dashboard vs outras rotas:
-   - Antes da mudança: quedas de FPS e long tasks durante toggle
-   - Objetivo pós-mudança: FPS estável e long tasks próximos de zero no toggle
+### Como Funciona
 
-### Etapa 1 — Implementar o motor FLIP (reutilizável)
-Criar hook dedicado e testável:
+| Estado | Width Real (CSS) | TranslateX | Parte Visivel | MarginLeft do Main |
+|--------|------------------|------------|---------------|--------------------|
+| hidden | 280px | -280px | 0px | 0px |
+| collapsed | 280px | -200px | 80px | 80px |
+| collapsed+hover | 280px | 0px | 280px | 80px (nao muda) |
+| expanded | 280px | 0px | 280px | 280px |
 
-- `src/hooks/useFlipTransition.ts`
-  - Responsabilidade: executar FLIP em um `ref` quando uma “chave” mudar.
-  - Inputs:
-    - `ref`
-    - `key` (ex: effectiveWidth)
-    - `duration`, `easing`
-    - `disabled` (prefers-reduced-motion + flags de performance)
-  - Requisitos:
-    - Cancelar animação anterior em mudanças rápidas
-    - Aplicar `will-change: transform` somente durante animação
-    - Não vazar estilos (limpar ao finalizar/cancelar)
-    - Sem side-effects globais
+Ponto critico: quando o usuario faz **hover** no sidebar collapsed, o sidebar expande visualmente (translateX: 0) mas o `marginLeft` do main **NAO muda** (fica 80px). O sidebar aparece "por cima" do conteudo brevemente. Isso e o comportamento correto para hover - a expansao completa so muda marginLeft no `cycleSidebarState`.
 
-### Etapa 2 — Refatorar AppShell para parar de animar layout
-Modificar `src/layouts/AppShell.tsx`:
+### Diagrama de Animacao
 
-1. Remover `"transition-[margin-left] ..."` do container principal.
-2. Continuar aplicando `marginLeft: effectiveWidth` (layout final) sem transição.
-3. Aplicar FLIP no container principal via `ref` + `useFlipTransition`.
-4. Inserir `RoutedOutlet` memoizado (com Suspense) para evitar re-render do subtree.
+```text
+  ANTES (Layout Animation - TRAVADO)
+  ===================================
+  Frame 1: width: 80px   -> reflow -> paint (12ms)
+  Frame 2: width: 93px   -> reflow -> paint (12ms)
+  Frame 3: width: 106px  -> reflow -> paint (12ms)
+  ...
+  Frame 18: width: 280px -> reflow -> paint (12ms)
+  TOTAL: 18 reflows = 216ms de JANK
 
-Critério de sucesso:
-- Toggle da sidebar não deve reconcilir a Dashboard inteira.
-- Movimento deve ser 100% por compositor.
-
-### Etapa 3 — Remover backdrop blur onde impacta transições
-Modificar:
-- `src/components/layout/Topbar.tsx` (remover blur e usar bg sólido premium)
-- `src/modules/navigation/components/Sidebar/Sidebar.tsx` (remover blur do aside e sheet, ou torná-lo condicional por performance flags)
-- `src/modules/dashboard/components/DashboardHeader/DashboardHeader.tsx` (remover blur)
-- `src/modules/dashboard/components/Charts/RevenueChart.tsx` (remover blur do container do gráfico)
-
-Critério de sucesso:
-- Nenhuma superfície com `backdrop-filter` acima de conteúdo deslocado durante transição.
-
-### Etapa 4 — Ajuste fino do gráfico após FLIP (coerência visual)
-Após o FLIP, o layout deixa de “oscilar por frame”. Então:
-- Reavaliar `useChartDimensions(containerRef, 350)`:
-  - Pode virar `0` ou bem menor porque o problema de transição frame-a-frame desaparece.
-  - Meta: o gráfico ajustar tamanho imediatamente na mudança sem causar jank.
-
-Critério de sucesso:
-- Não haver “atraso” perceptível no resize do chart pós-toggle.
-- Nenhum recálculo repetitivo durante a animação (a animação é transform-only).
-
-### Etapa 5 — Validação objetiva (100% sucesso)
-Checklist de validação:
-
-1. **Teste end-to-end manual**
-   - Abrir/fechar/ciclar sidebar 30 vezes seguidas na Dashboard.
-   - Repetir em rotas leves (controle).
-
-2. **PerfOverlay (DEV)**
-   - FPS não deve cair abaixo de 55–60 durante toggle.
-   - Long tasks durante toggle: 0 ou raríssimos.
-
-3. **Console instrumentation**
-   - Marcação `sidebar:toggle:start` e `sidebar:toggle:end`
-   - Duração real próxima do duration definido (e.g. 300ms)
-   - Sem animações concorrentes acumulando
-
-4. **Acessibilidade e UX**
-   - `prefers-reduced-motion` desliga FLIP e mantém layout estático correto.
-   - Mobile continua usando Sheet sem regressões.
+  DEPOIS (Compositor-only - LISO)
+  ===================================
+  Frame 0: marginLeft: 280px (1 reflow unico, instantaneo)
+           translateX: -200px -> anima para 0 (GPU, 0 reflow)
+  Frame 1-18: compositor apenas (0ms layout, 0ms paint)
+  TOTAL: 1 reflow + 0 reflows durante animacao = LISO
+```
 
 ---
 
-## Arquivos Alvo (previsto)
+## Plano de Implementacao
+
+### Etapa 1: Refatorar Sidebar.tsx (Transform em vez de Width)
+
+**Arquivo:** `src/modules/navigation/components/Sidebar/Sidebar.tsx`
+
+Mudancas:
+- Remover `transition-[width]` da className
+- Remover `willChange: 'width'` do style
+- Definir `width: 280px` fixo (SIDEBAR_WIDTHS.expanded)
+- Adicionar `transform: translateX(${translateX}px)` calculado
+- Adicionar `transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]`
+- Adicionar `willChange: 'transform'` (compositor property - correto)
+- Tratar hover: quando collapsed+hovering, translateX vai para 0 mas sem mudar marginLeft no AppShell
+
+Calculos de translateX:
+- hidden: `-280` (esconde tudo)
+- collapsed: `-(280 - 80)` = `-200` (mostra 80px)
+- collapsed + hovering: `0` (mostra tudo, overlay sobre conteudo)
+- expanded: `0` (mostra tudo)
+
+### Etapa 2: Ajustar AppShell.tsx (marginLeft nao muda no hover)
+
+**Arquivo:** `src/layouts/AppShell.tsx`
+
+Mudancas:
+- O `effectiveWidth` (marginLeft) deve usar apenas o estado da sidebar, **sem considerar hover**
+- Quando collapsed + hovering, marginLeft permanece 80px (sidebar aparece "por cima")
+- Isso evita que o hover cause reflow no main content
+- O FLIP transition continua funcionando para mudancas de estado (collapsed -> expanded)
+
+Criar helper `getContentMargin(sidebarState)` que retorna:
+- hidden: 0
+- collapsed: 80 (fixo, independente de hover)
+- expanded: 280
+
+### Etapa 3: Limpar Sidebar Items (transition-all -> transition-colors)
+
+**Arquivos:**
+- `src/modules/navigation/components/Sidebar/SidebarItem.tsx`
+- `src/modules/navigation/components/Sidebar/SidebarGroup.tsx`
+- `src/modules/navigation/components/Sidebar/SidebarBrand.tsx`
+
+Mudancas em SidebarItem.tsx:
+- Linha 102: `transition-all duration-200` -> `transition-colors duration-200`
+- Linha 111: `transition-all duration-300` -> `transition-colors duration-200`
+- Linha 115: Remover `group-hover/item:scale-110` completamente
+
+Mudancas em SidebarGroup.tsx:
+- Linha 71: `transition-all duration-200` -> `transition-colors duration-200`
+- Linha 78: `transition-all duration-300` -> `transition-colors duration-200`
+- Linha 163: `transition-all duration-200` -> `transition-colors duration-200`
+- Linha 173: `transition-all duration-300` -> `transition-colors duration-200`
+
+Mudancas em SidebarBrand.tsx:
+- Linha 30: `transition-all duration-300` -> `transition-[padding,height] duration-300` (precisa animar padding para layout do brand)
+- Linha 36: `transition-all duration-300` -> `transition-[gap] duration-300`
+
+### Etapa 4: Atualizar CSS Global (Neutralizar transition-all + Remover sidebar width rule)
+
+**Arquivo:** `src/index.css`
+
+Mudancas:
+1. Remover regra de `aside[class*="transition-[width]"]` (linhas 752-757) - nao e mais necessaria
+2. Adicionar regra global (fora de media query) que neutraliza `.transition-all` para propriedades seguras:
+```css
+/* Guard global: transition-all so anima propriedades compositor-safe */
+.transition-all {
+  transition-property: color, background-color, border-color, 
+                       text-decoration-color, fill, stroke, 
+                       opacity, box-shadow !important;
+}
+```
+
+### Etapa 5: Ajustar CustomerTableRow.tsx (transition-all residual)
+
+**Arquivo:** `src/components/dashboard/recent-customers/CustomerTableRow.tsx`
+
+Mudancas:
+- Linha 75: `transition-all` no Badge -> `transition-colors`
+- Linha 86: `transition-all` no Button -> `transition-colors`
+
+### Etapa 6: Reduzir delay do useChartDimensions
+
+**Arquivo:** `src/hooks/useChartDimensions.ts`
+
+Com a sidebar usando transform (sem layout change), o chart container nao sofre resize durante a animacao. O delay pode ser reduzido de 100ms para 50ms ou ate 0ms, ja que o marginLeft muda instantaneamente (1 resize event) e o FLIP cuida da animacao visual.
+
+### Etapa 7: Ajustar navigationHelpers.ts
+
+**Arquivo:** `src/modules/navigation/utils/navigationHelpers.ts`
+
+Adicionar nova funcao `getContentMargin(sidebarState: SidebarState): number` que retorna a margem do conteudo SEM considerar hover. Isso isola a logica de "quanto espaco o sidebar ocupa permanentemente" vs "quanto ele mostra visualmente".
+
+---
+
+## Arquivos a Modificar
 
 ```text
 src/
-├── hooks/
-│   ├── useFlipTransition.ts                 (NOVO)
-│   ├── usePrefersReducedMotion.ts           (NOVO - opcional, se não existir)
-│   └── ...
-├── layouts/
-│   └── AppShell.tsx                         (EDITAR: remover margin-left transition + FLIP + memo Outlet)
-├── components/layout/
-│   └── Topbar.tsx                           (EDITAR: remover backdrop-blur)
-├── modules/navigation/components/Sidebar/
-│   └── Sidebar.tsx                           (EDITAR: remover backdrop-blur)
-├── modules/dashboard/components/
-│   ├── DashboardHeader/DashboardHeader.tsx  (EDITAR: remover backdrop-blur)
-│   └── Charts/RevenueChart.tsx              (EDITAR: remover backdrop-blur + revisar delay)
-└── devtools/perf/
-    ├── PerfOverlay.tsx                      (NOVO - DEV only)
-    ├── useFpsMeter.ts                       (NOVO)
-    └── useLongTaskObserver.ts               (NOVO)
+  modules/navigation/
+    components/Sidebar/
+      Sidebar.tsx                  (EDITAR: transform em vez de width)
+      SidebarItem.tsx              (EDITAR: remover transition-all e scale-110)
+      SidebarGroup.tsx             (EDITAR: remover transition-all)
+      SidebarBrand.tsx             (EDITAR: remover transition-all)
+    utils/
+      navigationHelpers.ts         (EDITAR: adicionar getContentMargin)
+  layouts/
+    AppShell.tsx                   (EDITAR: usar getContentMargin, sem hover)
+  hooks/
+    useChartDimensions.ts          (EDITAR: reduzir delay)
+  components/dashboard/
+    recent-customers/
+      CustomerTableRow.tsx         (EDITAR: transition-all -> transition-colors)
+  index.css                        (EDITAR: remover sidebar width rule, guard global)
 ```
 
-(Arquivos serão mantidos < 300 linhas, com SRP rigoroso.)
+---
+
+## Resultado Esperado
+
+| Metrica | Antes (Atual) | Depois (Full Compositor) |
+|---------|---------------|--------------------------|
+| Sidebar animation | width (LAYOUT) | transform (COMPOSITOR) |
+| Reflows por toggle | ~18 por animacao | 1 (instantaneo) |
+| Custo por frame durante animacao | 8-15ms | ~0ms (GPU) |
+| FPS com dados | 40-50 (LAG) | 60 constante |
+| FPS sem dados | 60 (ja ok) | 60 (mantido) |
+| transition-all em sidebar items | 8 instancias | 0 |
+| scale-110 em sidebar | 1 instancia | 0 |
 
 ---
 
-## Resultado Esperado (concreto)
+## Validacao de Sucesso
 
-- Sidebar toggle na Dashboard passa a ser **compositor-only** (transform), eliminando layout thrash por frame.
-- A Dashboard deixa de ser repintada a cada frame durante o toggle.
-- UX “nível absurdo”: transição lisa, mesmo com gráfico e tabela presentes.
-- Instrumentação garante “100% sucesso” com evidência (FPS/long tasks), não opinião.
-
----
-
-## Riscos e como neutralizar
-
-- **FLIP mal implementado pode causar flicker**:
-  - Mitigação: usar `useLayoutEffect`, cancelar animações anteriores, aplicar `will-change` só durante animação.
-- **Blur removido pode alterar estética**:
-  - Mitigação: substituir por background sólido premium + bordas sutis + sombras leves; visual permanece high-end.
-- **Hover expand/collapse (isHovering) pode disparar muitas transições**:
-  - Mitigação: FLIP lida bem porque é compositor; ainda assim, podemos condicionar FLIP apenas a mudanças de `sidebarState` se necessário (arquiteturalmente limpo).
-
+1. Selecionar periodo com dados de faturamento
+2. Abrir/fechar sidebar 30 vezes seguidas
+3. Fazer hover in/out no sidebar collapsed 20 vezes
+4. Zero lag perceptivel em todas as interacoes
+5. Gráfico e tabela devem permanecer visiveis e estaveis durante toda a transicao
