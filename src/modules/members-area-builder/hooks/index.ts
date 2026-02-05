@@ -14,6 +14,7 @@ export {
 } from './useMembersAreaState';
 export type { UseMembersAreaStateReturn } from './useMembersAreaState';
 export { parseSections, parseSettings } from './useMembersAreaParsers';
+export { useImageDragDrop } from './useImageDragDrop';
 
 // State Machine exports (replaces Reducer)
 export { builderMachine } from '../machines';

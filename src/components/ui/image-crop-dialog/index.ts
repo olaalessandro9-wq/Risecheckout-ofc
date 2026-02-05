@@ -17,5 +17,4 @@
 
 export { ImageCropDialog } from "./ImageCropDialog";
 export { CROP_PRESETS, getCropConfig, DEFAULT_PRESET, DEFAULT_BACKGROUND_COLOR } from "./presets";
-export { useStencilSize } from "./useStencilSize";
 export type { ImageCropDialogProps, CropConfig, CropPresetName } from "./types";

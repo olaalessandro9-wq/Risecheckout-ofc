@@ -4,20 +4,22 @@
  * Features:
  * - Armazena imagem original para re-crop sem perda de qualidade
  * - Detecção inteligente de proporção
+ * - Drag-and-drop via useImageDragDrop (hook compartilhado)
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import React, { useRef, useState, useCallback } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Upload, X, ImageIcon, Loader2, Crop } from 'lucide-react';
-import { toast } from 'sonner';
-import { uploadViaEdge } from '@/lib/storage/storageProxy';
-import { createLogger } from '@/lib/logger';
+import React, { useRef, useState, useCallback } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Upload, X, ImageIcon, Loader2, Crop } from "lucide-react";
+import { toast } from "sonner";
+import { uploadViaEdge } from "@/lib/storage/storageProxy";
+import { createLogger } from "@/lib/logger";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
+import { useImageDragDrop } from "@/modules/members-area-builder/hooks/useImageDragDrop";
 
-const log = createLogger('FixedHeaderImageUpload');
+const log = createLogger("FixedHeaderImageUpload");
 
 interface FixedHeaderImageUploadProps {
   imageUrl: string;
@@ -27,54 +29,64 @@ interface FixedHeaderImageUploadProps {
   onImageChange: (url: string, originalUrl?: string) => void;
 }
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE_MB = 10;
 
-export function FixedHeaderImageUpload({ 
-  imageUrl, 
+export function FixedHeaderImageUpload({
+  imageUrl,
   originalImageUrl,
-  productId, 
-  onImageChange 
+  productId,
+  onImageChange,
 }: FixedHeaderImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [fileToCrop, setFileToCrop] = useState<File | null>(null);
-  // Store original file for upload after crop
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Callback para quando um arquivo válido é recebido (input ou drag)
+  const handleValidFile = useCallback((file: File) => {
+    setOriginalFile(file);
+    setFileToCrop(file);
+    setCropDialogOpen(true);
+  }, []);
+
+  const { isDragging, validateFile, dragProps } = useImageDragDrop({
+    acceptedTypes: ACCEPTED_TYPES,
+    maxSizeMB: MAX_SIZE_MB,
+    onValidFile: handleValidFile,
+    disabled: isUploading,
+  });
 
   const handleUpload = async (croppedFile: File, originalFileToUpload?: File) => {
     setIsUploading(true);
 
     try {
-      // Upload cropped image
-      const fileExt = croppedFile.name.split('.').pop();
+      const fileExt = croppedFile.name.split(".").pop();
       const fileName = `header-${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
-      const filePath = productId ? `products/${productId}/headers/${fileName}` : `headers/${fileName}`;
+      const filePath = productId
+        ? `products/${productId}/headers/${fileName}`
+        : `headers/${fileName}`;
 
       const { publicUrl: croppedUrl, error: uploadError } = await uploadViaEdge(
-        'product-images',
+        "product-images",
         filePath,
         croppedFile,
         { upsert: false, contentType: croppedFile.type }
       );
 
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
-      // Upload original image if provided (for future re-crops)
       let originalUrl: string | undefined;
       if (originalFileToUpload) {
-        const originalExt = originalFileToUpload.name.split('.').pop();
+        const originalExt = originalFileToUpload.name.split(".").pop();
         const originalFileName = `header-original-${Date.now()}-${crypto.randomUUID()}.${originalExt}`;
-        const originalPath = productId 
-          ? `products/${productId}/headers/originals/${originalFileName}` 
+        const originalPath = productId
+          ? `products/${productId}/headers/originals/${originalFileName}`
           : `headers/originals/${originalFileName}`;
 
         const { publicUrl: origUrl } = await uploadViaEdge(
-          'product-images',
+          "product-images",
           originalPath,
           originalFileToUpload,
           { upsert: false, contentType: originalFileToUpload.type }
@@ -85,127 +97,91 @@ export function FixedHeaderImageUpload({
 
       if (croppedUrl) {
         onImageChange(croppedUrl, originalUrl);
-        toast.success('Imagem enviada com sucesso!');
+        toast.success("Imagem enviada com sucesso!");
       }
     } catch (error: unknown) {
-      log.error('Upload error:', error);
-      toast.error('Erro ao enviar imagem. Tente novamente.');
+      log.error("Upload error:", error);
+      toast.error("Erro ao enviar imagem. Tente novamente.");
     } finally {
       setIsUploading(false);
       setOriginalFile(null);
     }
   };
 
-  const validateFile = (file: File): boolean => {
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error('Formato inválido. Use JPG, PNG, WebP ou GIF.');
-      return false;
-    }
-
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      toast.error(`Arquivo muito grande. Máximo ${MAX_SIZE_MB}MB.`);
-      return false;
-    }
-
-    return true;
-  };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && validateFile(file)) {
-      setOriginalFile(file);
-      setFileToCrop(file);
-      setCropDialogOpen(true);
+      handleValidFile(file);
     }
-    if (inputRef.current) {
-      inputRef.current.value = '';
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const file = e.dataTransfer.files?.[0];
-    if (file && validateFile(file)) {
-      setOriginalFile(file);
-      setFileToCrop(file);
-      setCropDialogOpen(true);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   const handleRemove = () => {
-    onImageChange('', undefined);
+    onImageChange("", undefined);
   };
 
-  const handleCropComplete = useCallback((croppedFile: File) => {
-    // Upload both cropped and original
-    handleUpload(croppedFile, originalFile || undefined);
-    setFileToCrop(null);
-  }, [originalFile]);
+  const handleCropComplete = useCallback(
+    (croppedFile: File) => {
+      handleUpload(croppedFile, originalFile || undefined);
+      setFileToCrop(null);
+    },
+    [originalFile]
+  );
 
   const handleReCrop = useCallback(async () => {
-    // Prefer original image URL for re-crop (preserves quality)
     const urlToFetch = originalImageUrl || imageUrl;
     if (!urlToFetch) return;
 
     try {
       const response = await fetch(urlToFetch);
       const blob = await response.blob();
-      const file = new File([blob], 'header-recrop.jpg', { type: blob.type || 'image/jpeg' });
-      
-      // Don't set originalFile - we're re-cropping, not uploading new original
+      const file = new File([blob], "header-recrop.jpg", {
+        type: blob.type || "image/jpeg",
+      });
+
       setOriginalFile(null);
       setFileToCrop(file);
       setCropDialogOpen(true);
     } catch (error: unknown) {
-      log.error('Error loading image for re-crop:', error);
-      toast.error('Erro ao carregar imagem para recorte.');
+      log.error("Error loading image for re-crop:", error);
+      toast.error("Erro ao carregar imagem para recorte.");
     }
   }, [imageUrl, originalImageUrl]);
 
-  const handleReCropComplete = useCallback((croppedFile: File) => {
-    // On re-crop, only upload cropped version, keep original URL unchanged
-    handleUploadCroppedOnly(croppedFile);
-    setFileToCrop(null);
-  }, [originalImageUrl]);
+  const handleReCropComplete = useCallback(
+    (croppedFile: File) => {
+      handleUploadCroppedOnly(croppedFile);
+      setFileToCrop(null);
+    },
+    [originalImageUrl]
+  );
 
   const handleUploadCroppedOnly = async (croppedFile: File) => {
     setIsUploading(true);
 
     try {
-      const fileExt = croppedFile.name.split('.').pop();
+      const fileExt = croppedFile.name.split(".").pop();
       const fileName = `header-${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
-      const filePath = productId ? `products/${productId}/headers/${fileName}` : `headers/${fileName}`;
+      const filePath = productId
+        ? `products/${productId}/headers/${fileName}`
+        : `headers/${fileName}`;
 
       const { publicUrl: croppedUrl, error: uploadError } = await uploadViaEdge(
-        'product-images',
+        "product-images",
         filePath,
         croppedFile,
         { upsert: false, contentType: croppedFile.type }
       );
 
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
       if (croppedUrl) {
-        // Keep original URL if it exists
         onImageChange(croppedUrl, originalImageUrl);
-        toast.success('Imagem recortada com sucesso!');
+        toast.success("Imagem recortada com sucesso!");
       }
     } catch (error: unknown) {
-      log.error('Upload error:', error);
-      toast.error('Erro ao enviar imagem. Tente novamente.');
+      log.error("Upload error:", error);
+      toast.error("Erro ao enviar imagem. Tente novamente.");
     } finally {
       setIsUploading(false);
     }
@@ -216,7 +192,7 @@ export function FixedHeaderImageUpload({
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED_TYPES.join(',')}
+        accept={ACCEPTED_TYPES.join(",")}
         onChange={handleFileSelect}
         className="hidden"
       />
@@ -262,15 +238,15 @@ export function FixedHeaderImageUpload({
       ) : (
         <div
           className={cn(
-            'relative rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer',
-            'flex flex-col items-center justify-center text-center',
-            isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50',
-            isUploading && 'pointer-events-none opacity-50'
+            "relative rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer",
+            "flex flex-col items-center justify-center text-center",
+            isDragging
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25 hover:border-primary/50",
+            isUploading && "pointer-events-none opacity-50"
           )}
           onClick={() => inputRef.current?.click()}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
+          {...dragProps}
         >
           {isUploading ? (
             <>
@@ -303,7 +279,9 @@ export function FixedHeaderImageUpload({
             }
           }}
           imageFile={fileToCrop}
-          onCropComplete={originalFile ? handleCropComplete : handleReCropComplete}
+          onCropComplete={
+            originalFile ? handleCropComplete : handleReCropComplete
+          }
           preset="banner"
         />
       )}
