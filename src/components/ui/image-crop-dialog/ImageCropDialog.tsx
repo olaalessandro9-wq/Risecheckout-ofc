@@ -1,29 +1,21 @@
 /**
- * ImageCropDialog - Componente Unificado de Crop de Imagem
+ * ImageCropDialog - Componente Unificado de Crop de Imagem (Estilo Cakto)
  * 
- * MIGRADO para react-advanced-cropper (RISE V3 - Solução 10.0/10)
- * 
- * Esta biblioteca é TypeScript-nativa, sem dependência de cropperjs,
- * eliminando permanentemente os problemas de build com CSS imports.
- * 
- * Presets suportados:
- * - module: 2:3 (320x480) - Thumbnails de módulos
- * - banner: 16:9 (1920x1080) - Banners widescreen
- * - product: 4:3 (800x600) - Imagens de produto
- * - square: 1:1 (400x400) - Avatares
- * - story: 9:16 (1080x1920) - Stories verticais
- * - videoThumbnail: 16:9 (1280x720) - Previews de vídeo
- * - card: 3:2 (600x400) - Cards
- * 
- * @example
- * <ImageCropDialog preset="module" ... />
+ * Usa FixedCropper do react-advanced-cropper com stencil fixo.
+ * A imagem aparece 100% visível dentro do stencil, com liberdade total
+ * de zoom e pan. Áreas vazias mostram xadrez no editor e recebem cor
+ * sólida ao salvar.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createLogger } from "@/lib/logger";
-import { Cropper, CropperRef } from "react-advanced-cropper";
+import {
+  FixedCropper,
+  FixedCropperRef,
+  ImageRestriction,
+} from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
 import {
   Dialog,
@@ -35,14 +27,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, ZoomIn, ZoomOut } from "lucide-react";
-import { getCropConfig } from "./presets";
+import { getCropConfig, DEFAULT_BACKGROUND_COLOR } from "./presets";
+import { useStencilSize } from "./useStencilSize";
 import type { ImageCropDialogProps } from "./types";
 
 const log = createLogger("ImageCropDialog");
 
+/** CSS do pattern xadrez para áreas vazias */
+const CHECKERBOARD_STYLE = {
+  background: `
+    repeating-conic-gradient(
+      #808080 0% 25%, 
+      #c0c0c0 0% 50%
+    ) 50% / 20px 20px
+  `,
+} as const;
+
 /**
- * Componente principal de crop de imagem
- * Usa react-advanced-cropper - biblioteca TypeScript-nativa sem dependências problemáticas
+ * Componente principal de crop de imagem (estilo Cakto)
+ * 
+ * Stencil fixo no centro, imagem aparece completa, zoom/pan livres.
  */
 export function ImageCropDialog({
   open,
@@ -54,15 +58,16 @@ export function ImageCropDialog({
   title = "Editar Imagem",
   subtitle = "Ajuste a imagem para o tamanho desejado",
 }: ImageCropDialogProps) {
-  // Obtém a configuração de crop baseado no preset ou config customizada
   const config = getCropConfig(preset, customConfig);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
   const [isSaving, setIsSaving] = useState(false);
-  const cropperRef = useRef<CropperRef>(null);
+  const cropperRef = useRef<FixedCropperRef>(null);
 
-  // Load image URL when imageFile changes
+  const calculateStencilSize = useStencilSize(config.aspectRatio);
+
+  // Load image URL from File
   useEffect(() => {
     if (imageFile && open) {
       const url = URL.createObjectURL(imageFile);
@@ -71,42 +76,36 @@ export function ImageCropDialog({
     }
   }, [imageFile, open]);
 
-  // Reset zoom quando a imagem muda
+  // Reset zoom ao abrir
   useEffect(() => {
     if (open) {
       setZoom(100);
     }
   }, [open, imageFile]);
 
-  // Handler para mudança de zoom via slider
-  const handleZoomChange = useCallback((value: number[]) => {
-    const zoomValue = value[0];
-    setZoom(zoomValue);
-
-    if (cropperRef.current) {
-      // Calcula o fator de zoom relativo ao zoom atual
-      const currentState = cropperRef.current.getState();
-      if (currentState) {
-        const zoomFactor = zoomValue / zoom;
+  // Zoom via slider
+  const handleZoomChange = useCallback(
+    (value: number[]) => {
+      const newZoom = value[0];
+      if (cropperRef.current) {
+        const zoomFactor = newZoom / zoom;
         cropperRef.current.zoomImage(zoomFactor, { transitions: true });
       }
-    }
-  }, [zoom]);
+      setZoom(newZoom);
+    },
+    [zoom]
+  );
 
-  // Handler chamado quando o cropper atualiza (inclui zoom via scroll)
-  const handleUpdate = useCallback((cropper: CropperRef) => {
+  // Sync zoom quando o usuário faz scroll/pinch no cropper
+  const handleUpdate = useCallback((cropper: FixedCropperRef) => {
     const state = cropper.getState();
-    if (state && state.transforms) {
-      // O zoom é relativo à escala base
-      const baseScale = state.transforms.rotate ? 1 : 1;
-      const visibleAreaScale = state.visibleArea 
-        ? (state.boundary.width / state.visibleArea.width) 
-        : 1;
+    if (state?.visibleArea && state.boundary.width > 0) {
+      const visibleAreaScale = state.boundary.width / state.visibleArea.width;
       setZoom(Math.round(visibleAreaScale * 100));
     }
   }, []);
 
-  // Salvar imagem recortada
+  // Salvar imagem com áreas vazias preenchidas
   const handleSaveCrop = useCallback(async () => {
     if (!cropperRef.current) {
       log.warn("No cropper instance available");
@@ -116,10 +115,10 @@ export function ImageCropDialog({
     setIsSaving(true);
 
     try {
-      // Obtém o canvas com as dimensões de saída configuradas
       const canvas = cropperRef.current.getCanvas({
         width: config.outputWidth,
         height: config.outputHeight,
+        fillColor: config.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
       });
 
       if (!canvas) {
@@ -165,35 +164,35 @@ export function ImageCropDialog({
       <DialogContent className="sm:max-w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+          <p className="text-sm text-muted-foreground">
+            {subtitle}
+            {config.label && (
+              <span className="ml-2 text-xs opacity-70">
+                ({config.label} — {config.outputWidth}×{config.outputHeight}px)
+              </span>
+            )}
+          </p>
         </DialogHeader>
 
         <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
-          {/* Cropper Area */}
-          <div 
+          {/* Cropper Area com xadrez de fundo */}
+          <div
             className="flex-1 flex items-center justify-center rounded-lg overflow-hidden min-h-[400px]"
-            style={{
-              background: `
-                linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%),
-                linear-gradient(-45deg, hsl(var(--muted)) 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, hsl(var(--muted)) 75%),
-                linear-gradient(-45deg, transparent 75%, hsl(var(--muted)) 75%)
-              `,
-              backgroundSize: '20px 20px',
-              backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-            }}
+            style={CHECKERBOARD_STYLE}
           >
             {imageUrl && (
-              <Cropper
+              <FixedCropper
                 ref={cropperRef}
                 src={imageUrl}
                 className="h-full w-full"
+                stencilSize={calculateStencilSize}
                 stencilProps={{
-                  aspectRatio: config.aspectRatio,
-                  movable: true,
-                  resizable: true,
-                  grid: true,
+                  handlers: false,
+                  lines: false,
+                  movable: false,
+                  resizable: false,
                 }}
+                imageRestriction={ImageRestriction.none}
                 transitions={true}
                 onUpdate={handleUpdate}
               />
@@ -202,17 +201,17 @@ export function ImageCropDialog({
 
           {/* Zoom Control */}
           <div className="flex items-center gap-4 px-4">
-            <ZoomOut className="h-4 w-4 text-muted-foreground" />
+            <ZoomOut className="h-4 w-4 text-muted-foreground shrink-0" />
             <Slider
               value={[zoom]}
               onValueChange={handleZoomChange}
-              min={50}
-              max={300}
+              min={10}
+              max={400}
               step={1}
               className="flex-1"
             />
-            <ZoomIn className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground whitespace-nowrap w-12 text-right">
+            <ZoomIn className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground whitespace-nowrap w-14 text-right">
               {zoom}%
             </span>
           </div>

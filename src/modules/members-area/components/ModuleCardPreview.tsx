@@ -50,11 +50,13 @@ export function ModuleCardPreview({
       <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-lg ring-1 ring-white/10">
         {/* Image or Placeholder */}
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt="Preview do módulo"
-            className="h-full w-full object-cover"
-          />
+          <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
+            <img
+              src={imageUrl}
+              alt="Preview do módulo"
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex flex-col items-center gap-3 text-zinc-600">

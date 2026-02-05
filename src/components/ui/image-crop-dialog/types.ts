@@ -21,6 +21,8 @@ export interface CropConfig {
   outputHeight: number;
   /** Label legível para exibição (opcional) */
   label?: string;
+  /** Cor de fundo para áreas não cobertas pela imagem (default: "#1a1a2e") */
+  backgroundColor?: string;
 }
 
 /**
@@ -61,4 +63,13 @@ export interface ImageCropDialogProps {
    * Default: "Ajuste a imagem para o tamanho desejado"
    */
   subtitle?: string;
+  /**
+   * Permite trocar entre presets durante o crop (mostra dropdown)
+   */
+  allowPresetChange?: boolean;
+  /**
+   * Quais presets aparecem no dropdown (requer allowPresetChange=true)
+   * Default: todos os presets disponíveis
+   */
+  availablePresets?: CropPresetName[];
 }

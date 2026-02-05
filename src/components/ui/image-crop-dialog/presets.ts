@@ -9,6 +9,9 @@
 
 import type { CropConfig } from "./types";
 
+/** Cor de fundo padrão para áreas não cobertas pela imagem */
+export const DEFAULT_BACKGROUND_COLOR = "#1a1a2e";
+
 /**
  * Presets de crop predefinidos
  * 
@@ -26,6 +29,7 @@ export const CROP_PRESETS = {
     outputWidth: 320,
     outputHeight: 480,
     label: "Módulo (2:3)",
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
   },
 
   /**
@@ -37,6 +41,7 @@ export const CROP_PRESETS = {
     outputWidth: 1920,
     outputHeight: 1080,
     label: "Banner (16:9)",
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
   },
 
   /**
@@ -48,6 +53,7 @@ export const CROP_PRESETS = {
     outputWidth: 800,
     outputHeight: 600,
     label: "Produto (4:3)",
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
   },
 
   /**
@@ -59,6 +65,7 @@ export const CROP_PRESETS = {
     outputWidth: 400,
     outputHeight: 400,
     label: "Quadrado (1:1)",
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
   },
 
   /**
@@ -70,6 +77,7 @@ export const CROP_PRESETS = {
     outputWidth: 1080,
     outputHeight: 1920,
     label: "Story (9:16)",
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
   },
 
   /**
@@ -81,6 +89,7 @@ export const CROP_PRESETS = {
     outputWidth: 1280,
     outputHeight: 720,
     label: "Vídeo (16:9)",
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
   },
 
   /**
@@ -92,6 +101,7 @@ export const CROP_PRESETS = {
     outputWidth: 600,
     outputHeight: 400,
     label: "Card (3:2)",
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
   },
 } as const satisfies Record<string, CropConfig>;
 
@@ -109,7 +119,10 @@ export function getCropConfig(
 ): CropConfig {
   // Custom config tem prioridade
   if (customConfig) {
-    return customConfig;
+    return {
+      backgroundColor: DEFAULT_BACKGROUND_COLOR,
+      ...customConfig,
+    };
   }
 
   // Usa o preset especificado ou o default
