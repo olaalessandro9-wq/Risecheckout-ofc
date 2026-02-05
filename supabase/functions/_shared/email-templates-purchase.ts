@@ -4,9 +4,10 @@
  * RISE Protocol V3 - 10.0/10
  * 
  * Template para confirmação de compra padrão.
- * Usa <style> + classes (mesmo padrão dos templates que funcionam no Gmail).
+ * ESTRUTURA COPIADA EXATAMENTE de email-templates-members-area.ts
+ * para garantir compatibilidade total com Gmail (sem truncamento).
  * 
- * @version 4.0.0
+ * @version 5.0.0
  */
 
 import { PurchaseConfirmationData, formatCurrency, getLogoUrl } from "./email-templates-base.ts";
@@ -14,15 +15,10 @@ import { getSiteBaseUrl } from "./site-urls.ts";
 import { getSupportEmail } from "./email-config.ts";
 
 // ============================================================================
-// PURCHASE CONFIRMATION TEMPLATE (<style> + classes - Gmail Compatible)
+// PURCHASE CONFIRMATION TEMPLATE (Gmail Compatible - Same structure as members-area)
 // ============================================================================
 
 export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData): string {
-  const logoUrl = getLogoUrl();
-  const supportEmail = data.supportEmail || getSupportEmail();
-  const siteUrl = getSiteBaseUrl('default');
-  const siteDomain = siteUrl.replace('https://', '');
-
   const styles = `
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -44,9 +40,9 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       .order-label { font-size: 14px; color: #495057; }
       .order-value { font-size: 14px; font-weight: 600; color: #212529; }
       .total-row { display: flex; justify-content: space-between; padding: 20px; background-color: #F8F9FA; font-size: 18px; font-weight: 700; }
-      .support { text-align: center; padding: 24px 32px; font-size: 14px; color: #6C757D; border-top: 1px solid #E9ECEF; }
+      .support { text-align: center; padding: 32px; font-size: 14px; color: #6C757D; }
       .support a { color: #007BFF; text-decoration: none; font-weight: 600; }
-      .footer { text-align: center; padding: 0 32px 24px; font-size: 12px; color: #6C757D; }
+      .footer { background-color: #F8F9FA; padding: 24px; text-align: center; font-size: 12px; color: #6C757D; }
       .footer p { margin: 0 0 4px; }
       .footer a { color: #495057; text-decoration: none; font-weight: 600; }
     </style>
@@ -58,30 +54,17 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
         <h2>Seu acesso está liberado!</h2>
         <p>Clique no botão abaixo para acessar o conteúdo.</p>
         <a href="${data.deliveryUrl}" class="cta-button">Acessar meu produto</a>
-      </div>` : '';
-
-  // Payment method row (optional)
-  const paymentMethodRow = data.paymentMethod ? `
-        <div class="order-item">
-          <span class="order-label">Forma de Pagamento</span>
-          <span class="order-value">${data.paymentMethod}</span>
-        </div>` : '';
-
-  // Seller line (optional)
-  const sellerLine = data.sellerName 
-    ? `<p>Vendido por: <strong>${data.sellerName}</strong></p>` 
-    : '';
+      </div>
+      ` : '';
 
   const content = `
     <div class="header">
-      <img src="${logoUrl}" alt="Rise Checkout Logo">
+      <img src="${getLogoUrl()}" alt="Rise Checkout Logo">
     </div>
     <div class="content">
       <h1>Sua compra foi confirmada!</h1>
       <p>Olá, ${data.customerName}, obrigado por comprar conosco. Seu pagamento foi processado com sucesso.</p>
-      
       ${ctaSection}
-      
       <div class="order-details">
         <h2>Resumo do Pedido</h2>
         <div class="order-item">
@@ -92,7 +75,12 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
           <span class="order-label">Nº do Pedido</span>
           <span class="order-value">#${data.orderId.substring(0, 8).toUpperCase()}</span>
         </div>
-        ${paymentMethodRow}
+        ${data.paymentMethod ? `
+        <div class="order-item">
+          <span class="order-label">Forma de Pagamento</span>
+          <span class="order-value">${data.paymentMethod}</span>
+        </div>
+        ` : ''}
         <div class="total-row">
           <span>Total</span>
           <span>${formatCurrency(data.amountCents)}</span>
@@ -100,29 +88,31 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       </div>
     </div>
     <div class="support">
-      <p>Em caso de dúvidas, entre em contato: <a href="mailto:${supportEmail}">${supportEmail}</a></p>
+      <p>Em caso de dúvidas, entre em contato: <a href="mailto:${data.supportEmail || getSupportEmail()}">${data.supportEmail || getSupportEmail()}</a>.</p>
     </div>
     <div class="footer">
-      ${sellerLine}
+      ${data.sellerName ? `<p>Vendido por: <strong>${data.sellerName}</strong></p>` : ''}
       <p>Pagamento processado com segurança por <strong>Rise Checkout</strong>.</p>
-      <p><a href="${siteUrl}">${siteDomain}</a></p>
+      <p><a href="${getSiteBaseUrl('default')}">${getSiteBaseUrl('default').replace('https://', '')}</a></p>
     </div>
   `;
 
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmação de Compra</title>
-  ${styles}
-</head>
-<body>
-  <div class="container">
-    ${content}
-  </div>
-</body>
-</html>`;
+  return `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Confirmação de Compra - Rise Checkout</title>
+      ${styles}
+    </head>
+    <body>
+      <div class="container">
+        ${content}
+      </div>
+    </body>
+    </html>
+  `;
 }
 
 // ============================================================================
@@ -130,9 +120,8 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
 // ============================================================================
 
 export function getPurchaseConfirmationTextTemplate(data: PurchaseConfirmationData): string {
-  const supportEmail = data.supportEmail || getSupportEmail();
-  
-  let text = `COMPRA CONFIRMADA ✓
+  let text = `
+COMPRA CONFIRMADA ✓
 
 Olá, ${data.customerName}!
 
@@ -152,11 +141,14 @@ DETALHES DO PEDIDO
 ==================
 Produto: ${data.productName}
 Nº do Pedido: #${data.orderId.substring(0, 8).toUpperCase()}
-${data.paymentMethod ? `Forma de Pagamento: ${data.paymentMethod}\n` : ''}Total: ${formatCurrency(data.amountCents)}
+${data.paymentMethod ? `Forma de Pagamento: ${data.paymentMethod}` : ''}
+Total Pago: ${formatCurrency(data.amountCents)}
 
-Em caso de dúvidas, entre em contato: ${supportEmail}
-${data.sellerName ? `Vendido por: ${data.sellerName}\n` : ''}
-Pagamento processado com segurança por Rise Checkout.`;
+Em caso de dúvidas, entre em contato: ${data.supportEmail || getSupportEmail()}
+
+${data.sellerName ? `Vendido por: ${data.sellerName}` : ''}
+Processado com segurança por Rise Checkout
+  `;
 
   return text.trim();
 }
