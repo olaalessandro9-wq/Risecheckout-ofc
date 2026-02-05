@@ -9,9 +9,10 @@
  * - Dots invisíveis por padrão (aparecem no hover)
  * - Zero framer-motion para máxima performance
  * - CSS Containment para isolar repaints
+ * - useChartDimensions customizado (substitui ResponsiveContainer)
  */
 
-import { useMemo, useId } from "react";
+import { useMemo, useId, useRef } from "react";
 import {
   AreaChart,
   Area,
@@ -19,11 +20,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
 } from "recharts";
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
+import { useChartDimensions } from "@/hooks/useChartDimensions";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -143,9 +144,16 @@ export function RevenueChart({
   data,
   isLoading = false,
 }: RevenueChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const { isUltrawide, chartConfig, disableBlur } = useUltrawidePerformance();
   const gradientId = useId();
   const yAxisConfig = useMemo(() => calculateYAxisConfig(data), [data]);
+  
+  // Hook customizado que aguarda fim da transição antes de recalcular
+  const { width, height } = useChartDimensions(containerRef, 350);
+
+  // Renderizar gráfico apenas quando dimensões válidas
+  const showChart = width > 0 && height > 0 && !isLoading;
 
   // Cursor style para tooltip
   const cursorStyle = useMemo(() => ({
@@ -185,8 +193,9 @@ export function RevenueChart({
         </h3>
       </div>
 
-      {/* Chart Container */}
+      {/* Chart Container - ref para useChartDimensions */}
       <div
+        ref={containerRef}
         className="flex-1 min-h-[200px] md:min-h-[250px] lg:min-h-[300px]"
         style={{ contain: "layout style" }}
       >
@@ -194,76 +203,76 @@ export function RevenueChart({
           <div className="space-y-4 h-full flex flex-col justify-center">
             <Skeleton className="h-[200px] w-full bg-muted/20" />
           </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%" debounce={chartConfig.debounce}>
-            <AreaChart
-              data={data}
-              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-            >
-              {/* Gradient Definition */}
-              <defs>
-                <linearGradient id={`area-gradient-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={CHART_COLOR} stopOpacity={0.3} />
-                  <stop offset="100%" stopColor={CHART_COLOR} stopOpacity={0} />
-                </linearGradient>
-              </defs>
+        ) : showChart ? (
+          <AreaChart
+            width={width}
+            height={height}
+            data={data}
+            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+          >
+            {/* Gradient Definition */}
+            <defs>
+              <linearGradient id={`area-gradient-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_COLOR} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={CHART_COLOR} stopOpacity={0} />
+              </linearGradient>
+            </defs>
 
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="hsl(var(--chart-grid))"
-                opacity={0.2}
-                vertical={false}
-              />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="hsl(var(--chart-grid))"
+              opacity={0.2}
+              vertical={false}
+            />
 
-              <XAxis
-                dataKey="date"
-                stroke="hsl(var(--chart-axis))"
-                style={{ fontSize: "11px", fontWeight: 500 }}
-                tickLine={false}
-                axisLine={false}
-                dy={10}
-                padding={{ left: 20, right: 20 }}
-                interval={isUltrawide ? "preserveStartEnd" : "preserveEnd"}
-                minTickGap={isUltrawide ? 100 : 50}
-              />
+            <XAxis
+              dataKey="date"
+              stroke="hsl(var(--chart-axis))"
+              style={{ fontSize: "11px", fontWeight: 500 }}
+              tickLine={false}
+              axisLine={false}
+              dy={10}
+              padding={{ left: 20, right: 20 }}
+              interval={isUltrawide ? "preserveStartEnd" : "preserveEnd"}
+              minTickGap={isUltrawide ? 100 : 50}
+            />
 
-              <YAxis
-                stroke="hsl(var(--chart-axis))"
-                style={{ fontSize: "11px", fontWeight: 500 }}
-                tickLine={false}
-                axisLine={false}
-                domain={yAxisConfig.domain}
-                ticks={yAxisConfig.ticks}
-                width={55}
-                tickFormatter={(value) => {
-                  if (value >= 1000) {
-                    return `R$ ${(value / 1000).toFixed(1)}k`;
-                  }
-                  return `R$ ${value}`;
-                }}
-              />
+            <YAxis
+              stroke="hsl(var(--chart-axis))"
+              style={{ fontSize: "11px", fontWeight: 500 }}
+              tickLine={false}
+              axisLine={false}
+              domain={yAxisConfig.domain}
+              ticks={yAxisConfig.ticks}
+              width={55}
+              tickFormatter={(value) => {
+                if (value >= 1000) {
+                  return `R$ ${(value / 1000).toFixed(1)}k`;
+                }
+                return `R$ ${value}`;
+              }}
+            />
 
-              <Tooltip content={<CustomTooltip />} cursor={cursorStyle} />
+            <Tooltip content={<CustomTooltip />} cursor={cursorStyle} />
 
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke={CHART_COLOR}
-                strokeWidth={chartConfig.strokeWidth}
-                fill={`url(#area-gradient-${gradientId})`}
-                isAnimationActive={chartConfig.isAnimationActive}
-                animationDuration={chartConfig.animationDuration}
-                dot={false}
-                activeDot={{
-                  r: 6,
-                  fill: CHART_COLOR,
-                  stroke: "#ffffff",
-                  strokeWidth: 2,
-                }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={CHART_COLOR}
+              strokeWidth={chartConfig.strokeWidth}
+              fill={`url(#area-gradient-${gradientId})`}
+              isAnimationActive={chartConfig.isAnimationActive}
+              animationDuration={chartConfig.animationDuration}
+              dot={false}
+              activeDot={{
+                r: 6,
+                fill: CHART_COLOR,
+                stroke: "#ffffff",
+                strokeWidth: 2,
+              }}
+            />
+          </AreaChart>
+        ) : null}
       </div>
     </div>
   );
