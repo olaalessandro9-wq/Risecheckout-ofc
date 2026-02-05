@@ -12,6 +12,8 @@ type TopbarProps = {
   sidebarState?: SidebarState;
   /** Callback para ciclar estado do sidebar */
   onSidebarToggle?: () => void;
+  /** Se o viewport é grande (>= 1920px) — altera ícones/tooltips */
+  isLargeViewport?: boolean;
 };
 
 export function Topbar({ 
@@ -19,11 +21,14 @@ export function Topbar({
   onMenuClick,
   sidebarState = 'collapsed',
   onSidebarToggle,
+  isLargeViewport = false,
 }: TopbarProps) {
-  // Ícone do toggle baseado no estado
+  // Ícone do toggle baseado no estado e viewport
   const getSidebarIcon = () => {
     switch (sidebarState) {
       case 'hidden':
+        // Em monitores grandes, hidden não deveria acontecer,
+        // mas se chegar aqui por fallback, mostra ícone de collapsed
         return <PanelLeft className="h-5 w-5" />;
       case 'collapsed':
         return <PanelLeftClose className="h-5 w-5" />;
@@ -32,7 +37,7 @@ export function Topbar({
     }
   };
 
-  // Tooltip do toggle
+  // Tooltip do toggle — adaptativo por viewport
   const getSidebarTooltip = () => {
     switch (sidebarState) {
       case 'hidden':
@@ -40,7 +45,9 @@ export function Topbar({
       case 'collapsed':
         return 'Expandir sidebar';
       case 'expanded':
-        return 'Ocultar sidebar';
+        // Monitor grande: expanded → collapsed ("Recolher")
+        // Monitor normal: expanded → hidden ("Ocultar")
+        return isLargeViewport ? 'Recolher sidebar' : 'Ocultar sidebar';
     }
   };
 

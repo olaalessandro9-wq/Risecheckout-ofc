@@ -125,6 +125,7 @@ export default function AppShell() {
           onMenuClick={() => navigation.setMobileOpen(true)}
           sidebarState={navigation.state.sidebarState}
           onSidebarToggle={navigation.cycleSidebarState}
+          isLargeViewport={isLargeViewport}
         />
 
         {/* Sentinel invisível para ativar a sombra ao rolar */}

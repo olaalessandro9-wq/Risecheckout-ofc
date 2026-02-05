@@ -15,12 +15,16 @@ import { useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useMachine } from "@xstate/react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useIsLargeViewport } from "@/hooks/useIsLargeViewport";
 import { navigationMachine } from "../machines/navigationMachine";
 import type { NavigationMachineEvent } from "../machines/navigationMachine.types";
 import {
   type NavigationState,
   type NavItemConfig,
+  type SidebarState,
   SIDEBAR_STORAGE_KEY,
+  SIDEBAR_STATE_CYCLE,
+  SIDEBAR_STATE_CYCLE_LARGE,
 } from "../types/navigation.types";
 import { NAVIGATION_CONFIG } from "../config/navigationConfig";
 import {
@@ -47,6 +51,8 @@ export interface UseNavigationReturn {
   showLabels: boolean;
   currentWidth: number;
   visibleItems: readonly NavItemConfig[];
+  /** Se o viewport é grande (>= 1920px) */
+  isLargeViewport: boolean;
 
   // Actions para Sidebar
   cycleSidebarState: () => void;
@@ -72,6 +78,7 @@ export interface UseNavigationReturn {
 export function useNavigation(): UseNavigationReturn {
   const location = useLocation();
   const permissions = usePermissions();
+  const isLargeViewport = useIsLargeViewport();
   const initializedRef = useRef(false);
 
   // ========================================
@@ -93,8 +100,15 @@ export function useNavigation(): UseNavigationReturn {
   // ========================================
 
   // Restaura estado do localStorage na montagem
+  // Se monitor grande e estado salvo é "hidden", coerce para "collapsed"
   useEffect(() => {
-    const storedState = getStoredSidebarState(SIDEBAR_STORAGE_KEY);
+    let storedState = getStoredSidebarState(SIDEBAR_STORAGE_KEY);
+    
+    // Coerção: monitores grandes não suportam "hidden"
+    if (isLargeViewport && storedState === "hidden") {
+      storedState = "collapsed" as SidebarState;
+    }
+    
     if (storedState !== state.sidebarState) {
       send({ type: "RESTORE_FROM_STORAGE", sidebarState: storedState });
     }
@@ -150,8 +164,10 @@ export function useNavigation(): UseNavigationReturn {
   // ========================================
 
   const cycleSidebarState = useCallback(() => {
-    send({ type: "CYCLE_SIDEBAR" });
-  }, [send]);
+    const cycleMap = isLargeViewport ? SIDEBAR_STATE_CYCLE_LARGE : SIDEBAR_STATE_CYCLE;
+    const nextState = cycleMap[state.sidebarState];
+    send({ type: "SET_SIDEBAR", state: nextState });
+  }, [send, isLargeViewport, state.sidebarState]);
 
   const setMobileOpen = useCallback((open: boolean) => {
     send({ type: "SET_MOBILE_OPEN", isOpen: open });
@@ -199,6 +215,7 @@ export function useNavigation(): UseNavigationReturn {
     showLabels,
     currentWidth,
     visibleItems,
+    isLargeViewport,
     cycleSidebarState,
     setMobileOpen,
     handleMobileNavigate,
