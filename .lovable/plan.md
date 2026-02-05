@@ -1,143 +1,64 @@
 
 
-# Plano: Alinhar Template Purchase com Templates que Funcionam
+# Plano: Remover Bloco Azul "Compra Confirmada"
 
-## Diagnóstico Final
+## Objetivo
 
-Após comparação exaustiva de **todos os 5 templates**:
+Remover completamente o bloco azul (`.success-banner`) que contém:
+- "✓ Compra Confirmada"
+- "Sua compra foi confirmada!"
+- "Pagamento processado com sucesso"
 
-| Template | Return Style | Header CSS | Logo Width | Funciona no Gmail? |
-|----------|--------------|------------|------------|-------------------|
-| `payment` | `return \`<!DOCTYPE...` (sem indent) | `padding: 0; line-height: 0` | `width="400"` | **SIM** |
-| `seller` | `return \`<!DOCTYPE...` (sem indent) | `padding: 0; line-height: 0` | `width="400"` | **SIM** |
-| `members-area` | `return \`\n    <!DOCTYPE...` (com indent) | `padding: 40px 20px; border-bottom` | Sem width attr | **?** |
-| `external` | `return \`\n    <!DOCTYPE...` (com indent) | `padding: 40px 20px; border-bottom` | Sem width attr | **?** |
-| `purchase` | `return \`\n    <!DOCTYPE...` (com indent) | `padding: 40px 20px; border-bottom` | Sem width attr | **NAO** |
+## Mudancas no Arquivo
 
-O template antigo que você enviou (que funcionava) tinha a estrutura mais simples - provavelmente similar ao `payment` e `seller`.
+**Arquivo:** `supabase/functions/_shared/email-templates-purchase.ts`
 
-## Analise de Solucoes (RISE V3 Secao 4.4)
+### 1. Remover CSS do success-banner (linhas 35-38)
 
-### Solucao A: Manter estrutura atual (members-area style)
-Continuar tentando ajustes incrementais na estrutura atual.
-
-- Manutenibilidade: 5/10
-- Zero DT: 3/10 (loop de tentativa/erro)
-- Arquitetura: 5/10
-- Escalabilidade: 5/10
-- Seguranca: 10/10
-- **NOTA FINAL: 5.6/10**
-
-### Solucao B: Copiar estrutura EXATA do `payment`/`seller` (que sabemos funcionar)
-Reescrever `email-templates-purchase.ts` seguindo EXATAMENTE a estrutura de `payment` e `seller`:
-- Return sem indentacao
-- Header com `padding: 0; line-height: 0`
-- Logo com `width="400"` no atributo HTML
-
-- Manutenibilidade: 10/10
-- Zero DT: 10/10 (baseado em templates comprovadamente funcionais)
-- Arquitetura: 10/10 (padrao unico)
-- Escalabilidade: 10/10
-- Seguranca: 10/10
-- **NOTA FINAL: 10.0/10**
-
-### DECISAO: Solucao B (Nota 10.0)
-
-## Implementacao Detalhada
-
-### Arquivo: `supabase/functions/_shared/email-templates-purchase.ts`
-
-**Mudancas especificas:**
-
-1. **Return statement** - Mudar de:
-```typescript
-return `
-    <!DOCTYPE html>
-    ...
-  `;
-```
-Para (igual `payment` e `seller`):
-```typescript
-return `<!DOCTYPE html>
-<html lang="pt-BR">
-...
-</html>`;
-```
-
-2. **CSS do Header** - Mudar de:
+Remover estas classes que nao serao mais usadas:
 ```css
-.header { text-align: center; padding: 40px 20px; border-bottom: 1px solid #E9ECEF; }
-.header img { max-width: 180px; }
-```
-Para (igual `payment` e `seller`):
-```css
-.header { text-align: center; padding: 0; line-height: 0; }
-.header img { display: block; width: 100%; max-width: 400px; height: auto; margin: 0 auto; }
+.success-banner { ... }
+.success-badge { ... }
+.success-banner h1 { ... }
+.success-banner p { ... }
 ```
 
-3. **HTML do Logo** - Adicionar `width="400"`:
+### 2. Remover HTML do success-banner (linhas 81-85)
+
+Remover este bloco do content:
 ```html
-<img src="${getLogoUrl()}" alt="Rise Checkout" width="400">
+<div class="success-banner">
+  <span class="success-badge">✓ Compra Confirmada</span>
+  <h1>Sua compra foi confirmada!</h1>
+  <p>Pagamento processado com sucesso</p>
+</div>
 ```
 
-4. **Remover border-bottom do header** - Consistencia com templates funcionais
+### 3. Atualizar versao de texto (linha 141)
 
-5. **Ajustar footer** - Seguir estrutura do `payment`/`seller`:
-```css
-.footer { text-align: center; padding: 24px 32px; font-size: 12px; color: #6C757D; border-top: 1px solid #E9ECEF; }
+Remover tambem do template de texto a linha:
+```
+✓ COMPRA CONFIRMADA
 ```
 
-### Estrutura Final do Template
+## Resultado Visual Esperado
 
-```text
-<!DOCTYPE html>  (SEM whitespace antes)
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmacao de Compra - Rise Checkout</title>
-  <style>
-    @import url(...);
-    body { ... }
-    .container { ... }
-    .header { padding: 0; line-height: 0; }  <- MUDANCA
-    .header img { display: block; width: 100%; max-width: 400px; ... }  <- MUDANCA
-    // ... resto do CSS
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <img src="..." alt="Rise Checkout" width="400">  <- MUDANCA
-    </div>
-    // ... conteudo
-  </div>
-</body>
-</html>
-```
+Apos a mudanca, o email vai comecar assim:
+1. Logo Rise Checkout (header azul)
+2. "Ola, [Nome]!" (greeting)
+3. "Obrigado por comprar conosco..." (message)
+4. [CTA se houver]
+5. Resumo do Pedido
 
-### Manter CTA Condicional
-
-O CTA condicional (`data.deliveryUrl ? ... : ''`) sera mantido, pois essa logica e correta para o caso de uso do purchase.
-
-### Arquivos a Modificar
+## Arquivos Modificados
 
 | Arquivo | Acao |
 |---------|------|
-| `email-templates-purchase.ts` | Reescrever com estrutura de `payment`/`seller` |
-
-### Teste Apos Implementacao
-
-1. Deploy da Edge Function `email-preview`
-2. Enviar preview `purchase-standard` via Email Preview
-3. Verificar no Gmail: email completo SEM 3 pontinhos e logo em tamanho normal (400px)
+| `email-templates-purchase.ts` | Remover CSS e HTML do success-banner |
 
 ## Checklist RISE V3
 
-- [x] Analise de multiplas solucoes com notas
-- [x] Escolha da solucao de maior nota (10.0)
-- [x] Codigo baseado em templates que JA FUNCIONAM (`payment`, `seller`)
-- [x] Consistencia arquitetural total
-- [x] Zero divida tecnica
-- [x] Logo restaurado para tamanho normal (400px)
+- [x] Mudanca isolada (apenas remocao de um bloco)
+- [x] Facil de testar e reverter se necessario
+- [x] Mantem estrutura funcional do template
 
