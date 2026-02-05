@@ -100,18 +100,20 @@ export function ImageCropDialog({
     [zoom]
   );
 
-  // Sync zoom quando o usuário faz scroll/pinch no cropper
-  const handleUpdate = useCallback((cropper: FixedCropperRef) => {
+  // onReady dispara APÓS resetCropper completar (state já inicializado)
+  const handleReady = useCallback(() => {
+    setIsImageLoaded(true);
+    log.info("Cropper ready - image loaded successfully");
+  }, []);
+
+  // onTransformImageEnd dispara após cada zoom/pan do usuário
+  const handleTransformEnd = useCallback((cropper: FixedCropperRef) => {
     const state = cropper.getState();
     if (state?.visibleArea && state.boundary.width > 0) {
       const visibleAreaScale = state.boundary.width / state.visibleArea.width;
       setZoom(Math.round(visibleAreaScale * 100));
     }
-    // Marca como loaded quando o cropper reporta state válido
-    if (state && !isImageLoaded) {
-      setIsImageLoaded(true);
-    }
-  }, [isImageLoaded]);
+  }, []);
 
   // Handler de erro do cropper - diagnosticabilidade obrigatória
   const handleCropperError = useCallback(() => {
@@ -176,7 +178,7 @@ export function ImageCropDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <p className="text-sm text-muted-foreground">
@@ -192,7 +194,7 @@ export function ImageCropDialog({
         <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
           {/* Cropper Area com xadrez de fundo */}
           <div
-            className="flex-1 relative rounded-lg overflow-hidden min-h-[400px]"
+            className="w-full h-[500px] max-h-[60vh] relative rounded-lg overflow-hidden"
             style={CHECKERBOARD_STYLE}
           >
             {imageUrl && (
@@ -210,7 +212,8 @@ export function ImageCropDialog({
                 imageRestriction={ImageRestriction.none}
                 crossOrigin={false}
                 transitions={true}
-                onUpdate={handleUpdate}
+                onReady={handleReady}
+                onTransformImageEnd={handleTransformEnd}
                 onError={handleCropperError}
               />
             )}
