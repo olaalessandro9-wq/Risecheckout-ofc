@@ -12,10 +12,10 @@
  
  export const BRAND_ASSETS = {
    /** Logo principal (fundo azul, texto branco) */
-   LOGO_MAIN: `${STORAGE_BASE}/${BUCKET}/logo/main.jpg`,
+  LOGO_MAIN: `${STORAGE_BASE}/${BUCKET}/logo/main.jpeg`,
    
    /** Alias para compatibilidade com código existente */
-   EMAIL_BANNER: `${STORAGE_BASE}/${BUCKET}/logo/main.jpg`,
+  EMAIL_BANNER: `${STORAGE_BASE}/${BUCKET}/logo/main.jpeg`,
  } as const;
  
  /** Tipo para os assets disponíveis */

@@ -4,29 +4,24 @@
  * RISE Protocol V3 - 10.0/10
  * 
  * Helpers compartilhados por todos os templates de email.
- * Uses site-urls.ts for zero hardcoded URLs.
+ * Uses permanent Supabase Storage URL for brand assets.
  * 
- * @version 2.0.0
+ * @version 3.0.0
  */
 
-import { getSiteBaseUrl } from "./site-urls.ts";
+// ============================================================================
+// CONSTANTS - Permanent URLs via Supabase Storage CDN
+// ============================================================================
 
-// ============================================================================
-// CONSTANTS (Dynamic, not hardcoded)
-// ============================================================================
+/** Permanent logo URL from Supabase Storage - never changes */
+const LOGO_STORAGE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co/storage/v1/object/public/brand-assets/logo/main.jpeg";
 
 /**
- * Gets the logo URL dynamically based on SITE_BASE_DOMAIN.
- * Falls back to current domain if not in email context.
+ * Gets the logo URL from Supabase Storage.
+ * Permanent URL that never changes - no env dependencies.
  */
 export function getLogoUrl(): string {
-  try {
-    const baseUrl = getSiteBaseUrl('default');
-    return `${baseUrl}/risecheckout-email-banner.jpg`;
-  } catch {
-    // Fallback for edge cases where env is not available
-    return 'https://www.risecheckout.com/risecheckout-email-banner.jpg';
-  }
+  return LOGO_STORAGE_URL;
 }
 
 // ============================================================================
