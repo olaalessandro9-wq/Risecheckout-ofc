@@ -9,8 +9,9 @@
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createLogger } from "@/lib/logger";
+import { toast } from "sonner";
 import {
   FixedCropper,
   FixedCropperRef,
@@ -63,6 +64,7 @@ export function ImageCropDialog({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const cropperRef = useRef<FixedCropperRef>(null);
 
   const calculateStencilSize = useStencilSize(config.aspectRatio);
@@ -70,6 +72,7 @@ export function ImageCropDialog({
   // Load image URL from File
   useEffect(() => {
     if (imageFile && open) {
+      setIsImageLoaded(false);
       const url = URL.createObjectURL(imageFile);
       setImageUrl(url);
       return () => URL.revokeObjectURL(url);
@@ -80,6 +83,7 @@ export function ImageCropDialog({
   useEffect(() => {
     if (open) {
       setZoom(100);
+      setIsImageLoaded(false);
     }
   }, [open, imageFile]);
 
@@ -103,7 +107,18 @@ export function ImageCropDialog({
       const visibleAreaScale = state.boundary.width / state.visibleArea.width;
       setZoom(Math.round(visibleAreaScale * 100));
     }
-  }, []);
+    // Marca como loaded quando o cropper reporta state válido
+    if (state && !isImageLoaded) {
+      setIsImageLoaded(true);
+    }
+  }, [isImageLoaded]);
+
+  // Handler de erro do cropper - diagnosticabilidade obrigatória
+  const handleCropperError = useCallback(() => {
+    log.error("FixedCropper failed to load image", { imageUrl });
+    toast.error("Falha ao carregar a imagem para edição");
+    setIsImageLoaded(false);
+  }, [imageUrl]);
 
   // Salvar imagem com áreas vazias preenchidas
   const handleSaveCrop = useCallback(async () => {
@@ -177,14 +192,14 @@ export function ImageCropDialog({
         <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
           {/* Cropper Area com xadrez de fundo */}
           <div
-            className="flex-1 flex items-center justify-center rounded-lg overflow-hidden min-h-[400px]"
+            className="flex-1 relative rounded-lg overflow-hidden min-h-[400px]"
             style={CHECKERBOARD_STYLE}
           >
             {imageUrl && (
               <FixedCropper
                 ref={cropperRef}
                 src={imageUrl}
-                className="h-full w-full"
+                className="absolute inset-0"
                 stencilSize={calculateStencilSize}
                 stencilProps={{
                   handlers: false,
@@ -193,9 +208,20 @@ export function ImageCropDialog({
                   resizable: false,
                 }}
                 imageRestriction={ImageRestriction.none}
+                crossOrigin={false}
                 transitions={true}
                 onUpdate={handleUpdate}
+                onError={handleCropperError}
               />
+            )}
+            {/* Loading indicator enquanto a imagem carrega */}
+            {imageUrl && !isImageLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                <div className="bg-black/60 rounded-lg px-4 py-2 flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                  <span className="text-white text-sm">Carregando imagem...</span>
+                </div>
+              </div>
             )}
           </div>
 
