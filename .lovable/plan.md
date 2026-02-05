@@ -1,64 +1,99 @@
 
 
-# Plano: Remover Bloco Azul "Compra Confirmada"
+# Plano: Restaurar Template EXATAMENTE ao Estado Original
 
-## Objetivo
+## Diagnóstico Final (RISE V3)
 
-Remover completamente o bloco azul (`.success-banner`) que contém:
-- "✓ Compra Confirmada"
-- "Sua compra foi confirmada!"
-- "Pagamento processado com sucesso"
+O Gemini analisou incorretamente - as críticas dele não refletem o código atual. Porém, ele sugeriu uma estrutura que **é praticamente idêntica ao código antigo** que você me enviou.
 
-## Mudancas no Arquivo
+A diferença REAL é:
+1. O template antigo **NÃO TINHA success-banner**
+2. O template antigo usava **logo diferente** (risecheckout.com vs Supabase Storage)
+3. O template antigo tinha **header com padding 40px**
 
-**Arquivo:** `supabase/functions/_shared/email-templates-purchase.ts`
+## Análise de Soluções (RISE V3 Seção 4.4)
 
-### 1. Remover CSS do success-banner (linhas 35-38)
+### Solução A: Usar código do Gemini
+Copiar o código sugerido pelo Gemini literalmente.
 
-Remover estas classes que nao serao mais usadas:
-```css
-.success-banner { ... }
-.success-badge { ... }
-.success-banner h1 { ... }
-.success-banner p { ... }
-```
+- Manutenibilidade: 7/10 (cria função duplicada `formatMoney`)
+- Zero DT: 6/10 (ignora arquitetura existente)
+- Arquitetura: 5/10 (usa URL externa `risecheckout.com` que pode cair)
+- Escalabilidade: 7/10
+- Segurança: 10/10
+- **NOTA FINAL: 7.0/10**
 
-### 2. Remover HTML do success-banner (linhas 81-85)
+### Solução B: Restaurar ao código ORIGINAL que você enviou
+Usar exatamente o código que você compartilhou como "versão original que funcionava", mas mantendo as imports corretas da arquitetura existente.
 
-Remover este bloco do content:
-```html
-<div class="success-banner">
-  <span class="success-badge">✓ Compra Confirmada</span>
-  <h1>Sua compra foi confirmada!</h1>
-  <p>Pagamento processado com sucesso</p>
-</div>
-```
+- Manutenibilidade: 10/10 (código comprovadamente funcional)
+- Zero DT: 10/10
+- Arquitetura: 10/10 (mantém imports do projeto)
+- Escalabilidade: 10/10
+- Segurança: 10/10
+- **NOTA FINAL: 10.0/10**
 
-### 3. Atualizar versao de texto (linha 141)
+### DECISÃO: Solução B (Nota 10.0)
 
-Remover tambem do template de texto a linha:
-```
-✓ COMPRA CONFIRMADA
-```
+## Implementação
 
-## Resultado Visual Esperado
+Vou restaurar o template **exatamente** como o código original que você enviou, com estas adaptações mínimas:
 
-Apos a mudanca, o email vai comecar assim:
-1. Logo Rise Checkout (header azul)
-2. "Ola, [Nome]!" (greeting)
-3. "Obrigado por comprar conosco..." (message)
-4. [CTA se houver]
-5. Resumo do Pedido
-
-## Arquivos Modificados
-
-| Arquivo | Acao |
+| Aspecto | Ação |
 |---------|------|
-| `email-templates-purchase.ts` | Remover CSS e HTML do success-banner |
+| Estrutura HTML/CSS | Exatamente como o original (sem success-banner) |
+| Header | `padding: 40px 20px`, img `max-width: 180px` |
+| formatCurrency | Mantém import existente (não duplicar função) |
+| Logo URL | Manter Supabase Storage (asset permanente nosso) |
+| Types | Manter interface existente |
+
+## Arquivo a Modificar
+
+| Arquivo | Ação |
+|---------|------|
+| `supabase/functions/_shared/email-templates-purchase.ts` | Reescrever com estrutura original |
+
+## Código Proposto
+
+```text
+Estrutura Original (sem success-banner):
+┌─────────────────────────────────────┐
+│ HEADER (padding: 40px 20px)         │
+│   Logo (max-width: 180px)           │
+├─────────────────────────────────────┤
+│ CONTENT                             │
+│   H1: "Sua compra foi confirmada!"  │
+│   P: Mensagem de boas-vindas        │
+│                                     │
+│   [CTA Section - se deliveryUrl]    │
+│                                     │
+│   Order Details Box                 │
+├─────────────────────────────────────┤
+│ SUPPORT                             │
+│   Link de contato                   │
+├─────────────────────────────────────┤
+│ FOOTER                              │
+│   Vendido por / Rise Checkout       │
+└─────────────────────────────────────┘
+```
+
+## CSS Original a Restaurar
+
+```css
+.header { text-align: center; padding: 40px 20px; border-bottom: 1px solid #E9ECEF; }
+.header img { max-width: 180px; }
+.content { padding: 32px; }
+.content h1 { font-size: 24px; font-weight: 700; color: #212529; margin: 0 0 12px; }
+.content p { font-size: 16px; line-height: 1.6; margin: 0 0 24px; color: #495057; }
+/* ... resto do CSS original ... */
+```
 
 ## Checklist RISE V3
 
-- [x] Mudanca isolada (apenas remocao de um bloco)
-- [x] Facil de testar e reverter se necessario
-- [x] Mantem estrutura funcional do template
+- [x] Análise de múltiplas soluções com notas
+- [x] Escolha da solução de maior nota (10.0)
+- [x] Usa código comprovadamente funcional
+- [x] Mantém arquitetura existente (imports)
+- [x] Remove success-banner (não existia no original)
+- [x] Restaura header padding original
 
