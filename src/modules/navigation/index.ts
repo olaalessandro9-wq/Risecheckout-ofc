@@ -23,7 +23,6 @@ export {
   SIDEBAR_WIDTHS,
   SIDEBAR_STORAGE_KEY,
   SIDEBAR_STATE_CYCLE,
-  SIDEBAR_STATE_CYCLE_LARGE,
 } from "./types/navigation.types";
 
 // Config

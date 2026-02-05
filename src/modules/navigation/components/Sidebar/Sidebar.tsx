@@ -86,16 +86,20 @@ export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop Sidebar - width real para ícones visíveis em collapsed */}
+      {/* Desktop Sidebar */}
       <aside
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={cn(
           "hidden md:flex fixed left-0 top-0 z-50 h-screen shrink-0 flex-col",
+          // REMOVIDO: backdrop-blur-sm (causa jank durante transições)
           "border-r border-border/40 bg-background",
           "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
-        style={{ width: `${currentWidth}px` }}
+        style={{
+          width: `${currentWidth}px`,
+          willChange: 'width',
+        }}
       >
         <SidebarContent {...contentProps} />
       </aside>

@@ -134,13 +134,3 @@ export const SIDEBAR_STATE_CYCLE: Readonly<Record<SidebarState, SidebarState>> =
   collapsed: "expanded",
   expanded: "hidden",
 } as const;
-
-/**
- * Ciclo de estados para monitores grandes (>= 1920px)
- * Apenas 2 estados: collapsed ↔ expanded (sem hidden)
- */
-export const SIDEBAR_STATE_CYCLE_LARGE: Readonly<Record<SidebarState, SidebarState>> = {
-  hidden: "collapsed",   // fallback caso chegue aqui
-  collapsed: "expanded",
-  expanded: "collapsed",  // pula hidden, vai direto para collapsed
-} as const;

@@ -749,13 +749,11 @@ html body [data-radix-select-viewport] [data-radix-select-item][style][data-high
   to { transform: rotate(360deg); }
 }
 
-/* ====== COMPOSITOR GUARD: transition-all restrito a propriedades seguras ====== */
-/* Impede que transition-all anime propriedades de layout (width, height, margin, etc.) */
-/* que causam reflow por frame. Apenas propriedades compositor-safe são permitidas.    */
-.transition-all {
-  transition-property: color, background-color, border-color,
-                       text-decoration-color, fill, stroke,
-                       opacity, box-shadow !important;
+/* ====== SIDEBAR WIDTH TRANSITION ====== */
+aside[class*="transition-[width]"] {
+  transition-property: width !important;
+  transition-duration: 300ms !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* ====== COLLAPSIBLE/ACCORDION ====== */

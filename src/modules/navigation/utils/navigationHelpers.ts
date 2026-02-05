@@ -118,20 +118,6 @@ export function getSidebarWidth(
 }
 
 /**
- * Calcula a margem do conteúdo principal SEM considerar hover.
- * 
- * Usado pelo AppShell para definir marginLeft. O hover da sidebar
- * NÃO deve causar reflow no conteúdo principal - a sidebar expande
- * visualmente "por cima" do conteúdo quando em hover.
- * 
- * @param sidebarState - Estado base do sidebar (sem hover)
- * @returns Margem em pixels
- */
-export function getContentMargin(sidebarState: SidebarState): number {
-  return SIDEBAR_WIDTHS[sidebarState];
-}
-
-/**
  * Determina se labels devem ser exibidos
  * 
  * @param sidebarState - Estado atual do sidebar

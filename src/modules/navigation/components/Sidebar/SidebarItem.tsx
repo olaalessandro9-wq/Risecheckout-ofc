@@ -99,7 +99,7 @@ export const SidebarItem = memo(function SidebarItem({
 
   // Classes compartilhadas
   const commonClasses = cn(
-    "group/item relative flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-colors duration-200 outline-none",
+    "group/item relative flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all duration-200 outline-none",
     isActive ? "bg-primary/10 shadow-sm" : "hover:bg-muted/50"
   );
 
@@ -108,10 +108,11 @@ export const SidebarItem = memo(function SidebarItem({
     <>
       <Icon
         className={cn(
-          "h-6 w-6 shrink-0 transition-colors duration-200",
+          "h-6 w-6 shrink-0 transition-all duration-300",
           isActive
             ? "text-primary"
-            : "text-muted-foreground group-hover/item:text-foreground"
+            : "text-muted-foreground group-hover/item:text-foreground",
+          !isActive && "group-hover/item:scale-110"
         )}
       />
       {showLabels && (
