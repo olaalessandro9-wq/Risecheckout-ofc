@@ -1,119 +1,149 @@
 
 
-# Diagnostico e Correcao: Crop Dialog com Imagem Invisivel
+# Correcao Definitiva: Crop Dialog (Imagem Invisivel + Layout Horizontal)
 
-## Causa Raiz Identificada (Investigacao Profunda)
+## Causa Raiz REAL Identificada (Rastreada Linha por Linha no Bundle)
 
-Ao rastrear o codigo-fonte do `react-advanced-cropper` v0.20.1 (linha por linha), identifiquei que o componente usa um sistema de "fade" para exibir a imagem:
+### Bug #1: "Carregando imagem..." Permanente
+
+Rastreando o codigo-fonte do `react-advanced-cropper` v0.20.1 (arquivo `index.esm-bundler.js`), descobri que o callback `onUpdate` **NAO** serve para detectar carregamento de imagem.
 
 ```text
-CSS do Cropper Interno:
+Linha 438-442 do bundle:
 
-.advanced-cropper-fade {
-  visibility: hidden;    <-- INVISIVEL por padrao
-  opacity: 0;            <-- TRANSPARENTE por padrao
-}
-.advanced-cropper-fade--visible {
-  opacity: 1;
-  visibility: visible;   <-- So aparece quando 'loaded' = true
-}
+useUpdateEffect(function () {
+    if (cropperRef.current) {
+        onUpdate?.(cropperRef.current);
+    }
+}, [cropperImage.isLoaded(), cropperImage.isLoading()]);
 ```
 
-O `CropperWrapper` so adiciona `--visible` quando `state && loaded` e verdadeiro. Se a imagem falha ao carregar internamente, `loaded` nunca se torna `true` e a imagem permanece **invisivel** -- mas o stencil e o checkerboard continuam visiveis porque estao fora do fade.
+O `onUpdate` dispara quando `isLoaded()` ou `isLoading()` mudam. POREM, o `resetCropper` (que inicializa o state com as dimensoes do boundary) e **ASYNC** e roda DEPOIS que `onUpdate` dispara. Resultado: nosso `handleUpdate` chama `cropper.getState()` quando o state ainda e `null`.
 
-### Por que a imagem falha ao carregar?
+A sequencia e:
+1. Imagem carrega com sucesso -> `isLoaded()` muda -> `onUpdate` dispara
+2. Nosso `handleUpdate` verifica `state` -> e `null` (resetCropper nao rodou ainda)
+3. `isImageLoaded` permanece `false` PARA SEMPRE
+4. `onUpdate` NUNCA dispara novamente (deps nao mudaram mais)
+5. Loading overlay fica visivel eternamente
 
-Tres problemas combinados:
+**A solucao correta**: usar `onReady` (linhas 433-436 do bundle):
 
-**PROBLEMA 1: Layout CSS incompativel**
-
-O container do FixedCropper usa `flex items-center justify-center`:
 ```text
-<div class="flex-1 flex items-center justify-center ...">
-  <FixedCropper class="h-full w-full" />
-</div>
+useUpdateEffect(function () {
+    if (cropperRef.current && currentImage) {
+        onReady?.(cropperRef.current);
+    }
+}, [currentImage]);
 ```
 
-O `.advanced-cropper` interno e `display: flex; flex-direction: column; max-height: 100%`. Seu filho `.advanced-cropper__boundary` usa `flex-grow: 1; min-height: 0`. Em um container `flex` com `items-center`, o boundary pode colapsar para 0 de altura, impedindo o stretcher de calcular as dimensoes corretas.
+`onReady` dispara quando `currentImage` e definido, o que acontece DENTRO de `resetCropper` (apos `stretchTo` completar). Neste ponto, o state JA esta inicializado corretamente.
 
-**PROBLEMA 2: `crossOrigin` desnecessario para blob/object URLs**
+### Bug #2: Zoom slider desincronizado
 
-O FixedCropper tem `crossOrigin={true}` como default (linha 1309 do bundle). Internamente, `createImage()` adiciona `crossOrigin="anonymous"` no `<img>`. Para URLs de blob (re-crop), isso e inofensivo. Mas para URLs do Supabase Storage (re-crop de imagem existente), se o bucket nao retornar headers CORS adequados, o `createImage` falha silenciosamente e `loaded` nunca se torna true.
+O mesmo `onUpdate` era usado para sincronizar o slider de zoom com scroll/pinch do usuario. Mas `onUpdate` **NAO** dispara em interacoes de zoom/pan -- apenas quando loading state muda.
 
-**PROBLEMA 3: Zero feedback de erro**
+A callback correta e `onTransformImageEnd`, que faz parte das `AbstractCropperInstanceCallbacks` e dispara apos cada interacao de zoom/pan do usuario.
 
-O `ImageCropDialog` nao passa `onError` para o FixedCropper. Se `loadImage` falha internamente, nao ha log, nao ha toast, nao ha nada. O dialog abre com checkerboard visivel mas a imagem simplesmente nao aparece.
+### Bug #3: Dialog super horizontal
+
+`sm:max-w-[90vw]` no dialog = 1728px de largura em monitor 1080p. O Cakto usa ~600-700px com area de cropper quase quadrada. O container do cropper usa `flex-1 min-h-[400px]` que cria um retangulo super largo e baixo.
 
 ---
 
-## Solucao (10.0/10)
+## Solucao
 
-### Correcao 1: Remover layout flex incompativel
-
-O container do cropper NAO deve usar `flex items-center justify-center`. O FixedCropper gerencia seu proprio layout internamente. O container deve apenas fornecer dimensoes explicitas.
+### Arquivo unico a modificar
 
 ```text
-ANTES (quebrado):
-<div class="flex-1 flex items-center justify-center ...">
-  <FixedCropper class="h-full w-full" />
-</div>
-
-DEPOIS (correto):
-<div class="flex-1 relative ...">
-  <FixedCropper class="absolute inset-0" />
-</div>
+src/components/ui/image-crop-dialog/ImageCropDialog.tsx
 ```
 
-Usar `position: relative` no container e `position: absolute; inset: 0` no cropper garante que o cropper receba dimensoes explicitas do container, sem depender de flex sizing.
-
-### Correcao 2: Desabilitar crossOrigin para blob URLs
-
-Passar `crossOrigin={false}` no FixedCropper. O componente ImageCropDialog recebe um File (blob), entao a URL sera sempre um object URL (blob:) que e same-origin. crossOrigin e desnecessario e potencialmente prejudicial.
-
-### Correcao 3: Adicionar onError handler
-
-Passar `onError` para o FixedCropper para logar falhas de carregamento. Isso garante que qualquer falha futura seja diagnosticavel.
-
-### Correcao 4: Adicionar altura minima explicita no container
-
-Garantir que o container do cropper tenha `min-h-[400px]` E use posicionamento absoluto para dar dimensoes explicitas ao boundary.
-
----
-
-## Arquivos a Modificar
+### Mudanca 1: Dialog compacto estilo Cakto
 
 ```text
-src/components/ui/image-crop-dialog/
-  ImageCropDialog.tsx     -- EDITAR (layout fix + crossOrigin + onError)
+ANTES:  sm:max-w-[90vw] max-h-[90vh]
+DEPOIS: sm:max-w-[680px] max-h-[90vh]
 ```
 
-Apenas 1 arquivo. A correcao e cirurgica e ataca a raiz.
+Largura maxima de 680px cria um dialog compacto similar ao Cakto.
 
----
+### Mudanca 2: Area de crop quadrada
 
-## Mudancas Especificas
+```text
+ANTES:  flex-1 relative rounded-lg overflow-hidden min-h-[400px]
+DEPOIS: w-full h-[500px] max-h-[60vh] relative rounded-lg overflow-hidden
+```
 
-### ImageCropDialog.tsx
+- `h-[500px]`: altura fixa de 500px (quase quadrado com 640px de largura util)
+- `max-h-[60vh]`: cap para telas menores (768px -> 460px)
+- Remove `flex-1` que fazia o container expandir excessivamente
+- Remove `min-h-[400px]` substituido pela altura fixa
 
-1. **Container do cropper** (linha 179-200):
-   - Remover `flex items-center justify-center`
-   - Adicionar `relative`
-   - Mudar FixedCropper para `className="absolute inset-0"`
+### Mudanca 3: Substituir onUpdate por onReady
 
-2. **FixedCropper props** (linha 184-198):
-   - Adicionar `crossOrigin={false}`
-   - Adicionar `onError` callback com log
+```text
+ANTES:
+  const handleUpdate = useCallback((cropper) => {
+    const state = cropper.getState();
+    if (state?.visibleArea && state.boundary.width > 0) {
+      setZoom(Math.round(visibleAreaScale * 100));
+    }
+    if (state && !isImageLoaded) {
+      setIsImageLoaded(true);
+    }
+  }, [isImageLoaded]);
 
-3. **Feedback visual** (novo):
-   - Mostrar estado de loading enquanto a imagem carrega
+DEPOIS:
+  const handleReady = useCallback(() => {
+    setIsImageLoaded(true);
+  }, []);
+```
+
+`onReady` dispara no momento correto: apos `resetCropper` completar e o state estar inicializado.
+
+### Mudanca 4: Substituir onUpdate zoom sync por onTransformImageEnd
+
+```text
+NOVO:
+  const handleTransformEnd = useCallback((cropper) => {
+    const state = cropper.getState();
+    if (state?.visibleArea && state.boundary.width > 0) {
+      const visibleAreaScale = state.boundary.width / state.visibleArea.width;
+      setZoom(Math.round(visibleAreaScale * 100));
+    }
+  }, []);
+```
+
+`onTransformImageEnd` dispara apos cada zoom/pan do usuario, garantindo que o slider de zoom fique sincronizado.
+
+### Mudanca 5: Atualizar props do FixedCropper
+
+```text
+ANTES:
+  <FixedCropper
+    onUpdate={handleUpdate}
+    onError={handleCropperError}
+  />
+
+DEPOIS:
+  <FixedCropper
+    onReady={handleReady}
+    onTransformImageEnd={handleTransformEnd}
+    onError={handleCropperError}
+  />
+```
+
+Remove `onUpdate` completamente. Adiciona os callbacks corretos para cada finalidade.
 
 ---
 
 ## Validacao de Sucesso
 
-1. Abrir crop dialog ao selecionar nova imagem -- imagem aparece
-2. Abrir crop dialog ao clicar "Recortar" em imagem existente -- imagem aparece
-3. Zoom/pan funcionam corretamente
-4. Salvar produz arquivo com dimensoes corretas
-5. Erros de carregamento mostram feedback ao usuario
+1. Abrir crop dialog -- imagem aparece (loading desaparece apos carregamento)
+2. Dialog tem formato compacto, quase quadrado (estilo Cakto)
+3. Zoom via scroll/pinch sincroniza com slider
+4. Zoom via slider funciona corretamente
+5. Salvar produz arquivo com dimensoes corretas do preset
+6. onError mostra toast se a imagem falhar ao carregar
 
