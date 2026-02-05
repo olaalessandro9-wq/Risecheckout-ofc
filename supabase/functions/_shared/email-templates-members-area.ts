@@ -29,10 +29,10 @@ export function getMembersAreaConfirmationTemplate(data: PurchaseConfirmationDat
       .content { padding: 32px; }
       .content h1 { font-size: 24px; font-weight: 700; color: #212529; margin: 0 0 12px; }
       .content p { font-size: 16px; line-height: 1.6; margin: 0 0 24px; color: #495057; }
-      .cta-section { background: linear-gradient(135deg, #004fff 0%, #002875 100%); padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 32px; }
-      .cta-section h2 { font-size: 18px; font-weight: 600; color: #FFFFFF; margin: 0 0 8px; }
-      .cta-section p { font-size: 14px; color: rgba(255,255,255,0.9); margin: 0 0 20px; }
-      .cta-button { display: inline-block; background-color: #FFFFFF; color: #004fff !important; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px; }
+      .cta-section { background-color: #F8F9FA; border: 1px solid #E9ECEF; padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 32px; }
+      .cta-section h2 { font-size: 18px; font-weight: 600; color: #212529; margin: 0 0 8px; }
+      .cta-section p { font-size: 14px; color: #495057; margin: 0 0 20px; }
+      .cta-button { display: inline-block; background: linear-gradient(135deg, #004fff 0%, #002875 100%); color: #ffffff !important; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px; }
       .info-box { background-color: #F0FDF4; border: 1px solid #86EFAC; padding: 16px; border-radius: 6px; margin-bottom: 24px; }
       .info-box p { font-size: 14px; color: #166534; margin: 0; }
       .order-details { border: 1px solid #E9ECEF; border-radius: 6px; }
