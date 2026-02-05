@@ -34,8 +34,8 @@ export function getStudentInviteTemplate(data: StudentInviteData): string {
       .container { max-width: 600px; margin: 40px auto; background-color: #FFFFFF; border: 1px solid #E9ECEF; border-radius: 8px; overflow: hidden; }
       .header { text-align: center; padding: 0; line-height: 0; background-color: #fff; }
       .header img { display: block; width: 100%; max-width: 600px; height: auto; }
-      .success-banner { background: linear-gradient(135deg, #004fff 0%, #002875 100%); padding: 24px 32px; text-align: center; }
-      .success-banner h1 { font-size: 24px; font-weight: 700; color: #212529; margin: 0; }
+      .invite-title { text-align: center; padding: 20px 32px 24px; }
+      .invite-title h1 { font-size: 24px; font-weight: 700; color: #212529; margin: 0; }
       .content { padding: 32px; }
       .content p { font-size: 16px; line-height: 1.6; margin: 0 0 16px; color: #495057; }
       .content p strong { color: #212529; }
@@ -55,7 +55,7 @@ export function getStudentInviteTemplate(data: StudentInviteData): string {
     <div class="header">
       <img src="${getLogoUrl()}" alt="Rise Checkout Logo" width="600">
     </div>
-    <div class="success-banner">
+    <div class="invite-title">
       <h1>Você Foi Convidado!</h1>
     </div>
     <div class="content">
