@@ -4,7 +4,12 @@
  * Endpoint para disparo de emails de preview/teste.
  * Permite visualizar qualquer template sem criar registros no banco.
  * 
- * @version 1.0.0 - RISE V3 Compliance
+ * Features (v2.0.0):
+ * - Subject único por envio (timestamp) para evitar thread/consolidation no Gmail
+ * - Email Size Guard: minifica e valida tamanho antes de enviar
+ * - Rejeita emails que excedam limite de 95KB (Gmail clipa em ~102KB)
+ * 
+ * @version 2.0.0 - RISE V3 Compliance
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -14,6 +19,7 @@ import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { sendEmail } from "../_shared/zeptomail.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { processEmailHtml } from "../_shared/email-rendering.ts";
 
 // Templates
 import {
@@ -44,6 +50,22 @@ import {
 const log = createLogger("EmailPreview");
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Generates a unique timestamp suffix for preview subjects.
+ * Format: "HH:mm:ss" to differentiate emails in Gmail threads.
+ */
+function getTimestampSuffix(): string {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -67,8 +89,7 @@ interface PreviewRequest {
 // ============================================================================
 
 function getPasswordResetTemplate(data: { name: string; resetLink: string }): string {
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><title>[PREVIEW] Redefinir Senha</title></head>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -84,8 +105,7 @@ function getPasswordResetTemplate(data: { name: string; resetLink: string }): st
 }
 
 function getStudentInviteTemplate(data: { studentName: string; productName: string; producerName: string; accessLink: string }): string {
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><title>[PREVIEW] Convite de Acesso</title></head>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -100,8 +120,7 @@ function getStudentInviteTemplate(data: { studentName: string; productName: stri
 }
 
 function getGdprRequestTemplate(data: { email: string; confirmationLink: string }): string {
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><title>[PREVIEW] Solicitação LGPD</title></head>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -121,11 +140,13 @@ function getGdprRequestTemplate(data: { email: string; confirmationLink: string 
 // ============================================================================
 
 function processTemplate(templateType: TemplateType): { subject: string; htmlBody: string; textBody: string } {
+  const timestamp = getTimestampSuffix();
+  
   switch (templateType) {
     case "purchase-standard": {
       const data = getMockPurchaseData();
       return {
-        subject: "[PREVIEW] Compra Confirmada - Rise Checkout",
+        subject: `[PREVIEW] Compra Confirmada • ${timestamp}`,
         htmlBody: getPurchaseConfirmationTemplate(data),
         textBody: getPurchaseConfirmationTextTemplate(data),
       };
@@ -133,7 +154,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
     case "purchase-members-area": {
       const data = getMockMembersAreaData();
       return {
-        subject: "[PREVIEW] Acesso Liberado - Área de Membros",
+        subject: `[PREVIEW] Acesso Liberado - Área de Membros • ${timestamp}`,
         htmlBody: getMembersAreaConfirmationTemplate(data),
         textBody: getMembersAreaConfirmationTextTemplate(data),
       };
@@ -141,7 +162,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
     case "purchase-external": {
       const data = getMockExternalData();
       return {
-        subject: "[PREVIEW] Compra Confirmada - Entrega Externa",
+        subject: `[PREVIEW] Compra Confirmada - Entrega Externa • ${timestamp}`,
         htmlBody: getExternalDeliveryConfirmationTemplate(data),
         textBody: getExternalDeliveryConfirmationTextTemplate(data),
       };
@@ -149,7 +170,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
     case "new-sale": {
       const data = getMockNewSaleData();
       return {
-        subject: "[PREVIEW] 💰 Nova Venda Realizada!",
+        subject: `[PREVIEW] 💰 Nova Venda Realizada! • ${timestamp}`,
         htmlBody: getNewSaleTemplate(data),
         textBody: getNewSaleTextTemplate(data),
       };
@@ -157,7 +178,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
     case "pix-pending": {
       const data = getMockPaymentPendingData();
       return {
-        subject: "[PREVIEW] Aguardando Pagamento PIX",
+        subject: `[PREVIEW] Aguardando Pagamento PIX • ${timestamp}`,
         htmlBody: getPaymentPendingTemplate(data),
         textBody: getPaymentPendingTextTemplate(data),
       };
@@ -165,7 +186,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
     case "password-reset": {
       const data = getMockPasswordResetData();
       return {
-        subject: "[PREVIEW] Redefinir Sua Senha",
+        subject: `[PREVIEW] Redefinir Sua Senha • ${timestamp}`,
         htmlBody: getPasswordResetTemplate(data),
         textBody: `Olá ${data.name}, clique no link para redefinir sua senha: ${data.resetLink}`,
       };
@@ -173,7 +194,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
     case "student-invite": {
       const data = getMockStudentInviteData();
       return {
-        subject: "[PREVIEW] Você Foi Convidado!",
+        subject: `[PREVIEW] Você Foi Convidado! • ${timestamp}`,
         htmlBody: getStudentInviteTemplate(data),
         textBody: `Olá ${data.studentName}, ${data.producerName} liberou seu acesso ao ${data.productName}. Acesse: ${data.accessLink}`,
       };
@@ -181,7 +202,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
     case "gdpr-request": {
       const data = getMockGdprData();
       return {
-        subject: "[PREVIEW] Confirme Sua Solicitação LGPD",
+        subject: `[PREVIEW] Confirme Sua Solicitação LGPD • ${timestamp}`,
         htmlBody: getGdprRequestTemplate(data),
         textBody: `Confirme sua solicitação LGPD para ${data.email}: ${data.confirmationLink}`,
       };
@@ -238,14 +259,36 @@ serve(async (req: Request) => {
     // Process template
     const { subject, htmlBody, textBody } = processTemplate(templateType);
 
+    // Apply Email Size Guard
+    const processed = processEmailHtml(htmlBody, { template: templateType, subject });
+    
+    if (!processed.validation.isValid) {
+      log.error("Email size validation failed", {
+        templateType,
+        error: processed.validation.error,
+      });
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: processed.validation.error,
+        sizeInfo: {
+          byteLength: processed.minifiedByteLength,
+          formattedSize: processed.validation.formattedSize,
+          percentOfLimit: processed.validation.percentOfLimit,
+        },
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Determine recipient (use producer email if not specified)
     const finalRecipient = recipientEmail || producer.email;
 
-    // Send email
+    // Send email (using minified HTML)
     const result = await sendEmail({
       to: { email: finalRecipient },
       subject,
-      htmlBody,
+      htmlBody: processed.html,
       textBody,
       type: "transactional",
       clientReference: `preview_${templateType}_${Date.now()}`,
@@ -262,13 +305,24 @@ serve(async (req: Request) => {
       });
     }
 
-    log.info(`Preview email sent: ${templateType} -> ${finalRecipient}`);
+    log.info(`Preview email sent: ${templateType} -> ${finalRecipient}`, {
+      sizeInfo: {
+        original: processed.originalByteLength,
+        minified: processed.minifiedByteLength,
+        saved: processed.savedBytes,
+      },
+    });
 
     return new Response(JSON.stringify({
       success: true,
       templateType,
       sentTo: finalRecipient,
       messageId: result.messageId,
+      sizeInfo: {
+        formattedSize: processed.validation.formattedSize,
+        percentOfLimit: processed.validation.percentOfLimit,
+        warning: processed.validation.warning,
+      },
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
