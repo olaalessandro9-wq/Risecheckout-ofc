@@ -37,7 +37,7 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       .cta-section { background-color: #F1F3F5; padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 32px; }
       .cta-section h2 { font-size: 18px; font-weight: 600; color: #212529; margin: 0 0 8px; }
       .cta-section p { font-size: 14px; color: #495057; margin: 0 0 20px; }
-      .cta-button { display: inline-block; background-color: #007BFF; color: #FFFFFF; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px; }
+      .cta-button { display: inline-block; background: linear-gradient(135deg, #004fff 0%, #002875 100%); color: #FFFFFF !important; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px; }
       .order-details { border: 1px solid #E9ECEF; border-radius: 6px; }
       .order-details h2 { font-size: 18px; font-weight: 700; color: #212529; margin: 0; padding: 20px; border-bottom: 1px solid #E9ECEF; }
       .order-item { display: flex; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #E9ECEF; }
@@ -68,7 +68,7 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
   // Payment method row (optional)
   const paymentMethodRow = data.paymentMethod ? `
         <div class="order-item">
-          <span class="order-label">Pagamento</span>
+          <span class="order-label">Pagamento:</span>
           <span class="order-value">${data.paymentMethod}</span>
         </div>` : '';
 
@@ -92,16 +92,16 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       <div class="order-details">
         <h2>Resumo do Pedido</h2>
         <div class="order-item">
-          <span class="order-label">Produto</span>
+          <span class="order-label">Produto:</span>
           <span class="order-value">${data.productName}</span>
         </div>
         <div class="order-item">
-          <span class="order-label">Nº do Pedido</span>
+          <span class="order-label">Nº do Pedido:</span>
           <span class="order-value">#${data.orderId ? data.orderId.substring(0, 8).toUpperCase() : '---'}</span>
         </div>
         ${paymentMethodRow}
         <div class="total-row">
-          <span class="order-label">Total</span>
+          <span class="order-label">Total:</span>
           <span class="order-value">${formatCurrency(data.amountCents)}</span>
         </div>
       </div>
