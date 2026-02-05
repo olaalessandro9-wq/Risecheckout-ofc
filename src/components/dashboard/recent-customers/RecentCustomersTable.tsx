@@ -3,16 +3,15 @@
  * 
  * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * - Limite de 150 linhas: ✓ (antes: 437 linhas)
+ * - Limite de 150 linhas: ✓
  * - Single Responsibility: Orquestra componentes filhos
- * - Clean Architecture: Lógica separada em hooks
- * - Otimizado para ultrawide via Context SSOT
+ * - ZERO framer-motion - Tabelas não devem animar (performance)
+ * - CSS containment para isolar repaints
  */
 
 import { useState, useMemo } from "react";
 import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion } from "framer-motion";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useDecryptCustomerBatch } from "@/hooks/useDecryptCustomerBatch";
 import { OrderDetailsDialog } from "../OrderDetailsDialog";
@@ -33,7 +32,7 @@ interface RecentCustomersTableProps {
 
 export function RecentCustomersTable({ customers, isLoading = false, onRefresh }: RecentCustomersTableProps) {
   const { user } = useUnifiedAuth();
-  const { isUltrawide, disableBlur, disableHoverEffects } = useUltrawidePerformance();
+  const { disableHoverEffects } = useUltrawidePerformance();
   const [selectedOrder, setSelectedOrder] = useState<Customer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -101,16 +100,6 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
     status: c.status
   }));
 
-  // Wrapper condicional: div simples em ultrawide
-  const Wrapper = isUltrawide ? "div" : motion.div;
-  const wrapperProps = isUltrawide
-    ? {}
-    : {
-        initial: { opacity: 0, y: 10 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.25, delay: 0.1 },
-      };
-
   return (
     <>
       <OrderDetailsDialog
@@ -131,12 +120,15 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
         productOwnerId={selectedOrder?.productOwnerId}
       />
 
-      <Wrapper {...wrapperProps} className="relative">
+      <div 
+        className="relative" 
+        style={{ contain: "layout style" }}
+      >
         <div
           className={cn(
             "relative bg-card/95 border border-border/50 rounded-2xl p-6",
-            !isUltrawide && "backdrop-blur-sm hover:border-primary/20 hover:shadow-lg transition-all duration-300",
-            isUltrawide && "transition-colors duration-200"
+            !disableHoverEffects && "hover:border-primary/20 hover:shadow-lg transition-colors transition-shadow duration-200",
+            disableHoverEffects && "transition-colors duration-150"
           )}
         >
           <div className="space-y-6">
@@ -150,12 +142,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
               hasData={pagination.filteredCustomers.length > 0}
             />
 
-            <div
-              className={cn(
-                "border border-border/30 rounded-xl overflow-hidden bg-background/20 overflow-x-auto",
-                !isUltrawide && "backdrop-blur-sm"
-              )}
-            >
+            <div className="border border-border/30 rounded-xl overflow-hidden bg-background/20 overflow-x-auto">
               <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/50 border-border/30">
@@ -193,7 +180,7 @@ export function RecentCustomersTable({ customers, isLoading = false, onRefresh }
             )}
           </div>
         </div>
-      </Wrapper>
+      </div>
     </>
   );
 }

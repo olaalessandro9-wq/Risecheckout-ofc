@@ -49,6 +49,7 @@ export interface ChartPerformanceConfig {
 export interface UltrawidePerformanceContextValue {
   readonly isUltrawide: boolean;
   readonly disableAnimations: boolean;
+  readonly disableAllAnimations: boolean;
   readonly disableBlur: boolean;
   readonly disableHoverEffects: boolean;
   readonly chartConfig: ChartPerformanceConfig;
@@ -86,6 +87,7 @@ const ultrawideChartConfig: ChartPerformanceConfig = {
 const defaultContextValue: UltrawidePerformanceContextValue = {
   isUltrawide: false,
   disableAnimations: false,
+  disableAllAnimations: false,
   disableBlur: false,
   disableHoverEffects: false,
   chartConfig: defaultChartConfig,
@@ -129,6 +131,7 @@ export function UltrawidePerformanceProvider({ children }: UltrawidePerformanceP
   const value = React.useMemo<UltrawidePerformanceContextValue>(() => ({
     isUltrawide,
     disableAnimations: isUltrawide,
+    disableAllAnimations: isUltrawide,
     disableBlur: isUltrawide,
     disableHoverEffects: isUltrawide,
     chartConfig: isUltrawide ? ultrawideChartConfig : defaultChartConfig,
