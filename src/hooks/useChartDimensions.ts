@@ -42,7 +42,7 @@ interface ChartDimensions {
  */
 export function useChartDimensions(
   ref: RefObject<HTMLElement | null>,
-  transitionDelay: number = 350
+  transitionDelay: number = 50
 ): ChartDimensions {
   const [dimensions, setDimensions] = useState<ChartDimensions>({ 
     width: 0, 

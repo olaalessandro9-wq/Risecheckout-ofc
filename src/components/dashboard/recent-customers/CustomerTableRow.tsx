@@ -71,7 +71,7 @@ export function CustomerTableRow({ customer, displayEmail, onViewDetails }: Cust
               : customer.status === "Chargeback"
               ? "bg-red-500/10 text-red-500 border-red-500/20"
               : "bg-secondary text-secondary-foreground",
-            !isUltrawide && "hover:bg-opacity-20 transition-all"
+            !isUltrawide && "hover:bg-opacity-20 transition-colors"
           )}
         >
           {customer.status}
@@ -83,7 +83,7 @@ export function CustomerTableRow({ customer, displayEmail, onViewDetails }: Cust
           size="sm"
           className={cn(
             "gap-2",
-            !isUltrawide && "hover:bg-muted/50 hover:text-primary transition-all"
+            !isUltrawide && "hover:bg-muted/50 hover:text-primary transition-colors"
           )}
           onClick={onViewDetails}
         >

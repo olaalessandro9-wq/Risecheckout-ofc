@@ -14,12 +14,13 @@
  * @see useFlipTransition para detalhes do motor FLIP
  */
 
-import { Suspense, memo, useRef, lazy } from "react";
+import { Suspense, memo, useRef, useMemo, lazy } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar, useNavigation } from "@/modules/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { useScrollShadow } from "@/hooks/useScrollShadow";
 import { useFlipTransition } from "@/hooks/useFlipTransition";
+import { getContentMargin } from "@/modules/navigation/utils/navigationHelpers";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -67,12 +68,16 @@ export default function AppShell() {
   const isMobile =
     typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
 
-  // Largura efetiva do sidebar
-  const effectiveWidth = isMobile ? 0 : navigation.currentWidth;
+  // Margem do conteúdo baseada APENAS no estado base (sem hover)
+  // Hover da sidebar NÃO causa reflow no conteúdo - sidebar expande "por cima"
+  const contentMargin = useMemo(
+    () => isMobile ? 0 : getContentMargin(navigation.state.sidebarState),
+    [isMobile, navigation.state.sidebarState]
+  );
 
   // FLIP Transition: anima o movimento via transform (compositor-only)
   // O layout (marginLeft) é aplicado imediatamente, sem transição CSS
-  useFlipTransition(mainContainerRef, effectiveWidth, {
+  useFlipTransition(mainContainerRef, contentMargin, {
     duration: 300,
     easing: "cubic-bezier(0.4, 0, 0.2, 1)",
   });
@@ -93,7 +98,7 @@ export default function AppShell() {
           "flex min-w-0 flex-1 flex-col"
           // REMOVIDO: "transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
-        style={{ marginLeft: `${effectiveWidth}px` }}
+        style={{ marginLeft: `${contentMargin}px` }}
       >
         <Topbar
           scrolled={scrolled}
