@@ -32,6 +32,10 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       .header { text-align: center; padding: 0; line-height: 0; }
       .header img { display: block; width: 100%; max-width: 400px; height: auto; margin: 0 auto; }
       .content { padding: 32px; }
+      .success-banner { background-color: #F8F9FA; padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 24px; border: 1px solid #E9ECEF; }
+      .success-badge { display: inline-block; background-color: #E9ECEF; color: #495057; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+      .success-banner h1 { font-size: 22px; font-weight: 700; color: #212529; margin: 16px 0 4px; }
+      .success-banner p { font-size: 14px; color: #6B7280; margin: 0; }
       .greeting { font-size: 18px; font-weight: 600; color: #212529; margin: 0 0 12px; }
       .message { font-size: 16px; line-height: 1.6; color: #495057; margin: 0 0 24px; }
       .cta-section { background-color: #F1F3F5; padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 24px; }
@@ -74,6 +78,11 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       <img src="${logoUrl}" alt="Rise Checkout" width="400">
     </div>
     <div class="content">
+      <div class="success-banner">
+        <span class="success-badge">✓ Compra Confirmada</span>
+        <h1>Sua compra foi confirmada!</h1>
+        <p>Pagamento processado com sucesso</p>
+      </div>
       
       <p class="greeting">Olá, ${data.customerName}!</p>
       <p class="message">Obrigado por comprar conosco. Seu pagamento foi processado com sucesso.</p>
@@ -129,7 +138,9 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
 export function getPurchaseConfirmationTextTemplate(data: PurchaseConfirmationData): string {
   const supportEmail = data.supportEmail || getSupportEmail();
   
-  let text = `Olá, ${data.customerName}!
+  let text = `✓ COMPRA CONFIRMADA
+
+Olá, ${data.customerName}!
 
 Obrigado por comprar conosco. Seu pagamento foi processado com sucesso.
 `;
