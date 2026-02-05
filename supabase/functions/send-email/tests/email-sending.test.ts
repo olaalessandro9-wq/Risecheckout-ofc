@@ -156,6 +156,7 @@ Deno.test(`[${FUNCTION_NAME}] Email - builds correct ZeptoMail payload structure
     const { email: fromEmail, name: fromName } = getFromEmail(payload.type);
     const recipients = Array.isArray(payload.to) ? payload.to : [payload.to];
     
+    // RISE V3: Tracking desativado por padrão (compatibilidade Gmail)
     const zeptoPayload = {
       from: {
         address: fromEmail,
@@ -170,8 +171,8 @@ Deno.test(`[${FUNCTION_NAME}] Email - builds correct ZeptoMail payload structure
       subject: payload.subject,
       htmlbody: payload.htmlBody,
       textbody: payload.textBody,
-      track_clicks: payload.trackClicks ?? true,
-      track_opens: payload.trackOpens ?? true,
+      track_clicks: payload.trackClicks ?? false,
+      track_opens: payload.trackOpens ?? false,
       client_reference: payload.clientReference,
     };
     
@@ -187,20 +188,22 @@ Deno.test(`[${FUNCTION_NAME}] Email - builds correct ZeptoMail payload structure
   }
 });
 
-Deno.test(`[${FUNCTION_NAME}] Email - defaults track_clicks to true`, () => {
+Deno.test(`[${FUNCTION_NAME}] Email - defaults track_clicks to false (Gmail compatibility)`, () => {
   const payload = createSendEmailPayload();
   delete payload.trackClicks;
   
-  const trackClicks = payload.trackClicks ?? true;
-  assertEquals(trackClicks, true);
+  // RISE V3: Default alterado para false para evitar truncamento no Gmail
+  const trackClicks = payload.trackClicks ?? false;
+  assertEquals(trackClicks, false);
 });
 
-Deno.test(`[${FUNCTION_NAME}] Email - defaults track_opens to true`, () => {
+Deno.test(`[${FUNCTION_NAME}] Email - defaults track_opens to false (Gmail compatibility)`, () => {
   const payload = createSendEmailPayload();
   delete payload.trackOpens;
   
-  const trackOpens = payload.trackOpens ?? true;
-  assertEquals(trackOpens, true);
+  // RISE V3: Default alterado para false para evitar truncamento no Gmail
+  const trackOpens = payload.trackOpens ?? false;
+  assertEquals(trackOpens, false);
 });
 
 Deno.test(`[${FUNCTION_NAME}] Email - allows disabling tracking`, () => {
