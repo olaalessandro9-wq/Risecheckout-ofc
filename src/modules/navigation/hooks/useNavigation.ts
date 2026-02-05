@@ -15,6 +15,7 @@ import { useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useMachine } from "@xstate/react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useSidebarTransform } from "@/hooks/useSidebarTransform";
 import { navigationMachine } from "../machines/navigationMachine";
 import type { NavigationMachineEvent } from "../machines/navigationMachine.types";
 import {
@@ -47,6 +48,14 @@ export interface UseNavigationReturn {
   showLabels: boolean;
   currentWidth: number;
   visibleItems: readonly NavItemConfig[];
+
+  // Compositor Transform (Full Compositor Architecture)
+  /** translateX value for sidebar transform animation */
+  translateX: number;
+  /** Visible width for main content marginLeft */
+  visibleWidth: number;
+  /** Fixed sidebar width (always SIDEBAR_WIDTHS.expanded) */
+  fixedWidth: number;
 
   // Actions para Sidebar
   cycleSidebarState: () => void;
@@ -145,6 +154,9 @@ export function useNavigation(): UseNavigationReturn {
     [state.sidebarState, state.isHovering]
   );
 
+  // Compositor Transform values
+  const sidebarTransform = useSidebarTransform(state.sidebarState, state.isHovering);
+
   // ========================================
   // ACTIONS MEMOIZADAS
   // ========================================
@@ -199,6 +211,9 @@ export function useNavigation(): UseNavigationReturn {
     showLabels,
     currentWidth,
     visibleItems,
+    translateX: sidebarTransform.translateX,
+    visibleWidth: sidebarTransform.visibleWidth,
+    fixedWidth: sidebarTransform.fixedWidth,
     cycleSidebarState,
     setMobileOpen,
     handleMobileNavigate,

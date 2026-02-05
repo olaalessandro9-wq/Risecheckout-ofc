@@ -68,7 +68,7 @@ export default function AppShell() {
     typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
 
   // Largura efetiva do sidebar
-  const effectiveWidth = isMobile ? 0 : navigation.currentWidth;
+  const effectiveWidth = isMobile ? 0 : navigation.visibleWidth;
 
   // FLIP Transition: anima o movimento via transform (compositor-only)
   // O layout (marginLeft) é aplicado imediatamente, sem transição CSS

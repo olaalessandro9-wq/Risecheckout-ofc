@@ -32,7 +32,8 @@ export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
   const {
     state,
     showLabels,
-    currentWidth,
+    translateX,
+    fixedWidth,
     visibleItems,
     setMobileOpen,
     handleMobileNavigate,
@@ -92,13 +93,12 @@ export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
         onMouseLeave={handleMouseLeave}
         className={cn(
           "hidden md:flex fixed left-0 top-0 z-50 h-screen shrink-0 flex-col",
-          // REMOVIDO: backdrop-blur-sm (causa jank durante transições)
           "border-r border-border/40 bg-background",
-          "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          "transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
         style={{
-          width: `${currentWidth}px`,
-          willChange: 'width',
+          width: `${fixedWidth}px`,
+          transform: `translateX(${translateX}px)`,
         }}
       >
         <SidebarContent {...contentProps} />
