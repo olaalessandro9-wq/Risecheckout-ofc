@@ -3,10 +3,17 @@
  *
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  *
- * Tests for base email template utilities covering:
+ * Tests for base email template utilities.
+ * 
+ * NOTE: getBaseStyles() and getEmailWrapper() are DEPRECATED.
+ * Tests kept for backwards compatibility verification only.
+ * New templates MUST NOT use these functions.
+ * 
+ * Covered utilities:
  * - formatCurrency function
- * - getBaseStyles function
- * - getEmailWrapper function
+ * - getLogoUrl function
+ * - getBaseStyles function (DEPRECATED - test only)
+ * - getEmailWrapper function (DEPRECATED - test only)
  *
  * @module _shared/email-templates-base
  */
@@ -19,6 +26,7 @@ import {
   formatCurrency,
   getBaseStyles,
   getEmailWrapper,
+  getLogoUrl,
 } from "./email-templates-base.ts";
 
 // ============================================================================
@@ -66,63 +74,78 @@ Deno.test("formatCurrency - handles exact reais", () => {
 });
 
 // ============================================================================
-// TEST SUITE: getBaseStyles
+// TEST SUITE: getLogoUrl
 // ============================================================================
 
-Deno.test("getBaseStyles - returns string with style tag", () => {
+Deno.test("getLogoUrl - returns Supabase Storage URL", () => {
+  const url = getLogoUrl();
+  assertStringIncludes(url, "supabase.co/storage/v1/object/public/brand-assets");
+});
+
+Deno.test("getLogoUrl - returns stable URL (no env dependency)", () => {
+  const url1 = getLogoUrl();
+  const url2 = getLogoUrl();
+  assertEquals(url1, url2);
+});
+
+// ============================================================================
+// TEST SUITE: getBaseStyles (DEPRECATED - backwards compat only)
+// ============================================================================
+
+Deno.test("[DEPRECATED] getBaseStyles - returns string with style tag", () => {
   const styles = getBaseStyles();
   assertStringIncludes(styles, "<style>");
   assertStringIncludes(styles, "</style>");
 });
 
-Deno.test("getBaseStyles - includes font import", () => {
+Deno.test("[DEPRECATED] getBaseStyles - includes font import", () => {
   const styles = getBaseStyles();
   assertStringIncludes(styles, "@import url");
   assertStringIncludes(styles, "Inter");
 });
 
-Deno.test("getBaseStyles - includes body styles", () => {
+Deno.test("[DEPRECATED] getBaseStyles - includes body styles", () => {
   const styles = getBaseStyles();
   assertStringIncludes(styles, "body {");
   assertStringIncludes(styles, "font-family");
 });
 
-Deno.test("getBaseStyles - includes email-container styles", () => {
+Deno.test("[DEPRECATED] getBaseStyles - includes email-container styles", () => {
   const styles = getBaseStyles();
   assertStringIncludes(styles, ".email-container");
   assertStringIncludes(styles, "max-width: 600px");
 });
 
-Deno.test("getBaseStyles - includes header styles", () => {
+Deno.test("[DEPRECATED] getBaseStyles - includes header styles", () => {
   const styles = getBaseStyles();
   assertStringIncludes(styles, ".header {");
   assertStringIncludes(styles, "background:");
 });
 
-Deno.test("getBaseStyles - includes order-box styles", () => {
+Deno.test("[DEPRECATED] getBaseStyles - includes order-box styles", () => {
   const styles = getBaseStyles();
   assertStringIncludes(styles, ".order-box {");
   assertStringIncludes(styles, "border-radius:");
 });
 
-Deno.test("getBaseStyles - includes cta-button styles", () => {
+Deno.test("[DEPRECATED] getBaseStyles - includes cta-button styles", () => {
   const styles = getBaseStyles();
   assertStringIncludes(styles, ".cta-button {");
   assertStringIncludes(styles, "display: inline-block");
 });
 
 // ============================================================================
-// TEST SUITE: getEmailWrapper
+// TEST SUITE: getEmailWrapper (DEPRECATED - backwards compat only)
 // ============================================================================
 
-Deno.test("getEmailWrapper - returns valid HTML document", () => {
+Deno.test("[DEPRECATED] getEmailWrapper - returns valid HTML document", () => {
   const wrapper = getEmailWrapper("<p>Test content</p>");
   assertStringIncludes(wrapper, "<!DOCTYPE html>");
   assertStringIncludes(wrapper, '<html lang="pt-BR">');
   assertStringIncludes(wrapper, "</html>");
 });
 
-Deno.test("getEmailWrapper - includes head with meta tags", () => {
+Deno.test("[DEPRECATED] getEmailWrapper - includes head with meta tags", () => {
   const wrapper = getEmailWrapper("<p>Test</p>");
   assertStringIncludes(wrapper, "<head>");
   assertStringIncludes(wrapper, "</head>");
@@ -130,25 +153,25 @@ Deno.test("getEmailWrapper - includes head with meta tags", () => {
   assertStringIncludes(wrapper, "viewport");
 });
 
-Deno.test("getEmailWrapper - includes base styles", () => {
+Deno.test("[DEPRECATED] getEmailWrapper - includes base styles", () => {
   const wrapper = getEmailWrapper("<p>Test</p>");
   assertStringIncludes(wrapper, "<style>");
   assertStringIncludes(wrapper, "font-family");
 });
 
-Deno.test("getEmailWrapper - wraps content in email-container", () => {
+Deno.test("[DEPRECATED] getEmailWrapper - wraps content in email-container", () => {
   const wrapper = getEmailWrapper("<p>Custom content</p>");
   assertStringIncludes(wrapper, 'class="email-container"');
   assertStringIncludes(wrapper, "<p>Custom content</p>");
 });
 
-Deno.test("getEmailWrapper - includes body tag", () => {
+Deno.test("[DEPRECATED] getEmailWrapper - includes body tag", () => {
   const wrapper = getEmailWrapper("<p>Test</p>");
   assertStringIncludes(wrapper, "<body>");
   assertStringIncludes(wrapper, "</body>");
 });
 
-Deno.test("getEmailWrapper - preserves HTML content", () => {
+Deno.test("[DEPRECATED] getEmailWrapper - preserves HTML content", () => {
   const content = '<div class="header"><h1>Title</h1></div>';
   const wrapper = getEmailWrapper(content);
   assertStringIncludes(wrapper, '<div class="header">');
