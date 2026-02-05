@@ -32,16 +32,15 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       .cta-section h2 { font-size: 18px; font-weight: 600; color: #212529; margin: 0 0 8px; }
       .cta-section p { font-size: 14px; color: #495057; margin: 0 0 20px; }
       .cta-button { display: inline-block; background-color: #007BFF; color: #FFFFFF; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px; }
-      .order-details { border: 1px solid #E9ECEF; border-radius: 6px; }
-      .order-details h2 { font-size: 18px; font-weight: 700; color: #212529; margin: 0; padding: 20px; border-bottom: 1px solid #E9ECEF; }
-      .order-item { display: flex; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #E9ECEF; }
-      .order-item:last-child { border-bottom: none; }
+       .order-details { border: 1px solid #E9ECEF; border-radius: 6px; border-collapse: separate; border-spacing: 0; }
+       .order-header td { font-size: 18px; font-weight: 700; color: #212529; padding: 20px; border-bottom: 1px solid #E9ECEF; }
+       .order-item td { padding: 16px 20px; border-bottom: 1px solid #E9ECEF; }
       .order-label { font-size: 14px; color: #495057; }
       .order-value { font-size: 14px; font-weight: 600; color: #212529; }
-      .total-row { display: flex; justify-content: space-between; padding: 20px; background-color: #F8F9FA; font-size: 18px; font-weight: 700; }
-      .support { text-align: center; padding: 32px; font-size: 14px; color: #6C757D; }
+       .total-row td { padding: 20px; background-color: #F8F9FA; font-size: 18px; font-weight: 700; color: #212529; }
+       .support { text-align: center; padding: 24px 32px 16px; font-size: 14px; color: #6C757D; border-top: 1px solid #E9ECEF; }
       .support a { color: #007BFF; text-decoration: none; font-weight: 600; }
-      .footer { background-color: #F8F9FA; padding: 24px; text-align: center; font-size: 12px; color: #6C757D; }
+       .footer { background-color: transparent; padding: 0 24px 24px; text-align: center; font-size: 12px; color: #6C757D; }
       .footer p { margin: 0 0 4px; }
       .footer a { color: #495057; text-decoration: none; font-weight: 600; }
     </style>
@@ -63,24 +62,29 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       </div>
       ` : ''}
 
-      <div class="order-details">
-        <h2>Resumo do Pedido</h2>
-        <div class="order-item">
-          <span class="order-label">Produto:</span> <span class="order-value">${data.productName}</span>
-        </div>
-        <div class="order-item">
-          <span class="order-label">Nº do Pedido:</span> <span class="order-value">#${data.orderId.substring(0, 8).toUpperCase()}</span>
-        </div>
-        ${data.paymentMethod ? `
-        <div class="order-item">
-          <span class="order-label">Forma de Pagamento:</span> <span class="order-value">${data.paymentMethod}</span>
-        </div>
-        ` : ''}
-        <div class="total-row">
-          <span>Total</span>
-          <span>${formatCurrency(data.amountCents)}</span>
-        </div>
-      </div>
+       <table class="order-details" width="100%" cellpadding="0" cellspacing="0">
+         <tr class="order-header">
+           <td colspan="2">Resumo do Pedido</td>
+         </tr>
+         <tr class="order-item">
+           <td class="order-label">Produto: </td>
+           <td class="order-value">${data.productName}</td>
+         </tr>
+         <tr class="order-item">
+           <td class="order-label">Nº do Pedido: </td>
+           <td class="order-value">#${data.orderId.substring(0, 8).toUpperCase()}</td>
+         </tr>
+         ${data.paymentMethod ? `
+         <tr class="order-item">
+           <td class="order-label">Forma de Pagamento: </td>
+           <td class="order-value">${data.paymentMethod}</td>
+         </tr>
+         ` : ''}
+         <tr class="total-row">
+           <td>Total: </td>
+           <td style="text-align: right;">${formatCurrency(data.amountCents)}</td>
+         </tr>
+       </table>
     </div>
     <div class="support">
       <p>Em caso de dúvidas sobre sua compra, responda a este email ou entre em contato diretamente com o vendedor através do email: <a href="mailto:${data.supportEmail || getSupportEmail()}">${data.supportEmail || getSupportEmail()}</a>.</p>
