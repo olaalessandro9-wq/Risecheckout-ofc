@@ -48,9 +48,9 @@ export function Topbar({
     <header
       className={cn(
         "sticky top-0 z-40",
-        // fundo com blur reduzido para performance em ultrawide
-        "backdrop-blur-sm supports-[backdrop-filter]:bg-background/85",
-        "bg-background/90",
+        // REMOVIDO: backdrop-blur (causa jank durante transições de layout)
+        // Substituído por background sólido premium
+        "bg-background/98",
         // só mostra separador/sombra quando scrolled = true
         scrolled ? "shadow-sm border-b border-border/60" : "border-b border-transparent"
       )}
