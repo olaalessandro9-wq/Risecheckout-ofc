@@ -3,7 +3,7 @@
  *
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  *
- * Tests for payment pending email templates.
+ * Tests for payment pending email templates (refactored to inline <style>).
  *
  * @module _shared/email-templates-payment
  */
@@ -42,6 +42,13 @@ Deno.test("HTML Payment - returns valid HTML document", () => {
   const html = getPaymentPendingTemplate(baseData);
   assertStringIncludes(html, "<!DOCTYPE html>");
   assertStringIncludes(html, "</html>");
+});
+
+Deno.test("HTML Payment - uses inline style block (Gmail compatible)", () => {
+  const html = getPaymentPendingTemplate(baseData);
+  assertStringIncludes(html, "<style>");
+  assertStringIncludes(html, ".container");
+  assertStringIncludes(html, ".pending-banner");
 });
 
 Deno.test("HTML Payment - has pending status indicator", () => {
@@ -93,10 +100,11 @@ Deno.test("HTML Payment - excludes QR Code when pixQrCode not provided", () => {
   assertNotMatch(html, /Escaneie o QR Code/);
 });
 
-Deno.test("HTML Payment - includes expiration warning", () => {
+Deno.test("HTML Payment - includes expiration warning with styling", () => {
   const html = getPaymentPendingTemplate(baseData);
   assertStringIncludes(html, "⚠️");
   assertStringIncludes(html, "expira");
+  assertStringIncludes(html, "warning-message");
 });
 
 // ============================================================================

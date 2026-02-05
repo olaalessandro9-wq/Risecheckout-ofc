@@ -3,10 +3,13 @@
  * 
  * RISE Protocol V3 - 10.0/10
  * 
- * Helpers compartilhados por todos os templates de email.
+ * Types e helpers compartilhados por todos os templates de email.
  * Uses permanent Supabase Storage URL for brand assets.
  * 
- * @version 3.0.0
+ * IMPORTANT: getBaseStyles() and getEmailWrapper() are DEPRECATED.
+ * All templates must use their own inline <style> block for Gmail compatibility.
+ * 
+ * @version 4.0.0
  */
 
 // ============================================================================
@@ -70,9 +73,17 @@ export function formatCurrency(amountCents: number): string {
 }
 
 // ============================================================================
-// BASE STYLES
+// DEPRECATED FUNCTIONS - DO NOT USE IN NEW TEMPLATES
 // ============================================================================
 
+/**
+ * @deprecated Use inline <style> block in each template instead.
+ * This function exists only for backwards compatibility with tests.
+ * Gmail clips emails that use shared wrapper functions.
+ * 
+ * All new templates MUST define their own <style> block inline.
+ * See email-templates-purchase.ts for the correct pattern.
+ */
 export function getBaseStyles(): string {
   return `
     <style>
@@ -228,10 +239,14 @@ export function getBaseStyles(): string {
   `;
 }
 
-// ============================================================================
-// EMAIL WRAPPER
-// ============================================================================
-
+/**
+ * @deprecated Use inline HTML structure in each template instead.
+ * This function exists only for backwards compatibility with tests.
+ * Gmail clips emails that use shared wrapper functions.
+ * 
+ * All new templates MUST define their own complete HTML structure.
+ * See email-templates-purchase.ts for the correct pattern.
+ */
 export function getEmailWrapper(content: string): string {
   return `
     <!DOCTYPE html>

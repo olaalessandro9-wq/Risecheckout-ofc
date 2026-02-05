@@ -1,10 +1,14 @@
 /**
  * Email Templates - Re-exports
  * 
- * Arquivo de agregação que re-exporta todos os templates.
- * Mantém retrocompatibilidade com imports existentes.
+ * RISE Protocol V3 - 10.0/10
  * 
- * RISE Protocol Compliant - < 60 linhas
+ * Arquivo de agregação que re-exporta todos os templates.
+ * 
+ * IMPORTANT: getBaseStyles() and getEmailWrapper() are NOT exported.
+ * These functions are deprecated. All templates must use inline <style> blocks.
+ * 
+ * @version 2.0.0
  */
 
 // Base types and utilities
@@ -16,8 +20,7 @@ export type {
 
 export {
   formatCurrency,
-  getBaseStyles,
-  getEmailWrapper,
+  getLogoUrl,
 } from "./email-templates-base.ts";
 
 // Purchase confirmation templates (Standard delivery)

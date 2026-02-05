@@ -1,12 +1,14 @@
 /**
  * Send Confirmation Email
  * 
- * Envia email de confirmação de compra via Resend.
- * Disparado após confirmação de pagamento.
+ * RISE Protocol V3 - 10.0/10
+ * 
+ * Edge function para envio de email de confirmação de compra.
+ * Utiliza o template unificado getPurchaseConfirmationTemplate.
  * 
  * @category Email
  * @status active
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -14,6 +16,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { getNoReplyEmail } from "../_shared/email-config.ts";
+import { getPurchaseConfirmationTemplate, getPurchaseConfirmationTextTemplate } from "../_shared/email-templates-purchase.ts";
+import type { PurchaseConfirmationData } from "../_shared/email-templates-base.ts";
 
 const log = createLogger("SendConfirmationEmail");
 
@@ -79,34 +83,19 @@ serve(async (req) => {
       );
     }
 
-    // Build email HTML
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Confirmação de Compra</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #333;">Compra Confirmada! 🎉</h1>
-          <p>Olá ${order.customer_name || 'Cliente'},</p>
-          <p>Sua compra foi confirmada com sucesso!</p>
-          
-          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0;">Detalhes do Pedido</h3>
-            <p><strong>Produto:</strong> ${((order.product as unknown as { name: string }[]) || [])[0]?.name || 'N/A'}</p>
-            <p><strong>Valor:</strong> R$ ${(order.amount_cents / 100).toFixed(2)}</p>
-            <p><strong>Pedido:</strong> #${order.id.slice(0, 8)}</p>
-          </div>
-          
-          <p>Você receberá as instruções de acesso em breve.</p>
-          
-          <p style="color: #666; font-size: 12px; margin-top: 40px;">
-            Este é um email automático. Por favor, não responda.
-          </p>
-        </body>
-      </html>
-    `;
+    // Build template data
+    const productName = ((order.product as unknown as { name: string }[]) || [])[0]?.name || 'Produto';
+    
+    const templateData: PurchaseConfirmationData = {
+      customerName: order.customer_name || 'Cliente',
+      productName,
+      amountCents: order.amount_cents,
+      orderId: order.id,
+    };
+
+    // Generate email using unified template
+    const emailHtml = getPurchaseConfirmationTemplate(templateData);
+    const emailText = getPurchaseConfirmationTextTemplate(templateData);
 
     // Send email via Resend (using centralized email config)
     const fromEmail = getNoReplyEmail();
@@ -121,8 +110,9 @@ serve(async (req) => {
       body: JSON.stringify({
         from: `${fromName} <${fromEmail}>`,
         to: order.customer_email,
-        subject: 'Compra Confirmada! 🎉',
+        subject: 'Sua compra foi confirmada!',
         html: emailHtml,
+        text: emailText,
       }),
     });
 
