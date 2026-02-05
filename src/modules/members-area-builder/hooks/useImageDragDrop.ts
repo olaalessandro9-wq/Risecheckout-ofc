@@ -3,7 +3,7 @@
  * 
  * Encapsula a lógica de arrastar e soltar imagens,
  * incluindo validação de tipo e tamanho de arquivo.
- * Usado por FixedHeaderImageUpload e BannerSlideUpload.
+ * Usado por ImageUploadWithCrop e ModuleImageUploadSection.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */

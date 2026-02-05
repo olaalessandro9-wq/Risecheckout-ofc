@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FixedHeaderImageUpload } from './FixedHeaderImageUpload';
+import { ImageUploadWithCrop } from '../../shared/ImageUploadWithCrop';
+import { HEADER_UPLOAD_CONFIG } from '../../shared/imageUploadConfigs';
 import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
 import type { 
   Section, 
@@ -58,10 +59,14 @@ export function FixedHeaderEditor({ section, onUpdate, productId }: FixedHeaderE
       {/* Background Image */}
       <div className="space-y-2">
         <Label>Imagem de Fundo</Label>
-        <FixedHeaderImageUpload
+        <ImageUploadWithCrop
           imageUrl={settings.bg_image_url || ''}
+          originalImageUrl={settings.bg_image_original_url}
           productId={productId}
-          onImageChange={(url) => onUpdate({ bg_image_url: url })}
+          onImageChange={(url, originalUrl) =>
+            onUpdate({ bg_image_url: url, bg_image_original_url: originalUrl })
+          }
+          config={HEADER_UPLOAD_CONFIG}
         />
       </div>
 

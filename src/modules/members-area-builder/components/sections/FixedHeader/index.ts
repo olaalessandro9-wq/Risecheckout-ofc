@@ -6,4 +6,3 @@
 
 export { FixedHeaderView } from './FixedHeaderView';
 export { FixedHeaderEditor } from './FixedHeaderEditor';
-export { FixedHeaderImageUpload } from './FixedHeaderImageUpload';
