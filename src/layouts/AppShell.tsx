@@ -20,6 +20,7 @@ import { Sidebar, useNavigation } from "@/modules/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { useScrollShadow } from "@/hooks/useScrollShadow";
 import { useFlipTransition } from "@/hooks/useFlipTransition";
+import { useIsLargeViewport } from "@/hooks/useIsLargeViewport";
 import { getContentMargin } from "@/modules/navigation/utils/navigationHelpers";
 import { cn } from "@/lib/utils";
 
@@ -63,23 +64,41 @@ export default function AppShell() {
   const { sentinelRef, scrolled } = useScrollShadow();
   const navigation = useNavigation();
   const mainContainerRef = useRef<HTMLDivElement>(null);
+  const isLargeViewport = useIsLargeViewport();
 
   // Detectar mobile para remover padding (sidebar é overlay)
   const isMobile =
     typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
 
-  // Margem do conteúdo baseada APENAS no estado base (sem hover)
-  // Hover da sidebar NÃO causa reflow no conteúdo - sidebar expande "por cima"
-  const contentMargin = useMemo(
-    () => isMobile ? 0 : getContentMargin(navigation.state.sidebarState),
-    [isMobile, navigation.state.sidebarState]
-  );
+  // ========================================
+  // DUAL-MODE: Normal vs Large Viewport
+  // ========================================
+  //
+  // Normal (< 1920px):
+  //   marginLeft = currentWidth (segue hover via CSS transition)
+  //   FLIP = DESABILITADO
+  //
+  // Large (>= 1920px):
+  //   marginLeft = getContentMargin(state) — ignora hover (sidebar overlay)
+  //   FLIP = ATIVO (compositor-only, zero reflow)
+  // ========================================
 
-  // FLIP Transition: anima o movimento via transform (compositor-only)
-  // O layout (marginLeft) é aplicado imediatamente, sem transição CSS
+  const contentMargin = useMemo(() => {
+    if (isMobile) return 0;
+    if (isLargeViewport) {
+      // Ultrawide: margin ignora hover, sidebar expande "por cima"
+      return getContentMargin(navigation.state.sidebarState);
+    }
+    // Normal: margin segue a largura real incluindo hover
+    return navigation.currentWidth;
+  }, [isMobile, isLargeViewport, navigation.state.sidebarState, navigation.currentWidth]);
+
+  // FLIP Transition: APENAS em viewports grandes
+  // Em monitores normais, CSS transition-[margin-left] cuida da animação
   useFlipTransition(mainContainerRef, contentMargin, {
     duration: 300,
     easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+    disabled: !isLargeViewport,
   });
 
   return (
@@ -88,15 +107,16 @@ export default function AppShell() {
 
       {/* 
         Container principal com offset dinâmico
-        - marginLeft aplicado diretamente (1 reflow)
-        - FLIP hook anima via transform (compositor-only)
-        - SEM transition-[margin-left] (causa layout thrash)
+        - Normal (< 1920px): CSS transition-[margin-left] para animação suave
+        - Large (>= 1920px): FLIP compositor-only (sem CSS transition)
       */}
       <div
         ref={mainContainerRef}
         className={cn(
-          "flex min-w-0 flex-1 flex-col"
-          // REMOVIDO: "transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          "flex min-w-0 flex-1 flex-col",
+          // CSS transition APENAS em monitores normais (< 1920px)
+          // Em ultrawide, FLIP hook cuida da animação via transform
+          !isLargeViewport && "transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
         style={{ marginLeft: `${contentMargin}px` }}
       >
