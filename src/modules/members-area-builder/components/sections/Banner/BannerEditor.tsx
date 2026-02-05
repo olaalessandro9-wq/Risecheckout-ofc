@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
-import { BannerSlideUpload } from './BannerSlideUpload';
+import { ImageUploadWithCrop } from '../../shared/ImageUploadWithCrop';
+import { BANNER_UPLOAD_CONFIG } from '../../shared/imageUploadConfigs';
 import type { 
   Section, 
   BannerSettings, 
@@ -112,10 +113,14 @@ export function BannerEditor({ section, onUpdate, productId }: BannerEditorProps
               </div>
 
               {/* Image Upload */}
-              <BannerSlideUpload
+              <ImageUploadWithCrop
                 imageUrl={slide.image_url}
+                originalImageUrl={slide.original_image_url}
                 productId={productId}
-                onImageChange={(url) => updateSlide(index, { image_url: url })}
+                onImageChange={(url, originalUrl) =>
+                  updateSlide(index, { image_url: url, original_image_url: originalUrl })
+                }
+                config={BANNER_UPLOAD_CONFIG}
               />
 
               <Input

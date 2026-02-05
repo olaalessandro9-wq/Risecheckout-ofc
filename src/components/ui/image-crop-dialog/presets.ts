@@ -34,7 +34,7 @@ export const CROP_PRESETS = {
 
   /**
    * Banner widescreen (16:9)
-   * Usado em: FixedHeaderImageUpload, BannerSlideUpload
+   * Usado em: ImageUploadWithCrop (header, banner)
    */
   banner: {
     aspectRatio: 16 / 9,

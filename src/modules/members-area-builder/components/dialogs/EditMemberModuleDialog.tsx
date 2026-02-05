@@ -9,7 +9,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import React, { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import { uploadViaEdge } from "@/lib/storage/storageProxy";
