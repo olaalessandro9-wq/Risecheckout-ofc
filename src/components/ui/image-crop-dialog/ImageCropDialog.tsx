@@ -198,14 +198,15 @@ export function ImageCropDialog({
             style={CHECKERBOARD_STYLE}
           >
             {imageUrl && (
-              <FixedCropper
+                <FixedCropper
                 ref={cropperRef}
                 src={imageUrl}
                 className="absolute inset-0"
+                style={{ background: 'transparent' }}
                 stencilSize={calculateStencilSize}
                 stencilProps={{
                   handlers: false,
-                  lines: false,
+                  lines: true,
                   movable: false,
                   resizable: false,
                 }}
