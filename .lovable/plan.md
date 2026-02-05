@@ -1,207 +1,119 @@
 
-# Auditoria Final: Sistema de Recorte de Imagem - Problemas Encontrados
 
-## Resultado Geral
+# Diagnostico e Correcao: Crop Dialog com Imagem Invisivel
 
-Os arquivos do **Crop Dialog core** (ImageCropDialog, useStencilSize, types, presets, index) estao **impecaveis**. Zero codigo morto, zero divida tecnica. Porem, os componentes de upload que CONSOMEM o crop dialog possuem **3 problemas** que violam o Protocolo RISE V3.
+## Causa Raiz Identificada (Investigacao Profunda)
 
----
-
-## PROBLEMA 1: VIOLACAO DRY CRITICA (95% de codigo duplicado)
-
-**Gravidade: CRITICA (RISE V3 Secao 6.3 - Clean Architecture & SOLID)**
-
-Os arquivos `FixedHeaderImageUpload.tsx` (290 linhas) e `BannerSlideUpload.tsx` (290 linhas) sao **95% identicos**. Isso representa ~550 linhas de codigo duplicado.
-
-As UNICAS diferencas entre os dois arquivos sao:
-
-| Diferenca | FixedHeaderImageUpload | BannerSlideUpload |
-|-----------|------------------------|-------------------|
-| Logger name | `"FixedHeaderImageUpload"` | `"BannerSlideUpload"` |
-| File prefix | `"header-"` | `"banner-"` |
-| Path segment | `"headers/"` | `"banners/"` |
-| Original path | `"headers/originals/"` | `"banners/originals/"` |
-| Original prefix | `"header-original-"` | `"banner-original-"` |
-| Alt text | `"Preview da header"` | `"Preview do slide"` |
-| Re-crop filename | `"header-recrop.jpg"` | `"banner-recrop.jpg"` |
-
-Todo o restante - o fluxo de upload, crop handling, drag-and-drop, JSX, error handling - e **identico linha por linha**.
-
-### Solucao
-
-Unificar ambos em um unico componente `ImageUploadWithCrop` que recebe uma config:
+Ao rastrear o codigo-fonte do `react-advanced-cropper` v0.20.1 (linha por linha), identifiquei que o componente usa um sistema de "fade" para exibir a imagem:
 
 ```text
-interface ImageUploadConfig {
-  loggerName: string;
-  filePrefix: string;        // "header" | "banner"
-  storagePath: string;       // "headers" | "banners"
-  altText: string;
-  cropPreset: CropPresetName;
-  maxSizeMB: number;
+CSS do Cropper Interno:
+
+.advanced-cropper-fade {
+  visibility: hidden;    <-- INVISIVEL por padrao
+  opacity: 0;            <-- TRANSPARENTE por padrao
+}
+.advanced-cropper-fade--visible {
+  opacity: 1;
+  visibility: visible;   <-- So aparece quando 'loaded' = true
 }
 ```
 
-Os consumidores (`FixedHeaderEditor.tsx` e `BannerEditor.tsx`) passam configs diferentes mas usam o mesmo componente.
+O `CropperWrapper` so adiciona `--visible` quando `state && loaded` e verdadeiro. Se a imagem falha ao carregar internamente, `loaded` nunca se torna `true` e a imagem permanece **invisivel** -- mas o stencil e o checkerboard continuam visiveis porque estao fora do fade.
 
----
+### Por que a imagem falha ao carregar?
 
-## PROBLEMA 2: STALE CLOSURE - Dependencias faltando em useCallback
+Tres problemas combinados:
 
-**Gravidade: ALTA (Bug de corretude)**
+**PROBLEMA 1: Layout CSS incompativel**
 
-Em ambos os arquivos (FixedHeaderImageUpload e BannerSlideUpload), duas callbacks tem dependencias faltando:
-
-**`handleCropComplete` (linha 123-128):**
+O container do FixedCropper usa `flex items-center justify-center`:
 ```text
-const handleCropComplete = useCallback(
-  (croppedFile: File) => {
-    handleUpload(croppedFile, originalFile || undefined);
-    //  handleUpload NAO esta no array de dependencias
-    setFileToCrop(null);
-  },
-  [originalFile]  // Falta: handleUpload
-);
+<div class="flex-1 flex items-center justify-center ...">
+  <FixedCropper class="h-full w-full" />
+</div>
 ```
 
-**`handleReCropComplete` (linha 151-156):**
-```text
-const handleReCropComplete = useCallback(
-  (croppedFile: File) => {
-    handleUploadCroppedOnly(croppedFile);
-    //  handleUploadCroppedOnly NAO esta no array de dependencias
-    setFileToCrop(null);
-  },
-  [originalImageUrl]  // Falta: handleUploadCroppedOnly
-);
-```
+O `.advanced-cropper` interno e `display: flex; flex-direction: column; max-height: 100%`. Seu filho `.advanced-cropper__boundary` usa `flex-grow: 1; min-height: 0`. Em um container `flex` com `items-center`, o boundary pode colapsar para 0 de altura, impedindo o stretcher de calcular as dimensoes corretas.
 
-`handleUpload` e `handleUploadCroppedOnly` sao funcoes regulares (nao memoizadas) que fecham sobre `productId` e `onImageChange`. Se esses props mudarem, as callbacks capturam referencias stale.
+**PROBLEMA 2: `crossOrigin` desnecessario para blob/object URLs**
 
-### Solucao
+O FixedCropper tem `crossOrigin={true}` como default (linha 1309 do bundle). Internamente, `createImage()` adiciona `crossOrigin="anonymous"` no `<img>`. Para URLs de blob (re-crop), isso e inofensivo. Mas para URLs do Supabase Storage (re-crop de imagem existente), se o bucket nao retornar headers CORS adequados, o `createImage` falha silenciosamente e `loaded` nunca se torna true.
 
-Sera automaticamente resolvido com o Problema 1 (unificacao do componente), onde as funcoes de upload serao corretamente memoizadas com todas as dependencias.
+**PROBLEMA 3: Zero feedback de erro**
+
+O `ImageCropDialog` nao passa `onError` para o FixedCropper. Se `loadImage` falha internamente, nao ha log, nao ha toast, nao ha nada. O dialog abre com checkerboard visivel mas a imagem simplesmente nao aparece.
 
 ---
 
-## PROBLEMA 3: Feature morta - originalImageUrl nunca salva
+## Solucao (10.0/10)
 
-**Gravidade: MEDIA (Codigo funcional mas integracao quebrada)**
+### Correcao 1: Remover layout flex incompativel
 
-Ambos os componentes de upload implementam o recurso de "re-crop lossless" usando `originalImageUrl`. Porem, os consumidores descartam o segundo argumento:
-
-**FixedHeaderEditor.tsx (linha 64):**
-```text
-onImageChange={(url) => onUpdate({ bg_image_url: url })}
-//              ^^^ apenas url - originalUrl descartado
-```
-
-**BannerEditor.tsx (linha 118):**
-```text
-onImageChange={(url) => updateSlide(index, { image_url: url })}
-//              ^^^ apenas url - originalUrl descartado
-```
-
-Isso significa que `originalImageUrl` e SEMPRE `undefined`, tornando toda a logica de "preservar original para re-crop sem perda" inacessivel.
-
-### Solucao
-
-Ao unificar o componente (Problema 1), tambem corrigir a integracao nos editores para salvar `originalUrl` nos dados da secao. Isso requer adicionar `bg_image_original_url` (ou `original_image_url`) nos tipos de settings da secao.
-
----
-
-## PROBLEMA 4 (MENOR): Import `React` nao utilizado
-
-**Gravidade: BAIXA**
-
-`EditMemberModuleDialog.tsx` (linha 12) importa `React` como namespace mas nunca o referencia. Apenas `useState`, `useCallback`, `useEffect` sao usados via named imports.
-
----
-
-## Verificacao dos Arquivos Limpos
-
-| Arquivo | Linhas | Status |
-|---------|--------|--------|
-| `ImageCropDialog.tsx` | 236 | LIMPO - FixedCropper + ImageRestriction.none correto |
-| `useStencilSize.ts` | 60 | LIMPO - Hook puro, memoizado, SRP |
-| `types.ts` | 66 | LIMPO - Zero props mortas |
-| `presets.ts` | 131 | LIMPO - Todos presets com backgroundColor |
-| `index.ts` | 20 | LIMPO - Zero exports internos |
-| `useImageDragDrop.ts` | 113 | LIMPO - Hook reutilizavel, tipado |
-| `ModuleImageUploadSection.tsx` | 201 | LIMPO - SRP, preview com object-contain |
-| `EditMemberModuleDialog.tsx` | 241 | LIMPO (exceto import React) |
-| `ImageSelector.tsx` | 219 | LIMPO - object-contain correto |
-| `ImageUploadZoneCompact.tsx` | 187 | LIMPO - object-contain correto |
-| `ModuleCardPreview.tsx` | 84 | LIMPO - object-contain correto |
-
-## Verificacao de Codigo Morto/Legado
-
-| Item | Status |
-|------|--------|
-| Import de `Cropper` generico | ZERO referencias |
-| Import de `react-cropper`/`cropperjs` | ZERO referencias |
-| `fillArea` | ZERO referencias |
-| `compositeCanvas` | ZERO referencias |
-| `allowPresetChange` / `availablePresets` | ZERO referencias |
-| `useStencilSize` em barrel export | Removido corretamente |
-| `object-cover` em previews de upload | ZERO (todos migrados para `object-contain`) |
-
----
-
-## Plano de Correcao
-
-### Etapa 1: Unificar FixedHeaderImageUpload e BannerSlideUpload
-
-Criar componente generico `ImageUploadWithCrop`:
+O container do cropper NAO deve usar `flex items-center justify-center`. O FixedCropper gerencia seu proprio layout internamente. O container deve apenas fornecer dimensoes explicitas.
 
 ```text
-src/modules/members-area-builder/components/shared/
-  ImageUploadWithCrop.tsx     -- CRIAR (componente unificado ~200 linhas)
-  imageUploadConfigs.ts       -- CRIAR (configs para header, banner, etc.)
+ANTES (quebrado):
+<div class="flex-1 flex items-center justify-center ...">
+  <FixedCropper class="h-full w-full" />
+</div>
 
-src/modules/members-area-builder/components/sections/
-  FixedHeader/
-    FixedHeaderImageUpload.tsx  -- DELETAR (substituido)
-    FixedHeaderEditor.tsx       -- EDITAR (usar ImageUploadWithCrop)
-  Banner/
-    BannerSlideUpload.tsx       -- DELETAR (substituido)
-    BannerEditor.tsx            -- EDITAR (usar ImageUploadWithCrop)
+DEPOIS (correto):
+<div class="flex-1 relative ...">
+  <FixedCropper class="absolute inset-0" />
+</div>
 ```
 
-Resultado: ~580 linhas duplicadas se tornam ~200 linhas unicas + ~30 linhas de configs.
+Usar `position: relative` no container e `position: absolute; inset: 0` no cropper garante que o cropper receba dimensoes explicitas do container, sem depender de flex sizing.
 
-### Etapa 2: Corrigir stale closures
+### Correcao 2: Desabilitar crossOrigin para blob URLs
 
-Dentro do componente unificado, todas as funcoes de upload serao corretamente memoizadas com `useCallback` e dependencias completas.
+Passar `crossOrigin={false}` no FixedCropper. O componente ImageCropDialog recebe um File (blob), entao a URL sera sempre um object URL (blob:) que e same-origin. crossOrigin e desnecessario e potencialmente prejudicial.
 
-### Etapa 3: Integrar originalImageUrl
+### Correcao 3: Adicionar onError handler
 
-Atualizar `FixedHeaderEditor` e `BannerEditor` para salvar `originalUrl` nos settings da secao. Atualizar tipos `FixedHeaderSettings` e `BannerSlide` para incluir campo de URL original.
+Passar `onError` para o FixedCropper para logar falhas de carregamento. Isso garante que qualquer falha futura seja diagnosticavel.
 
-### Etapa 4: Remover import nao utilizado
+### Correcao 4: Adicionar altura minima explicita no container
 
-Remover `React` namespace import de `EditMemberModuleDialog.tsx`.
+Garantir que o container do cropper tenha `min-h-[400px]` E use posicionamento absoluto para dar dimensoes explicitas ao boundary.
 
 ---
 
-## Analise de Solucoes (RISE V3 Secao 4.4)
+## Arquivos a Modificar
 
-### Solucao A: Manter dois componentes, apenas corrigir closures
-- Manutenibilidade: 4/10 (duplicacao massiva permanece)
-- Zero DT: 3/10 (qualquer mudanca exige editar dois arquivos)
-- Arquitetura: 3/10 (viola DRY fundamentalmente)
-- Escalabilidade: 3/10 (cada novo tipo de upload = mais duplicacao)
-- Seguranca: 10/10
-- **NOTA FINAL: 4.1/10**
+```text
+src/components/ui/image-crop-dialog/
+  ImageCropDialog.tsx     -- EDITAR (layout fix + crossOrigin + onError)
+```
 
-### Solucao B: Unificar em componente generico com configs
-- Manutenibilidade: 10/10 (um unico componente, config-driven)
-- Zero DT: 10/10 (zero duplicacao)
-- Arquitetura: 10/10 (DRY, SRP, Open/Closed principle)
-- Escalabilidade: 10/10 (novo tipo = nova config, zero codigo novo)
-- Seguranca: 10/10
-- **NOTA FINAL: 10.0/10**
+Apenas 1 arquivo. A correcao e cirurgica e ataca a raiz.
 
-### DECISAO: Solucao B (Nota 10.0)
+---
 
-A Solucao A mantem 550 linhas de codigo duplicado. Qualquer bug fix ou feature nova exigiria editar dois arquivos identicos. Isso e divida tecnica pura. A Solucao B elimina o problema pela raiz.
+## Mudancas Especificas
+
+### ImageCropDialog.tsx
+
+1. **Container do cropper** (linha 179-200):
+   - Remover `flex items-center justify-center`
+   - Adicionar `relative`
+   - Mudar FixedCropper para `className="absolute inset-0"`
+
+2. **FixedCropper props** (linha 184-198):
+   - Adicionar `crossOrigin={false}`
+   - Adicionar `onError` callback com log
+
+3. **Feedback visual** (novo):
+   - Mostrar estado de loading enquanto a imagem carrega
+
+---
+
+## Validacao de Sucesso
+
+1. Abrir crop dialog ao selecionar nova imagem -- imagem aparece
+2. Abrir crop dialog ao clicar "Recortar" em imagem existente -- imagem aparece
+3. Zoom/pan funcionam corretamente
+4. Salvar produz arquivo com dimensoes corretas
+5. Erros de carregamento mostram feedback ao usuario
+
