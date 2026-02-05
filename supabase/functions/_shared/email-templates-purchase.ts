@@ -32,10 +32,10 @@ export function getPurchaseConfirmationTemplate(data: PurchaseConfirmationData):
       .header { text-align: center; padding: 0; line-height: 0; }
       .header img { display: block; width: 100%; max-width: 400px; height: auto; margin: 0 auto; }
       .content { padding: 32px; }
-      .success-banner { background-color: #F8F9FA; padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 24px; border: 1px solid #E9ECEF; }
-      .success-badge { display: inline-block; background-color: #E9ECEF; color: #495057; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-      .success-banner h1 { font-size: 22px; font-weight: 700; color: #212529; margin: 16px 0 4px; }
-      .success-banner p { font-size: 14px; color: #6B7280; margin: 0; }
+      .success-banner { background: linear-gradient(135deg, #007BFF 0%, #0056B3 100%); padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 24px; }
+      .success-badge { display: inline-block; background-color: rgba(255,255,255,0.2); color: #FFFFFF; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+      .success-banner h1 { font-size: 22px; font-weight: 700; color: #FFFFFF; margin: 16px 0 4px; }
+      .success-banner p { font-size: 14px; color: rgba(255,255,255,0.9); margin: 0; }
       .greeting { font-size: 18px; font-weight: 600; color: #212529; margin: 0 0 12px; }
       .message { font-size: 16px; line-height: 1.6; color: #495057; margin: 0 0 24px; }
       .cta-section { background-color: #F1F3F5; padding: 24px; border-radius: 6px; text-align: center; margin-bottom: 24px; }
