@@ -1,46 +1,42 @@
 
-# Plano: Reescrita Total do Template Purchase
 
-## Diagnóstico Confirmado
+# Plano: Alinhar Template Purchase com Templates que Funcionam
 
-Após investigação exaustiva comparando todos os templates:
-- **9 templates funcionam** no Gmail sem truncamento
-- **1 template (purchase-standard) NÃO funciona**
+## Diagnóstico Final
 
-A análise linha-a-linha revelou diferenças sutis entre `email-templates-purchase.ts` e os templates que funcionam (`members-area`, `external`):
+Após comparação exaustiva de **todos os 5 templates**:
 
-| Diferença | Purchase (Bug) | Templates OK |
-|-----------|----------------|--------------|
-| Return statement | `return \`<!DOCTYPE html>...` | `return \`\n    <!DOCTYPE html>...` |
-| Indentação HTML | Sem indentação | Com indentação uniforme |
-| CSS .support | `border-top: 1px solid` | Sem border-top |
-| CSS .footer | `padding: 0 32px 24px` | `background-color: #F8F9FA; padding: 24px` |
-| Logo chamada | `${logoUrl}` (variável) | `${getLogoUrl()}` (função inline) |
+| Template | Return Style | Header CSS | Logo Width | Funciona no Gmail? |
+|----------|--------------|------------|------------|-------------------|
+| `payment` | `return \`<!DOCTYPE...` (sem indent) | `padding: 0; line-height: 0` | `width="400"` | **SIM** |
+| `seller` | `return \`<!DOCTYPE...` (sem indent) | `padding: 0; line-height: 0` | `width="400"` | **SIM** |
+| `members-area` | `return \`\n    <!DOCTYPE...` (com indent) | `padding: 40px 20px; border-bottom` | Sem width attr | **?** |
+| `external` | `return \`\n    <!DOCTYPE...` (com indent) | `padding: 40px 20px; border-bottom` | Sem width attr | **?** |
+| `purchase` | `return \`\n    <!DOCTYPE...` (com indent) | `padding: 40px 20px; border-bottom` | Sem width attr | **NAO** |
+
+O template antigo que você enviou (que funcionava) tinha a estrutura mais simples - provavelmente similar ao `payment` e `seller`.
 
 ## Analise de Solucoes (RISE V3 Secao 4.4)
 
-### Solucao A: Ajustar apenas CSS
+### Solucao A: Manter estrutura atual (members-area style)
+Continuar tentando ajustes incrementais na estrutura atual.
 
-Corrigir as diferenças de CSS (.support, .footer) mantendo estrutura.
-
-- Manutenibilidade: 7/10
-- Zero DT: 6/10 (pode haver outras diferenças ocultas)
-- Arquitetura: 6/10
-- Escalabilidade: 7/10
+- Manutenibilidade: 5/10
+- Zero DT: 3/10 (loop de tentativa/erro)
+- Arquitetura: 5/10
+- Escalabilidade: 5/10
 - Seguranca: 10/10
-- **NOTA FINAL: 7.2/10**
+- **NOTA FINAL: 5.6/10**
 
-### Solucao B: Reescrever copiando estrutura de members-area (RECOMENDADA)
+### Solucao B: Copiar estrutura EXATA do `payment`/`seller` (que sabemos funcionar)
+Reescrever `email-templates-purchase.ts` seguindo EXATAMENTE a estrutura de `payment` e `seller`:
+- Return sem indentacao
+- Header com `padding: 0; line-height: 0`
+- Logo com `width="400"` no atributo HTML
 
-Reescrever `email-templates-purchase.ts` copiando EXATAMENTE a estrutura do `email-templates-members-area.ts`:
-1. Mesmo formato de return (com indentacao)
-2. Mesma estrutura CSS
-3. Mesmas classes
-4. Apenas textos e cores diferentes
-
-- Manutenibilidade: 10/10 (padrao unico garantido)
-- Zero DT: 10/10 (elimina qualquer diferenca oculta)
-- Arquitetura: 10/10 (consistencia total)
+- Manutenibilidade: 10/10
+- Zero DT: 10/10 (baseado em templates comprovadamente funcionais)
+- Arquitetura: 10/10 (padrao unico)
 - Escalabilidade: 10/10
 - Seguranca: 10/10
 - **NOTA FINAL: 10.0/10**
@@ -51,21 +47,16 @@ Reescrever `email-templates-purchase.ts` copiando EXATAMENTE a estrutura do `ema
 
 ### Arquivo: `supabase/functions/_shared/email-templates-purchase.ts`
 
-O template sera reescrito seguindo EXATAMENTE a estrutura do `members-area`:
+**Mudancas especificas:**
 
-1. **Return statement com indentacao** (igual members-area)
-2. **CSS copiado** de members-area, ajustando apenas:
-   - `.cta-section`: cor de fundo `#F1F3F5` (cinza) em vez de gradiente verde
-   - `.cta-button`: cor `#007BFF` (azul) em vez de verde
-   - Remover `.info-box` (nao usado em purchase)
-3. **HTML copiado** de members-area, ajustando apenas:
-   - Textos especificos do purchase
-   - CTA condicional (somente se `deliveryUrl` existir)
-   - Sem info-box
-
-### Mudancas Especificas
-
-**ANTES (estrutura atual):**
+1. **Return statement** - Mudar de:
+```typescript
+return `
+    <!DOCTYPE html>
+    ...
+  `;
+```
+Para (igual `payment` e `seller`):
 ```typescript
 return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -73,47 +64,80 @@ return `<!DOCTYPE html>
 </html>`;
 ```
 
-**DEPOIS (estrutura de members-area):**
-```typescript
-return `
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    ...
-    </html>
-  `;
+2. **CSS do Header** - Mudar de:
+```css
+.header { text-align: center; padding: 40px 20px; border-bottom: 1px solid #E9ECEF; }
+.header img { max-width: 180px; }
+```
+Para (igual `payment` e `seller`):
+```css
+.header { text-align: center; padding: 0; line-height: 0; }
+.header img { display: block; width: 100%; max-width: 400px; height: auto; margin: 0 auto; }
 ```
 
-### CSS Unificado
+3. **HTML do Logo** - Adicionar `width="400"`:
+```html
+<img src="${getLogoUrl()}" alt="Rise Checkout" width="400">
+```
 
-Copiar o bloco `<style>` completo de `members-area` e ajustar:
-- `.cta-section`: Fundo cinza em vez de gradiente verde
-- `.cta-button`: Azul em vez de branco/verde
-- Manter `.support` e `.footer` identicos ao members-area
+4. **Remover border-bottom do header** - Consistencia com templates funcionais
 
-### Reversao do Logo
+5. **Ajustar footer** - Seguir estrutura do `payment`/`seller`:
+```css
+.footer { text-align: center; padding: 24px 32px; font-size: 12px; color: #6C757D; border-top: 1px solid #E9ECEF; }
+```
 
-Voltar o logo para o tamanho original (400px) conforme teste de isolamento provou que nao e a causa:
-- `.header img { max-width: 180px; }` volta para estrutura de members-area
-- Manter mesma estrutura de header de members-area
+### Estrutura Final do Template
+
+```text
+<!DOCTYPE html>  (SEM whitespace antes)
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmacao de Compra - Rise Checkout</title>
+  <style>
+    @import url(...);
+    body { ... }
+    .container { ... }
+    .header { padding: 0; line-height: 0; }  <- MUDANCA
+    .header img { display: block; width: 100%; max-width: 400px; ... }  <- MUDANCA
+    // ... resto do CSS
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="..." alt="Rise Checkout" width="400">  <- MUDANCA
+    </div>
+    // ... conteudo
+  </div>
+</body>
+</html>
+```
+
+### Manter CTA Condicional
+
+O CTA condicional (`data.deliveryUrl ? ... : ''`) sera mantido, pois essa logica e correta para o caso de uso do purchase.
 
 ### Arquivos a Modificar
 
 | Arquivo | Acao |
 |---------|------|
-| `email-templates-purchase.ts` | REESCREVER completo |
-| `email-templates-purchase.test.ts` | ATUALIZAR testes se necessario |
+| `email-templates-purchase.ts` | Reescrever com estrutura de `payment`/`seller` |
 
 ### Teste Apos Implementacao
 
 1. Deploy da Edge Function `email-preview`
-2. Enviar preview via Email Preview
-3. Verificar no Gmail: email completo SEM 3 pontinhos
-4. Se funcionar, confirma que a estrutura era a causa
+2. Enviar preview `purchase-standard` via Email Preview
+3. Verificar no Gmail: email completo SEM 3 pontinhos e logo em tamanho normal (400px)
 
 ## Checklist RISE V3
 
 - [x] Analise de multiplas solucoes com notas
 - [x] Escolha da solucao de maior nota (10.0)
-- [x] Codigo baseado em implementacao que JA FUNCIONA
+- [x] Codigo baseado em templates que JA FUNCIONAM (`payment`, `seller`)
 - [x] Consistencia arquitetural total
 - [x] Zero divida tecnica
+- [x] Logo restaurado para tamanho normal (400px)
+
