@@ -1,149 +1,155 @@
 
 
-# Correcao Definitiva: Crop Dialog (Imagem Invisivel + Layout Horizontal)
+# Correcao: Stencil Invisivel + Xadrez Escondido
 
-## Causa Raiz REAL Identificada (Rastreada Linha por Linha no Bundle)
+## Causas Raiz (3 problemas no mesmo arquivo)
 
-### Bug #1: "Carregando imagem..." Permanente
+### Problema 1: Borda do crop invisivel
 
-Rastreando o codigo-fonte do `react-advanced-cropper` v0.20.1 (arquivo `index.esm-bundler.js`), descobri que o callback `onUpdate` **NAO** serve para detectar carregamento de imagem.
-
-```text
-Linha 438-442 do bundle:
-
-useUpdateEffect(function () {
-    if (cropperRef.current) {
-        onUpdate?.(cropperRef.current);
-    }
-}, [cropperImage.isLoaded(), cropperImage.isLoading()]);
-```
-
-O `onUpdate` dispara quando `isLoaded()` ou `isLoading()` mudam. POREM, o `resetCropper` (que inicializa o state com as dimensoes do boundary) e **ASYNC** e roda DEPOIS que `onUpdate` dispara. Resultado: nosso `handleUpdate` chama `cropper.getState()` quando o state ainda e `null`.
-
-A sequencia e:
-1. Imagem carrega com sucesso -> `isLoaded()` muda -> `onUpdate` dispara
-2. Nosso `handleUpdate` verifica `state` -> e `null` (resetCropper nao rodou ainda)
-3. `isImageLoaded` permanece `false` PARA SEMPRE
-4. `onUpdate` NUNCA dispara novamente (deps nao mudaram mais)
-5. Loading overlay fica visivel eternamente
-
-**A solucao correta**: usar `onReady` (linhas 433-436 do bundle):
+No `stencilProps` (linha 207), `lines: false` remove completamente as linhas de borda do stencil. Sem essas linhas, o usuario nao consegue ver onde o recorte acontece.
 
 ```text
-useUpdateEffect(function () {
-    if (cropperRef.current && currentImage) {
-        onReady?.(cropperRef.current);
-    }
-}, [currentImage]);
+ANTES (invisivel):
+stencilProps={{
+  handlers: false,
+  lines: false,      <-- REMOVE a borda do crop
+  movable: false,
+  resizable: false,
+}}
 ```
 
-`onReady` dispara quando `currentImage` e definido, o que acontece DENTRO de `resetCropper` (apos `stretchTo` completar). Neste ponto, o state JA esta inicializado corretamente.
+No Cakto, a area de crop tem bordas tracejadas claras com handles nos cantos. Como usamos FixedCropper (stencil fixo), `handlers` e `resizable` devem permanecer `false` (o usuario move a imagem, nao o stencil). Porem `lines` DEVE ser `true` para mostrar a borda.
 
-### Bug #2: Zoom slider desincronizado
+### Problema 2: Xadrez escondido pelo fundo preto do cropper
 
-O mesmo `onUpdate` era usado para sincronizar o slider de zoom com scroll/pinch do usuario. Mas `onUpdate` **NAO** dispara em interacoes de zoom/pan -- apenas quando loading state muda.
+O CSS interno do `react-advanced-cropper` define:
+```text
+.advanced-cropper {
+  background: black;    <-- COBRE o xadrez completamente
+}
+```
 
-A callback correta e `onTransformImageEnd`, que faz parte das `AbstractCropperInstanceCallbacks` e dispara apos cada interacao de zoom/pan do usuario.
+O nosso `CHECKERBOARD_STYLE` esta no div pai, mas o FixedCropper (com `className="absolute inset-0"`) renderiza por cima com fundo preto solido, escondendo o xadrez.
 
-### Bug #3: Dialog super horizontal
+Para o xadrez ser visivel, o fundo do `.advanced-cropper` DEVE ser transparente.
 
-`sm:max-w-[90vw]` no dialog = 1728px de largura em monitor 1080p. O Cakto usa ~600-700px com area de cropper quase quadrada. O container do cropper usa `flex-1 min-h-[400px]` que cria um retangulo super largo e baixo.
+### Problema 3: Overlay invisivel (consequencia do #2)
+
+O CSS interno define o overlay fora do stencil como:
+```text
+.advanced-cropper-stencil-overlay {
+  color: rgba(0, 0, 0, 0.5);    <-- semi-transparente
+}
+```
+
+Este overlay FUNCIONA corretamente - ele escurece a area fora do crop. Porem, com fundo preto, `rgba(0,0,0,0.5)` sobre preto = preto. Com fundo TRANSPARENTE, `rgba(0,0,0,0.5)` sobre xadrez = xadrez escurecido (exatamente como o Cakto).
 
 ---
 
-## Solucao
+## Solucao (Cirurgica - 1 arquivo)
 
-### Arquivo unico a modificar
+### Arquivo: `src/components/ui/image-crop-dialog/ImageCropDialog.tsx`
 
-```text
-src/components/ui/image-crop-dialog/ImageCropDialog.tsx
-```
-
-### Mudanca 1: Dialog compacto estilo Cakto
-
-```text
-ANTES:  sm:max-w-[90vw] max-h-[90vh]
-DEPOIS: sm:max-w-[680px] max-h-[90vh]
-```
-
-Largura maxima de 680px cria um dialog compacto similar ao Cakto.
-
-### Mudanca 2: Area de crop quadrada
-
-```text
-ANTES:  flex-1 relative rounded-lg overflow-hidden min-h-[400px]
-DEPOIS: w-full h-[500px] max-h-[60vh] relative rounded-lg overflow-hidden
-```
-
-- `h-[500px]`: altura fixa de 500px (quase quadrado com 640px de largura util)
-- `max-h-[60vh]`: cap para telas menores (768px -> 460px)
-- Remove `flex-1` que fazia o container expandir excessivamente
-- Remove `min-h-[400px]` substituido pela altura fixa
-
-### Mudanca 3: Substituir onUpdate por onReady
+### Mudanca 1: Habilitar linhas do stencil
 
 ```text
 ANTES:
-  const handleUpdate = useCallback((cropper) => {
-    const state = cropper.getState();
-    if (state?.visibleArea && state.boundary.width > 0) {
-      setZoom(Math.round(visibleAreaScale * 100));
-    }
-    if (state && !isImageLoaded) {
-      setIsImageLoaded(true);
-    }
-  }, [isImageLoaded]);
+stencilProps={{
+  handlers: false,
+  lines: false,
+  movable: false,
+  resizable: false,
+}}
 
 DEPOIS:
-  const handleReady = useCallback(() => {
-    setIsImageLoaded(true);
-  }, []);
+stencilProps={{
+  handlers: false,
+  lines: true,
+  movable: false,
+  resizable: false,
+}}
 ```
 
-`onReady` dispara no momento correto: apos `resetCropper` completar e o state estar inicializado.
+- `lines: true` mostra a borda do crop (linhas brancas semi-transparentes nos 4 lados)
+- `handlers: false` permanece (FixedCropper nao permite redimensionar stencil)
+- `movable: false` permanece (o usuario move a imagem, nao o stencil)
+- `resizable: false` permanece (tamanho fixo definido por `stencilSize`)
 
-### Mudanca 4: Substituir onUpdate zoom sync por onTransformImageEnd
+### Mudanca 2: Fundo transparente no cropper
 
-```text
-NOVO:
-  const handleTransformEnd = useCallback((cropper) => {
-    const state = cropper.getState();
-    if (state?.visibleArea && state.boundary.width > 0) {
-      const visibleAreaScale = state.boundary.width / state.visibleArea.width;
-      setZoom(Math.round(visibleAreaScale * 100));
-    }
-  }, []);
-```
+Adicionar override CSS para remover o fundo preto do `.advanced-cropper`, permitindo o xadrez do div pai ser visivel.
 
-`onTransformImageEnd` dispara apos cada zoom/pan do usuario, garantindo que o slider de zoom fique sincronizado.
-
-### Mudanca 5: Atualizar props do FixedCropper
+Opcao escolhida: adicionar uma classe CSS customizada ao `className` do FixedCropper que sobrescreve `background: black` para `background: transparent`.
 
 ```text
 ANTES:
-  <FixedCropper
-    onUpdate={handleUpdate}
-    onError={handleCropperError}
-  />
+className="absolute inset-0"
 
 DEPOIS:
-  <FixedCropper
-    onReady={handleReady}
-    onTransformImageEnd={handleTransformEnd}
-    onError={handleCropperError}
-  />
+className="absolute inset-0"
+style={{ background: 'transparent' }}
 ```
 
-Remove `onUpdate` completamente. Adiciona os callbacks corretos para cada finalidade.
+Nota: `style` tem prioridade sobre classes CSS, entao sobrescreve o `background: black` da classe `.advanced-cropper` sem precisar de `!important`.
+
+Alternativa: usar `className` com uma classe Tailwind `[&.advanced-cropper]:bg-transparent`, porem `style` inline e mais direto e nao depende de especificidade CSS.
+
+### Mudanca 3: Nenhuma - overlay ja funciona
+
+O overlay (`.advanced-cropper-stencil-overlay`) JA esta configurado corretamente com `rgba(0,0,0,0.5)`. Com o fundo transparente, ele automaticamente mostrara o xadrez escurecido fora da area de crop.
+
+---
+
+## Resultado Visual Esperado
+
+```text
++---------------------------+
+|  /////// XADREZ ////////  |  <- Xadrez escurecido (overlay 50% preto)
+|  ///////  (dimmed) /////  |
+|  +---------+----------+   |
+|  |         |          |   |  <- Borda do crop (linhas brancas)
+|  |    IMAGEM VISIVEL   |  |  <- Area de crop (imagem nitida)
+|  |                     |  |
+|  +---------------------+  |
+|  /////// XADREZ ////////  |  <- Xadrez escurecido (overlay 50% preto)
+|  ///////  (dimmed) /////  |
++---------------------------+
+     [- zoom slider +] 100%
+   [ Cancelar ]    [ Salvar ]
+```
+
+Exatamente como o Cakto: xadrez visivel acima/abaixo/lados, borda clara no crop, imagem no centro.
+
+---
+
+## Analise de Solucoes (RISE V3 Secao 4.4)
+
+### Solucao A: Override com `style={{ background: 'transparent' }}` + `lines: true`
+- Manutenibilidade: 10/10 (inline style explicito, nao depende de CSS externo)
+- Zero DT: 10/10 (correcao cirurgica, 2 linhas)
+- Arquitetura: 10/10 (usa API nativa do componente)
+- Escalabilidade: 10/10 (funciona com qualquer preset)
+- Seguranca: 10/10
+- **NOTA FINAL: 10.0/10**
+
+### Solucao B: Criar CSS global para `.advanced-cropper` override
+- Manutenibilidade: 7/10 (CSS global pode conflitar com outros croppers)
+- Zero DT: 8/10 (depende de especificidade CSS)
+- Arquitetura: 6/10 (CSS global viola encapsulamento)
+- Escalabilidade: 7/10 (pode precisar de scoping)
+- Seguranca: 10/10
+- **NOTA FINAL: 7.4/10**
+
+### DECISAO: Solucao A (Nota 10.0)
+Inline style e direto, explicito, e nao cria dependencias de CSS global.
 
 ---
 
 ## Validacao de Sucesso
 
-1. Abrir crop dialog -- imagem aparece (loading desaparece apos carregamento)
-2. Dialog tem formato compacto, quase quadrado (estilo Cakto)
-3. Zoom via scroll/pinch sincroniza com slider
-4. Zoom via slider funciona corretamente
-5. Salvar produz arquivo com dimensoes corretas do preset
-6. onError mostra toast se a imagem falhar ao carregar
-
+1. Abrir crop dialog - xadrez visivel acima e abaixo da imagem
+2. Borda do crop claramente visivel (linhas brancas)
+3. Area fora do crop mostra xadrez com escurecimento (overlay)
+4. Imagem aparece nitida dentro da area de crop
+5. Zoom/pan continuam funcionando
+6. Salvar produz arquivo correto
