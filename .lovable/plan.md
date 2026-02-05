@@ -1,77 +1,104 @@
 
+# Auditoria Completa: Sistema de Recorte de Imagem (Estilo Cakto)
 
-# Reescrita Completa do Sistema de Recorte de Imagem + Previews (Estilo Cakto)
+## Resultado da Auditoria
 
-## Escopo Completo: 3 Contextos Diferentes
+### Verificacao dos Arquivos Principais (Crop Dialog)
 
-| Contexto | Comportamento | Implementação |
-|----------|---------------|---------------|
-| **1. Crop Dialog** | Imagem 100% visível + xadrez nas áreas vazias | `FixedCropper` + `ImageRestriction.none` |
-| **2. Preview (campo de upload)** | Imagem SEMPRE 100% visível + background sólido | `object-contain` + `bg-neutral-800` |
-| **3. Local real (uso final)** | Imagem se adapta, pode cortar se necessário | `object-cover` (mantém como está) |
+| Arquivo | Linhas | Status | Observacao |
+|---------|--------|--------|------------|
+| `ImageCropDialog.tsx` | 236 | OK | FixedCropper + ImageRestriction.none correto |
+| `useStencilSize.ts` | 60 | OK | Hook puro, memoizado, SRP perfeito |
+| `types.ts` | 75 | PROBLEMA | Props `allowPresetChange`/`availablePresets` declaradas mas nao consumidas |
+| `presets.ts` | 131 | OK | Todos presets com backgroundColor, getCropConfig correto |
+| `index.ts` | 21 | PROBLEMA | Exporta `useStencilSize` que e interno do modulo (nao e consumido externamente) |
+
+### Verificacao dos Previews (object-contain)
+
+| Arquivo | Linhas | Status | Observacao |
+|---------|--------|--------|------------|
+| `ImageSelector.tsx` | 219 | OK | object-contain + bg-neutral-800 correto |
+| `ImageUploadZoneCompact.tsx` | 187 | OK | object-contain + bg-neutral-800 correto |
+| `ModuleCardPreview.tsx` | 84 | OK | object-contain + bg-neutral-800 correto |
+| `FixedHeaderImageUpload.tsx` | 312 | PROBLEMA | Excede limite de 300 linhas (312) |
+| `BannerSlideUpload.tsx` | 312 | PROBLEMA | Excede limite de 300 linhas (312) |
+| `EditMemberModuleDialog.tsx` | 385 | PROBLEMA | Preview ainda usa `object-cover` (linha 276) + excede 300 linhas |
+
+### Verificacao de Codigo Morto/Legado
+
+| Item | Status | Observacao |
+|------|--------|------------|
+| Import de `Cropper` generico | OK | Zero referencias. Apenas `FixedCropper` |
+| Import de `react-cropper`/`cropperjs` | OK | Zero referencias. Migrado 100% |
+| Referencia a `fillArea` | OK | Zero referencias. Usa `ImageRestriction.none` |
+| object-cover em previews | PROBLEMA | `EditMemberModuleDialog.tsx` linha 276 ainda usa `object-cover` |
 
 ---
 
-## Problema Identificado
+## Problemas Identificados (5 itens)
 
-### No Crop Dialog (atual - quebrado)
-- Usa `Cropper` genérico com `imageRestriction="fillArea"`
-- Força zoom obrigatório mesmo em imagens no tamanho ideal
-- Stencil redimensionável e movível (confuso)
-- Zero liberdade para o usuário
+### PROBLEMA 1: Props declaradas mas nao consumidas (Codigo Morto)
+**Arquivo:** `types.ts` (linhas 67-74)
+**Gravidade:** ALTA (violacao RISE V3 - Zero Codigo Morto)
 
-### Nos Previews (atual - incorreto)
-- Usa `object-cover` que **corta** a imagem
-- Usuário não consegue ver a imagem completa
-- Não sabe exatamente qual imagem está selecionada
+As props `allowPresetChange` e `availablePresets` foram declaradas na interface `ImageCropDialogProps` mas **nunca sao usadas** no `ImageCropDialog.tsx`. O componente nao faz destructuring delas, nao renderiza nenhum dropdown de preset.
+
+**Solucao:** Remover essas duas props de `types.ts`. Se/quando a funcionalidade de dropdown de presets for necessaria, sera adicionada completa (tipo + implementacao juntos). Declarar props sem implementacao e divida tecnica.
+
+### PROBLEMA 2: Export desnecessario no barrel
+**Arquivo:** `index.ts` (linha 20)
+**Gravidade:** MEDIA
+
+`useStencilSize` e exportado no barrel, mas e um hook **interno** do modulo. Nenhum consumidor externo o usa. Expor internals viola o principio de encapsulamento.
+
+**Solucao:** Remover `export { useStencilSize }` do `index.ts`. O hook continua disponivel internamente via import direto.
+
+### PROBLEMA 3: EditMemberModuleDialog ainda usa object-cover no preview
+**Arquivo:** `EditMemberModuleDialog.tsx` (linha 276)
+**Gravidade:** ALTA (inconsistencia com o padrao)
+
+Todos os outros previews foram migrados para `object-contain` + `bg-neutral-800`, mas o preview de imagem dentro do `EditMemberModuleDialog` ainda usa `object-cover`, cortando a imagem no preview.
+
+**Solucao:** Aplicar o mesmo padrao: `bg-neutral-800` + `object-contain` no container de preview do modulo.
+
+### PROBLEMA 4: FixedHeaderImageUpload e BannerSlideUpload excedem 300 linhas
+**Arquivo:** Ambos com 312 linhas
+**Gravidade:** MEDIA (violacao RISE V3 secao 6.4)
+
+O limite de 300 linhas e uma regra do protocolo. Estes arquivos ja estavam com 310 linhas antes da mudanca; a adicao do div wrapper adicionou 2 linhas.
+
+**Solucao:** Extrair a logica de drag-and-drop para um hook reutilizavel `useImageDragDrop` (compartilhado entre ambos), reduzindo cada arquivo para ~280 linhas. Ambos os arquivos tem logica identica de drag-and-drop que pode ser unificada.
+
+### PROBLEMA 5: EditMemberModuleDialog excede 300 linhas (385 linhas)
+**Arquivo:** `EditMemberModuleDialog.tsx`
+**Gravidade:** ALTA (violacao RISE V3 secao 6.4 - God Object)
+
+Este arquivo com 385 linhas e um "God Object" que mistura dialog UI, logica de upload, logica de crop, state management e rendering.
+
+**Solucao:** Extrair a secao de upload de imagem para um componente dedicado `ModuleImageUploadSection`, reduzindo o dialog para ~250 linhas.
 
 ---
 
-## Solução Arquitetural (RISE Protocol V3 - Nota 10.0/10)
+## Plano de Correcao (Ordem de Execucao)
 
-### Parte 1: Crop Dialog (FixedCropper)
+### Etapa 1: Remover codigo morto em types.ts
+- Remover props `allowPresetChange` e `availablePresets` de `ImageCropDialogProps`
+- Atualizar documentacao do modulo
 
-```text
-┌─────────────────────────────────────────────────┐
-│                 CROP DIALOG                      │
-│                                                  │
-│   ┌───────────────────────────────────────┐     │
-│   │   (xadrez)    │  IMAGEM  │  (xadrez)  │     │
-│   │               │ COMPLETA │            │     │
-│   │               │  (fit)   │            │     │
-│   └───────────────────────────────────────┘     │
-│            STENCIL FIXO (não move)              │
-│                                                  │
-│   [─────────────────●─────────] Zoom 100%       │
-│                                                  │
-│   [Cancelar]                          [Salvar]  │
-└─────────────────────────────────────────────────┘
-```
+### Etapa 2: Limpar barrel export
+- Remover `export { useStencilSize }` de `index.ts`
 
-- `FixedCropper` com stencil fixo (não redimensiona, não move)
-- `ImageRestriction.none` para liberdade total de zoom/pan
-- Zoom range: 10% a 400%
-- Áreas vazias: xadrez no editor, cor sólida ao salvar
+### Etapa 3: Corrigir preview do EditMemberModuleDialog
+- Mudar `object-cover` para `object-contain` + `bg-neutral-800` na linha 276
 
-### Parte 2: Previews (object-contain)
+### Etapa 4: Extrair hook useImageDragDrop
+- Criar `src/modules/members-area-builder/hooks/useImageDragDrop.ts`
+- Mover logica compartilhada de drag/drop de `FixedHeaderImageUpload` e `BannerSlideUpload`
+- Ambos os arquivos ficam abaixo de 300 linhas
 
-```text
-┌──────────────────────────────┐
-│      ████████████████        │  ← background sólido (cinza escuro)
-│      ██            ██        │
-│      ██   IMAGEM   ██        │  ← imagem 100% visível
-│      ██  COMPLETA  ██        │     (object-contain)
-│      ██            ██        │
-│      ████████████████        │
-│                              │
-│  [✂️ Recortar]  [🗑️ Remover]  │
-└──────────────────────────────┘
-```
-
-- `object-contain` para mostrar imagem inteira
-- Background: `bg-neutral-800` ou pattern xadrez
-- Mantém proporção do aspect ratio do container
-- Usuário vê exatamente a imagem que selecionou
+### Etapa 5: Extrair ModuleImageUploadSection de EditMemberModuleDialog
+- Criar componente dedicado para a secao de upload/preview de imagem do modulo
+- EditMemberModuleDialog cai para ~250 linhas
 
 ---
 
@@ -79,149 +106,32 @@
 
 ```text
 src/components/ui/image-crop-dialog/
-├── ImageCropDialog.tsx          ← REESCREVER (FixedCropper)
-├── useStencilSize.ts            ← CRIAR (cálculo responsivo)
-├── types.ts                     ← EDITAR (novas props)
-├── presets.ts                   ← EDITAR (backgroundColor)
-└── index.ts                     ← SEM MUDANÇAS
+  types.ts                              -- EDITAR (remover props mortas)
+  index.ts                              -- EDITAR (remover export interno)
 
-src/components/products/
-└── ImageSelector.tsx            ← EDITAR (object-contain no preview)
-
-src/modules/members-area/components/
-├── ImageUploadZoneCompact.tsx   ← EDITAR (object-contain no preview)
-└── ModuleCardPreview.tsx        ← EDITAR (object-contain no preview)
-
-src/modules/members-area-builder/components/sections/
-├── FixedHeader/
-│   └── FixedHeaderImageUpload.tsx  ← EDITAR (object-contain no preview)
-└── Banner/
-    └── BannerSlideUpload.tsx        ← EDITAR (object-contain no preview)
+src/modules/members-area-builder/
+  hooks/
+    useImageDragDrop.ts                 -- CRIAR (hook compartilhado)
+  components/
+    dialogs/
+      EditMemberModuleDialog.tsx        -- EDITAR (object-contain + extrair upload section)
+      ModuleImageUploadSection.tsx      -- CRIAR (extraido do dialog)
+    sections/
+      FixedHeader/
+        FixedHeaderImageUpload.tsx      -- EDITAR (usar hook)
+      Banner/
+        BannerSlideUpload.tsx           -- EDITAR (usar hook)
 ```
 
 ---
 
-## Implementação Técnica Detalhada
+## Resultado Apos Correcoes
 
-### 1. `useStencilSize.ts` (NOVO)
-
-Hook que calcula o tamanho do stencil baseado na boundary:
-
-```typescript
-export function useStencilSize(aspectRatio: number) {
-  return useCallback((state: CropperState, settings: Settings) => {
-    const { boundary } = state;
-    // Calcula stencil que cabe na boundary mantendo aspect ratio
-    // Usa 90% da boundary como margem de segurança
-  }, [aspectRatio]);
-}
-```
-
-### 2. `ImageCropDialog.tsx` (REESCREVER)
-
-Mudanças principais:
-- `Cropper` → `FixedCropper`
-- `stencilProps.aspectRatio` → `stencilSize={calculateStencilSize}`
-- `imageRestriction={ImageRestriction.none}`
-- `stencilProps`: handlers=false, lines=false, movable=false, resizable=false
-- Zoom slider: 10% a 400%
-- Salvar: `getCanvas({ fillColor: config.backgroundColor })`
-
-### 3. `types.ts` (EDITAR)
-
-```typescript
-interface CropConfig {
-  aspectRatio: number;
-  outputWidth: number;
-  outputHeight: number;
-  label?: string;
-  backgroundColor?: string; // ← NOVO (default: "#1a1a2e")
-}
-
-interface ImageCropDialogProps {
-  // ... props existentes ...
-  allowPresetChange?: boolean;      // ← NOVO
-  availablePresets?: CropPresetName[]; // ← NOVO
-}
-```
-
-### 4. `presets.ts` (EDITAR)
-
-Adicionar `backgroundColor: "#1a1a2e"` a todos os presets.
-
-### 5. Previews (EDITAR - 5 arquivos)
-
-Padrão a aplicar em todos:
-
-```tsx
-// ANTES
-<img className="w-full h-full object-cover" />
-
-// DEPOIS
-<div className="w-full h-full bg-neutral-800 flex items-center justify-center">
-  <img className="max-w-full max-h-full object-contain" />
-</div>
-```
-
-Arquivos:
-1. `ImageSelector.tsx` (linha 79-83)
-2. `ImageUploadZoneCompact.tsx` (linha 105-109)
-3. `ModuleCardPreview.tsx` (linha 53-57)
-4. `FixedHeaderImageUpload.tsx` (linhas 225-230)
-5. `BannerSlideUpload.tsx` (linhas 225-230)
-
----
-
-## Fluxo Completo de Uso
-
-### 1. Usuário seleciona imagem
-- Clica no campo de upload
-- Escolhe imagem do computador
-
-### 2. Crop Dialog abre
-- Imagem aparece **COMPLETA** dentro do stencil fixo
-- Áreas não cobertas mostram pattern xadrez
-- Zoom in: imagem cresce, cobre mais do stencil
-- Zoom out: imagem diminui, mais xadrez aparece
-- Pan: arrasta para reposicionar
-
-### 3. Usuário clica "Salvar"
-- `getCanvas({ fillColor: "#1a1a2e" })` captura área do stencil
-- Áreas vazias recebem cor sólida (cinza escuro)
-- Arquivo salvo tem dimensões exatas do output
-
-### 4. Preview exibe imagem
-- Imagem aparece **COMPLETA** no campo de preview
-- Background cinza nas áreas vazias
-- Usuário vê exatamente o que salvou
-
-### 5. Local real exibe imagem
-- Container tem dimensão fixa (ex: 1080x1080)
-- Imagem preenche container (`object-cover`)
-- Se proporção diferente, corta para encaixar
-- Isso é esperado - usuário teve liberdade no recorte
-
----
-
-## Validação de Sucesso
-
-### Crop Dialog
-1. ✅ Imagem aparece 100% visível ao abrir
-2. ✅ Stencil não redimensiona nem move
-3. ✅ Zoom 10%-400% funciona suavemente
-4. ✅ Pan funciona em todas direções
-5. ✅ Xadrez visível nas áreas vazias
-6. ✅ Salvamento preenche áreas vazias com cor sólida
-
-### Previews
-1. ✅ Imagem 100% visível em todos os previews
-2. ✅ Background cinza nas áreas vazias
-3. ✅ Proporção mantida (não distorce)
-4. ✅ Botões de ação (recortar, remover) funcionam
-5. ✅ Usuário consegue identificar qual imagem está
-
-### Local Real
-1. ✅ Mantém comportamento atual (`object-cover`)
-2. ✅ Imagem se adapta ao container
-3. ✅ Corta se necessário para preencher
-
+| Criterio | Status |
+|----------|--------|
+| Zero codigo morto | OK (props removidas, export limpo) |
+| Zero object-cover em previews | OK (todos os 6 consumidores com object-contain) |
+| Todos arquivos < 300 linhas | OK |
+| Documentacao atualizada | OK |
+| RISE Protocol V3 compliant | OK (10.0/10) |
+| Manutenibilidade Infinita | OK (hook reutilizavel, componentes SRP) |
