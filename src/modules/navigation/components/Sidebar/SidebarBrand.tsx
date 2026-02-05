@@ -27,13 +27,13 @@ export function SidebarBrand({ showLabels, fullWidth = false }: SidebarBrandProp
   return (
     <div
       className={cn(
-        "flex items-center border-b border-border/40 transition-all duration-300",
+        "flex items-center border-b border-border/40 transition-[padding,height] duration-300",
         fullWidth ? "h-20 px-6" : "h-[88px] justify-center"
       )}
     >
       <div
         className={cn(
-          "flex items-center overflow-hidden transition-all duration-300",
+          "flex items-center overflow-hidden transition-[gap] duration-300",
           showLabels ? "gap-3" : "gap-0"
         )}
       >

@@ -68,14 +68,14 @@ export const SidebarGroup = memo(function SidebarGroup({
           <button
             type="button"
             className={cn(
-              "group/item relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all duration-200 outline-none",
+              "group/item relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition-colors duration-200 outline-none",
               childActive ? "bg-primary/10 shadow-sm" : "hover:bg-muted/50"
             )}
             title={!showLabels ? item.label : undefined}
           >
             <Icon
               className={cn(
-                "h-6 w-6 shrink-0 transition-all duration-300",
+                "h-6 w-6 shrink-0 transition-colors duration-200",
                 childActive
                   ? "text-primary"
                   : "text-muted-foreground group-hover/item:text-foreground"
@@ -160,7 +160,7 @@ const SidebarGroupChild = memo(function SidebarGroupChild({
       <GuardedLink
         to={item.variant.path}
         className={cn(
-          "group/child relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 outline-none",
+          "group/child relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200 outline-none",
           isChildActive
             ? "bg-primary/10 text-foreground font-medium"
             : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
@@ -170,7 +170,7 @@ const SidebarGroupChild = memo(function SidebarGroupChild({
       >
         <ChildIcon
           className={cn(
-            "h-5 w-5 shrink-0 transition-all duration-300",
+            "h-5 w-5 shrink-0 transition-colors duration-200",
             isChildActive
               ? "text-primary"
               : "text-muted-foreground group-hover/child:text-foreground"
