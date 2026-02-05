@@ -6,9 +6,16 @@
  * Módulo utilitário para envio de emails via ZeptoMail API.
  * Suporta 3 tipos de email com remetentes diferentes.
  * 
+ * TRACKING DESATIVADO POR PADRÃO (v3.0.0):
+ * - track_clicks: false
+ * - track_opens: false
+ * Motivo: Emails transacionais não devem ter tracking injetado.
+ * Tracking aumenta o tamanho do HTML e causa truncamento no Gmail ("3 pontinhos").
+ * Para ativar, passe explicitamente trackClicks: true.
+ * 
  * Uses centralized email-config.ts for zero hardcoded emails.
  * 
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { createLogger } from "./logger.ts";
@@ -112,8 +119,8 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     subject: params.subject,
     htmlbody: params.htmlBody,
     textbody: params.textBody,
-    track_clicks: params.trackClicks ?? true,
-    track_opens: params.trackOpens ?? true,
+      track_clicks: params.trackClicks ?? false,
+      track_opens: params.trackOpens ?? false,
     client_reference: params.clientReference,
   };
 
