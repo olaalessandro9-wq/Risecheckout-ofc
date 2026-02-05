@@ -1,83 +1,91 @@
 
-# Plano: Atualizar URLs de Logo para Usar Storage Permanente
 
-## Situação Atual
+# Plano: Correções para Conformidade Total RISE Protocol V3
 
-O arquivo foi uploaded com sucesso no Supabase Storage:
-- **Caminho**: `brand-assets/logo/main.jpeg`
-- **Problema**: O código em `src/lib/brand-assets.ts` está configurado para `.jpg`, mas o arquivo está como `.jpeg`
-- **Problema adicional**: A função `getLogoUrl()` nas Edge Functions ainda usa a URL antiga (`/risecheckout-email-banner.jpg`) que depende de `SITE_BASE_DOMAIN`
+## Resumo Executivo
 
-## Arquivos a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/lib/brand-assets.ts` | Corrigir extensão de `.jpg` para `.jpeg` |
-| `supabase/functions/_shared/email-templates-base.ts` | Substituir `getLogoUrl()` para usar URL permanente do Storage |
+A auditoria encontrou **1 violação crítica** do RISE Protocol V3: código morto no frontend. Este plano corrige essa violação e documenta a implementação.
 
 ---
 
-## Implementação Detalhada
+## Problema Identificado
 
-### Etapa 1: Corrigir extensão em brand-assets.ts
+| Arquivo | Problema | Gravidade |
+|---------|----------|-----------|
+| `src/lib/brand-assets.ts` | Código morto - nunca é importado | CRITICA |
 
-```typescript
-// src/lib/brand-assets.ts
-const STORAGE_BASE = "https://wivbtmtgpsxupfjwwovf.supabase.co/storage/v1/object/public";
-const BUCKET = "brand-assets";
-
-export const BRAND_ASSETS = {
-  /** Logo principal (fundo azul, texto branco) */
-  LOGO_MAIN: `${STORAGE_BASE}/${BUCKET}/logo/main.jpeg`, // Corrigido: .jpeg
-  
-  /** Alias para compatibilidade com código existente */
-  EMAIL_BANNER: `${STORAGE_BASE}/${BUCKET}/logo/main.jpeg`, // Corrigido: .jpeg
-} as const;
-```
-
-### Etapa 2: Simplificar getLogoUrl() nas Edge Functions
-
-A função atual depende de `SITE_BASE_DOMAIN` e usa fallback para `risecheckout.com`. Vamos substituir por URL permanente do Storage:
-
-```typescript
-// supabase/functions/_shared/email-templates-base.ts
-
-// URL permanente do Supabase Storage - nunca muda
-const LOGO_STORAGE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co/storage/v1/object/public/brand-assets/logo/main.jpeg";
-
-/**
- * Gets the logo URL from Supabase Storage.
- * Permanent URL that never changes.
- */
-export function getLogoUrl(): string {
-  return LOGO_STORAGE_URL;
-}
-```
+O arquivo define constantes e helpers para brand assets, mas **nenhum arquivo no projeto o utiliza**. Isso viola a regra de "Zero Divida Tecnica" do RISE Protocol V3.
 
 ---
 
-## Resultado Final
+## Analise de Solucoes (RISE V3 Secao 4.4)
 
-**URL permanente da logo:**
-```
-https://wivbtmtgpsxupfjwwovf.supabase.co/storage/v1/object/public/brand-assets/logo/main.jpeg
-```
+### Solucao A: Manter arquivo (status quo)
+- Manutenibilidade: 5/10
+- Zero DT: 0/10
+- Arquitetura: 4/10
+- Escalabilidade: 5/10
+- Seguranca: 10/10
+- **NOTA FINAL: 4.8/10**
 
-### Benefícios
+### Solucao B: Deletar arquivo (recomendada)
+- Manutenibilidade: 10/10
+- Zero DT: 10/10
+- Arquitetura: 10/10
+- Escalabilidade: 10/10
+- Seguranca: 10/10
+- **NOTA FINAL: 10.0/10**
 
-| Antes | Depois |
-|-------|--------|
-| Dependia de `SITE_BASE_DOMAIN` | URL fixa do Supabase Storage |
-| Fallback para `risecheckout.com` | Zero fallbacks necessários |
-| Arquivo deveria estar no servidor web | Arquivo no CDN global do Supabase |
-| Poderia quebrar se domínio mudasse | Permanente e estável |
+### DECISAO: Solucao B (Nota 10.0)
+
+A logo e usada exclusivamente em emails (backend). O frontend nao precisa dessa constante. Manter codigo morto viola o RISE Protocol V3.
+
+---
+
+## Acoes de Correcao
+
+### Etapa 1: Deletar codigo morto
+
+| Acao | Arquivo |
+|------|---------|
+| DELETAR | `src/lib/brand-assets.ts` |
+
+### Etapa 2: Criar Memory permanente
+
+Criar arquivo `docs/memories/BRAND_ASSETS_ARCHITECTURE.md` documentando:
+- Logo armazenada no Supabase Storage (`brand-assets/logo/main.jpeg`)
+- URL permanente via CDN global
+- `getLogoUrl()` em `email-templates-base.ts` como unica fonte de verdade
+- Zero dependencias de variaveis de ambiente
+
+### Etapa 3: Limpar plano antigo
+
+| Acao | Arquivo |
+|------|---------|
+| LIMPAR | `.lovable/plan.md` (remover conteudo obsoleto) |
+
+---
+
+## Verificacao Final
+
+Apos implementacao:
+
+| Criterio | Status Esperado |
+|----------|-----------------|
+| Codigo morto | Zero |
+| URLs hardcoded de logo | Zero |
+| Fontes de verdade para logo | 1 (backend) |
+| Dependencies de env para logo | Zero |
+| RISE V3 Score | 10.0/10 |
 
 ---
 
 ## Checklist RISE Protocol V3
 
-- [x] Solução definitiva (não temporária)
-- [x] Zero dependência de variáveis de ambiente
-- [x] URL pública permanente via CDN
-- [x] Single source of truth para logo
-- [x] Zero dívida técnica
+- [x] Analise de multiplas solucoes com notas
+- [x] Escolha da solucao de maior nota (10.0)
+- [x] Zero codigo morto
+- [x] Zero divida tecnica
+- [x] Single Source of Truth (backend `getLogoUrl()`)
+- [x] Documentacao atualizada (Memory)
+
