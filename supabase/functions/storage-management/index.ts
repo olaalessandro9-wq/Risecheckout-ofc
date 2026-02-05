@@ -20,7 +20,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Allowed buckets for operations
-const ALLOWED_BUCKETS = ["product-images", "avatars", "documents"];
+const ALLOWED_BUCKETS = ["product-images", "avatars", "documents", "brand-assets"];
 
 interface UploadRequest {
   action: "upload";
