@@ -35,6 +35,11 @@ import {
   getPaymentPendingTextTemplate,
 } from "../_shared/email-templates.ts";
 
+import {
+  getPasswordResetTemplate,
+  getPasswordResetTextTemplate,
+} from "../_shared/email-templates-password-reset.ts";
+
 // Mock Data
 import {
   getMockPurchaseData,
@@ -88,21 +93,7 @@ interface PreviewRequest {
 // INLINE TEMPLATES (para tipos não modularizados)
 // ============================================================================
 
-function getPasswordResetTemplate(data: { name: string; resetLink: string }): string {
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><title>[PREVIEW] Redefinir Senha</title></head>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h1 style="color: #6366f1;">Redefinir Senha</h1>
-  <p>Olá, ${data.name}!</p>
-  <p>Você solicitou a redefinição da sua senha. Clique no botão abaixo:</p>
-  <a href="${data.resetLink}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">Redefinir Senha</a>
-  <p style="color: #666; margin-top: 20px;">Este link expira em 1 hora.</p>
-  <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
-  <p style="color: #999; font-size: 12px;">Rise Checkout</p>
-</body>
-</html>`;
-}
+// Password Reset template agora importado de email-templates-password-reset.ts
 
 function getStudentInviteTemplate(data: { studentName: string; productName: string; producerName: string; accessLink: string }): string {
   return `<!DOCTYPE html>
@@ -188,7 +179,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
       return {
         subject: `[PREVIEW] Redefinir Sua Senha • ${timestamp}`,
         htmlBody: getPasswordResetTemplate(data),
-        textBody: `Olá ${data.name}, clique no link para redefinir sua senha: ${data.resetLink}`,
+        textBody: getPasswordResetTextTemplate(data),
       };
     }
     case "student-invite": {

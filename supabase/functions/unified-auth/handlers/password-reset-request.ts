@@ -15,31 +15,7 @@ import { sendEmail } from "../../_shared/zeptomail.ts";
 import { sanitizeEmail } from "../../_shared/sanitizer.ts";
 import { RESET_TOKEN_EXPIRY_HOURS } from "../../_shared/auth-constants.ts";
 import { buildSiteUrl } from "../../_shared/site-urls.ts";
-
-// Email templates inline
-function getPasswordResetEmailHtml(name: string | null, resetLink: string): string {
-  const userName = name || "Usuário";
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Redefinir sua senha</h2>
-      <p>Olá ${userName},</p>
-      <p>Recebemos uma solicitação para redefinir a senha da sua conta RiseCheckout.</p>
-      <p>Clique no botão abaixo para criar uma nova senha:</p>
-      <p style="text-align: center; margin: 30px 0;">
-        <a href="${resetLink}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Redefinir Senha</a>
-      </p>
-      <p style="color: #666; font-size: 14px;">Este link expira em ${RESET_TOKEN_EXPIRY_HOURS} horas.</p>
-      <p style="color: #666; font-size: 14px;">Se você não solicitou esta redefinição, ignore este email.</p>
-      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
-      <p style="color: #999; font-size: 12px;">RiseCheckout - Sua plataforma de vendas</p>
-    </div>
-  `;
-}
-
-function getPasswordResetEmailText(name: string | null, resetLink: string): string {
-  const userName = name || "Usuário";
-  return `Olá ${userName},\n\nRecebemos uma solicitação para redefinir a senha da sua conta RiseCheckout.\n\nAcesse o link abaixo para criar uma nova senha:\n${resetLink}\n\nEste link expira em ${RESET_TOKEN_EXPIRY_HOURS} horas.\n\nSe você não solicitou esta redefinição, ignore este email.\n\nRiseCheckout - Sua plataforma de vendas`;
-}
+import { getPasswordResetTemplate, getPasswordResetTextTemplate } from "../../_shared/email-templates-password-reset.ts";
 
 const log = createLogger("UnifiedAuth:PasswordResetRequest");
 
@@ -121,10 +97,10 @@ export async function handlePasswordResetRequest(
     // Send email
     const emailResult = await sendEmail({
       to: { email: user.email, name: user.name || undefined },
-      subject: "Redefinir sua senha - RiseCheckout",
+      subject: "Redefinir sua senha - Rise Checkout",
       type: "transactional",
-      htmlBody: getPasswordResetEmailHtml(user.name, resetLink),
-      textBody: getPasswordResetEmailText(user.name, resetLink),
+      htmlBody: getPasswordResetTemplate({ name: user.name, resetLink }),
+      textBody: getPasswordResetTextTemplate({ name: user.name, resetLink }),
     });
 
     if (!emailResult.success) {
