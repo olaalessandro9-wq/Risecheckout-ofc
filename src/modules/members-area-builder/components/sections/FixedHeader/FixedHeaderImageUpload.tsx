@@ -222,12 +222,14 @@ export function FixedHeaderImageUpload({
       />
 
       {imageUrl ? (
-        <div className="relative group rounded-lg overflow-hidden border bg-muted aspect-video">
-          <img
-            src={imageUrl}
-            alt="Preview da header"
-            className="w-full h-full object-cover"
-          />
+        <div className="relative group rounded-lg overflow-hidden border bg-neutral-800 aspect-video">
+          <div className="w-full h-full flex items-center justify-center">
+            <img
+              src={imageUrl}
+              alt="Preview da header"
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
             <Button
               size="sm"

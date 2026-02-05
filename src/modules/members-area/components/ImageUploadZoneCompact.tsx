@@ -102,12 +102,13 @@ export function ImageUploadZoneCompact({
           className="relative w-full max-w-[200px] aspect-[2/3] rounded-lg overflow-hidden border border-border bg-muted cursor-pointer group"
           onClick={handleClick}
         >
-          <img
-            src={imagePreview}
-            alt="Cover preview"
-            className="w-full h-full object-cover"
-          />
-          
+          <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
+            <img
+              src={imagePreview}
+              alt="Cover preview"
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
           {/* Action icons overlay */}
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
             {onCropClick && (

@@ -76,11 +76,13 @@ export function ImageSelector({
     
     return (
       <div className="space-y-3">
-        <img 
-          src={displayUrl || ""} 
-          alt="Imagem do produto" 
-          className="max-w-xs rounded-lg border border-border"
-        />
+        <div className="max-w-xs rounded-lg border border-border overflow-hidden bg-neutral-800 aspect-[4/3] flex items-center justify-center">
+          <img 
+            src={displayUrl || ""} 
+            alt="Imagem do produto" 
+            className="max-w-full max-h-full object-contain"
+          />
+        </div>
         
         {/* Botões de ação */}
         <div className="flex flex-wrap gap-2">
