@@ -54,23 +54,21 @@ export interface UltrawidePerformanceContextValue {
   readonly chartConfig: ChartPerformanceConfig;
 }
 
+// Cor primária RISE (azul)
+const CHART_COLOR = "#004fff";
+
 const defaultChartConfig: ChartPerformanceConfig = {
   isAnimationActive: true,
   animationDuration: 250,
-  dot: {
-    r: 4,
-    strokeWidth: 2,
-    stroke: "hsl(var(--success))",
-    fill: "hsl(var(--card))",
-  },
+  dot: false,
   activeDot: {
     r: 6,
     strokeWidth: 2,
-    stroke: "hsl(var(--success) / 0.3)",
-    fill: "hsl(var(--success))",
+    stroke: "#ffffff",
+    fill: CHART_COLOR,
   },
-  strokeWidth: 3,
-  debounce: 400,
+  strokeWidth: 2,
+  debounce: 500,
 };
 
 const ultrawideChartConfig: ChartPerformanceConfig = {
@@ -79,7 +77,7 @@ const ultrawideChartConfig: ChartPerformanceConfig = {
   dot: false,
   activeDot: {
     r: 6,
-    fill: "hsl(var(--success))",
+    fill: CHART_COLOR,
   },
   strokeWidth: 2,
   debounce: 600,

@@ -1,19 +1,20 @@
 /**
- * RevenueChart Component (Otimizado para Ultrawide)
+ * RevenueChart Component (Otimizado RISE V3)
  * 
  * @module dashboard/components
  * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Gráfico de faturamento com otimizações condicionais
- * para monitores ultrawide (≥2560px).
- * 
- * Consumidor do UltrawidePerformanceContext para SSOT.
+ * Gráfico de área otimizado para performance em monitores ultrawide.
+ * - AreaChart com gradiente azul RISE
+ * - Dots invisíveis por padrão (aparecem no hover)
+ * - Zero framer-motion para máxima performance
+ * - CSS Containment para isolar repaints
  */
 
-import { useMemo } from "react";
+import { useMemo, useId } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,9 +23,19 @@ import {
 } from "recharts";
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion } from "framer-motion";
 import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 import { cn } from "@/lib/utils";
+
+// ============================================================================
+// CONSTANTS - Cores RISE (Azul Primário)
+// ============================================================================
+
+const CHART_COLOR = "#004fff";
+const CHART_COLOR_RGB = "0, 79, 255";
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface RevenueChartProps {
   readonly title: string;
@@ -33,6 +44,10 @@ interface RevenueChartProps {
 }
 
 type CustomTooltipProps = TooltipProps<number, string>;
+
+// ============================================================================
+// COMPONENTS
+// ============================================================================
 
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (active && payload && payload.length) {
@@ -43,8 +58,8 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
         </p>
         <p className="text-xl font-bold text-card-foreground tracking-tight flex items-center gap-1">
           <span
-            className="w-2 h-2 rounded-full animate-pulse"
-            style={{ backgroundColor: "hsl(var(--success))" }}
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: CHART_COLOR }}
           />
           {new Intl.NumberFormat("pt-BR", {
             style: "currency",
@@ -57,9 +72,10 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   return null;
 }
 
-/**
- * Calcula domínio e ticks do eixo Y
- */
+// ============================================================================
+// UTILITIES - Sistema Inteligente de Ticks
+// ============================================================================
+
 function calculateYAxisConfig(data: Array<{ date: string; value: number }>): {
   domain: [number, number];
   ticks: number[];
@@ -118,125 +134,137 @@ function calculateYAxisConfig(data: Array<{ date: string; value: number }>): {
   return { domain: [yMinRounded, yMaxRounded], ticks };
 }
 
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 export function RevenueChart({
   title,
   data,
   isLoading = false,
 }: RevenueChartProps) {
   const { isUltrawide, chartConfig, disableBlur } = useUltrawidePerformance();
+  const gradientId = useId();
   const yAxisConfig = useMemo(() => calculateYAxisConfig(data), [data]);
 
-  // Wrapper condicional: div simples em ultrawide, motion.div em monitores normais
-  const Wrapper = isUltrawide ? "div" : motion.div;
-  const wrapperProps = isUltrawide
-    ? {}
-    : {
-        initial: { opacity: 0, scale: 0.98 },
-        animate: { opacity: 1, scale: 1 },
-        transition: { duration: 0.25 },
-      };
-
   // Cursor style para tooltip
-  const cursorStyle = isUltrawide
-    ? { stroke: "hsl(var(--success))", strokeWidth: 1, strokeOpacity: 0.2 }
-    : { stroke: "hsl(var(--success))", strokeWidth: 1, strokeDasharray: "4 4", strokeOpacity: 0.3 };
+  const cursorStyle = useMemo(() => ({
+    stroke: CHART_COLOR,
+    strokeWidth: 1,
+    strokeOpacity: isUltrawide ? 0.2 : 0.3,
+    strokeDasharray: isUltrawide ? undefined : "4 4",
+  }), [isUltrawide]);
 
   return (
-    <Wrapper {...wrapperProps} className="relative h-full">
-      <div
-        className={cn(
-          "relative h-full bg-card/95 border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-colors duration-200 flex flex-col",
-          // Blur condicional baseado no contexto
-          !disableBlur && "backdrop-blur-sm"
-        )}
-        style={{
-          // CSS Containment para isolar repaints do gráfico
-          contain: "layout style paint",
-          isolation: "isolate",
-        }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
-          <h3 className="text-base md:text-lg font-bold text-card-foreground tracking-tight flex items-center gap-2 md:gap-3">
+    <div
+      className={cn(
+        "relative h-full bg-card/95 border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-colors duration-200 flex flex-col",
+        !disableBlur && "backdrop-blur-sm"
+      )}
+      style={{
+        contain: "layout style paint",
+        isolation: "isolate",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
+        <h3 className="text-base md:text-lg font-bold text-card-foreground tracking-tight flex items-center gap-2 md:gap-3">
+          <div
+            className="flex h-6 w-6 md:h-8 md:w-8 items-center justify-center rounded-lg ring-1"
+            style={{
+              backgroundColor: `rgba(${CHART_COLOR_RGB}, 0.1)`,
+              borderColor: `rgba(${CHART_COLOR_RGB}, 0.2)`,
+            }}
+          >
             <div
-              className="flex h-6 w-6 md:h-8 md:w-8 items-center justify-center rounded-lg ring-1"
-              style={{
-                backgroundColor: "hsl(var(--success) / 0.1)",
-                borderColor: "hsl(var(--success) / 0.2)",
-              }}
-            >
-              <div
-                className="h-3 md:h-4 w-0.5 md:w-1 rounded-full"
-                style={{ backgroundColor: "hsl(var(--success))" }}
-              />
-            </div>
-            {title}
-          </h3>
-        </div>
-
-        {/* Chart Container - CSS Containment para isolar do reflow */}
-        <div
-          className="flex-1 min-h-[200px] md:min-h-[250px] lg:min-h-[300px]"
-          style={{ contain: "layout style" }}
-        >
-          {isLoading ? (
-            <div className="space-y-4 h-full flex flex-col justify-center">
-              <Skeleton className="h-[200px] w-full bg-muted/20" />
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%" debounce={chartConfig.debounce}>
-              <LineChart
-                data={data}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--chart-grid))"
-                  opacity={0.2}
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="date"
-                  stroke="hsl(var(--chart-axis))"
-                  style={{ fontSize: "11px", fontWeight: 500 }}
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
-                  padding={{ left: 20, right: 20 }}
-                  interval={isUltrawide ? "preserveStartEnd" : "preserveEnd"}
-                  minTickGap={isUltrawide ? 100 : 50}
-                />
-                <YAxis
-                  stroke="hsl(var(--chart-axis))"
-                  style={{ fontSize: "11px", fontWeight: 500 }}
-                  tickLine={false}
-                  axisLine={false}
-                  domain={yAxisConfig.domain}
-                  ticks={yAxisConfig.ticks}
-                  width={55}
-                  tickFormatter={(value) => {
-                    if (value >= 1000) {
-                      return `R$ ${(value / 1000).toFixed(1)}k`;
-                    }
-                    return `R$ ${value}`;
-                  }}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={cursorStyle} />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="hsl(var(--success))"
-                  strokeWidth={chartConfig.strokeWidth}
-                  isAnimationActive={chartConfig.isAnimationActive}
-                  animationDuration={chartConfig.animationDuration}
-                  dot={chartConfig.dot}
-                  activeDot={chartConfig.activeDot}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+              className="h-3 md:h-4 w-0.5 md:w-1 rounded-full"
+              style={{ backgroundColor: CHART_COLOR }}
+            />
+          </div>
+          {title}
+        </h3>
       </div>
-    </Wrapper>
+
+      {/* Chart Container */}
+      <div
+        className="flex-1 min-h-[200px] md:min-h-[250px] lg:min-h-[300px]"
+        style={{ contain: "layout style" }}
+      >
+        {isLoading ? (
+          <div className="space-y-4 h-full flex flex-col justify-center">
+            <Skeleton className="h-[200px] w-full bg-muted/20" />
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%" debounce={chartConfig.debounce}>
+            <AreaChart
+              data={data}
+              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+            >
+              {/* Gradient Definition */}
+              <defs>
+                <linearGradient id={`area-gradient-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={CHART_COLOR} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={CHART_COLOR} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="hsl(var(--chart-grid))"
+                opacity={0.2}
+                vertical={false}
+              />
+
+              <XAxis
+                dataKey="date"
+                stroke="hsl(var(--chart-axis))"
+                style={{ fontSize: "11px", fontWeight: 500 }}
+                tickLine={false}
+                axisLine={false}
+                dy={10}
+                padding={{ left: 20, right: 20 }}
+                interval={isUltrawide ? "preserveStartEnd" : "preserveEnd"}
+                minTickGap={isUltrawide ? 100 : 50}
+              />
+
+              <YAxis
+                stroke="hsl(var(--chart-axis))"
+                style={{ fontSize: "11px", fontWeight: 500 }}
+                tickLine={false}
+                axisLine={false}
+                domain={yAxisConfig.domain}
+                ticks={yAxisConfig.ticks}
+                width={55}
+                tickFormatter={(value) => {
+                  if (value >= 1000) {
+                    return `R$ ${(value / 1000).toFixed(1)}k`;
+                  }
+                  return `R$ ${value}`;
+                }}
+              />
+
+              <Tooltip content={<CustomTooltip />} cursor={cursorStyle} />
+
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke={CHART_COLOR}
+                strokeWidth={chartConfig.strokeWidth}
+                fill={`url(#area-gradient-${gradientId})`}
+                isAnimationActive={chartConfig.isAnimationActive}
+                animationDuration={chartConfig.animationDuration}
+                dot={false}
+                activeDot={{
+                  r: 6,
+                  fill: CHART_COLOR,
+                  stroke: "#ffffff",
+                  strokeWidth: 2,
+                }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
   );
 }
