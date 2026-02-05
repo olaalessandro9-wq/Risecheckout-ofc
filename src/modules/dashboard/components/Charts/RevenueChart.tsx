@@ -25,7 +25,6 @@ import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 import { useChartDimensions } from "@/hooks/useChartDimensions";
-import { cn } from "@/lib/utils";
 
 // ============================================================================
 // CONSTANTS - Cores RISE (Azul Primário)
@@ -145,12 +144,13 @@ export function RevenueChart({
   isLoading = false,
 }: RevenueChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { isUltrawide, chartConfig, disableBlur } = useUltrawidePerformance();
+  const { isUltrawide, chartConfig } = useUltrawidePerformance();
   const gradientId = useId();
   const yAxisConfig = useMemo(() => calculateYAxisConfig(data), [data]);
   
-  // Hook customizado que aguarda fim da transição antes de recalcular
-  const { width, height } = useChartDimensions(containerRef, 350);
+  // Hook customizado com delay reduzido (FLIP elimina layout thrash)
+  // 100ms é suficiente agora que não há mais reflow por frame
+  const { width, height } = useChartDimensions(containerRef, 100);
 
   // Renderizar gráfico apenas quando dimensões válidas
   const showChart = width > 0 && height > 0 && !isLoading;
@@ -165,10 +165,7 @@ export function RevenueChart({
 
   return (
     <div
-      className={cn(
-        "relative h-full bg-card/95 border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-colors duration-200 flex flex-col",
-        !disableBlur && "backdrop-blur-sm"
-      )}
+      className="relative h-full bg-card border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-border transition-colors duration-200 flex flex-col"
       style={{
         contain: "layout style paint",
         isolation: "isolate",

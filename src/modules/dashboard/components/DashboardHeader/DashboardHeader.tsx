@@ -10,17 +10,21 @@
 
 import { DateRangeFilter } from "../DateRangeFilter";
 import type { DateRangeState, DateRangeActions } from "../../hooks/useDateRangeState";
-import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
-import { cn } from "@/lib/utils";
 
 interface DashboardHeaderProps {
   readonly state: DateRangeState;
   readonly actions: DateRangeActions;
 }
 
+/**
+ * DashboardHeader Component
+ * 
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Header do dashboard com título e filtro de data.
+ * REMOVIDO: backdrop-blur para evitar jank durante transições de sidebar.
+ */
 export function DashboardHeader({ state, actions }: DashboardHeaderProps) {
-  const { disableBlur } = useUltrawidePerformance();
-
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4">
       <div>
@@ -32,12 +36,8 @@ export function DashboardHeader({ state, actions }: DashboardHeaderProps) {
         </p>
       </div>
 
-      <div
-        className={cn(
-          "bg-card/50 p-1 md:p-1.5 rounded-xl border border-border w-full md:w-auto",
-          !disableBlur && "backdrop-blur-sm"
-        )}
-      >
+      {/* REMOVIDO: backdrop-blur-sm - causa jank durante transições */}
+      <div className="bg-card/95 p-1 md:p-1.5 rounded-xl border border-border w-full md:w-auto">
         <DateRangeFilter state={state} actions={actions} />
       </div>
     </div>

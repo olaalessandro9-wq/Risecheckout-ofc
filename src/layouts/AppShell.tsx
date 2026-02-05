@@ -1,18 +1,34 @@
 /**
- * AppShell - Layout Principal da Aplicação
+ * AppShell - Layout Principal da Aplicação (COMPOSITOR-ONLY)
+ * 
+ * @version RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Integra Sidebar, Topbar e área de conteúdo principal.
- * Suspense ÚNICO centralizado para todas as rotas filhas.
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Layouts Simples + Suspense Centralizado
+ * ## Arquitetura de Performance
+ * - FLIP transition para movimento do conteúdo (transform, não margin)
+ * - RoutedOutlet memoizado para evitar re-render de rotas
+ * - Zero layout-animation (apenas compositor)
+ * - Suspense ÚNICO centralizado
+ * 
+ * @see useFlipTransition para detalhes do motor FLIP
  */
 
-import { Suspense } from "react";
+import { Suspense, memo, useRef, lazy } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar, useNavigation } from "@/modules/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import { useScrollShadow } from "@/hooks/useScrollShadow";
+import { useFlipTransition } from "@/hooks/useFlipTransition";
 import { cn } from "@/lib/utils";
+
+// ============================================================================
+// DEV-ONLY: Performance Overlay (lazy loaded, tree-shaken em produção)
+// ============================================================================
+
+const PerfOverlay = import.meta.env.DEV
+  ? lazy(() => import("@/devtools/perf/PerfOverlay"))
+  : null;
 
 // ============================================================================
 // PAGE LOADER - Componente de loading centralizado
@@ -27,12 +43,25 @@ function PageLoader() {
 }
 
 // ============================================================================
+// ROUTED OUTLET - Memoizado para evitar re-render por mudança da sidebar
+// ============================================================================
+
+/**
+ * Outlet memoizado que só re-renderiza quando a rota muda.
+ * Isso evita que o toggle da sidebar cause reconciliação de toda a árvore.
+ */
+const RoutedOutlet = memo(function RoutedOutlet() {
+  return <Outlet />;
+});
+
+// ============================================================================
 // APP SHELL
 // ============================================================================
 
 export default function AppShell() {
   const { sentinelRef, scrolled } = useScrollShadow();
   const navigation = useNavigation();
+  const mainContainerRef = useRef<HTMLDivElement>(null);
 
   // Detectar mobile para remover padding (sidebar é overlay)
   const isMobile =
@@ -41,15 +70,28 @@ export default function AppShell() {
   // Largura efetiva do sidebar
   const effectiveWidth = isMobile ? 0 : navigation.currentWidth;
 
+  // FLIP Transition: anima o movimento via transform (compositor-only)
+  // O layout (marginLeft) é aplicado imediatamente, sem transição CSS
+  useFlipTransition(mainContainerRef, effectiveWidth, {
+    duration: 300,
+    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+  });
+
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
       <Sidebar navigation={navigation} />
 
-      {/* Container principal com offset dinâmico - margin-left para GPU compositing */}
+      {/* 
+        Container principal com offset dinâmico
+        - marginLeft aplicado diretamente (1 reflow)
+        - FLIP hook anima via transform (compositor-only)
+        - SEM transition-[margin-left] (causa layout thrash)
+      */}
       <div
+        ref={mainContainerRef}
         className={cn(
-          "flex min-w-0 flex-1 flex-col",
-          "transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          "flex min-w-0 flex-1 flex-col"
+          // REMOVIDO: "transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
         style={{ marginLeft: `${effectiveWidth}px` }}
       >
@@ -67,11 +109,18 @@ export default function AppShell() {
         <main className="relative w-full">
           <div className="px-4 pb-8 pt-4 md:px-6 lg:px-8">
             <Suspense fallback={<PageLoader />}>
-              <Outlet />
+              <RoutedOutlet />
             </Suspense>
           </div>
         </main>
       </div>
+
+      {/* Performance Monitor (DEV only) */}
+      {PerfOverlay && (
+        <Suspense fallback={null}>
+          <PerfOverlay />
+        </Suspense>
+      )}
     </div>
   );
 }

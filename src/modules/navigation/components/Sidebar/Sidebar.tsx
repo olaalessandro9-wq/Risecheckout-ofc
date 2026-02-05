@@ -58,7 +58,7 @@ export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
     <Sheet open={state.mobileOpen} onOpenChange={setMobileOpen}>
       <SheetContent
         side="left"
-        className="p-0 w-[280px] border-r border-border/40 bg-background/98 backdrop-blur-sm"
+        className="p-0 w-[280px] border-r border-border/40 bg-background"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Menu de Navegação</SheetTitle>
@@ -92,7 +92,8 @@ export const Sidebar = memo(function Sidebar({ navigation }: SidebarProps) {
         onMouseLeave={handleMouseLeave}
         className={cn(
           "hidden md:flex fixed left-0 top-0 z-50 h-screen shrink-0 flex-col",
-          "border-r border-border/40 bg-background/95 backdrop-blur-sm",
+          // REMOVIDO: backdrop-blur-sm (causa jank durante transições)
+          "border-r border-border/40 bg-background",
           "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         )}
         style={{
