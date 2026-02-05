@@ -4,6 +4,7 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  *
  * Tests for purchase confirmation email templates.
+ * Validates <style> + classes architecture (Gmail compatible).
  *
  * @module _shared/email-templates-purchase
  */
@@ -45,6 +46,26 @@ Deno.test("HTML - returns valid HTML document", () => {
   const html = getPurchaseConfirmationTemplate(baseData);
   assertStringIncludes(html, "<!DOCTYPE html>");
   assertStringIncludes(html, "</html>");
+});
+
+Deno.test("HTML - uses style tag architecture (Gmail compatible)", () => {
+  const html = getPurchaseConfirmationTemplate(baseData);
+  assertStringIncludes(html, "<style>");
+  assertStringIncludes(html, "</style>");
+  assertStringIncludes(html, "@import url");
+});
+
+Deno.test("HTML - uses class-based structure", () => {
+  const html = getPurchaseConfirmationTemplate(baseData);
+  assertStringIncludes(html, 'class="container"');
+  assertStringIncludes(html, 'class="header"');
+  assertStringIncludes(html, 'class="content"');
+  assertStringIncludes(html, 'class="order-details"');
+});
+
+Deno.test("HTML - logo has explicit width attribute", () => {
+  const html = getPurchaseConfirmationTemplate(baseData);
+  assertStringIncludes(html, 'width="400"');
 });
 
 Deno.test("HTML - includes customer name", () => {
