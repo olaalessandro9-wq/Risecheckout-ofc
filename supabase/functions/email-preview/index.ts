@@ -40,6 +40,11 @@ import {
   getPasswordResetTextTemplate,
 } from "../_shared/email-templates-password-reset.ts";
 
+import {
+  getStudentInviteTemplate,
+  getStudentInviteTextTemplate,
+} from "../_shared/email-templates-student-invite.ts";
+
 // Mock Data
 import {
   getMockPurchaseData,
@@ -94,21 +99,7 @@ interface PreviewRequest {
 // ============================================================================
 
 // Password Reset template agora importado de email-templates-password-reset.ts
-
-function getStudentInviteTemplate(data: { studentName: string; productName: string; producerName: string; accessLink: string }): string {
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><title>[PREVIEW] Convite de Acesso</title></head>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h1 style="color: #10b981;">Você Foi Convidado!</h1>
-  <p>Olá, ${data.studentName}!</p>
-  <p><strong>${data.producerName}</strong> liberou seu acesso ao produto <strong>"${data.productName}"</strong>.</p>
-  <a href="${data.accessLink}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">Acessar Agora</a>
-  <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
-  <p style="color: #999; font-size: 12px;">Rise Checkout</p>
-</body>
-</html>`;
-}
+// Student Invite template agora importado de email-templates-student-invite.ts
 
 function getGdprRequestTemplate(data: { email: string; confirmationLink: string }): string {
   return `<!DOCTYPE html>
@@ -187,7 +178,7 @@ function processTemplate(templateType: TemplateType): { subject: string; htmlBod
       return {
         subject: `[PREVIEW] Você Foi Convidado! • ${timestamp}`,
         htmlBody: getStudentInviteTemplate(data),
-        textBody: `Olá ${data.studentName}, ${data.producerName} liberou seu acesso ao ${data.productName}. Acesse: ${data.accessLink}`,
+        textBody: getStudentInviteTextTemplate(data),
       };
     }
     case "gdpr-request": {

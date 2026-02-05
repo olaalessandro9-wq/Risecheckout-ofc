@@ -3,6 +3,7 @@
  * 
  * RISE Protocol V3 - 10.0/10 Compliant
  * Uses 'users' table as SSOT for producer name lookup
+ * Uses standardized email template from email-templates-student-invite.ts
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -12,6 +13,7 @@ import { jsonResponse } from "../helpers/response.ts";
 import { sendEmail } from "../../_shared/zeptomail.ts";
 import { createLogger } from "../../_shared/logger.ts";
 import { buildSiteUrl } from "../../_shared/site-urls.ts";
+import { getStudentInviteTemplate, getStudentInviteTextTemplate } from "../../_shared/email-templates-student-invite.ts";
 import type { ProductData } from "../types.ts";
 
 const log = createLogger("students-invite-handler");
@@ -94,28 +96,19 @@ export async function handleInvite(
   const studentName = name || normalizedEmail.split("@")[0];
   const producerName = (producerUser as { name: string } | null)?.name || "Produtor";
 
-  // Send email using shared module
+  // RISE V3: Use standardized email template
+  const emailData = {
+    studentName,
+    productName: typedProduct.name,
+    producerName,
+    accessLink,
+  };
+
   const emailResult = await sendEmail({
     to: { email: normalizedEmail, name: studentName },
     subject: `${producerName} te enviou acesso ao produto "${typedProduct.name}"`,
-    htmlBody: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #333;">Você recebeu acesso!</h1>
-        <p>Olá ${studentName},</p>
-        <p>${producerName} te concedeu acesso ao produto <strong>${typedProduct.name}</strong>.</p>
-        <p>Clique no botão abaixo para configurar sua senha e acessar o conteúdo:</p>
-        <p style="text-align: center; margin: 30px 0;">
-          <a href="${accessLink}" 
-             style="background-color: #10B981; color: white; padding: 12px 24px; 
-                    text-decoration: none; border-radius: 6px; display: inline-block;">
-            Acessar Conteúdo
-          </a>
-        </p>
-        <p style="color: #666; font-size: 12px;">
-          Este link expira em 7 dias. Se você não solicitou este acesso, ignore este email.
-        </p>
-      </div>
-    `,
+    htmlBody: getStudentInviteTemplate(emailData),
+    textBody: getStudentInviteTextTemplate(emailData),
     type: "transactional",
   });
 
