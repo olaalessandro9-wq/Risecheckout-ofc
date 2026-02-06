@@ -1,112 +1,156 @@
 
-# Fix: Limite de Descricao do Produto (500 -> 2000 caracteres)
+# Fix: Mensagens de Erro de Cupom Engolidas pelo Frontend
 
-## Diagnostico: Causa Raiz Encontrada
+## Diagnostico: Causa Raiz
 
-O problema esta no banco de dados. Existe um CHECK constraint na tabela `products`:
+O backend (`coupon-handler.ts`) retorna erros 400 com mensagens especificas e claras para o usuario:
 
-```sql
-CHECK (((description IS NULL) OR (char_length(description) <= 500)))
+```text
+"Este cupom nao e valido para este produto"
+"Cupom invalido ou nao encontrado"
+"Este cupom esta inativo"
+"Este cupom ainda nao esta ativo"
+"Este cupom expirou"
+"Este cupom atingiu o limite de usos"
 ```
 
-Este constraint limita a descricao a 500 caracteres, contradizendo o SSOT do frontend (`PRODUCT_FIELD_LIMITS.DESCRIPTION = 2000`). Quando o texto ultrapassa 500 caracteres, o Supabase retorna o erro PostgreSQL `23514` (check_violation) com a mensagem `"new row for relation 'products' violates check constraint 'products_description_length'"`, que a Edge Function propaga como erro 500.
+Porem, o frontend **descarta** todas essas mensagens e substitui por uma mensagem generica:
 
-### Evidencias Coletadas
+```text
+"Erro ao validar cupom. Tente novamente."
+```
 
-- **Logs da Edge Function**: Confirmam o erro `23514` no `update-general`
-- **PostgreSQL constraint**: `products_description_length` com limite de 500
-- **Frontend SSOT**: `PRODUCT_FIELD_LIMITS.DESCRIPTION = 2000` (correto)
-- **Edge Function handler**: Nao possui validacao de comprimento para description (confia no banco)
+### Rastreamento do Fluxo
+
+```text
+1. Backend retorna HTTP 400: {"error": "Este cupom nao e valido para este produto"}
+
+2. api.publicCall() -> parseHttpError(400, body)
+   -> Extrai corretamente: ApiError { code: "VALIDATION_ERROR", message: "Este cupom nao e valido para este produto" }
+   -> Retorna: { data: null, error: ApiError }
+
+3. validateCouponApi.ts (linha 65-68):
+   if (error) {
+     return { success: false, error: 'Erro ao validar cupom. Tente novamente.' };  // <-- BUG: ignora error.message
+   }
+
+4. Usuario ve: "Erro ao validar cupom. Tente novamente." (inutil)
+   Deveria ver: "Este cupom nao e valido para este produto" (util)
+```
+
+### Dois Arquivos com o Mesmo Defeito
+
+| Arquivo | Linha | Modo | Mesmo Bug |
+|---------|-------|------|-----------|
+| `validateCouponApi.ts` | 67 | Controlled (public checkout) | Sim - hardcoded string |
+| `useCouponValidation.ts` | 66 | Uncontrolled (editor/preview) | Sim - hardcoded string |
 
 ## Analise de Solucoes
 
-### Solucao A: Apenas alterar o constraint no banco
+### Solucao A: Usar error.message apenas no validateCouponApi
 
-Alterar o CHECK constraint de 500 para 2000 via SQL.
+Corrigir apenas o arquivo usado no public checkout (modo controlado).
 
-- Manutenibilidade: 7/10 (resolve o problema, mas a Edge Function continua sem validacao propria)
-- Zero DT: 6/10 (se o banco rejeitar por outro motivo, o erro 500 generico permanece)
-- Arquitetura: 6/10 (camada de validacao ausente no backend)
-- Escalabilidade: 7/10
-- Seguranca: 8/10
-- **NOTA FINAL: 6.6/10**
+- Manutenibilidade: 6/10 (corrige um arquivo, ignora o outro com bug identico)
+- Zero DT: 5/10 (editor/preview continua com mensagem generica)
+- Arquitetura: 5/10 (inconsistencia entre modos)
+- Escalabilidade: 5/10
+- Seguranca: 10/10
+- **NOTA FINAL: 5.8/10**
 
-### Solucao B: Alterar constraint no banco + Adicionar validacao na Edge Function
+### Solucao B: Propagar error.message em AMBOS os arquivos
 
-1. Alterar o CHECK constraint de 500 para 2000
-2. Adicionar validacao de comprimento no `handleUpdateGeneral` usando o limite de 2000, retornando erro 400 claro antes de tocar no banco
+Corrigir a propagacao de mensagens em ambos os caminhos (controlled + uncontrolled), usando `error.message` do backend quando disponivel, com fallback para mensagem generica apenas em erros de rede/timeout.
 
-- Manutenibilidade: 10/10 (validacao em ambas as camadas, mensagem de erro clara)
-- Zero DT: 10/10 (erro 400 com mensagem especifica em vez de erro 500 generico)
-- Arquitetura: 10/10 (defesa em profundidade: Edge Function valida antes, banco garante integridade)
-- Escalabilidade: 10/10 (padrao replicavel para qualquer campo)
-- Seguranca: 10/10 (dupla protecao)
+- Manutenibilidade: 10/10 (consistente em ambos os modos, mensagens uteis em todos os cenarios)
+- Zero DT: 10/10 (zero inconsistencia)
+- Arquitetura: 10/10 (o backend define as mensagens de validacao, o frontend so exibe)
+- Escalabilidade: 10/10 (novas mensagens de erro no backend aparecem automaticamente)
+- Seguranca: 10/10 (mensagens de validacao sao seguras para exibir)
 - **NOTA FINAL: 10.0/10**
 
 ### DECISAO: Solucao B (Nota 10.0)
 
-A Solucao A corrige o sintoma mas mantem a falha arquitetural: a Edge Function nao valida comprimento e delega tudo ao banco, resultando em erros 500 genericos. A Solucao B implementa defesa em profundidade.
+A Solucao A deixa divida tecnica no hook uncontrolled. A Solucao B corrige o padrao nos dois caminhos.
 
 ---
 
 ## Plano de Execucao
 
-### 1. ALTERAR constraint no banco de dados (SQL)
+### 1. EDITAR `src/hooks/checkout/validateCouponApi.ts` - Propagar error.message
 
-```sql
-ALTER TABLE products DROP CONSTRAINT products_description_length;
-ALTER TABLE products ADD CONSTRAINT products_description_length 
-  CHECK (description IS NULL OR char_length(description) <= 2000);
-```
+**Linha 65-68** - Trocar mensagem hardcoded por `error.message`:
 
-Isso altera o limite de 500 para 2000, alinhando o banco com o SSOT do frontend.
-
-### 2. EDITAR `supabase/functions/_shared/product-settings-handlers.ts` - Validacao no backend
-
-Adicionar validacao de comprimento no `handleUpdateGeneral`, entre as linhas 146-148 (apos o trim da description, antes do bloco de price):
-
+De:
 ```typescript
-if (data.description !== undefined) {
-  const desc = typeof data.description === "string" ? data.description.trim() : "";
-  if (desc.length > 2000) {
-    return errorResponse("Descricao deve ter no maximo 2000 caracteres", corsHeaders, 400);
-  }
-  updates.description = desc;
+if (error) {
+  log.error('Edge function error', error);
+  return { success: false, error: 'Erro ao validar cupom. Tente novamente.' };
 }
 ```
 
-Isso garante que a Edge Function retorne um erro 400 claro com mensagem especifica, em vez de um erro 500 generico do banco.
+Para:
+```typescript
+if (error) {
+  log.error('Edge function error', error);
+  return { success: false, error: error.message || 'Erro ao validar cupom. Tente novamente.' };
+}
+```
 
-### 3. Nenhuma alteracao no frontend
+O `error.message` ja contem a mensagem especifica do backend (ex: "Este cupom nao e valido para este produto") porque `parseHttpError` extrai corretamente do body da resposta 400. O fallback generico so sera usado se por algum motivo o `message` estiver vazio (cenario improvavel).
 
-O frontend ja esta correto: `PRODUCT_FIELD_LIMITS.DESCRIPTION = 2000` e o `maxLength` no Textarea ja impede digitacao alem de 2000 caracteres. A validacao no backend e puramente defensiva (defesa em profundidade).
+### 2. EDITAR `src/hooks/checkout/useCouponValidation.ts` - Mesmo fix no modo uncontrolled
+
+**Linha 64-68** - Mesmo padrao:
+
+De:
+```typescript
+if (error) {
+  log.error('Edge function error', error);
+  toast.error('Erro ao validar cupom. Tente novamente.');
+  return;
+}
+```
+
+Para:
+```typescript
+if (error) {
+  log.error('Edge function error', error);
+  toast.error(error.message || 'Erro ao validar cupom. Tente novamente.');
+  return;
+}
+```
 
 ---
 
 ## Arvore de Arquivos
 
 ```text
-supabase/
-  functions/
-    _shared/
-      product-settings-handlers.ts    -- EDITAR (adicionar validacao de comprimento)
-  
-  [SQL Migration]                     -- ALTER constraint de 500 para 2000
+src/
+  hooks/
+    checkout/
+      validateCouponApi.ts        -- EDITAR (propagar error.message, linha 67)
+      useCouponValidation.ts      -- EDITAR (propagar error.message, linha 66)
 ```
 
 ## Comportamento Esperado Apos Fix
 
-1. Descricao com ate 2000 caracteres: salva normalmente
-2. Descricao com mais de 2000 caracteres (se burlar o frontend): Edge Function retorna erro 400 com mensagem clara
-3. Banco garante integridade como ultima linha de defesa
+| Cenario do Backend | Mensagem Atual (BUG) | Mensagem Corrigida |
+|-------------------|----------------------|-------------------|
+| Cupom nao vinculado ao produto | "Erro ao validar cupom. Tente novamente." | "Este cupom nao e valido para este produto" |
+| Cupom inexistente | "Erro ao validar cupom. Tente novamente." | "Cupom invalido ou nao encontrado" |
+| Cupom inativo | "Erro ao validar cupom. Tente novamente." | "Este cupom esta inativo" |
+| Cupom expirado | "Erro ao validar cupom. Tente novamente." | "Este cupom expirou" |
+| Limite de usos atingido | "Erro ao validar cupom. Tente novamente." | "Este cupom atingiu o limite de usos" |
+| Erro de rede | "Erro ao validar cupom. Tente novamente." | "Erro de conexao com o servidor" |
 
 ## Checkpoint de Qualidade RISE V3
 
 | Pergunta | Resposta |
 |----------|----------|
-| Esta e a MELHOR solucao possivel? | Sim - defesa em profundidade (Edge Function + banco) |
+| Esta e a MELHOR solucao possivel? | Sim - propaga mensagens especificas em ambos os caminhos |
 | Existe alguma solucao com nota maior? | Nao |
-| Isso cria divida tecnica? | Zero - elimina divida existente |
+| Isso cria divida tecnica? | Zero |
 | Precisaremos "melhorar depois"? | Nao |
 | O codigo sobrevive 10 anos sem refatoracao? | Sim |
 | Estou escolhendo isso por ser mais rapido? | Nao |
