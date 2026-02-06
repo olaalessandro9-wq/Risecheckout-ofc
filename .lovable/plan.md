@@ -1,119 +1,143 @@
 
 
-# Auditoria Completa: Dual-Layout System do Checkout Builder
+# Fix: Texto do Cronometro Truncado no Mobile
 
-## Resultado da Auditoria
+## Diagnostico: Causa Raiz
 
-| Area | Status | Detalhes |
-|------|--------|----------|
-| **Arquitetura XState** | APROVADA | Machine + Actions + Guards + Actors - Modular, <300 linhas cada |
-| **Edge Functions** | APROVADA | `checkout-editor` e `checkout-public-data` salvam/servem mobile components |
-| **Documentacao EDGE_FUNCTIONS_REGISTRY** | APROVADA | Linha 92 ja documenta "Dual-Layout: mobile_top/bottom_components" |
-| **Database Migration** | APROVADA | Colunas `mobile_top_components` e `mobile_bottom_components` criadas |
-| **Checkout Publico** | APROVADA | Deteccao mobile + fallback para desktop implementados |
-| **Tipos** | APROVADA | `CheckoutViewport` adicionado a `checkoutEditor.ts` |
+No arquivo `src/features/checkout-builder/components/CountdownTimer/CountdownTimer.tsx`, linhas 94-105, o texto do cronometro tem um `maxWidth: '40%'` hard-coded:
 
----
-
-## PROBLEMAS ENCONTRADOS (Codigo Morto / Legado)
-
-### PROBLEMA 1: `src/hooks/useCheckoutEditor.ts` NAO FOI DELETADO (CRITICO)
-
-Este arquivo e o hook **legado** baseado em `useState` que foi substituido pela state machine XState. Ele continua existindo no projeto com 258 linhas de codigo morto.
-
-**Agravante**: Ele ainda e **importado** por 4 arquivos que usam seus tipos re-exportados:
-
-| Arquivo que importa | O que importa | Status |
-|---------------------|---------------|--------|
-| `src/types/checkout.ts` (linha 254) | `CheckoutCustomization, ViewMode` | LEGADO - deveria importar de `@/types/checkoutEditor` |
-| `src/contexts/CheckoutContext.tsx` (linha 13) | `CheckoutCustomization` | LEGADO - deveria importar de `@/types/checkoutEditor` |
-| `src/components/checkout/CheckoutPreview.tsx` (linha 1) | `CheckoutCustomization, ViewMode` | LEGADO - deveria importar de `@/types/checkoutEditor` |
-| `src/components/checkout/builder/CheckoutEditorMode.tsx` (linha 15) | `CheckoutCustomization, ViewMode` | LEGADO - deveria importar de `@/types/checkoutEditor` |
-
-**Causa raiz**: O hook legado faz `export type { ViewMode, CheckoutComponent, CheckoutDesign, CheckoutCustomization }` na linha 27, fazendo outros arquivos importarem os tipos DELE em vez de `@/types/checkoutEditor.ts` (que e o SSOT correto para tipos).
-
-### PROBLEMA 2: `src/pages/checkout-customizer/hooks/useCheckoutPersistence.ts` NAO FOI DELETADO (CRITICO)
-
-O hook de persistencia legado (194 linhas) ainda existe. Ele foi absorvido pelos actors XState (`checkoutEditorMachine.actors.ts`). Ninguem mais o importa, mas o arquivo esta presente como codigo morto.
-
-### PROBLEMA 3: `src/hooks/__tests__/useCheckoutEditor.test.ts` TESTE ORFAO (ALTO)
-
-O teste unitario do hook legado ainda existe. Ele testa o `useCheckoutEditor` baseado em `useState` que ja foi substituido. Este teste nunca mais devera passar corretamente pois referencia o hook antigo.
-
-### PROBLEMA 4: Violacao `console.error` em `checkoutEditorMachine.actors.ts` (MEDIO)
-
-Na linha 210 do actors file:
-```typescript
-}).catch(console.error);
+```tsx
+<span 
+  className="text-base lg:text-lg font-medium"
+  style={{
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '40%',       // <-- CAUSA RAIZ: Limita arbitrariamente a 40%
+    display: 'inline-block',
+  }}
+>
 ```
 
-O lint script `lint-console.sh` do projeto proibe `console.*` fora de `_shared/logger.ts`. O hook legado `useCheckoutPersistence.ts` tem a mesma violacao na linha 168, mas como esse arquivo sera deletado, nao e relevante.
+**Problemas:**
+1. `maxWidth: '40%'` e um valor arbitrario que ignora o espaco real disponivel
+2. `whiteSpace: 'nowrap'` impede qualquer quebra de linha
+3. `display: 'inline-block'` dentro de um `flex` container nao e necessario -- o flex ja controla o layout
+4. O `overflow: 'hidden'` + `textOverflow: 'ellipsis'` corta o texto antes de ele tentar usar o espaco disponivel
 
-Porem o novo arquivo `checkoutEditorMachine.actors.ts` copia essa violacao. Deve usar `createLogger` em vez de `console.error`.
+**Como deveria funcionar:** O container e `flex` com 3 filhos:
+- Tempo (`flex-shrink-0`) - tamanho fixo
+- Icone (`flex-shrink-0`) - tamanho fixo
+- Texto - deveria ocupar TODO o espaco restante (`flex-1 min-w-0`)
 
-### PROBLEMA 5: `CheckoutPersistenceState` em `types.ts` e LEGADO (BAIXO)
+Usando `flex-1 min-w-0` no texto, ele ocupa automaticamente o espaco que sobra apos o tempo e o icone, sem precisar de um `maxWidth` arbitrario.
 
-O tipo `CheckoutPersistenceState` em `src/pages/checkout-customizer/types.ts` (linhas 38-45) era usado por `useCheckoutPersistence.ts`. Com a absorcao no machine, esse tipo nao e mais necessario. Porem nao causa dano por enquanto.
+## Analise de Solucoes
 
----
+### Solucao A: Aumentar `maxWidth` de 40% para 60%
 
-## Plano de Remediacao
+Trocar `maxWidth: '40%'` por `maxWidth: '60%'`.
 
-### Fase 1: Eliminar Codigo Morto
+- Manutenibilidade: 4/10 (continua com valor magico arbitrario)
+- Zero DT: 3/10 (vai quebrar em algum outro tamanho de tela ou com texto mais longo)
+- Arquitetura: 3/10 (nao usa o modelo flex corretamente)
+- Escalabilidade: 3/10 (qualquer texto diferente pode estourar)
+- Seguranca: 10/10
+- **NOTA FINAL: 3.8/10**
 
-1. **DELETAR** `src/hooks/useCheckoutEditor.ts` (258 linhas de codigo morto)
-2. **DELETAR** `src/pages/checkout-customizer/hooks/useCheckoutPersistence.ts` (194 linhas de codigo morto)
-3. **DELETAR** `src/hooks/__tests__/useCheckoutEditor.test.ts` (teste orfao do hook legado)
+### Solucao B: Usar `flex-1 min-w-0` com `truncate` (Flexbox correto)
 
-### Fase 2: Corrigir Imports Legados
+Remover os estilos inline (`maxWidth`, `display`, `overflow`, `textOverflow`, `whiteSpace`) e substituir por classes Tailwind semanticas: `flex-1 min-w-0 truncate`. O texto ocupa todo o espaco restante apos os elementos fixos (tempo + icone), e so trunca quando realmente nao cabe.
 
-4. **EDITAR** `src/types/checkout.ts` - Linha 254:
-   - DE: `export type { CheckoutCustomization, ViewMode } from "@/hooks/useCheckoutEditor";`
-   - PARA: `export type { CheckoutCustomization, ViewMode } from "@/types/checkoutEditor";`
+- Manutenibilidade: 10/10 (usa flexbox semantico, sem valores magicos)
+- Zero DT: 10/10 (funciona para qualquer tamanho de texto e viewport)
+- Arquitetura: 10/10 (uso correto de flex-1 min-w-0, padrao ja usado no projeto)
+- Escalabilidade: 10/10 (adicionando mais texto ou mudando fontes, o layout se adapta)
+- Seguranca: 10/10
+- **NOTA FINAL: 10.0/10**
 
-5. **EDITAR** `src/contexts/CheckoutContext.tsx` - Linha 13:
-   - DE: `import type { CheckoutCustomization } from '@/hooks/useCheckoutEditor';`
-   - PARA: `import type { CheckoutCustomization } from '@/types/checkoutEditor';`
+### DECISAO: Solucao B (Nota 10.0)
 
-6. **EDITAR** `src/components/checkout/CheckoutPreview.tsx` - Linha 1:
-   - DE: `import { CheckoutCustomization, ViewMode } from "@/hooks/useCheckoutEditor";`
-   - PARA: `import type { CheckoutCustomization, ViewMode } from "@/types/checkoutEditor";`
-
-7. **EDITAR** `src/components/checkout/builder/CheckoutEditorMode.tsx` - Linha 15:
-   - DE: `import { CheckoutCustomization, ViewMode } from "@/hooks/useCheckoutEditor";`
-   - PARA: `import type { CheckoutCustomization, ViewMode } from "@/types/checkoutEditor";`
-
-### Fase 3: Corrigir Violacao de Logging
-
-8. **EDITAR** `src/pages/checkout-customizer/machines/checkoutEditorMachine.actors.ts` - Linha 210:
-   - DE: `}).catch(console.error);`
-   - PARA: `}).catch((err) => log.error("Failed to cleanup old storage paths", err));`
-   (O `log` ja esta importado e instanciado na linha 30 deste arquivo)
-
-### Fase 4: Remover Tipo Orfao
-
-9. **EDITAR** `src/pages/checkout-customizer/types.ts` - Remover `CheckoutPersistenceState` (linhas 38-45) pois era usado exclusivamente pelo hook legado que sera deletado.
+A Solucao A perpetua o problema com outro valor magico. A Solucao B elimina a causa raiz usando o modelo flexbox corretamente, consistente com o padrao `min-w-0 truncate` ja adotado no projeto (como no fix do OrderBump feito anteriormente).
 
 ---
 
-## Resumo de Impacto
+## Plano de Execucao
 
-| Metrica | Antes | Depois |
-|---------|-------|--------|
-| Arquivos mortos | 3 | 0 |
-| Imports legados | 4 | 0 |
-| Violacoes console.* | 1 (novo codigo) | 0 |
-| Tipos orfaos | 1 | 0 |
-| Linhas de codigo morto eliminadas | ~500+ | 0 |
+### EDITAR `src/features/checkout-builder/components/CountdownTimer/CountdownTimer.tsx`
+
+**Linhas 92-106** - Substituir o bloco do texto:
+
+**De** (bug):
+```tsx
+{/* Texto */}
+{(isFinished ? finishedText : activeText) && (
+  <span 
+    className="text-base lg:text-lg font-medium"
+    style={{
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      maxWidth: '40%',
+      display: 'inline-block',
+    }}
+  >
+    {isFinished ? finishedText : activeText}
+  </span>
+)}
+```
+
+**Para** (corrigido):
+```tsx
+{/* Texto */}
+{(isFinished ? finishedText : activeText) && (
+  <span className="text-base lg:text-lg font-medium flex-1 min-w-0 truncate">
+    {isFinished ? finishedText : activeText}
+  </span>
+)}
+```
+
+**Alteracoes aplicadas:**
+- Removido `style={{...}}` inline com valores magicos (`maxWidth: '40%'`, `display: 'inline-block'`, etc.)
+- Adicionado `flex-1`: o texto ocupa todo o espaco restante apos tempo e icone
+- Adicionado `min-w-0`: permite que o texto encolha abaixo do seu tamanho intrinseco (obrigatorio em flex containers)
+- Adicionado `truncate`: aplica `overflow: hidden`, `text-overflow: ellipsis` e `white-space: nowrap` via Tailwind -- so trunca quando REALMENTE nao ha espaco
+
+### Nenhum outro arquivo precisa de alteracao
+
+O componente `CountdownTimer` e "burro" (UI pura) e nao depende de nenhum outro arquivo para esta correcao. O `TimerView.tsx`, `CheckoutComponentRenderer.tsx`, e os testes continuam funcionando sem alteracao.
+
+---
+
+## Arvore de Arquivos
+
+```text
+src/
+  features/
+    checkout-builder/
+      components/
+        CountdownTimer/
+          CountdownTimer.tsx    -- EDITAR (linhas 92-106: flex-1 min-w-0 truncate)
+```
+
+## Comportamento Esperado Apos Fix
+
+| Cenario | Antes (Bug) | Depois (Fix) |
+|---------|-------------|--------------|
+| Mobile (375px) - "Oferta por tempo limitado" | Trunca em "Oferta por tempo..." | Exibe completo |
+| Mobile (320px) - Texto muito longo | Trunca em limite arbitrario de 40% | Trunca somente quando realmente nao cabe |
+| Desktop (1920px) | OK (40% e suficiente) | OK (flex-1 ocupa espaco restante) |
+| Texto curto ("Promo!") | OK | OK |
+| Texto vazio | OK (nao renderiza) | OK (nao renderiza) |
 
 ## Checkpoint de Qualidade RISE V3
 
 | Pergunta | Resposta |
 |----------|----------|
-| Restara codigo morto apos remediacoes? | Zero |
-| Restara import legado? | Zero |
-| Todos os tipos vem do SSOT (`@/types/checkoutEditor`)? | Sim |
-| Violacoes de logging corrigidas? | Sim |
-| Documentacao EDGE_FUNCTIONS_REGISTRY atualizada? | Ja esta correta |
-| O sistema compila sem os arquivos deletados? | Sim, nenhum arquivo ativo os importa |
+| Esta e a MELHOR solucao possivel? | Sim - flex-1 min-w-0 truncate |
+| Existe alguma solucao com nota maior? | Nao |
+| Isso cria divida tecnica? | Zero |
+| Precisaremos "melhorar depois"? | Nao |
+| O codigo sobrevive 10 anos sem refatoracao? | Sim |
+| Estou escolhendo isso por ser mais rapido? | Nao |
 
