@@ -42,6 +42,10 @@ const CROPPER_OVERRIDES_CSS = `
   .crop-stencil-line {
     border-color: rgba(59, 130, 246, 0.8) !important;
     border-width: 2px !important;
+    border-style: dashed !important;
+  }
+  .crop-stencil-preview {
+    border: 2px dashed rgba(59, 130, 246, 0.8) !important;
   }
 `;
 
@@ -221,7 +225,8 @@ export function ImageCropDialog({
                   movable: false,
                   resizable: false,
                   overlayClassName: "crop-overlay-transparent",
-                  lineClassName: "crop-stencil-line",
+                  lineClassNames: { default: "crop-stencil-line" },
+                  previewClassName: "crop-stencil-preview",
                 }}
                 imageRestriction={ImageRestriction.none}
                 crossOrigin={false}
