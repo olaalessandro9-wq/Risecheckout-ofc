@@ -290,22 +290,33 @@ function hexToHSL(hex: string): string {
 }
 
 /**
- * Returns the HSL override value for --background CSS variable
+ * Builds a complete React.CSSProperties object for content containers
  * when custom gradient color is active.
  * 
- * Returns null when:
+ * Returns undefined when:
  * - Gradient is disabled
  * - Using theme color (no override needed, already uses --background)
  * 
- * Returns HSL string (e.g., "260 65% 11%") when using custom color,
- * allowing content area below the header to match the gradient fade color.
+ * Returns CSSProperties with BOTH:
+ * - `--background`: HSL values for child components using bg-background
+ * - `backgroundColor`: Explicit hsl() value to override hardcoded Tailwind
+ *   classes (e.g., bg-zinc-950) via inline style specificity
+ * 
+ * This dual-property approach guarantees seamless color continuity
+ * between the header gradient fade and the content area below it.
  * 
  * @param config - Resolved gradient configuration
- * @returns HSL string for --background override, or null
+ * @returns CSSProperties with background override, or undefined
  */
-export function getGradientBackgroundOverride(
+export function buildGradientContentStyle(
   config: GradientOverlayConfig
-): string | null {
-  if (!config.enabled || config.use_theme_color) return null;
-  return hexToHSL(config.custom_color || '#000000');
+): React.CSSProperties | undefined {
+  if (!config.enabled || config.use_theme_color) return undefined;
+
+  const hsl = hexToHSL(config.custom_color || '#000000');
+
+  return {
+    '--background': hsl,
+    backgroundColor: `hsl(${hsl})`,
+  } as React.CSSProperties;
 }

@@ -32,7 +32,7 @@ import {
   type ModulesSettings,
   type FixedHeaderSettings,
 } from "@/modules/members-area-builder/types";
-import { resolveGradientConfig, getGradientBackgroundOverride } from "@/modules/members-area-builder/utils/gradientUtils";
+import { resolveGradientConfig, buildGradientContentStyle } from "@/modules/members-area-builder/utils/gradientUtils";
 import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
 import type { TitleSize } from "@/modules/members-area-builder/constants/titleSizes";
 
@@ -134,15 +134,14 @@ export default function CourseHome() {
   // Check if we have Builder sections configured
   const hasBuilderSections = sections.length > 0;
 
-  // Compute --background override for custom gradient color continuity
+  // Compute background override for custom gradient color continuity
+  // Sets BOTH --background (for children) AND backgroundColor (overrides hardcoded Tailwind)
   const contentStyle = useMemo(() => {
     const headerSection = sections.find(s => s.type === 'fixed_header');
     if (!headerSection) return undefined;
     const headerSettings = headerSection.settings as unknown as FixedHeaderSettings;
     const gradientConfig = resolveGradientConfig(headerSettings.gradient_overlay);
-    const bgOverride = getGradientBackgroundOverride(gradientConfig);
-    if (!bgOverride) return undefined;
-    return { '--background': bgOverride } as React.CSSProperties;
+    return buildGradientContentStyle(gradientConfig);
   }, [sections]);
 
   if (authLoading || isLoading) {
