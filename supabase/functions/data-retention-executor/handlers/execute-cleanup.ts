@@ -9,7 +9,8 @@
  * @module data-retention-executor/handlers/execute-cleanup
  */
 
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSupabaseClient } from '../../_shared/supabase-client.ts';
 import type { 
   CleanupCategory, 
   CleanupResult, 
@@ -21,12 +22,9 @@ import type {
   DryRunRpcResult,
 } from '../types.ts';
 
-/** Creates Supabase admin client */
+/** Creates Supabase admin client via centralized factory */
 function createAdminClient(): SupabaseClient {
-  return createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  return getSupabaseClient('admin');
 }
 
 /** Execute full cleanup via cleanup_all_data_v2_with_log() */

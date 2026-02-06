@@ -21,7 +21,8 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2, getCorsHeadersV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { jsonResponse, errorResponse } from "../_shared/response-helpers.ts";
@@ -65,16 +66,8 @@ serve(async (req: Request): Promise<Response> => {
       return errorResponse("Método não permitido", corsHeaders, 405);
     }
     
-    // Create Supabase client with service role
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
-    if (!supabaseUrl || !supabaseKey) {
-      log.error("Missing Supabase configuration");
-      return errorResponse("Configuração do servidor incorreta", corsHeaders, 500);
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Create Supabase client with general domain key
+    const supabase = getSupabaseClient('general');
     
     // Route to appropriate handler
     switch (action) {

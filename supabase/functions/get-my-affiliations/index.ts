@@ -7,7 +7,7 @@
  * Usa service_role para bypass de RLS (sistema usa autenticação customizada).
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -48,11 +48,8 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    // Criar cliente Supabase com service_role para bypass de RLS
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // Criar cliente Supabase com general domain key para bypass de RLS
+    const supabaseClient = getSupabaseClient('general');
 
     // Auth via unified-auth
     const producer = await getAuthenticatedProducer(supabaseClient, req);

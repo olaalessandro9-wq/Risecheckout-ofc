@@ -5,7 +5,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { getAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
@@ -30,7 +30,7 @@ serve(withSentry("integration-management", async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = getSupabaseClient('general');
 
     const url = new URL(req.url);
     const urlAction = url.pathname.split("/").pop();

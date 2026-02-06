@@ -14,7 +14,7 @@
  * ============================================================================
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -45,15 +45,8 @@ Deno.serve(async (req: Request) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    // Criar cliente Supabase com service_role
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      throw new Error("Missing Supabase environment variables");
-    }
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    // Criar cliente Supabase com admin domain key
+    const supabase = getSupabaseClient('admin');
 
     log.info("Generating RLS documentation...");
 

@@ -8,7 +8,7 @@
  * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -46,14 +46,7 @@ Deno.serve(async (req) => {
 
   try {
     // Criar cliente Supabase
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Variáveis de ambiente não configuradas");
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient('general');
 
     // Auth via unified-auth
     let producer;

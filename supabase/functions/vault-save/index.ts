@@ -31,7 +31,7 @@
  * @version 4.0.0 - RISE V3 Compliance (unified-auth cookies)
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSupabaseClient } from '../_shared/supabase-client.ts';
 import { 
   rateLimitMiddleware, 
   VAULT_SAVE,
@@ -127,10 +127,8 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    // 1. Inicializar Supabase Client com service_role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // 1. Inicializar Supabase Client com admin domain key
+    const supabase = getSupabaseClient('admin');
 
     // VULN-002: Rate limiting para vault-save
     const rateLimitResult = await rateLimitMiddleware(

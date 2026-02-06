@@ -12,7 +12,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP, RateLimitConfig } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
@@ -79,11 +79,9 @@ serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const encryptionKey = Deno.env.get("BUYER_ENCRYPTION_KEY");
     
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAdmin = getSupabaseClient('admin');
 
     // SECURITY: Rate limiting para dados sensíveis
     const rateLimitConfig: RateLimitConfig = RATE_LIMIT_CONFIGS.DECRYPT_DATA;
