@@ -144,7 +144,11 @@ export async function handleUpdateGeneral(
   }
 
   if (data.description !== undefined) {
-    updates.description = typeof data.description === "string" ? data.description.trim() : "";
+    const desc = typeof data.description === "string" ? data.description.trim() : "";
+    if (desc.length > 2000) {
+      return errorResponse("Descrição deve ter no máximo 2000 caracteres", corsHeaders, 400);
+    }
+    updates.description = desc;
   }
 
   if (data.price !== undefined) {
