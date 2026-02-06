@@ -187,7 +187,7 @@ export default function CourseHome() {
         <main className={cn(
           "flex-1 overflow-x-hidden",
           membersAreaSettings.show_menu_mobile !== false ? "pb-16 lg:pb-0" : "pb-0"
-        )}>
+        )} style={contentStyle}>
           {/* Back Button - Floating */}
           <div className="absolute top-4 left-4 z-30 lg:hidden">
             <Link to="/minha-conta/dashboard">
@@ -202,7 +202,7 @@ export default function CourseHome() {
           {hasBuilderSections ? (
             // RISE V3: Arquitetura Netflix - flex-col sem gaps
             // O banner termina em cor sólida, não precisa de margin negativo
-            <div className="flex flex-col" style={contentStyle}>
+            <div className="flex flex-col">
               {sections.map((section) => {
                 // Fixed Header Section (Cakto-style)
                 if (section.type === 'fixed_header') {
