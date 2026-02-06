@@ -199,6 +199,63 @@ const headers = {
 // Worker injeta publishable key automaticamente
 ```
 
+## Multi-Secret Key Architecture (4 Domínios)
+
+> **Atualizado: 2026-02-06** - Isolamento operacional de secret keys por domínio funcional.
+
+As 107 Edge Functions são segmentadas em **4 domínios de segurança**, cada um com sua
+própria secret key (`sb_secret_...`). Se uma key for comprometida, revoga-se APENAS ela,
+limitando o blast radius ao domínio afetado.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    MULTI-SECRET KEY ISOLATION                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│   │  WEBHOOKS    │  │  PAYMENTS    │  │    ADMIN     │  │   GENERAL    │   │
+│   │  10 funções  │  │  18 funções  │  │  17 funções  │  │  62 funções  │   │
+│   │              │  │              │  │              │  │              │   │
+│   │  sb_secret_  │  │  sb_secret_  │  │  sb_secret_  │  │  sb_secret_  │   │
+│   │  (webhooks)  │  │  (payments)  │  │  (admin)     │  │  (auto)      │   │
+│   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘   │
+│          │                 │                 │                 │            │
+│          └─────────────────┴─────────────────┴─────────────────┘            │
+│                                   │                                         │
+│                    ┌──────────────┴──────────────┐                          │
+│                    │    _shared/supabase-client   │                          │
+│                    │    Factory (SSOT)            │                          │
+│                    │    getSupabaseClient(domain) │                          │
+│                    └─────────────────────────────┘                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Mapeamento Domínio → Env Var
+
+| Domínio | Env Var | Configuração |
+|---------|---------|--------------|
+| `webhooks` | `SUPABASE_SECRET_WEBHOOKS` | Manual (Supabase Secrets) |
+| `payments` | `SUPABASE_SECRET_PAYMENTS` | Manual (Supabase Secrets) |
+| `admin` | `SUPABASE_SECRET_ADMIN` | Manual (Supabase Secrets) |
+| `general` | `SUPABASE_SERVICE_ROLE_KEY` | Auto-injected by Supabase |
+
+### Rotação de Secret Key (por domínio)
+
+```
+1. Supabase Dashboard > API Keys > Revogar key comprometida
+2. Criar nova key no mesmo Dashboard
+3. Dashboard > Edge Functions > Manage Secrets > Atualizar env var correspondente
+4. Edge Functions re-deployam automaticamente com novo secret
+5. Tempo total de downtime: ~30 segundos (apenas no domínio afetado)
+6. Domínios não afetados: ZERO impacto
+```
+
+### Fallback de Segurança
+
+O factory (`_shared/supabase-client.ts`) implementa fallback automático: se a secret de um
+domínio não estiver configurada, usa a key `general` com log de warning. Isso garante zero
+downtime durante a migração gradual das keys.
+
 ## Troubleshooting
 
 ### CORS Errors
@@ -224,3 +281,9 @@ const headers = {
 1. Verificar se `verify_jwt = false` está no `supabase/config.toml`
 2. Verificar se a publishable key está correta no Worker
 3. Verificar logs: `supabase functions logs <function-name>`
+
+### Domínio usando key errada
+
+1. Verificar qual domínio a função usa: consultar tabela em `EDGE_FUNCTIONS_REGISTRY.md`
+2. Verificar se o env var correto está configurado em Supabase Secrets
+3. Checar logs: o factory emite warning quando faz fallback para `general`
