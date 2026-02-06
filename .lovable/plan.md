@@ -1,132 +1,212 @@
 
-# Fix: Titulo de Order Bump Sobrepondo no Resumo do Pedido
+# Dual-Layout System for Checkout Builder
 
-## Diagnostico: Causa Raiz
+## Current Problem
 
-No componente `SharedOrderSummary.tsx` (linhas 228-234), a row do order bump usa `flex justify-between items-center` mas o nome do bump (`<p>`) nao possui nenhum controle de overflow:
+The checkout builder has Desktop/Mobile toggle buttons but they only change the **preview width**. Both viewports edit the **same** `topComponents` and `bottomComponents`. There is no way to have different components for desktop vs mobile.
 
-```tsx
-// CODIGO ATUAL (BUG) - Linha 228-235
-<div className="flex-1 flex justify-between items-center">
-  <p className="text-sm pr-4" style={{ color: design.colors.secondaryText }}>
-    {bump.name}    // <-- SEM min-w-0, SEM truncate, SEM line-clamp
-  </p>
-  <span className="font-medium whitespace-nowrap" style={{ color: design.colors.primaryText }}>
-    R$ 10,00
-  </span>
-</div>
-```
+## Reference Architecture
 
-**Problemas especificos:**
-1. O `<p>` nao tem `min-w-0` -- em flex containers, o texto nao respeita os limites do parent
-2. Nao ha `line-clamp` ou `truncate` -- texto infinito expande a row
-3. O preco tem `whitespace-nowrap` (correto), mas o nome empurra o preco para fora do container
-4. O `flex justify-between items-center` forca tudo em uma unica linha sem overflow control
+The Members Area Builder already implements this pattern correctly with XState:
+- `desktopSections` / `mobileSections` separate arrays
+- `activeViewport` controls which is being edited
+- `isMobileSynced` flag for auto-sync mode
+- Save/Load handles both arrays, separated by viewport
 
-**Nota:** O `EditorPaymentSection.tsx` ja aplica `line-clamp-1` nos bumps (linhas 264 e 364), mas de forma inconsistente com o componente compartilhado.
+## Solution Analysis
 
-## Analise de Solucoes
+### Solution A: Replicate Members Area Builder pattern with XState State Machine
 
-### Solucao A: Aplicar `truncate` simples (1 linha com ellipsis)
+Migrate `useCheckoutEditor` from `useState` to an XState state machine mirroring the Members Area Builder architecture. Dual `desktopCustomization` / `mobileCustomization` with full state machine lifecycle (idle, loading, ready.pristine, ready.dirty, saving).
 
-Adicionar `truncate min-w-0` ao `<p>` do nome do bump.
+- Manutenibility: 10/10 (consistent with Members Area Builder, single pattern across project)
+- Zero DT: 10/10 (XState provides deterministic state transitions, no race conditions)
+- Architecture: 10/10 (follows existing proven pattern, SOLID principles)
+- Scalability: 10/10 (adding new viewports like tablet would be trivial)
+- Security: 10/10 (no changes to security model)
+- **FINAL SCORE: 10.0/10**
 
-- Manutenibilidade: 7/10 (resolve o overflow, mas corta nomes que caberiam em 2 linhas)
-- Zero DT: 8/10
-- Arquitetura: 7/10 (inconsistente com o pedido do usuario de "primeiro vai pra linha de baixo")
-- Escalabilidade: 8/10
-- Seguranca: 10/10
-- **NOTA FINAL: 7.6/10**
+### Solution B: Keep useState, add separate state for mobile components
 
-### Solucao B: Reestruturar layout com `line-clamp-2` e alinhamento vertical
+Add `mobileTopComponents` / `mobileBottomComponents` useState hooks alongside existing ones. Use `viewMode` to switch which are passed to the renderer.
 
-Mudar o layout do bump row para:
-- Nome ocupa a largura disponivel (com `min-w-0`)
-- `line-clamp-2`: permite ate 2 linhas de texto, com ellipsis na segunda
-- Preco alinhado ao topo, fixo a direita, nunca empurrado
-- Reestruturar de `flex items-center` para `flex items-start` (preco fica no topo da row)
+- Manutenibility: 6/10 (grows the hook with more scattered useState, inconsistent with builder pattern)
+- Zero DT: 5/10 (no dirty tracking, no sync mode, duplicated logic for every action)
+- Architecture: 4/10 (diverges from Members Area Builder, violates consistency principle)
+- Scalability: 5/10 (adding viewports would require exponential useState additions)
+- Security: 10/10
+- **FINAL SCORE: 5.6/10**
 
-- Manutenibilidade: 10/10 (semantica clara, consistente com o `EditorPaymentSection`)
-- Zero DT: 10/10 (comportamento previsivel para qualquer tamanho de titulo)
-- Arquitetura: 10/10 (respeita o pedido: "vai pra linha de baixo, se for muito grande, 3 pontinhos")
-- Escalabilidade: 10/10 (funciona para nomes de 1 caractere ate 200+)
-- Seguranca: 10/10
-- **NOTA FINAL: 10.0/10**
+### Solution C: Single customization object with viewport-keyed components
 
-### DECISAO: Solucao B (Nota 10.0)
+Store `{ desktop: { top, bottom }, mobile: { top, bottom } }` in a single state object using useState.
 
-A Solucao A corta nomes que caberiam em 2 linhas desnecessariamente. A Solucao B implementa exatamente o comportamento pedido: texto passa para a segunda linha primeiro, e so trunca com "..." se exceder 2 linhas.
+- Manutenibility: 7/10 (cleaner than B but lacks state machine benefits)
+- Zero DT: 7/10 (no formal dirty tracking or discard mechanism)
+- Architecture: 6/10 (still inconsistent with Members Area Builder's XState pattern)
+- Scalability: 7/10
+- Security: 10/10
+- **FINAL SCORE: 7.0/10**
+
+### DECISION: Solution A (Score 10.0)
+
+Solutions B and C create architectural inconsistency with the Members Area Builder. Solution A uses the same proven XState pattern, providing deterministic state management, dirty tracking, and a consistent developer experience across both builders.
 
 ---
 
-## Plano de Execucao
+## Execution Plan
 
-### 1. EDITAR `src/components/checkout/shared/SharedOrderSummary.tsx` - Linhas 228-235
+### Phase 1: Database Schema (New Columns)
 
-**De** (bug):
-```tsx
-<div className="flex-1 flex justify-between items-center">
-  <p className="text-sm pr-4" style={{ color: design.colors.secondaryText }}>
-    {bump.name}
-  </p>
-  <span className="font-medium whitespace-nowrap" style={{ color: design.colors.primaryText }}>
-    R$ {(Number(bump.price) / 100).toFixed(2).replace('.', ',')}
-  </span>
-</div>
+**Migration SQL** - Add `mobile_top_components` and `mobile_bottom_components` columns to the `checkouts` table:
+
+```sql
+ALTER TABLE public.checkouts
+  ADD COLUMN mobile_top_components jsonb DEFAULT '[]'::jsonb,
+  ADD COLUMN mobile_bottom_components jsonb DEFAULT '[]'::jsonb;
 ```
 
-**Para** (corrigido):
-```tsx
-<div className="flex-1 flex justify-between items-start gap-3 min-w-0">
-  <p className="text-sm min-w-0 line-clamp-2" style={{ color: design.colors.secondaryText }}>
-    {bump.name}
-  </p>
-  <span className="font-medium whitespace-nowrap flex-shrink-0" style={{ color: design.colors.primaryText }}>
-    R$ {(Number(bump.price) / 100).toFixed(2).replace('.', ',')}
-  </span>
-</div>
-```
+This preserves backward compatibility: existing checkouts have empty mobile arrays, which the builder interprets as "mobile synced with desktop" (same pattern as Members Area Builder).
 
-**Alteracoes CSS aplicadas:**
-- `items-center` para `items-start`: preco alinha ao topo quando o titulo quebra linha
-- Adicionado `gap-3`: espaco consistente entre nome e preco (substitui o `pr-4` no `<p>`)
-- Adicionado `min-w-0` no container flex E no `<p>`: permite que o texto respeite os limites do container
-- Adicionado `line-clamp-2` no `<p>`: permite ate 2 linhas, trunca com "..." na segunda
-- Removido `pr-4` do `<p>`: substituido pelo `gap-3` no container (melhor semantica flex)
-- Adicionado `flex-shrink-0` no preco: garante que o preco nunca encolhe
+### Phase 2: Types (Dual-Layout Support)
 
-### Nenhum outro arquivo precisa de alteracao
+**File: `src/types/checkoutEditor.ts`** - Expand `CheckoutCustomization` to support dual-layout:
 
-O `EditorPaymentSection.tsx` ja possui `line-clamp-1` nos bumps (linhas 264 e 364) e `min-w-0` no container (linhas 262 e 362). A inconsistencia e que la usa `line-clamp-1` e o SSOT nao tinha nenhum. Apos o fix, o SSOT tera `line-clamp-2` (mais generoso, permite wrap antes de truncar), que e o comportamento correto para o checkout publico onde o espaco e maior.
+- Change `CheckoutCustomization` to contain `desktopTopComponents`, `desktopBottomComponents`, `mobileTopComponents`, `mobileBottomComponents`
+- OR (cleaner): Keep the existing `CheckoutCustomization` shape as-is for rendering, and use a new `DualCheckoutCustomization` aggregate at the editor level that wraps two `CheckoutCustomization` objects
+- Add `CheckoutViewport` type: `'desktop' | 'mobile'`
+
+The cleaner approach: the **editor** works with a `DualCheckoutCustomization`, and the **renderer** (`CheckoutMasterLayout`, `CheckoutPreviewLayout`, `CheckoutEditorMode`) continues receiving a single `CheckoutCustomization` -- the editor simply passes the one matching the `activeViewport`. This avoids changing every downstream component.
+
+### Phase 3: State Machine (New XState Machine)
+
+**New file: `src/pages/checkout-customizer/machines/checkoutEditorMachine.ts`**
+
+Create an XState state machine mirroring the Members Area Builder pattern:
+
+Context:
+- `checkoutId: string | null`
+- `desktopCustomization: CheckoutCustomization` (design + top + bottom for desktop)
+- `mobileCustomization: CheckoutCustomization` (design + top + bottom for mobile)
+- `activeViewport: 'desktop' | 'mobile'`
+- `isMobileSynced: boolean`
+- `selectedComponentId: string | null`
+- `viewMode: ViewMode`
+- `isPreviewMode: boolean`
+- `activeTab: 'components' | 'settings'`
+- `activeId: string | null` (DnD)
+- `originalDesktopCustomization: CheckoutCustomization`
+- `originalMobileCustomization: CheckoutCustomization`
+
+States: `idle -> loading -> ready(pristine|dirty) -> saving -> error`
+
+Events: All current editor actions + viewport switching + sync mode + save/discard
+
+**Supporting files:**
+- `src/pages/checkout-customizer/machines/checkoutEditorMachine.types.ts`
+- `src/pages/checkout-customizer/machines/checkoutEditorMachine.actions.ts`
+- `src/pages/checkout-customizer/machines/checkoutEditorMachine.actors.ts`
+- `src/pages/checkout-customizer/machines/checkoutEditorMachine.guards.ts`
+- `src/pages/checkout-customizer/machines/index.ts`
+
+### Phase 4: Hook Replacement
+
+**Replace `src/hooks/useCheckoutEditor.ts`** with a new hook that wraps the XState machine:
+
+**New file: `src/pages/checkout-customizer/hooks/useCheckoutEditorState.ts`**
+
+This hook:
+- Uses `useMachine(checkoutEditorMachine)`
+- Derives `customization` from `activeViewport` (returns desktop or mobile)
+- Exposes the same API surface as current `useCheckoutEditor` + new viewport actions
+- `setActiveViewport`, `copyDesktopToMobile`, `setMobileSynced`
+
+The old `useCheckoutEditor.ts` file will be deleted since the persistence hook (`useCheckoutPersistence`) will be absorbed into the machine actors.
+
+### Phase 5: Edge Function Changes
+
+**Modify `supabase/functions/checkout-editor/index.ts`:**
+
+1. **`get-editor-data`**: Add `mobile_top_components` and `mobile_bottom_components` to the SELECT query
+2. **`update-design`**: Accept `mobileTopComponents` and `mobileBottomComponents` in the request body and save them to the new columns
+3. Update `RequestBody` interface to include the new fields
+
+**Modify public checkout data functions** (`resolve-universal-handler.ts`, `resolve-and-load-handler.ts`, `checkout-handler.ts`):
+- Add `mobile_top_components` and `mobile_bottom_components` to the SELECT query
+- Pass them in the response
+
+### Phase 6: Public Checkout (Mobile Detection)
+
+**Modify `src/modules/checkout-public/components/CheckoutPublicContent.tsx`:**
+
+- Detect if the user is on a mobile device (using screen width or user agent)
+- If on mobile and `mobile_top_components` has content: use mobile components
+- Otherwise: fall back to desktop components (backward compatible)
+
+### Phase 7: Page Component Update
+
+**Modify `src/pages/CheckoutCustomizer.tsx`:**
+
+- Replace `useCheckoutEditor()` + `useCheckoutPersistence()` with the new unified hook
+- Add viewport toggle behavior (already has the UI buttons)
+- Wire up save/discard from the machine
+- Same UI structure, but now the toggle actually switches the edited component set
+
+### Phase 8: Update EDGE_FUNCTIONS_REGISTRY.md
+
+Document the new parameters accepted by `checkout-editor` edge function.
 
 ---
 
-## Arvore de Arquivos
+## File Tree (Changes)
 
 ```text
-src/
-  components/
-    checkout/
-      shared/
-        SharedOrderSummary.tsx    -- EDITAR (linhas 228-235: adicionar line-clamp-2 e min-w-0)
+NEW FILES:
+  src/pages/checkout-customizer/
+    machines/
+      checkoutEditorMachine.ts              -- XState state machine
+      checkoutEditorMachine.types.ts        -- Context, Events, Actor I/O types
+      checkoutEditorMachine.actions.ts      -- Pure action helpers
+      checkoutEditorMachine.actors.ts       -- Load/Save async actors
+      checkoutEditorMachine.guards.ts       -- Guard functions
+      index.ts                              -- Barrel export
+    hooks/
+      useCheckoutEditorState.ts             -- XState wrapper hook (replaces useCheckoutEditor)
+
+MODIFIED FILES:
+  src/types/checkoutEditor.ts               -- Add CheckoutViewport type
+  src/pages/CheckoutCustomizer.tsx          -- Use new hook, wire viewport switching
+  supabase/functions/checkout-editor/       -- Load/Save mobile components
+  supabase/functions/checkout-public-data/  -- Serve mobile components
+  src/modules/checkout-public/              -- Mobile detection + component selection
+  docs/EDGE_FUNCTIONS_REGISTRY.md           -- Document new parameters
+
+DELETED FILES:
+  src/hooks/useCheckoutEditor.ts            -- Replaced by state machine
+  src/pages/checkout-customizer/hooks/useCheckoutPersistence.ts  -- Absorbed into machine actors
 ```
 
-## Comportamento Esperado Apos Fix
+## Expected Behavior After Implementation
 
-| Cenario | Antes (Bug) | Depois (Fix) |
-|---------|-------------|--------------|
-| Titulo curto (ex: "Ebook") | OK | OK (1 linha) |
-| Titulo medio (ex: "Curso Completo de React") | OK | OK (1 linha, cabe) |
-| Titulo longo (ex: 60 chars) | Overflow, preco sai da tela | Quebra para 2a linha, preco alinhado |
-| Titulo muito longo (ex: 150+ chars) | Overflow total, layout quebrado | 2 linhas + "..." no final |
+| Scenario | Before | After |
+|----------|--------|-------|
+| Click "Desktop" button | Changes preview width | Switches to desktop component set for editing |
+| Click "Mobile" button | Changes preview width | Switches to mobile component set for editing |
+| Add component in Desktop mode | Added to shared list | Added only to desktop list |
+| Add component in Mobile mode | Added to shared list | Added only to mobile list |
+| New checkout (no saved mobile) | N/A | Mobile starts synced with desktop |
+| Copy Desktop to Mobile | N/A | Clones desktop components to mobile |
+| Public checkout on desktop | Shows desktop components | Shows desktop components (unchanged) |
+| Public checkout on mobile | Shows same components | Shows mobile-specific components if they exist |
+| Save | Saves one set | Saves both desktop and mobile component sets |
 
-## Checkpoint de Qualidade RISE V3
+## Quality Checkpoint (RISE V3)
 
-| Pergunta | Resposta |
-|----------|----------|
-| Esta e a MELHOR solucao possivel? | Sim - line-clamp-2 com min-w-0 e layout items-start |
-| Existe alguma solucao com nota maior? | Nao |
-| Isso cria divida tecnica? | Zero |
-| Precisaremos "melhorar depois"? | Nao |
-| O codigo sobrevive 10 anos sem refatoracao? | Sim |
-| Estou escolhendo isso por ser mais rapido? | Nao |
+| Question | Answer |
+|----------|--------|
+| Is this the BEST possible solution? | Yes - mirrors proven Members Area Builder architecture |
+| Is there a solution with a higher score? | No |
+| Does this create technical debt? | Zero - consistent XState pattern across both builders |
+| Will we need to "improve later"? | No |
+| Does the code survive 10 years? | Yes |
+| Am I choosing this because it's faster? | No - it's the most complex option but architecturally correct |
