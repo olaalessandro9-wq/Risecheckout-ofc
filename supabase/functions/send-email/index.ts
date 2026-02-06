@@ -8,7 +8,7 @@
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSupabaseClient } from '../_shared/supabase-client.ts';
 import { sendEmail, type EmailType, type EmailRecipient } from '../_shared/zeptomail.ts';
 import { handleCorsV2 } from '../_shared/cors-v2.ts';
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from '../_shared/rate-limiting/index.ts';
@@ -45,9 +45,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = getSupabaseClient('general');
 
     // SECURITY: Rate limiting para prevenir spam
     const rateLimitResult = await rateLimitMiddleware(

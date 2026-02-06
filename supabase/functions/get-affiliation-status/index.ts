@@ -7,7 +7,7 @@
  * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -50,10 +50,7 @@ Deno.serve(async (req) => {
 
   try {
     // Criar cliente Supabase com service_role para bypass de RLS
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseClient = getSupabaseClient('general');
 
     // Auth via unified-auth (opcional - retorna null se não autenticado)
     const producer = await getAuthenticatedProducer(supabaseClient, req);

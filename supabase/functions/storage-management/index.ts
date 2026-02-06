@@ -9,15 +9,12 @@
  * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { getAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("StorageManagement");
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Allowed buckets for operations
 const ALLOWED_BUCKETS = ["product-images", "avatars", "documents", "brand-assets"];
@@ -63,7 +60,7 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    const supabase = getSupabaseClient('general');
     
     // Auth via unified-auth
     const producer = await getAuthenticatedProducer(supabase, req);
