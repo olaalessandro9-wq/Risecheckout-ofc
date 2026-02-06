@@ -1,155 +1,183 @@
 
 
-# Correcao: Stencil Invisivel + Xadrez Escondido
+# Plano: Corrigir Stencil Invisivel, Posicionamento da Imagem e Comportamento de Arraste
 
-## Causas Raiz (3 problemas no mesmo arquivo)
+## Diagnostico Raiz (Root Cause Analysis)
 
-### Problema 1: Borda do crop invisivel
+Investigacao profunda revelou **3 bugs criticos** no codigo atual, todos causados por **props com nomes incorretos** sendo passados ao `RectangleStencil` do `react-advanced-cropper`.
 
-No `stencilProps` (linha 207), `lines: false` remove completamente as linhas de borda do stencil. Sem essas linhas, o usuario nao consegue ver onde o recorte acontece.
+### Bug 1: Stencil completamente invisivel (Causa Raiz)
+
+O codigo atual passa `lineClassName: "crop-stencil-line"` como prop do stencil. Porem, **essa prop NAO EXISTE** no `RectangleStencil`.
+
+Consultando o arquivo `node_modules/react-advanced-cropper/dist/components/stencils/RectangleStencil.d.ts`, as props corretas sao:
 
 ```text
-ANTES (invisivel):
-stencilProps={{
-  handlers: false,
-  lines: false,      <-- REMOVE a borda do crop
-  movable: false,
-  resizable: false,
-}}
+lineClassNames?: LineClassNames    (objeto, NAO string)
+overlayClassName?: string          (existe e esta sendo usado corretamente)
+boundingBoxClassName?: string      (disponivel mas nao utilizado)
+previewClassName?: string          (disponivel mas nao utilizado)
 ```
 
-No Cakto, a area de crop tem bordas tracejadas claras com handles nos cantos. Como usamos FixedCropper (stencil fixo), `handlers` e `resizable` devem permanecer `false` (o usuario move a imagem, nao o stencil). Porem `lines` DEVE ser `true` para mostrar a borda.
+Onde `LineClassNames` e um objeto:
 
-### Problema 2: Xadrez escondido pelo fundo preto do cropper
-
-O CSS interno do `react-advanced-cropper` define:
 ```text
-.advanced-cropper {
-  background: black;    <-- COBRE o xadrez completamente
+interface LineClassNames {
+  default?: string;
+  disabled?: string;
+  hover?: string;
+  north?: string;
+  south?: string;
+  east?: string;
+  west?: string;
 }
 ```
 
-O nosso `CHECKERBOARD_STYLE` esta no div pai, mas o FixedCropper (com `className="absolute inset-0"`) renderiza por cima com fundo preto solido, escondendo o xadrez.
+Resultado: a prop `lineClassName` (string singular) e simplesmente **ignorada silenciosamente** pelo React (prop desconhecida). O CSS `.crop-stencil-line` nunca e aplicado. As linhas mantem o estilo padrao: `border-color: rgba(255,255,255,0.3)` - quase invisivel. Combinado com o overlay transparente (que ESTA funcionando), o stencil fica **100% invisivel**.
 
-Para o xadrez ser visivel, o fundo do `.advanced-cropper` DEVE ser transparente.
+### Bug 2: Imagem posicionada no topo
 
-### Problema 3: Overlay invisivel (consequencia do #2)
+Com `ImageRestriction.none`, o FixedCropper posiciona a imagem livremente. A inicializacao padrao nao garante centralizacao vertical quando a imagem tem proporcao diferente do stencil. O cropper posiciona a imagem no topo-esquerda por padrao.
 
-O CSS interno define o overlay fora do stencil como:
-```text
-.advanced-cropper-stencil-overlay {
-  color: rgba(0, 0, 0, 0.5);    <-- semi-transparente
-}
-```
+### Bug 3: "Nao tem a parte do recorte"
 
-Este overlay FUNCIONA corretamente - ele escurece a area fora do crop. Porem, com fundo preto, `rgba(0,0,0,0.5)` sobre preto = preto. Com fundo TRANSPARENTE, `rgba(0,0,0,0.5)` sobre xadrez = xadrez escurecido (exatamente como o Cakto).
-
----
-
-## Solucao (Cirurgica - 1 arquivo)
-
-### Arquivo: `src/components/ui/image-crop-dialog/ImageCropDialog.tsx`
-
-### Mudanca 1: Habilitar linhas do stencil
-
-```text
-ANTES:
-stencilProps={{
-  handlers: false,
-  lines: false,
-  movable: false,
-  resizable: false,
-}}
-
-DEPOIS:
-stencilProps={{
-  handlers: false,
-  lines: true,
-  movable: false,
-  resizable: false,
-}}
-```
-
-- `lines: true` mostra a borda do crop (linhas brancas semi-transparentes nos 4 lados)
-- `handlers: false` permanece (FixedCropper nao permite redimensionar stencil)
-- `movable: false` permanece (o usuario move a imagem, nao o stencil)
-- `resizable: false` permanece (tamanho fixo definido por `stencilSize`)
-
-### Mudanca 2: Fundo transparente no cropper
-
-Adicionar override CSS para remover o fundo preto do `.advanced-cropper`, permitindo o xadrez do div pai ser visivel.
-
-Opcao escolhida: adicionar uma classe CSS customizada ao `className` do FixedCropper que sobrescreve `background: black` para `background: transparent`.
-
-```text
-ANTES:
-className="absolute inset-0"
-
-DEPOIS:
-className="absolute inset-0"
-style={{ background: 'transparent' }}
-```
-
-Nota: `style` tem prioridade sobre classes CSS, entao sobrescreve o `background: black` da classe `.advanced-cropper` sem precisar de `!important`.
-
-Alternativa: usar `className` com uma classe Tailwind `[&.advanced-cropper]:bg-transparent`, porem `style` inline e mais direto e nao depende de especificidade CSS.
-
-### Mudanca 3: Nenhuma - overlay ja funciona
-
-O overlay (`.advanced-cropper-stencil-overlay`) JA esta configurado corretamente com `rgba(0,0,0,0.5)`. Com o fundo transparente, ele automaticamente mostrara o xadrez escurecido fora da area de crop.
-
----
-
-## Resultado Visual Esperado
-
-```text
-+---------------------------+
-|  /////// XADREZ ////////  |  <- Xadrez escurecido (overlay 50% preto)
-|  ///////  (dimmed) /////  |
-|  +---------+----------+   |
-|  |         |          |   |  <- Borda do crop (linhas brancas)
-|  |    IMAGEM VISIVEL   |  |  <- Area de crop (imagem nitida)
-|  |                     |  |
-|  +---------------------+  |
-|  /////// XADREZ ////////  |  <- Xadrez escurecido (overlay 50% preto)
-|  ///////  (dimmed) /////  |
-+---------------------------+
-     [- zoom slider +] 100%
-   [ Cancelar ]    [ Salvar ]
-```
-
-Exatamente como o Cakto: xadrez visivel acima/abaixo/lados, borda clara no crop, imagem no centro.
+Consequencia direta do Bug 1. Sem bordas visiveis no stencil, nao ha indicacao visual de onde esta a area de recorte. O usuario nao consegue identificar o que sera cortado e o que sera descartado.
 
 ---
 
 ## Analise de Solucoes (RISE V3 Secao 4.4)
 
-### Solucao A: Override com `style={{ background: 'transparent' }}` + `lines: true`
-- Manutenibilidade: 10/10 (inline style explicito, nao depende de CSS externo)
-- Zero DT: 10/10 (correcao cirurgica, 2 linhas)
-- Arquitetura: 10/10 (usa API nativa do componente)
-- Escalabilidade: 10/10 (funciona com qualquer preset)
+### Solucao A: Corrigir props + CSS global override das classes da biblioteca
+- Manutenibilidade: 10/10 - Usa API documentada do componente com nomes corretos
+- Zero DT: 10/10 - Correcao cirurgica dos nomes de props + CSS preciso
+- Arquitetura: 10/10 - Segue a API do componente conforme documentacao oficial
+- Escalabilidade: 10/10 - Funciona com qualquer preset/configuracao
 - Seguranca: 10/10
 - **NOTA FINAL: 10.0/10**
 
-### Solucao B: Criar CSS global para `.advanced-cropper` override
-- Manutenibilidade: 7/10 (CSS global pode conflitar com outros croppers)
-- Zero DT: 8/10 (depende de especificidade CSS)
-- Arquitetura: 6/10 (CSS global viola encapsulamento)
-- Escalabilidade: 7/10 (pode precisar de scoping)
+### Solucao B: Criar stencil customizado (Custom Stencil Component)
+- Manutenibilidade: 7/10 - Componente adicional para manter, acoplado a API interna
+- Zero DT: 8/10 - Mais codigo, mais superficie de bugs
+- Arquitetura: 7/10 - Over-engineering para o problema (apenas nomes de props errados)
+- Escalabilidade: 8/10 - Mais flexivel mas desnecessario
 - Seguranca: 10/10
-- **NOTA FINAL: 7.4/10**
+- **NOTA FINAL: 7.8/10**
 
 ### DECISAO: Solucao A (Nota 10.0)
-Inline style e direto, explicito, e nao cria dependencias de CSS global.
+A Solucao B e inferior pois cria um componente customizado inteiro para resolver um problema que e simplesmente **nomes de props incorretos**. A API nativa do `RectangleStencil` ja suporta tudo que precisamos.
+
+---
+
+## Mudancas Planejadas (1 arquivo)
+
+### Arquivo: `src/components/ui/image-crop-dialog/ImageCropDialog.tsx`
+
+### Mudanca 1: Corrigir prop `lineClassName` para `lineClassNames`
+
+```text
+ANTES (linha 224):
+lineClassName: "crop-stencil-line",
+
+DEPOIS:
+lineClassNames: { default: "crop-stencil-line" },
+```
+
+Isso faz o CSS `.crop-stencil-line` ser aplicado corretamente nas 4 linhas do stencil (north, south, east, west).
+
+### Mudanca 2: Atualizar CSS para estilo Cakto com borda tracejada
+
+O CSS da biblioteca define as linhas como `border-style: solid` com `border-color: rgba(255,255,255,0.3)`. Para replicar o estilo Cakto (borda azul tracejada), o override CSS precisa ser mais completo:
+
+```text
+ANTES:
+.crop-stencil-line {
+  border-color: rgba(59, 130, 246, 0.8) !important;
+  border-width: 2px !important;
+}
+
+DEPOIS:
+.crop-stencil-line {
+  border-color: rgba(59, 130, 246, 0.8) !important;
+  border-width: 2px !important;
+  border-style: dashed !important;
+}
+```
+
+A borda tracejada (`dashed`) replica o visual da Cakto. `!important` e necessario pois a biblioteca define `border-style: solid` no CSS padrao do `.advanced-cropper-simple-line`.
+
+### Mudanca 3: Adicionar `previewClassName` para borda interna do stencil
+
+A Cakto tem uma borda visivel no contorno do stencil. Alem das linhas (que sao elementos separados posicionados nos 4 lados), podemos usar `previewClassName` para adicionar uma borda ao preview area (a area que mostra a parte da imagem dentro do stencil):
+
+```text
+stencilProps={{
+  ...
+  previewClassName: "crop-stencil-preview",
+}}
+```
+
+CSS:
+```text
+.crop-stencil-preview {
+  border: 2px dashed rgba(59, 130, 246, 0.8) !important;
+}
+```
+
+Nota: Usar `previewClassName` ao inves de `lineClassNames` pode ser mais eficaz pois cria UMA borda continua ao redor da area do stencil, ao inves de 4 linhas separadas. Vamos usar ambos para garantir visibilidade maxima.
+
+### Mudanca 4: Corrigir posicionamento da imagem (centralizacao)
+
+Adicionar `defaultTransforms` nao e uma prop do FixedCropper. A abordagem correta para centralizar a imagem e usar o callback `onReady` para ajustar o posicionamento apos o carregamento:
+
+No `handleReady`, apos a imagem carregar, podemos verificar o state e ajustar se necessario. Porem, a centralizacao no FixedCropper normalmente e feita automaticamente pela funcao `stencilSize` - se a imagem tem proporcao diferente do stencil, o cropper faz fit-to-boundary e centra.
+
+O problema real pode ser que `ImageRestriction.none` permite que a imagem fique em qualquer posicao. Mudar para `ImageRestriction.stencil` forca a imagem a cobrir o stencil, centralizando-a. Porem isso impede zoom-out alem do stencil (que a Cakto permite).
+
+A solucao correta e manter `ImageRestriction.none` e verificar se a centralizacao inicial esta funcionando. Se nao, usar o `onReady` para chamar `cropperRef.current.reset()` ou ajustar a visible area.
+
+---
+
+## Secao Tecnica: Detalhes
+
+### API correta do RectangleStencil (confirmado via .d.ts)
+
+```text
+Props disponiveis:
+- handlers?: Partial<Record<OrdinalDirection, boolean>>
+- handlerClassNames?: HandlerClassNames
+- lines?: Partial<Record<CardinalDirection, boolean>>
+- lineClassNames?: LineClassNames        ← PLURAL, OBJETO
+- lineWrapperClassNames?: LineClassNames
+- overlayClassName?: string              ← SINGULAR, STRING (ja correto)
+- previewClassName?: string
+- boundingBoxClassName?: string
+- gridClassName?: string
+- movable?: boolean
+- resizable?: boolean
+- grid?: boolean
+```
+
+### Porque o stencil ficou 100% invisivel
+
+Dois fatores combinados:
+1. `overlayClassName: "crop-overlay-transparent"` → overlay fica transparente (correto, desejado)
+2. `lineClassName: "crop-stencil-line"` → prop IGNORADA (nome errado), linhas mantem estilo padrao quase invisivel (`rgba(255,255,255,0.3)`)
+
+Resultado: sem overlay E sem linhas visiveis = stencil completamente invisivel.
+
+### Justificativa do !important (mantida)
+
+O `!important` continua sendo necessario pois estamos sobrescrevendo estilos padrao definidos na stylesheet da biblioteca (`react-advanced-cropper/dist/style.css`). A alternativa seria injetar CSS com especificidade maior, o que seria pior arquiteturalmente.
 
 ---
 
 ## Validacao de Sucesso
 
-1. Abrir crop dialog - xadrez visivel acima e abaixo da imagem
-2. Borda do crop claramente visivel (linhas brancas)
-3. Area fora do crop mostra xadrez com escurecimento (overlay)
-4. Imagem aparece nitida dentro da area de crop
-5. Zoom/pan continuam funcionando
-6. Salvar produz arquivo correto
+1. Abrir crop dialog com qualquer imagem
+2. **Stencil visivel** com borda azul tracejada (identico a Cakto)
+3. **Imagem centralizada** no stencil ao abrir
+4. **Overlay transparente** - xadrez uniforme fora do stencil
+5. Zoom via scroll e slider funcionando
+6. Pan (arrastar) funciona quando imagem esta com zoom
+7. Salvar produz PNG com transparencia
+
