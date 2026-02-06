@@ -28,7 +28,12 @@ export type TestEnvironment = "unit" | "contract" | "integration";
 export interface TestConfig {
   environment: TestEnvironment;
   supabaseUrl: string | null;
-  supabaseAnonKey: string | null;
+  /**
+   * Supabase publishable key (formerly "anon key").
+   * Read from env var SUPABASE_ANON_KEY (name kept by Supabase for backwards compat).
+   * After migration, the value is a publishable key (sb_publishable_...).
+   */
+  supabasePublishableKey: string | null;
   hasServiceRoleKey: boolean;
   isCI: boolean;
   runIntegration: boolean;

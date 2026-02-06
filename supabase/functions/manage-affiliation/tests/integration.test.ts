@@ -38,7 +38,7 @@ Deno.test({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": config.supabaseAnonKey ?? "",
+        "apikey": config.supabasePublishableKey ?? "",
       },
       body: JSON.stringify({ affiliation_id: "test", action: "approve" }),
     });

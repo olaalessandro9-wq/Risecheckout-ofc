@@ -249,7 +249,8 @@ WHERE DATE(created_at) >= CURRENT_DATE - INTERVAL '30 days';
 
 ```env
 VITE_SUPABASE_URL=https://wivbtmtgpsxupfjwwovf.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
+# NOTE: Frontend does NOT need API keys. The Cloudflare Worker
+# (api.risecheckout.com) injects the publishable key automatically.
 ```
 
 ### **Ajustar tempos**

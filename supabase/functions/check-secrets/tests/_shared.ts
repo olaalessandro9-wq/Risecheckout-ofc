@@ -45,10 +45,10 @@ export const EXPECTED_CATEGORIES = [
 ] as const;
 
 export const EXPECTED_SECRETS: Record<string, string> = {
-  // Supabase Core (4)
+  // Supabase Core (4) - env var names kept by Supabase, values are new-format keys
   'SUPABASE_URL': 'supabase',
-  'SUPABASE_ANON_KEY': 'supabase',
-  'SUPABASE_SERVICE_ROLE_KEY': 'supabase',
+  'SUPABASE_ANON_KEY': 'supabase', // Contains publishable key (sb_publishable_...)
+  'SUPABASE_SERVICE_ROLE_KEY': 'supabase', // Contains secret key (sb_secret_...)
   'SUPABASE_DB_URL': 'supabase',
   
   // Mercado Pago (5)

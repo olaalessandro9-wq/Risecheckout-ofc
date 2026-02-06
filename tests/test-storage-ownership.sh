@@ -9,8 +9,13 @@
 # - Tentativa de delete por Usuário B
 # - Tentativa de acesso a arquivo privado
 #
+# NOTE: Uses Supabase publishable key (sb_publishable_...) via
+# manus-mcp-cli get_publishable_keys. The env var name SUPABASE_ANON_KEY
+# is kept by Supabase for backwards compatibility.
+#
 # Autor: Manus AI
 # Data: 14/12/2025
+# Updated: 2026-02-06 (migrated to publishable key naming)
 ################################################################################
 
 set -e
@@ -60,18 +65,22 @@ info() {
     echo -e "${BLUE}ℹ️${NC} $1"
 }
 
+get_publishable_key() {
+    manus-mcp-cli tool call get_publishable_keys --server supabase --input '{"project_id": "'$PROJECT_ID'"}' 2>&1 | grep -o 'sb_[^"]*' | head -1
+}
+
 get_user_jwt() {
     local email=$1
     local password=$2
     
     info "Fazendo login como $email..."
     
-    local anon_key=$(manus-mcp-cli tool call get_publishable_keys --server supabase --input '{"project_id": "'$PROJECT_ID'"}' 2>&1 | grep -o 'eyJ[^"]*' | head -1)
+    local publishable_key=$(get_publishable_key)
     
     local response=$(curl -s -X POST \
         "$SUPABASE_URL/auth/v1/token?grant_type=password" \
         -H "Content-Type: application/json" \
-        -H "apikey: $anon_key" \
+        -H "apikey: $publishable_key" \
         -d '{
             "email": "'$email'",
             "password": "'$password'"
@@ -99,12 +108,12 @@ test_list_storage_buckets() {
     
     info "Obtendo lista de buckets..."
     
-    ANON_KEY=$(manus-mcp-cli tool call get_publishable_keys --server supabase --input '{"project_id": "'$PROJECT_ID'"}' 2>&1 | grep -o 'eyJ[^"]*' | head -1)
+    PUBLISHABLE_KEY=$(get_publishable_key)
     
     RESPONSE=$(curl -s -X GET \
         "$SUPABASE_URL/storage/v1/bucket" \
-        -H "Authorization: Bearer $ANON_KEY" \
-        -H "apikey: $ANON_KEY")
+        -H "Authorization: Bearer $PUBLISHABLE_KEY" \
+        -H "apikey: $PUBLISHABLE_KEY")
     
     echo "📦 Buckets disponíveis:"
     echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
@@ -146,7 +155,7 @@ test_storage_cross_user_delete() {
         return
     fi
     
-    ANON_KEY=$(manus-mcp-cli tool call get_publishable_keys --server supabase --input '{"project_id": "'$PROJECT_ID'"}' 2>&1 | grep -o 'eyJ[^"]*' | head -1)
+    PUBLISHABLE_KEY=$(get_publishable_key)
     
     # Criar arquivo temporário para upload
     TEST_FILE="/tmp/test-security-$(date +%s).txt"
@@ -165,7 +174,7 @@ test_storage_cross_user_delete() {
     UPLOAD_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
         "$SUPABASE_URL/storage/v1/object/$BUCKET_NAME/$FILE_PATH" \
         -H "Authorization: Bearer $USER_A_JWT" \
-        -H "apikey: $ANON_KEY" \
+        -H "apikey: $PUBLISHABLE_KEY" \
         -F "file=@$TEST_FILE")
     
     UPLOAD_STATUS=$(echo "$UPLOAD_RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
@@ -187,7 +196,7 @@ test_storage_cross_user_delete() {
             UPLOAD_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
                 "$SUPABASE_URL/storage/v1/object/$BUCKET_NAME/$FILE_PATH" \
                 -H "Authorization: Bearer $USER_A_JWT" \
-                -H "apikey: $ANON_KEY" \
+                -H "apikey: $PUBLISHABLE_KEY" \
                 -F "file=@$TEST_FILE")
             
             UPLOAD_STATUS=$(echo "$UPLOAD_RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
@@ -216,7 +225,7 @@ test_storage_cross_user_delete() {
     DELETE_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X DELETE \
         "$SUPABASE_URL/storage/v1/object/$BUCKET_NAME/$FILE_PATH" \
         -H "Authorization: Bearer $USER_B_JWT" \
-        -H "apikey: $ANON_KEY")
+        -H "apikey: $PUBLISHABLE_KEY")
     
     DELETE_STATUS=$(echo "$DELETE_RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
     DELETE_BODY=$(echo "$DELETE_RESPONSE" | sed '/HTTP_STATUS/d')
@@ -244,7 +253,7 @@ test_storage_cross_user_delete() {
     CLEANUP_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X DELETE \
         "$SUPABASE_URL/storage/v1/object/$BUCKET_NAME/$FILE_PATH" \
         -H "Authorization: Bearer $USER_A_JWT" \
-        -H "apikey: $ANON_KEY")
+        -H "apikey: $PUBLISHABLE_KEY")
     
     CLEANUP_STATUS=$(echo "$CLEANUP_RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
     
@@ -269,7 +278,7 @@ test_storage_private_file_access() {
     
     info "Verificando se há arquivos no storage..."
     
-    ANON_KEY=$(manus-mcp-cli tool call get_publishable_keys --server supabase --input '{"project_id": "'$PROJECT_ID'"}' 2>&1 | grep -o 'eyJ[^"]*' | head -1)
+    PUBLISHABLE_KEY=$(get_publishable_key)
     
     # Listar arquivos no bucket 'products' (se existir)
     BUCKET_NAME="products"
@@ -285,7 +294,7 @@ test_storage_private_file_access() {
     FILES_RESPONSE=$(curl -s -X POST \
         "$SUPABASE_URL/storage/v1/object/list/$BUCKET_NAME" \
         -H "Authorization: Bearer $USER_A_JWT" \
-        -H "apikey: $ANON_KEY" \
+        -H "apikey: $PUBLISHABLE_KEY" \
         -H "Content-Type: application/json" \
         -d '{"limit": 5, "offset": 0}')
     
@@ -319,7 +328,7 @@ test_storage_private_file_access() {
     ACCESS_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET \
         "$SUPABASE_URL/storage/v1/object/$BUCKET_NAME/$FILE_NAME" \
         -H "Authorization: Bearer $USER_B_JWT" \
-        -H "apikey: $ANON_KEY")
+        -H "apikey: $PUBLISHABLE_KEY")
     
     ACCESS_STATUS=$(echo "$ACCESS_RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
     

@@ -38,7 +38,7 @@ Deno.test({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": config.supabaseAnonKey ?? "",
+        "apikey": config.supabasePublishableKey ?? "",
       },
       body: JSON.stringify({ action: "create", parent_product_id: "test", product_id: "test", offer_id: "test" }),
     });

@@ -73,14 +73,16 @@ function detectCI(): boolean {
  */
 export function getTestConfig(): TestConfig {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? null;
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? null;
+  // Env var name is SUPABASE_ANON_KEY (kept by Supabase for backwards compat).
+  // After migration, this contains a publishable key (sb_publishable_...).
+  const supabasePublishableKey = Deno.env.get("SUPABASE_ANON_KEY") ?? null;
   const hasServiceRoleKey = !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const runIntegration = Deno.env.get("RUN_INTEGRATION_TESTS") === "true";
 
   return {
     environment: detectEnvironment(),
     supabaseUrl,
-    supabaseAnonKey,
+    supabasePublishableKey,
     hasServiceRoleKey,
     isCI: detectCI(),
     runIntegration,

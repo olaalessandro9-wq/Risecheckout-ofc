@@ -87,24 +87,8 @@ export const sentryEnabled: boolean =
   isProd && !!import.meta.env.VITE_SENTRY_DSN;
 
 // ============================================================================
-// SUPABASE CONFIG
+// NOTE: Supabase configuration is in src/config/supabase.ts (API Gateway)
+// The frontend does NOT use any Supabase keys directly.
+// All requests are proxied through the Cloudflare Worker (api.risecheckout.com)
+// which injects the publishable key automatically.
 // ============================================================================
-
-/**
- * Supabase URL from environment.
- */
-export const supabaseUrl: string = 
-  import.meta.env.VITE_SUPABASE_URL || '';
-
-/**
- * Supabase Anon Key from environment.
- */
-export const supabaseAnonKey: string = 
-  import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-/**
- * Validates that Supabase is configured.
- */
-export function isSupabaseConfigured(): boolean {
-  return !!supabaseUrl && !!supabaseAnonKey;
-}
