@@ -10,6 +10,7 @@
 import { useEffect, useCallback } from 'react';
 import { useMachine } from '@xstate/react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import { builderMachine } from '../machines';
 import { getSectionDefaults } from '../registry';
 import type { 
@@ -221,6 +222,17 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
   }, [productId, send]);
 
   const updateModule = useCallback(async (id: string, data: Partial<MemberModule>) => {
+    const { error } = await api.call<{ success: boolean; error?: string }>('members-area-modules', {
+      action: 'update',
+      moduleId: id,
+      data,
+    });
+
+    if (error) {
+      toast.error('Erro ao atualizar módulo');
+      return;
+    }
+
     send({ type: 'UPDATE_MODULE', id, data });
   }, [send]);
 
