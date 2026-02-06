@@ -175,13 +175,14 @@ type ConfirmArgs = {
 };
 
 export function useConfirmDelete() {
-  const [state, setState] = React.useState<null | (ConfirmArgs & { open: boolean })>(null);
+  const [state, setState] = React.useState<null | (ConfirmArgs & { open: boolean; busy: boolean })>(null);
 
   const confirm = React.useCallback((args: ConfirmArgs) => {
     return new Promise<boolean>((resolve) => {
       setState({
         ...args,
         open: true,
+        busy: false,
         onConfirm: async () => {
           try {
             await args.onConfirm();
@@ -198,14 +199,12 @@ export function useConfirmDelete() {
   }, []);
 
   const Bridge = () => {
-    const [busy, setBusy] = React.useState(false);
-
     if (!state) return null;
     return (
       <AlertDialog
         open={state.open}
         onOpenChange={(open) => {
-          if (!open && !busy) {
+          if (!open && !state.busy) {
             setState(null);
           }
         }}
@@ -236,14 +235,14 @@ export function useConfirmDelete() {
                 autoFocus
                 placeholder="EXCLUIR"
                 id="confirm-delete-input"
-                disabled={busy}
+                disabled={state.busy}
               />
             </div>
           )}
 
           <AlertDialogFooter>
             <AlertDialogCancel
-              disabled={busy}
+              disabled={state.busy}
               onClick={() => {
                 setState(null);
               }}
@@ -251,7 +250,7 @@ export function useConfirmDelete() {
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={busy}
+              disabled={state.busy}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
               onClick={async (e) => {
                 e.preventDefault();
@@ -265,19 +264,16 @@ export function useConfirmDelete() {
                 }
 
                 try {
-                  setBusy(true);
+                  setState(prev => prev ? { ...prev, busy: true } : prev);
                   await state.onConfirm();
-                  // Toast é responsabilidade do onConfirm (hook)
                 } catch (err: unknown) {
                   toast.error(`Falha ao excluir ${state.resourceType.toLowerCase()}`, {
                     description: err instanceof Error ? err.message : "Tente novamente.",
                   });
-                } finally {
-                  setBusy(false);
                 }
               }}
             >
-              {busy ? (
+              {state.busy ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Excluindo...

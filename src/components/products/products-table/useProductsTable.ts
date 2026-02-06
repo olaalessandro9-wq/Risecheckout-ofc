@@ -107,9 +107,9 @@ export function useProductsTable() {
       // RISE V3: supabase client não é mais usado - Edge Function gerencia tudo
       await deleteProductCascade(null as never, productId);
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.success("Produto excluído com sucesso!");
-      await qc.invalidateQueries({ queryKey: productQueryKeys.all });
+      qc.invalidateQueries({ queryKey: productQueryKeys.all });
     },
     onError: (err: Error) => {
       log.error("Delete product error:", err);
