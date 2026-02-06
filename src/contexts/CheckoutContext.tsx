@@ -10,7 +10,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import type { ThemePreset } from '@/lib/checkout/themePresets';
-import type { CheckoutCustomization } from '@/hooks/useCheckoutEditor';
+import type { CheckoutCustomization } from '@/types/checkoutEditor';
 import type { Checkout, CheckoutDesign, OrderBump } from '@/types/checkout';
 
 // ============================================================================

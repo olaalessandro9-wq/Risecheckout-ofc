@@ -12,7 +12,7 @@
  */
 
 import React from "react";
-import { CheckoutCustomization, ViewMode } from "@/hooks/useCheckoutEditor";
+import type { CheckoutCustomization, ViewMode } from "@/types/checkoutEditor";
 import { OrderBump, ProductData } from "@/types/checkout";
 import { ThemePreset } from "@/types/theme";
 import { CheckoutProvider } from "@/contexts/CheckoutContext";

@@ -1,4 +1,4 @@
-import { CheckoutCustomization, ViewMode } from "@/hooks/useCheckoutEditor";
+import type { CheckoutCustomization, ViewMode } from "@/types/checkoutEditor";
 import { useMemo } from "react";
 import { normalizeDesign } from "@/lib/checkout/normalizeDesign";
 import { CheckoutPreviewLayout } from "@/components/checkout/preview/CheckoutPreviewLayout";

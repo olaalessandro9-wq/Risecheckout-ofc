@@ -207,7 +207,7 @@ export const saveEditorActor = fromPromise<SaveEditorOutput, SaveEditorInput>(
       fetch("/api/storage/remove", {
         method: "POST",
         body: JSON.stringify({ paths: oldPaths, bucket: "product-images" }),
-      }).catch(console.error);
+      }).catch((err) => log.error("Failed to cleanup old storage paths", err));
     }
 
     toast.success("Checkout salvo!");

@@ -250,8 +250,8 @@ export interface CheckoutComponent {
   content?: CheckoutComponentContent;
 }
 
-// Re-exportar tipos do useCheckoutEditor (apenas os que existem)
-export type { CheckoutCustomization, ViewMode } from "@/hooks/useCheckoutEditor";
+// Re-exportar tipos do SSOT checkoutEditor
+export type { CheckoutCustomization, ViewMode } from "@/types/checkoutEditor";
 
 // Tipos locais para o checkout builder
 export type LayoutType = "full" | "single" | "two-columns" | "two-columns-asymmetric" | "three-columns" | "sidebar";
