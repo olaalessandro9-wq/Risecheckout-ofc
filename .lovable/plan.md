@@ -1,83 +1,109 @@
 
 
-# Validacao de Limites: Order Bump Title (100) e Description (300)
+# Validacao de Limite: Checkout Name (100 caracteres)
 
 ## Diagnostico
 
-Os campos `customTitle` e `customDescription` no dialog de Order Bump nao possuem NENHUMA validacao de comprimento. O usuario pode digitar texto ilimitado e o backend aceita sem restricoes. Isso precisa ser corrigido com validacao no frontend que:
+O campo `name` no `CheckoutConfigDialog.tsx` nao possui validacao de comprimento. O usuario pode digitar texto ilimitado. Precisa seguir o mesmo padrao implementado nos Order Bumps:
 
-1. NAO mostra contador de caracteres durante digitacao
-2. Mostra erro (borda vermelha + mensagem) SOMENTE ao tentar salvar com texto acima do limite
-3. Bloqueia o save ate que o texto esteja dentro do limite
+1. Sem contador de caracteres durante digitacao
+2. Erro (borda vermelha + mensagem) SOMENTE ao tentar salvar com texto acima de 100 caracteres
+3. Save bloqueado ate correcao
 
 ## Analise de Solucoes
 
-### Solucao A: Validacao inline no handleSave (sem SSOT)
+### Solucao A: Validacao hardcoded no handleSave (sem SSOT)
 
-Adicionar checks hardcoded (100 e 300) diretamente no `handleSave` dentro de `useOrderBumpForm.ts`.
+Adicionar `if (name.length > 100)` diretamente no `handleSave` do `CheckoutConfigDialog.tsx`.
 
-- Manutenibilidade: 6/10 (limites hardcoded duplicados, nao usam SSOT)
-- Zero DT: 6/10 (se mudar limite, precisa atualizar em multiplos locais)
-- Arquitetura: 5/10 (ignora o SSOT existente em `field-limits.ts`)
+- Manutenibilidade: 6/10 (limite hardcoded, duplicacao com backend)
+- Zero DT: 5/10 (se mudar limite, precisa lembrar de atualizar)
+- Arquitetura: 5/10 (ignora SSOT em field-limits.ts, nao segue padrao Order Bump)
 - Escalabilidade: 6/10
 - Seguranca: 10/10
-- **NOTA FINAL: 6.3/10**
+- **NOTA FINAL: 6.0/10**
 
-### Solucao B: SSOT em field-limits.ts + Estado de Erro Reativo + Validacao no Save
+### Solucao B: SSOT em field-limits.ts + Estado de Erro Reativo (Padrao Order Bump)
 
-1. Adicionar constantes `ORDER_BUMP_FIELD_LIMITS` ao SSOT existente (`field-limits.ts`)
-2. Adicionar estado de erros de validacao no `useOrderBumpForm`
-3. Validar no `handleSave` usando constantes SSOT
-4. Propagar erros para `OrderBumpFormFields` que mostra borda vermelha + mensagem
-5. Limpar erros quando o usuario corrige o texto
+1. Adicionar `CHECKOUT_FIELD_LIMITS` ao SSOT existente (`field-limits.ts`)
+2. Adicionar estado `nameError` no `CheckoutConfigDialog.tsx`
+3. Validar no `handleSave` usando constante SSOT
+4. Mostrar borda vermelha + mensagem no Input
+5. Limpar erro quando usuario edita o campo
 
-- Manutenibilidade: 10/10 (limites centralizados, padrao consistente)
+- Manutenibilidade: 10/10 (limites centralizados, padrao consistente com Order Bump)
 - Zero DT: 10/10 (SSOT unico, zero duplicacao)
-- Arquitetura: 10/10 (segue padrao existente de field-limits, Single Responsibility)
-- Escalabilidade: 10/10 (adicionar novos campos e trivial)
+- Arquitetura: 10/10 (segue padrao existente de field-limits + validacao reativa)
+- Escalabilidade: 10/10 (adicionar novos campos ao checkout e trivial)
 - Seguranca: 10/10
 - **NOTA FINAL: 10.0/10**
 
 ### DECISAO: Solucao B (Nota 10.0)
 
-A Solucao A duplica limites que ja possuem um SSOT definido no projeto. A Solucao B alinha com o padrao arquitetural existente.
+A Solucao A ignora o SSOT ja existente e o padrao validado nos Order Bumps. A Solucao B reutiliza a arquitetura provada.
 
 ---
 
 ## Plano de Execucao
 
-### 1. EDITAR `src/lib/constants/field-limits.ts` - Adicionar ORDER_BUMP_FIELD_LIMITS
+### 1. EDITAR `src/lib/constants/field-limits.ts` - Adicionar CHECKOUT_FIELD_LIMITS
 
 Adicionar novo bloco de constantes seguindo o padrao existente:
 
 ```typescript
-export const ORDER_BUMP_FIELD_LIMITS = {
-  /** Titulo customizado do order bump: ate 100 caracteres */
-  CUSTOM_TITLE: 100,
-  /** Descricao customizada do order bump: ate 300 caracteres */
-  CUSTOM_DESCRIPTION: 300,
+export const CHECKOUT_FIELD_LIMITS = {
+  /** Nome do checkout: ate 100 caracteres */
+  NAME: 100,
 } as const;
 ```
 
-### 2. EDITAR `src/components/products/order-bump-dialog/hooks/useOrderBumpForm.ts` - Adicionar validacao no handleSave
+### 2. EDITAR `src/components/products/CheckoutConfigDialog.tsx` - Adicionar validacao
 
-- Importar `ORDER_BUMP_FIELD_LIMITS` do SSOT
-- Adicionar estado `validationErrors` (objeto com campos que falharam)
-- Exportar `validationErrors` e `clearFieldError` 
-- No `handleSave`, antes de chamar a API, validar comprimento de `customTitle` e `customDescription`
-- Se invalido, popular `validationErrors` e retornar sem salvar
-- Quando o usuario edita um campo com erro, limpar o erro daquele campo
+Alteracoes cirurgicas no componente existente:
 
-### 3. EDITAR `src/components/products/order-bump-dialog/OrderBumpFormFields.tsx` - Mostrar estado de erro
+**a) Import da constante SSOT:**
+```typescript
+import { CHECKOUT_FIELD_LIMITS } from "@/lib/constants/field-limits";
+```
 
-- Receber `validationErrors` como prop
-- Nos campos Title e Description, aplicar `border-destructive` quando houver erro
-- Mostrar mensagem de erro abaixo do campo (ex: "Titulo deve ter no maximo 100 caracteres")
-- Manter o helper text original quando nao houver erro
+**b) Estado de erro de validacao:**
+```typescript
+const [nameError, setNameError] = useState<string | null>(null);
+```
 
-### 4. EDITAR `src/components/products/order-bump-dialog/index.tsx` - Passar validationErrors
+**c) Validacao no `handleSave` (antes da chamada API):**
+```typescript
+// Validate field limits (SSOT)
+if (name.length > CHECKOUT_FIELD_LIMITS.NAME) {
+  setNameError(`O nome deve ter no maximo ${CHECKOUT_FIELD_LIMITS.NAME} caracteres. Atual: ${name.length}`);
+  return;
+}
+```
 
-- Passar `validationErrors` e `clearFieldError` do hook para o `OrderBumpFormFields`
+**d) Limpar erro no `onChange` do Input:**
+```typescript
+onChange={(e) => {
+  setName(e.target.value);
+  if (nameError) setNameError(null);
+}}
+```
+
+**e) Borda vermelha condicional no Input:**
+```typescript
+className={`bg-background ${nameError ? "border-destructive" : "border-border"}`}
+```
+
+**f) Mensagem de erro abaixo do Input:**
+```typescript
+{nameError && (
+  <p className="text-[11px] text-destructive leading-tight">{nameError}</p>
+)}
+```
+
+**g) Reset do erro quando o dialog abre (no useEffect existente):**
+```typescript
+setNameError(null);
+```
 
 ---
 
@@ -87,30 +113,25 @@ export const ORDER_BUMP_FIELD_LIMITS = {
 src/
   lib/
     constants/
-      field-limits.ts                                      -- EDITAR (adicionar ORDER_BUMP_FIELD_LIMITS)
+      field-limits.ts                                      -- EDITAR (adicionar CHECKOUT_FIELD_LIMITS)
   components/
     products/
-      order-bump-dialog/
-        hooks/
-          useOrderBumpForm.ts                              -- EDITAR (adicionar validacao + estado de erro)
-        OrderBumpFormFields.tsx                             -- EDITAR (mostrar estado de erro visual)
-        index.tsx                                          -- EDITAR (passar validationErrors como prop)
+      CheckoutConfigDialog.tsx                             -- EDITAR (adicionar validacao + estado de erro)
 ```
 
 ## Comportamento Esperado
 
-1. Usuario digita texto livremente nos campos Title e Description (sem contador visivel)
+1. Usuario digita texto livremente no campo Nome (sem contador visivel)
 2. Ao clicar "Salvar":
-   - Se Title > 100 chars: borda vermelha + mensagem "O titulo deve ter no maximo 100 caracteres. Atual: X"
-   - Se Description > 300 chars: borda vermelha + mensagem "A descricao deve ter no maximo 300 caracteres. Atual: X"
-   - O save e bloqueado ate que ambos estejam dentro do limite
+   - Se Nome > 100 chars: borda vermelha + mensagem "O nome deve ter no maximo 100 caracteres. Atual: X"
+   - O save e bloqueado ate que esteja dentro do limite
 3. Quando o usuario edita o campo e fica dentro do limite, o erro desaparece automaticamente
 
 ## Checkpoint de Qualidade RISE V3
 
 | Pergunta | Resposta |
 |----------|----------|
-| Esta e a MELHOR solucao possivel? | Sim - usa SSOT existente, zero duplicacao |
+| Esta e a MELHOR solucao possivel? | Sim - usa SSOT existente, padrao Order Bump |
 | Existe alguma solucao com nota maior? | Nao |
 | Isso cria divida tecnica? | Zero |
 | Precisaremos "melhorar depois"? | Nao |
