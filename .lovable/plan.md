@@ -1,115 +1,125 @@
 
-# Migracao Completa: Cloudflare Worker + Limpeza de Legacy Secrets
+# Legal Pages Overhaul - Central Hub + 8 Documents
 
-## Contexto
+## Overview
 
-A investigacao profunda revelou **4 areas de acao** necessarias para finalizar a migracao 100%:
+Replace the current 2 hardcoded legal pages (TermosDeUso, PoliticaDePrivacidade) with a clean, scalable architecture: a **Legal Hub page** that lists all 8 documents, plus individual pages for each one -- all using a shared reusable layout component to eliminate code duplication.
 
-1. **Cloudflare Worker** - Atualizar o nome do secret e o codigo no repositorio
-2. **Secrets Legadas no Lovable Cloud** - Remover 2 secrets orfas
-3. **Arquivo morto no repositorio** - `src/integrations/supabase/client.ts` contem JWT legado
-4. **Documentacao do Worker** - Sincronizar o arquivo local com a versao real da Cloudflare
+## Current State
 
----
+- `src/pages/TermosDeUso.tsx` (726 lines) -- hardcoded with placeholders `[NOME DA EMPRESA]`, `[CNPJ]`, outdated content
+- `src/pages/PoliticaDePrivacidade.tsx` (390 lines) -- outdated content, different email (privacidade@ vs suporte@)
+- Only 2 routes exist: `/termos-de-uso` and `/politica-de-privacidade`
+- References to legal links in: `CheckoutFooter.tsx`, `ProducerRegistrationForm.tsx`
 
-## AREA 1: Cloudflare Worker (Acao Manual do User)
+## Architecture
 
-O Worker atual usa `env.SUPABASE_ANON_KEY` (nome legado). Precisa ser atualizado para `env.SUPABASE_PUBLISHABLE_KEY`.
+A new `src/pages/legal/` directory with:
 
-### O que fazer no Cloudflare Dashboard:
-
-**Passo 1:** Criar um novo secret no Worker com o nome correto:
-- Workers & Pages > rise-api-proxy > Settings > Variables and Secrets
-- Adicionar novo secret:
-
-| Nome (NOVO) | Valor |
-|-------------|-------|
-| `SUPABASE_PUBLISHABLE_KEY` | A publishable key (`sb_publishable_...`) que voce criou no Supabase Dashboard |
-
-**Passo 2:** Atualizar o codigo do Worker (na aba "Edit Code" ou via Wrangler):
-
-Mudar a linha 93 de:
-```javascript
-headers.set("apikey", env.SUPABASE_ANON_KEY);
-```
-Para:
-```javascript
-headers.set("apikey", env.SUPABASE_PUBLISHABLE_KEY);
+```text
+src/pages/legal/
+  LegalHub.tsx              -- Central page listing all 8 documents
+  LegalPageLayout.tsx       -- Shared layout (header, sidebar, content area)
+  TermosDeUso.tsx            -- Updated content from your file
+  TermosDeCompra.tsx         -- NEW
+  PoliticaDePrivacidade.tsx  -- Updated content from your file
+  PoliticaDeCookies.tsx      -- NEW
+  PoliticaDeReembolso.tsx    -- NEW
+  PoliticaDePagamentos.tsx   -- NEW
+  PoliticaDeConteudo.tsx     -- NEW
+  PoliticaDeDireitosAutorais.tsx -- NEW
+  index.ts                   -- Barrel exports
 ```
 
-Tambem atualizar o comentario do header (linha 1-4) e adicionar o `EXPLICIT_ORIGINS` que voce ja tem na versao real (o arquivo no repositorio esta desatualizado).
+### LegalPageLayout (Reusable Component)
 
-**Passo 3:** Apos confirmar que funciona, **remover** o secret antigo:
-- Deletar `SUPABASE_ANON_KEY` dos secrets do Worker
+Each legal page will pass its sections and content to `LegalPageLayout`, which handles:
+- Animated header with icon, title, date
+- Sticky sidebar index with scroll-to-section
+- Content area with ScrollArea
+- Consistent styling across all 8 pages
 
-**Passo 4:** Deploy do Worker
+This keeps each page focused on **content only**, and the layout component under 150 lines.
 
----
+### LegalHub Page (`/legal`)
 
-## AREA 2: Secrets Legadas no Lovable Cloud (Acao no Plano)
+A clean page with 8 cards, each linking to the respective document. Cards organized in a grid with:
+- Icon, title, short description
+- "Last updated" date
+- Click to navigate to the individual page
 
-A auditoria identificou **2 secrets orfas** que nenhuma Edge Function utiliza:
+## Routes (8 new + 1 hub + cleanup)
 
-| Secret Legada | Status | Motivo da Remocao |
-|---------------|--------|-------------------|
-| `PUBLIC_SITE_URL` | Orfao | Substituido por `SITE_BASE_DOMAIN` (SSOT desde RISE V3) |
-| `STRIPE_REDIRECT_URL` | Orfao | Hardcoded em `stripe-oauth-config.ts` (SSOT) |
+| Route | Page | Status |
+|-------|------|--------|
+| `/legal` | LegalHub | NEW |
+| `/termos-de-uso` | TermosDeUso (new content) | REPLACE |
+| `/termos-de-compra` | TermosDeCompra | NEW |
+| `/politica-de-privacidade` | PoliticaDePrivacidade (new content) | REPLACE |
+| `/politica-de-cookies` | PoliticaDeCookies | NEW |
+| `/politica-de-reembolso` | PoliticaDeReembolso | NEW |
+| `/politica-de-pagamentos` | PoliticaDePagamentos | NEW |
+| `/politica-de-conteudo` | PoliticaDeConteudo | NEW |
+| `/politica-de-direitos-autorais` | PoliticaDeDireitosAutorais | NEW |
 
-Tambem identificada **1 secret suspeita**:
+## Content Updates
 
-| Secret | Status | Analise |
-|--------|--------|---------|
-| `BUYER_SESSION_SECRET` | Potencialmente Orfao | Zero referencias no codigo (`0 matches`). Possivel legado do sistema de sessoes antigo |
+All 8 documents will use the exact content you provided in the uploaded files:
+- **Rise Community LTDA**, CNPJ **58.566.585/0001-91**
+- Date: **06 de fevereiro de 2026**
+- Email: **suporte@risecheckout.com**
+- Address: Rua 11, Quadra 257, N 5, Dalva 4, Luziania/GO
 
-Acao: Vou solicitar a remocao dessas 3 secrets via ferramenta.
+No more `[NOME DA EMPRESA]`, `[CNPJ]`, `[ENDERECO COMPLETO]` placeholders.
 
----
+## Link Updates
 
-## AREA 3: Atualizar Arquivo do Worker no Repositorio
+### CheckoutFooter.tsx
+Currently shows: "Termos de Uso" and "Politica de Privacidade"
 
-O arquivo `docs/cloudflare-worker/rise-api-proxy.js` esta desatualizado:
-- Nao tem o `EXPLICIT_ORIGINS` (que voce ja adicionou na Cloudflare real)
-- Usa `env.SUPABASE_ANON_KEY` (nome legado)
-- Comentario de header desatualizado
+Will be updated to show: "Termos de Compra" (more relevant for checkout buyers), "Politica de Privacidade", and "Politica de Pagamentos" -- the three most relevant for a checkout context.
 
-Acao: Atualizar para refletir a versao correta com:
-- `env.SUPABASE_PUBLISHABLE_KEY`
-- `EXPLICIT_ORIGINS` array
-- Header atualizado com data de 2026-02-06
+### ProducerRegistrationForm.tsx
+Keep "Termos de Uso" and "Politica de Privacidade" links (correct for producer registration context).
 
----
+### PoliticaDePrivacidade.tsx
+The old page had links to `/termos-de-uso` and `/lgpd/esquecimento`. The new page will include cross-links to all related policies (Termos de Uso, Termos de Compra, Politica de Cookies) as referenced in the document content.
 
-## AREA 4: Arquivo `src/integrations/supabase/client.ts`
+## Cleanup
 
-Este arquivo contem o **JWT legacy anon key hardcoded** (`eyJhbGci...`). Ele e gerado automaticamente pelo Lovable e nao pode ser editado manualmente. Porem, ele nao e importado por nenhum modulo de producao (0 imports encontrados). A arquitetura RISE V3 usa exclusivamente `api.call()` e `publicApi.call()` que passam pelo API Gateway.
+- Delete old `src/pages/TermosDeUso.tsx` (726-line monolith)
+- Delete old `src/pages/PoliticaDePrivacidade.tsx` (390-line monolith)
+- Update `src/routes/publicRoutes.tsx` -- replace single TermosDeUso route with all legal routes
+- Update `src/routes/lgpdRoutes.tsx` -- move PoliticaDePrivacidade route to the legal routes group
+- Update `src/routes/__tests__/publicRoutes.test.tsx` -- update to reflect new routes
 
-**Decisao:** Este arquivo e gerenciado pelo Lovable e nao pode ser removido. Como nao e utilizado em producao, nao representa risco de seguranca. Sera documentado como "arquivo auto-gerado, nao utilizado".
+## Technical Details
 
----
+- All pages use `lazyWithRetry()` for lazy loading with network failure retry
+- Each individual page file stays well under 300 lines (content is structured as data, layout is shared)
+- `LegalPageLayout` is a pure presentational component -- receives sections and content as props
+- The layout pattern follows the exact same visual style as the current pages (gradient background, glassmorphic cards, sticky sidebar) but is DRY
+- All pages are default exports for React.lazy compatibility
+- Cross-links between documents use internal routes (e.g., `/politica-de-cookies`) instead of hardcoded `risecheckout.com` URLs
 
-## Resumo de Acoes
+## Files Changed Summary
 
-### Acoes que EU vou executar (codigo):
-1. Atualizar `docs/cloudflare-worker/rise-api-proxy.js` com `SUPABASE_PUBLISHABLE_KEY` + `EXPLICIT_ORIGINS`
-2. Solicitar remocao das 3 secrets legadas (`PUBLIC_SITE_URL`, `STRIPE_REDIRECT_URL`, `BUYER_SESSION_SECRET`)
-3. Atualizar documentacao em `API_GATEWAY_ARCHITECTURE.md` removendo nota de migracao (agora completa)
-
-### Acoes que VOCE executa (manual):
-1. **Cloudflare Dashboard:** Criar secret `SUPABASE_PUBLISHABLE_KEY` no Worker
-2. **Cloudflare Dashboard:** Atualizar codigo do Worker (linha `env.SUPABASE_ANON_KEY` -> `env.SUPABASE_PUBLISHABLE_KEY`)
-3. **Cloudflare Dashboard:** Deploy do Worker
-4. **Cloudflare Dashboard:** Apos validar, remover secret `SUPABASE_ANON_KEY` do Worker
-5. **Supabase Dashboard:** Apos validar a migracao completa, revogar as legacy API keys (JWT `anon` e `service_role` antigas)
-
----
-
-## Checklist Final Pos-Migracao
-
-| Item | Responsavel |
-|------|-------------|
-| Worker usa `SUPABASE_PUBLISHABLE_KEY` | User (Cloudflare) |
-| Secret `SUPABASE_ANON_KEY` removida do Worker | User (Cloudflare) |
-| Secrets legadas removidas do Lovable Cloud | AI (automatico) |
-| Arquivo do Worker no repo atualizado | AI (automatico) |
-| Legacy JWT keys revogadas no Supabase Dashboard | User (Supabase) |
-| Validar login/checkout funciona apos migracao | User (teste manual) |
+| Action | File | Reason |
+|--------|------|--------|
+| CREATE | `src/pages/legal/LegalPageLayout.tsx` | Shared layout component |
+| CREATE | `src/pages/legal/LegalHub.tsx` | Central hub page |
+| CREATE | `src/pages/legal/TermosDeUso.tsx` | Updated content |
+| CREATE | `src/pages/legal/TermosDeCompra.tsx` | New document |
+| CREATE | `src/pages/legal/PoliticaDePrivacidade.tsx` | Updated content |
+| CREATE | `src/pages/legal/PoliticaDeCookies.tsx` | New document |
+| CREATE | `src/pages/legal/PoliticaDeReembolso.tsx` | New document |
+| CREATE | `src/pages/legal/PoliticaDePagamentos.tsx` | New document |
+| CREATE | `src/pages/legal/PoliticaDeConteudo.tsx` | New document |
+| CREATE | `src/pages/legal/PoliticaDeDireitosAutorais.tsx` | New document |
+| CREATE | `src/pages/legal/index.ts` | Barrel exports |
+| DELETE | `src/pages/TermosDeUso.tsx` | Replaced by legal/ version |
+| DELETE | `src/pages/PoliticaDePrivacidade.tsx` | Replaced by legal/ version |
+| EDIT | `src/routes/publicRoutes.tsx` | Add all legal routes |
+| EDIT | `src/routes/lgpdRoutes.tsx` | Remove PoliticaDePrivacidade (moved) |
+| EDIT | `src/components/checkout/CheckoutFooter.tsx` | Update legal links |
+| EDIT | `src/routes/__tests__/publicRoutes.test.tsx` | Update test |
