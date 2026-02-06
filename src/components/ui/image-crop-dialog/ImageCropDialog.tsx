@@ -115,38 +115,43 @@ export function ImageCropDialog({
 
     const { coordinates, visibleArea } = state;
 
-    // Centro das coordinates (crop area)
+    // Centro da IMAGEM (onde queremos que o crop fique)
+    const imageCenterX = state.imageSize.width / 2;
+    const imageCenterY = state.imageSize.height / 2;
+
+    // Centro atual das COORDINATES (onde o crop está agora - tipicamente top=0)
     const coordsCenterX = coordinates.left + coordinates.width / 2;
     const coordsCenterY = coordinates.top + coordinates.height / 2;
 
-    // Centro da visibleArea (viewport)
-    const viewCenterX = visibleArea.left + visibleArea.width / 2;
-    const viewCenterY = visibleArea.top + visibleArea.height / 2;
-
-    // Diferença: quanto a visibleArea precisa mover para centralizar nas coordinates
-    const diffX = coordsCenterX - viewCenterX;
-    const diffY = coordsCenterY - viewCenterY;
+    // Delta para mover o crop ao centro da imagem
+    const deltaX = imageCenterX - coordsCenterX;
+    const deltaY = imageCenterY - coordsCenterY;
 
     const TOLERANCE = 1; // px
 
-    if (Math.abs(diffX) > TOLERANCE || Math.abs(diffY) > TOLERANCE) {
+    if (Math.abs(deltaX) > TOLERANCE || Math.abs(deltaY) > TOLERANCE) {
       cropper.setState(
         (currentState) => {
-          if (!currentState) return currentState;
+          if (!currentState?.coordinates || !currentState.visibleArea) return currentState;
           return {
             ...currentState,
+            coordinates: {
+              ...currentState.coordinates,
+              left: currentState.coordinates.left + deltaX,
+              top: currentState.coordinates.top + deltaY,
+            },
             visibleArea: {
               ...currentState.visibleArea,
-              left: currentState.visibleArea.left + diffX,
-              top: currentState.visibleArea.top + diffY,
+              left: currentState.visibleArea.left + deltaX,
+              top: currentState.visibleArea.top + deltaY,
             },
           };
         },
         { transitions: false }
       );
       log.info("Centering corrected via setState (no postProcess)", {
-        diffX: Math.round(diffX),
-        diffY: Math.round(diffY),
+        deltaX: Math.round(deltaX),
+        deltaY: Math.round(deltaY),
       });
     }
   }, []);
