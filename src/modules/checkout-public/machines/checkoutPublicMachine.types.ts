@@ -17,6 +17,7 @@ import type {
   OrderBumpUIModel,
   ResolvedGateways,
 } from "../mappers";
+import type { AppliedCoupon } from "@/types/checkout-shared.types";
 
 // ============================================================================
 // FORM DATA TYPES
@@ -39,17 +40,14 @@ export interface FormErrors {
 }
 
 // ============================================================================
-// COUPON TYPES
+// COUPON TYPES — SSOT: AppliedCoupon from checkout-shared.types.ts
 // ============================================================================
 
-export interface CouponData {
-  id: string;
-  code: string;
-  name: string;
-  discount_type: 'percentage';
-  discount_value: number;
-  apply_to_order_bumps: boolean;
-}
+/**
+ * CouponData is a re-export alias for AppliedCoupon (SSOT).
+ * Kept as a named export so existing machine consumers don't break.
+ */
+export type CouponData = AppliedCoupon;
 
 // ============================================================================
 // PAYMENT TYPES
