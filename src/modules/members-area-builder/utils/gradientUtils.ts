@@ -10,6 +10,7 @@
  * @module members-area-builder/utils
  */
 
+import type React from 'react';
 import type { GradientOverlayConfig, GradientDirection } from '../types';
 
 // ============================================================================
