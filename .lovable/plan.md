@@ -1,222 +1,370 @@
 
 
-# Migration: Legacy JWT API Keys to New Publishable/Secret API Keys
+# Arquitetura Multi-Secret Key: 4 Dominios de Isolamento para RiseCheckout
 
-## Context
+## Contexto
 
-Supabase is deprecating the legacy JWT-based `anon` and `service_role` API keys. The new system uses:
+O novo sistema de API keys do Supabase permite criar multiplas **secret keys** (`sb_secret_...`), cada uma com acesso completo `service_role`, mas operacionalmente isoladas. Se uma key for vazada, voce revoga APENAS ela sem afetar o restante do sistema.
 
-- **Publishable key** (`sb_publishable_...`) -- replaces `anon` key (safe for frontend)
-- **Secret key** (`sb_secret_...`) -- replaces `service_role` key (backend only)
+## Mapeamento Completo: 107 Functions em 4 Dominios
 
-Late 2026 (TBC), legacy keys will be **deleted** and apps still using them will **break**. Migrating now eliminates this ticking time bomb of technical debt.
+### DOMINIO 1: WEBHOOKS (10 funcoes)
 
-## Current State Analysis
+Funcoes que recebem callbacks de gateways de pagamento ou processam fila de webhooks outbound.
 
-### Frontend
-| Component | Current State | Uses Legacy Key? |
-|-----------|-------------|-----------------|
-| `src/integrations/supabase/client.ts` | Hardcoded legacy JWT | Yes (but DEAD CODE -- no file imports `supabase` from it) |
-| `src/config/supabase.ts` | `API_GATEWAY_URL` only, no keys | No |
-| `src/config/env.ts` | `supabaseAnonKey` from `VITE_SUPABASE_ANON_KEY` | Yes (but DEAD CODE -- not imported anywhere) |
-| `src/lib/api/public-client.ts` | Calls API Gateway, no keys | No |
-| `src/lib/api/*.ts` | Calls API Gateway, no keys | No |
+**Risco de vazamento**: ALTO (URLs expostas para gateways externos)
+**Impacto de revogacao**: Webhooks param de ser processados, pagamentos nao atualizam status, mas checkout continua criando pedidos.
 
-**Conclusion:** The RISE API Gateway architecture already eliminated keys from the active frontend. The legacy references are dead code.
+| Funcao | Auth Mechanism | Descricao |
+|--------|----------------|-----------|
+| `mercadopago-webhook` | webhook signature | Inbound MercadoPago |
+| `stripe-webhook` | webhook signature | Inbound Stripe |
+| `pushinpay-webhook` | webhook signature | Inbound PushinPay |
+| `asaas-webhook` | webhook signature | Inbound Asaas |
+| `trigger-webhooks` | internal secret | Disparo outbound |
+| `process-webhook-queue` | internal secret | Fila de processamento |
+| `retry-webhooks` | internal secret | Retry de falhas |
+| `send-webhook-test` | sessions | Teste manual |
+| `webhook-crud` | sessions | CRUD de webhooks |
+| `order-lifecycle-worker` | internal secret | Post-payment/refund actions |
 
-### Cloudflare Worker (API Gateway)
-| Secret | Current Value | Needs Update |
-|--------|--------------|-------------|
-| `SUPABASE_ANON_KEY` | Legacy JWT anon key | YES -- must become publishable key |
-
-### Backend (Edge Functions)
-| Component | Current State | Impact |
-|-----------|-------------|--------|
-| `SUPABASE_SERVICE_ROLE_KEY` env var | Used by 100+ functions | AUTO-UPDATED by Supabase platform |
-| `SUPABASE_ANON_KEY` env var | Referenced in `check-secrets`, tests | AUTO-UPDATED by Supabase platform |
-| `config.toml` | Only 1 function has `verify_jwt = false` | CRITICAL -- must add ALL 105 functions |
-| `getSupabaseClient()` factory | Only 1 function uses it | No code change needed |
-
-### Documentation
-| File | Has Legacy References | Needs Update |
-|------|---------------------|-------------|
-| `docs/API_GATEWAY_ARCHITECTURE.md` | `SUPABASE_ANON_KEY` | YES |
-| `docs/EDGE_FUNCTIONS_REGISTRY.md` | Badge, metrics | YES |
-| `docs/SECURITY_OVERVIEW.md` | Anon key references | YES |
-| `.env.example` | `VITE_SUPABASE_ANON_KEY` | YES |
-| `check-secrets/index.ts` | `SUPABASE_ANON_KEY` | YES |
+**Env var**: `SUPABASE_SECRET_WEBHOOKS`
 
 ---
 
-## Critical Technical Detail: `verify_jwt` and New Keys
+### DOMINIO 2: PAYMENTS (18 funcoes)
 
-New publishable/secret keys are NOT JWTs. They are opaque tokens (`sb_publishable_...`, `sb_secret_...`). The Supabase API Gateway resolves them into temporary short-lived JWTs internally.
+Funcoes que criam pagamentos, consultam status, reconciliam, e concedem acesso apos pagamento.
 
-When `verify_jwt = true` (the default), the Supabase platform attempts JWT verification on the `apikey` header BEFORE the edge function code runs. With new keys, this verification **fails** because the key is not a JWT.
+**Risco de vazamento**: ALTO (endpoints publicos acessados por compradores anonimos)
+**Impacto de revogacao**: Checkout para de processar pagamentos, mas dashboard e area de membros continuam.
 
-Therefore, `verify_jwt = false` must be set for ALL functions BEFORE disabling legacy keys. The RISE architecture already does auth in code (cookies + sessions table via `unified-auth-v2.ts`), so platform-level JWT verification is redundant.
+| Funcao | Auth Mechanism | Descricao |
+|--------|----------------|-----------|
+| `mercadopago-create-payment` | public | Criar pagamento MP |
+| `mercadopago-oauth-callback` | oauth | OAuth MP |
+| `stripe-create-payment` | public | Criar pagamento Stripe |
+| `stripe-connect-oauth` | oauth | OAuth Stripe |
+| `asaas-create-payment` | public | Criar pagamento Asaas |
+| `asaas-validate-credentials` | public | Validar Asaas |
+| `pushinpay-create-pix` | public | Criar PIX PushinPay |
+| `pushinpay-get-status` | public | Status PIX |
+| `pushinpay-validate-token` | public | Validar token PP |
+| `pushinpay-stats` | sessions | Stats PushinPay |
+| `create-order` | public | Criar pedido |
+| `get-order-for-pix` | public | Dados pedido PIX |
+| `get-pix-status` | public | Recuperar PIX |
+| `reconcile-pending-orders` | internal | Orquestrador reconciliacao |
+| `reconcile-mercadopago` | internal | Reconciliacao MP |
+| `reconcile-asaas` | internal | Reconciliacao Asaas |
+| `grant-member-access` | internal | Conceder acesso pos-pagamento |
+| `alert-stuck-orders` | internal | Alertar pedidos travados |
 
-Currently `supabase/config.toml` only lists 1 function. The other 104 functions use the default `verify_jwt = true`. This is a pre-existing inconsistency (the EDGE_FUNCTIONS_REGISTRY claims all functions have `verify_jwt = false`).
+**Env var**: `SUPABASE_SECRET_PAYMENTS`
 
 ---
 
-## Solution Analysis
+### DOMINIO 3: ADMIN (17 funcoes)
 
-### Solution A: Minimal -- Only update keys, fix config.toml
-- Manutenibilidade: 6/10 -- Dead code remains, docs outdated
-- Zero DT: 5/10 -- Legacy references create confusion
-- Arquitetura: 6/10 -- Inconsistent naming across codebase
-- Escalabilidade: 8/10 -- Keys work but docs mislead future devs
-- Seguranca: 9/10 -- New keys are more secure
-- **NOTA FINAL: 6.5/10**
-- Tempo estimado: 15 minutos
+Funcoes de alto privilegio: seguranca, criptografia, GDPR, vault, gerenciamento de roles, infraestrutura.
 
-### Solution B: Complete migration with dead code removal, doc updates, and naming normalization
-- Manutenibilidade: 10/10 -- Zero legacy references, all docs current, naming consistent
-- Zero DT: 10/10 -- No dead code, no outdated docs, no legacy naming
-- Arquitetura: 10/10 -- config.toml covers all functions, docs match reality
-- Escalabilidade: 10/10 -- Future devs see only the new system
-- Seguranca: 10/10 -- New keys + all legacy references purged
+**Risco de vazamento**: BAIXO (maioria requer sessao autenticada de owner/admin)
+**Impacto de revogacao**: Dashboard admin e operacoes sensiveis param, mas checkout e vendas continuam.
+
+| Funcao | Auth Mechanism | Descricao |
+|--------|----------------|-----------|
+| `admin-data` | sessions | Dados administrativos |
+| `admin-health` | sessions | Health admin |
+| `owner-settings` | sessions | Configuracoes owner |
+| `manage-user-role` | sessions | Gerenciar roles |
+| `manage-user-status` | sessions | Gerenciar status users |
+| `security-management` | sessions | Gestao de seguranca |
+| `decrypt-customer-data` | sessions | Decriptar dados |
+| `decrypt-customer-data-batch` | sessions | Decriptar batch |
+| `encrypt-token` | sessions | Encriptar tokens |
+| `key-rotation-executor` | internal | Rotacao de chaves |
+| `rls-documentation-generator` | internal | Gerar docs RLS |
+| `rls-security-tester` | internal | Testar RLS |
+| `data-retention-executor` | internal | Limpeza de dados |
+| `vault-save` | sessions | Salvar no vault |
+| `gdpr-forget` | public | LGPD esquecimento |
+| `gdpr-request` | public | LGPD solicitacao |
+| `rpc-proxy` | sessions | Proxy RPC |
+
+**Env var**: `SUPABASE_SECRET_ADMIN`
+
+---
+
+### DOMINIO 4: GENERAL (62 funcoes)
+
+Auth, CRUD de produtos, checkout, area de membros, afiliados, tracking, email, diagnosticos.
+
+**Risco de vazamento**: MEDIO (mistura de publico e autenticado)
+**Impacto de revogacao**: Features gerais param, mas pagamentos e webhooks continuam processando.
+
+| Funcao | Auth | Descricao |
+|--------|------|-----------|
+| `unified-auth` | public | Login/Register/Refresh |
+| `session-manager` | sessions | Gestao sessoes |
+| `product-crud` | sessions | CRUD produtos |
+| `product-duplicate` | sessions | Duplicar produto |
+| `product-entities` | sessions | Entidades produto |
+| `product-full-loader` | sessions | Loader completo |
+| `product-settings` | sessions | Config produto |
+| `products-crud` | sessions | CRUD v2 |
+| `checkout-crud` | sessions | CRUD checkout |
+| `checkout-editor` | sessions | Editor checkout |
+| `checkout-public-data` | public | BFF modular |
+| `checkout-heartbeat` | public | Heartbeat |
+| `offer-crud` | sessions | CRUD ofertas |
+| `offer-bulk` | sessions | Bulk ofertas |
+| `order-bump-crud` | sessions | CRUD bumps |
+| `coupon-management` | sessions | Gestao cupons |
+| `coupon-read` | sessions | Leitura cupons |
+| `integration-management` | sessions | Gestao integracoes |
+| `vendor-integrations` | sessions | Integracoes vendor |
+| `producer-profile` | sessions | Perfil produtor |
+| `buyer-orders` | sessions | Pedidos buyer |
+| `buyer-profile` | sessions | Perfil buyer |
+| `dashboard-analytics` | sessions | Analytics |
+| `members-area-certificates` | sessions | Certificados |
+| `members-area-drip` | sessions | Drip content |
+| `members-area-groups` | sessions | Grupos |
+| `members-area-modules` | sessions | Modulos |
+| `members-area-progress` | sessions | Progresso |
+| `members-area-quizzes` | sessions | Quizzes |
+| `content-crud` | sessions | CRUD conteudo |
+| `content-library` | sessions | Biblioteca |
+| `content-save` | sessions | Salvar conteudo |
+| `students-access` | sessions | Acesso alunos |
+| `students-groups` | sessions | Grupos alunos |
+| `students-invite` | sessions | Convidar alunos |
+| `students-list` | sessions | Listar alunos |
+| `pixel-management` | sessions | Gestao pixels |
+| `affiliate-pixel-management` | sessions | Pixels afiliado |
+| `affiliation-public` | public | Dados pub afiliacao |
+| `manage-affiliation` | sessions | Gestao afiliacao |
+| `request-affiliation` | sessions | Solicitar afiliacao |
+| `update-affiliate-settings` | sessions | Config afiliado |
+| `get-affiliation-details` | sessions | Detalhes afiliacao |
+| `get-affiliation-status` | sessions | Status afiliacao |
+| `get-all-affiliation-statuses` | sessions | Todos status |
+| `get-my-affiliations` | sessions | Minhas afiliacoes |
+| `marketplace-public` | public | Marketplace |
+| `storage-management` | sessions | Gestao storage |
+| `send-email` | sessions | Enviar email |
+| `send-confirmation-email` | internal | Email confirmacao |
+| `send-pix-email` | internal | Email PIX |
+| `email-preview` | sessions | Preview email |
+| `track-visit` | public | Tracking visita |
+| `utmify-conversion` | public | UTMify (deprecated) |
+| `utmify-validate-credentials` | sessions | Validar UTMify |
+| `facebook-conversion-api` | public | Facebook CAPI |
+| `detect-abandoned-checkouts` | internal | Detectar abandonos |
+| `verify-turnstile` | public | Captcha |
+| `check-secrets` | public | Diagnostico secrets |
+| `health` | public | Health check |
+| `smoke-test` | public | Smoke test |
+| `test-deploy` | public | Deploy test |
+
+**Env var**: `SUPABASE_SERVICE_ROLE_KEY` (auto-injected by Supabase -- zero configuracao manual)
+
+---
+
+## Analise de Solucoes
+
+### Solucao A: Config por funcao (cada funcao sabe seu env var diretamente)
+
+Cada `index.ts` faz `Deno.env.get("SUPABASE_SECRET_PAYMENTS")` diretamente.
+
+- Manutenibilidade: 5/10 -- Mudar o nome de um env var exige alterar N arquivos
+- Zero DT: 5/10 -- Nenhuma centralizacao, dominio espalhado no codigo
+- Arquitetura: 4/10 -- Viola DRY, cada funcao decide qual env var usar
+- Escalabilidade: 5/10 -- Adicionar novo dominio exige buscar todos os arquivos
+- Seguranca: 9/10 -- Isolamento funcional ok
+- **NOTA FINAL: 5.3/10**
+
+### Solucao B: Factory centralizado com dominio tipado + mapeamento declarativo
+
+Refatorar `_shared/supabase-client.ts` com um enum `SecretDomain` e um map `domain -> env_var_name`. Cada funcao chama `getSupabaseClient('payments')`. O mapeamento e declarativo e centralizado em UM arquivo.
+
+- Manutenibilidade: 10/10 -- Mudar env var name toca UM arquivo. Adicionar dominio: 1 linha
+- Zero DT: 10/10 -- SSOT absoluto para dominio-chave
+- Arquitetura: 10/10 -- Factory pattern com DI implicita, Clean Architecture
+- Escalabilidade: 10/10 -- Novos dominios sao 1 linha no mapa + criar a key
+- Seguranca: 10/10 -- Isolamento operacional + centralizacao de auditoria
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 30-45 minutos
 
-### DECISION: Solution B (Nota 10.0)
+### DECISAO: Solucao B (Nota 10.0)
 
-Solution A leaves dead code and outdated documentation, which will confuse future development and creates a false impression that legacy keys are still in use. Solution B ensures zero traces of the legacy system remain in the codebase.
-
----
-
-## Execution Plan
-
-### Phase 1: Code Preparation (Lovable -- what I implement)
-
-#### 1.1 `supabase/config.toml` -- Add ALL 105 functions with `verify_jwt = false`
-
-This is the most critical change. Every edge function must have its entry. Format:
-
-```text
-project_id = "wivbtmtgpsxupfjwwovf"
-
-[functions.admin-data]
-verify_jwt = false
-
-[functions.admin-health]
-verify_jwt = false
-
-... (all 105 functions)
-```
-
-Functions to include (from `supabase/functions/` directory listing):
-admin-data, admin-health, affiliate-pixel-management, affiliation-public, alert-stuck-orders, asaas-create-payment, asaas-validate-credentials, asaas-webhook, buyer-orders, buyer-profile, check-secrets, checkout-crud, checkout-editor, checkout-heartbeat, checkout-public-data, content-crud, content-library, content-save, coupon-management, coupon-read, create-order, dashboard-analytics, data-retention-executor, decrypt-customer-data, decrypt-customer-data-batch, detect-abandoned-checkouts, email-preview, encrypt-token, facebook-conversion-api, gdpr-forget, gdpr-request, get-affiliation-details, get-affiliation-status, get-all-affiliation-statuses, get-my-affiliations, get-order-for-pix, get-pix-status, grant-member-access, health, integration-management, key-rotation-executor, manage-affiliation, manage-user-role, manage-user-status, marketplace-public, members-area-certificates, members-area-drip, members-area-groups, members-area-modules, members-area-progress, members-area-quizzes, mercadopago-create-payment, mercadopago-oauth-callback, mercadopago-webhook, offer-bulk, offer-crud, order-bump-crud, order-lifecycle-worker, owner-settings, pixel-management, process-webhook-queue, producer-profile, product-crud, product-duplicate, product-entities, product-full-loader, product-settings, products-crud, pushinpay-create-pix, pushinpay-get-status, pushinpay-stats, pushinpay-validate-token, pushinpay-webhook, reconcile-asaas, reconcile-mercadopago, reconcile-pending-orders, request-affiliation, retry-webhooks, rls-documentation-generator, rls-security-tester, rpc-proxy, security-management, send-confirmation-email, send-email, send-pix-email, send-webhook-test, session-manager, smoke-test, storage-management, stripe-connect-oauth, stripe-create-payment, stripe-webhook, students-access, students-groups, students-invite, students-list, test-deploy, track-visit, trigger-webhooks, unified-auth, update-affiliate-settings, utmify-conversion, utmify-validate-credentials, vault-save, vendor-integrations, verify-turnstile, webhook-crud
-
-#### 1.2 `src/config/env.ts` -- Remove dead Supabase config
-
-The `supabaseAnonKey`, `supabaseUrl`, and `isSupabaseConfigured()` are dead code (no file imports them). Remove the entire "SUPABASE CONFIG" section. The RISE architecture uses `src/config/supabase.ts` exclusively.
-
-#### 1.3 `src/config/supabase.ts` -- Update documentation
-
-Update JSDoc to reference new API key system instead of "anon key".
-
-#### 1.4 `check-secrets/index.ts` -- Update key name references
-
-Change `'SUPABASE_ANON_KEY': 'supabase'` to document the new naming convention. The env var NAME stays the same (Supabase platform auto-updates the value), but the documentation should clarify what it actually contains now.
-
-#### 1.5 `check-secrets/tests/_shared.ts` -- Update test fixtures
-
-Same update as the main function.
-
-#### 1.6 `_shared/testing/test-config.ts` -- Update variable naming
-
-Rename `supabaseAnonKey` to `supabasePublishableKey` for clarity in test config.
-
-#### 1.7 `supabase/functions/run-tests.sh` -- Update variable references
-
-Update SUPABASE_ANON_KEY references to match new naming.
-
-#### 1.8 `docs/API_GATEWAY_ARCHITECTURE.md` -- Full update
-
-- Change "SUPABASE_ANON_KEY" to "SUPABASE_PUBLISHABLE_KEY" in Cloudflare Worker secrets table
-- Update "Rotacionando apikey" section
-- Add migration notes
-
-#### 1.9 `.env.example` -- Update key names
-
-Replace `VITE_SUPABASE_ANON_KEY` references with notes about new publishable key system.
-
-#### 1.10 `docs/RLS_DOCUMENTATION_GENERATOR.md` -- Update auth header examples
-
-Replace `YOUR_ANON_KEY` with appropriate new key references.
-
-#### 1.11 `tests/test-storage-ownership.sh` -- Update script references
-
-Update `ANON_KEY` / `anon_key` variables to use publishable key naming.
-
-### Phase 2: External Changes (User does manually)
-
-These steps must be done IN ORDER after Phase 1 code is deployed:
-
-#### Step 1: Verify new keys exist
-Go to Supabase Dashboard > Settings > API Keys > "Publishable and secret API keys" tab.
-Confirm you see a publishable key starting with `sb_publishable_...` and a secret key starting with `sb_secret_...`.
-
-#### Step 2: Update Cloudflare Worker secret
-In Cloudflare Dashboard (or via Wrangler CLI):
-1. Update the Worker secret from `SUPABASE_ANON_KEY` (legacy JWT value) to the new publishable key value (`sb_publishable_...`)
-2. Consider renaming the secret to `SUPABASE_PUBLISHABLE_KEY` for clarity
-3. Deploy the Worker
-
-#### Step 3: Test the system
-- Test a public checkout flow (PIX + Card)
-- Test authenticated producer flows (login, product CRUD)
-- Test buyer auth (login, member area access)
-- Verify all edge functions respond correctly
-
-#### Step 4: Disable legacy keys
-Only after confirming everything works:
-1. Supabase Dashboard > Settings > API Keys > "Legacy anon, service_role API keys" tab
-2. Click "Disable JWT-based API keys"
-3. Test again to confirm nothing breaks
-
-#### Step 5: Final validation
-- Run `smoke-test` edge function
-- Run `health` edge function
-- Verify dashboard analytics loads
-- Verify webhook processing (PushinPay, MercadoPago, Stripe)
+A Solucao A espalha a responsabilidade por 107 arquivos. A Solucao B centraliza tudo em um unico SSOT (`supabase-client.ts`), tornado trivial adicionar/remover/rotacionar dominios.
 
 ---
 
-## File Tree
+## Plano de Execucao Detalhado
+
+### Fase 1: Refatorar `_shared/supabase-client.ts` (SSOT)
+
+Adicionar:
 
 ```text
-MODIFIED:
-  supabase/config.toml                          <- ALL 105 functions with verify_jwt = false
-  src/config/env.ts                             <- Remove dead Supabase config section
-  src/config/supabase.ts                        <- Update JSDoc for new key system
-  supabase/functions/check-secrets/index.ts     <- Update key naming/docs
-  supabase/functions/check-secrets/tests/_shared.ts <- Update test fixtures
-  supabase/functions/_shared/testing/test-config.ts <- Rename variable
-  supabase/functions/run-tests.sh               <- Update variable naming
-  docs/API_GATEWAY_ARCHITECTURE.md              <- Full update for new key system
-  .env.example                                  <- Update key references
-  docs/RLS_DOCUMENTATION_GENERATOR.md           <- Update auth examples
-  tests/test-storage-ownership.sh               <- Update key variables
+// Secret domain type
+export type SecretDomain = 'webhooks' | 'payments' | 'admin' | 'general';
+
+// SSOT: maps domain to environment variable name
+const DOMAIN_KEY_MAP: Record<SecretDomain, string> = {
+  webhooks: 'SUPABASE_SECRET_WEBHOOKS',
+  payments: 'SUPABASE_SECRET_PAYMENTS',
+  admin:    'SUPABASE_SECRET_ADMIN',
+  general:  'SUPABASE_SERVICE_ROLE_KEY', // Auto-injected by Supabase
+};
+
+// Per-domain cached clients
+const domainClients: Partial<Record<SecretDomain, SupabaseClient>> = {};
+
+// New public API
+export function getSupabaseClient(domain: SecretDomain = 'general'): SupabaseClient {
+  if (domainClients[domain]) return domainClients[domain]!;
+
+  const url = getSupabaseUrl();
+  const envVar = DOMAIN_KEY_MAP[domain];
+  const key = Deno.env.get(envVar);
+
+  if (!key) {
+    // Fallback to general key during migration
+    log.warn(`Secret for domain '${domain}' (${envVar}) not found, falling back to general`);
+    return getSupabaseClient('general');
+  }
+
+  const client = createClient(url, key);
+  domainClients[domain] = client;
+  log.debug(`Supabase client initialized for domain: ${domain}`);
+  return client;
+}
 ```
 
-## Risk Assessment
+A funcao existente `getSupabaseClient()` sem parametro continua funcionando (default `'general'`). Zero breaking changes.
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|-----------|
-| Edge functions fail after disabling legacy keys | LOW | HIGH | `verify_jwt = false` deployed BEFORE disabling legacy keys |
-| Cloudflare Worker breaks | LOW | HIGH | Update Worker secret BEFORE disabling legacy keys |
-| Some test scripts fail | MEDIUM | LOW | Update all scripts in Phase 1 |
-| Supabase platform env vars not auto-updated | VERY LOW | HIGH | Supabase docs confirm auto-update behavior |
+O fallback garante que funcoes migradas NAO quebram antes das secrets serem configuradas no Dashboard.
 
-## Rollback Plan
+### Fase 2: Atualizar `_shared/get-vendor-token.ts`
 
-If anything breaks after disabling legacy keys:
-1. Supabase Dashboard > API Keys > Legacy tab > Re-enable legacy keys
-2. Revert Cloudflare Worker secret to legacy anon key value
-3. System immediately functional again
+Substituir as 2 instancias de `createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)` por `getSupabaseClient('payments')` (pois busca tokens de gateway).
 
-Legacy keys can be re-enabled at any time until they are permanently removed by Supabase (late 2026).
+### Fase 3: Migrar todas as 107 funcoes `index.ts`
+
+Refatoracao mecanica em cada funcao:
+
+**ANTES** (padrao atual em ~100 funcoes):
+```text
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// ...
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+);
+```
+
+**DEPOIS** (padrao novo):
+```text
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
+// ...
+const supabase = getSupabaseClient('payments'); // domain correto
+```
+
+Cada funcao recebe o dominio correto conforme as tabelas acima:
+- 10 funcoes de webhook -> `'webhooks'`
+- 18 funcoes de payment -> `'payments'`
+- 17 funcoes de admin -> `'admin'`
+- 62 funcoes de general -> `'general'`
+
+Beneficio: remove o `import { createClient }` direto do Supabase JS e remove as chamadas diretas a `Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")` de todos os 107 arquivos. Tudo passa pelo factory centralizado.
+
+### Fase 4: Atualizar `check-secrets/index.ts`
+
+Adicionar as 3 novas secrets esperadas:
+
+```text
+'SUPABASE_SECRET_WEBHOOKS': 'supabase-domains',
+'SUPABASE_SECRET_PAYMENTS': 'supabase-domains',
+'SUPABASE_SECRET_ADMIN': 'supabase-domains',
+```
+
+### Fase 5: Atualizar documentacao
+
+**`docs/EDGE_FUNCTIONS_REGISTRY.md`**:
+- Adicionar coluna "Secret Domain" na tabela de auth por funcao
+- Adicionar secao "Multi-Secret Key Architecture"
+
+**`docs/API_GATEWAY_ARCHITECTURE.md`**:
+- Documentar o mapeamento dominio -> env var
+
+**`docs/SECURITY_OVERVIEW.md`**:
+- Documentar a estrategia de isolamento e rotacao
+
+**`.env.example`**:
+- Adicionar as 3 novas variaveis
+
+### Fase 6: Configuracao Manual (User -- Supabase Dashboard)
+
+1. **Criar 3 secret keys** no Supabase Dashboard > Settings > API Keys > "Publishable and secret API keys"
+   - Nomear: `webhooks`, `payments`, `admin`
+   - Copiar cada valor `sb_secret_...`
+
+2. **Configurar como Supabase Secrets** (Dashboard > Settings > Edge Functions > Manage Secrets):
+   - `SUPABASE_SECRET_WEBHOOKS` = valor da key "webhooks"
+   - `SUPABASE_SECRET_PAYMENTS` = valor da key "payments"
+   - `SUPABASE_SECRET_ADMIN` = valor da key "admin"
+
+3. **Testar** cada dominio isoladamente:
+   - Webhooks: enviar webhook de teste do MercadoPago
+   - Payments: criar pedido de teste no checkout
+   - Admin: acessar dashboard admin
+   - General: fazer login e navegar
+
+4. **Validar isolamento**: revogar temporariamente uma key de teste e confirmar que apenas as funcoes daquele dominio falham
+
+---
+
+## Arvore de Arquivos Modificados
+
+```text
+MODIFICADOS (CORE):
+  supabase/functions/_shared/supabase-client.ts        <- Factory com SecretDomain
+  supabase/functions/_shared/get-vendor-token.ts        <- Usar factory('payments')
+
+MODIFICADOS (107 FUNCOES - refatoracao mecanica):
+  supabase/functions/*/index.ts                         <- getSupabaseClient('domain')
+
+MODIFICADOS (DIAGNOSTICO):
+  supabase/functions/check-secrets/index.ts             <- 3 novas secrets
+
+MODIFICADOS (DOCS):
+  docs/EDGE_FUNCTIONS_REGISTRY.md                       <- Coluna "Secret Domain"
+  docs/API_GATEWAY_ARCHITECTURE.md                      <- Secao multi-key
+  docs/SECURITY_OVERVIEW.md                             <- Estrategia de isolamento
+  .env.example                                          <- 3 novas variaveis
+```
+
+## Estrategia de Rotacao (Pos-Implementacao)
+
+Quando uma key for vazada:
+
+```text
+1. Supabase Dashboard > API Keys > Revogar key comprometida
+2. Criar nova key no mesmo Dashboard
+3. Dashboard > Edge Functions > Manage Secrets > Atualizar a env var correspondente
+4. Edge Functions re-deployam automaticamente com novo secret
+5. Tempo total de downtime: ~30 segundos (apenas no dominio afetado)
+6. Dominios nao afetados: ZERO impacto
+```
+
+## Riscos e Mitigacoes
+
+| Risco | Probabilidade | Impacto | Mitigacao |
+|-------|--------------|---------|-----------|
+| Funcao com dominio errado | MEDIA | BAIXO | Fallback para 'general' no factory |
+| Secret nao configurada | MEDIA | BAIXO | Log de warning + fallback automatico |
+| Breaking change no factory | BAIXO | ALTO | Default parameter `'general'` = backward compatible |
+| Erro de import em alguma funcao | MEDIA | BAIXO | Refatoracao mecanica, padrao identico |
 
