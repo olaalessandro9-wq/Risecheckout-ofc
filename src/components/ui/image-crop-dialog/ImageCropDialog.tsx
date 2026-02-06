@@ -9,7 +9,7 @@
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { createLogger } from "@/lib/logger";
 import { toast } from "sonner";
 import {
@@ -18,6 +18,7 @@ import {
   ImageRestriction,
 } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
+import "./ImageCropDialog.css";
 import {
   Dialog,
   DialogContent,
@@ -33,21 +34,6 @@ import { useStencilSize } from "./useStencilSize";
 import type { ImageCropDialogProps } from "./types";
 
 const log = createLogger("ImageCropDialog");
-
-/** CSS overrides para o cropper (overlay transparente + borda azul no stencil) */
-const CROPPER_OVERRIDES_CSS = `
-  .crop-overlay-transparent {
-    color: transparent !important;
-  }
-  .crop-stencil-line {
-    border-color: rgba(59, 130, 246, 0.8) !important;
-    border-width: 2px !important;
-    border-style: dashed !important;
-  }
-  .crop-stencil-preview {
-    border: 2px dashed rgba(59, 130, 246, 0.8) !important;
-  }
-`;
 
 /** CSS do pattern xadrez para áreas vazias */
 const CHECKERBOARD_STYLE = {
@@ -115,10 +101,42 @@ export function ImageCropDialog({
     [zoom]
   );
 
-  // onReady dispara APÓS resetCropper completar (state já inicializado)
-  const handleReady = useCallback(() => {
+  /**
+   * onReady: centraliza a imagem se fixedStencilAlgorithm descentrou
+   * (root cause: escala visibleArea para top=0 quando aspect ratios diferem).
+   */
+  const handleReady = useCallback((cropper: FixedCropperRef) => {
     setIsImageLoaded(true);
-    log.info("Cropper ready - image loaded successfully");
+
+    const state = cropper.getState();
+    if (!state?.coordinates || !state.visibleArea) return;
+
+    const { coordinates, visibleArea } = state;
+
+    // Centro das coordinates (crop area)
+    const coordsCenterX = coordinates.left + coordinates.width / 2;
+    const coordsCenterY = coordinates.top + coordinates.height / 2;
+
+    // Centro da visibleArea (viewport)
+    const viewCenterX = visibleArea.left + visibleArea.width / 2;
+    const viewCenterY = visibleArea.top + visibleArea.height / 2;
+
+    // Diferença: quanto a visibleArea precisa mover para centralizar nas coordinates
+    const diffX = coordsCenterX - viewCenterX;
+    const diffY = coordsCenterY - viewCenterY;
+
+    const TOLERANCE = 1; // px
+
+    if (Math.abs(diffX) > TOLERANCE || Math.abs(diffY) > TOLERANCE) {
+      // moveImage(left, top) move a IMAGEM. Mover a imagem para a direita
+      // equivale a mover a visibleArea para a esquerda. Para centralizar
+      // a visibleArea nas coordinates, invertemos o diff.
+      cropper.moveImage(-diffX, -diffY);
+      log.info("Centering corrected after initialization", {
+        diffX: Math.round(diffX),
+        diffY: Math.round(diffY),
+      });
+    }
   }, []);
 
   // onTransformImageEnd dispara após cada zoom/pan do usuário
@@ -191,9 +209,7 @@ export function ImageCropDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-hidden flex flex-col">
-          {/* CSS overrides para overlay transparente e borda azul */}
-          <style dangerouslySetInnerHTML={{ __html: CROPPER_OVERRIDES_CSS }} />
+      <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <p className="text-sm text-muted-foreground">
@@ -213,20 +229,17 @@ export function ImageCropDialog({
             style={CHECKERBOARD_STYLE}
           >
             {imageUrl && (
-                <FixedCropper
+              <FixedCropper
                 ref={cropperRef}
                 src={imageUrl}
-                className="absolute inset-0"
-                style={{ background: 'transparent' }}
+                className="rise-cropper absolute inset-0"
+                style={{ background: "transparent" }}
                 stencilSize={calculateStencilSize}
                 stencilProps={{
                   handlers: false,
                   lines: true,
                   movable: false,
                   resizable: false,
-                  overlayClassName: "crop-overlay-transparent",
-                  lineClassNames: { default: "crop-stencil-line" },
-                  previewClassName: "crop-stencil-preview",
                 }}
                 imageRestriction={ImageRestriction.none}
                 crossOrigin={false}

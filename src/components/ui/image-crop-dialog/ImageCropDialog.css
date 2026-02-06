@@ -1,0 +1,56 @@
+/**
+ * ImageCropDialog CSS Overrides
+ * 
+ * Overrides para react-advanced-cropper usando ESPECIFICIDADE (zero !important).
+ * A classe wrapper `.rise-cropper` (especificidade 0-2-0) sobrescreve
+ * os defaults da biblioteca (especificidade 0-1-0).
+ * 
+ * Referência da biblioteca (react-advanced-cropper/dist/style.css):
+ *   .advanced-cropper-stencil-overlay { color: rgba(0,0,0,0.5); }
+ *   .advanced-cropper-simple-line { border-color: rgba(255,255,255,0.3); border-style: solid; }
+ * 
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   OVERLAY: Transparente (sem escurecimento fora do stencil)
+   Permite que o xadrez do container pai apareça nas áreas vazias.
+   ═══════════════════════════════════════════════════════════ */
+.rise-cropper .advanced-cropper-stencil-overlay {
+  color: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STENCIL LINES: Borda azul tracejada (estilo Cakto)
+   A biblioteca usa 4 elementos separados (.advanced-cropper-simple-line)
+   posicionados nos 4 lados (north, south, east, west).
+   ═══════════════════════════════════════════════════════════ */
+.rise-cropper .advanced-cropper-simple-line {
+  border-color: rgba(59, 130, 246, 0.8);
+  border-style: dashed;
+}
+
+/* Espessura por lado (a biblioteca define border-width: 0 e ativa 1px por lado) */
+.rise-cropper .advanced-cropper-simple-line--north {
+  border-top-width: 2px;
+}
+
+.rise-cropper .advanced-cropper-simple-line--south {
+  border-bottom-width: 2px;
+}
+
+.rise-cropper .advanced-cropper-simple-line--east {
+  border-right-width: 2px;
+}
+
+.rise-cropper .advanced-cropper-simple-line--west {
+  border-left-width: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PREVIEW AREA: Borda contínua no contorno do stencil
+   Reforça a visibilidade da área de recorte.
+   ═══════════════════════════════════════════════════════════ */
+.rise-cropper .advanced-cropper-rectangle-stencil__preview {
+  border: 2px dashed rgba(59, 130, 246, 0.8);
+}
