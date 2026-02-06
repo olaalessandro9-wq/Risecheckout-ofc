@@ -6,6 +6,9 @@
  * exclusivamente via scroll do mouse / pinch (gesto nativo).
  * Áreas vazias mostram xadrez no editor e transparência real no PNG final.
  * 
+ * A centralização é garantida via custom postProcess que integra diretamente
+ * no pipeline de estado do cropper, sobrevivendo a reconciliações automáticas.
+ * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
@@ -30,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { getCropConfig } from "./presets";
 import { useStencilSize } from "./useStencilSize";
+import { useCenteredPostProcess } from "./useCenteredPostProcess";
 import type { ImageCropDialogProps } from "./types";
 
 const log = createLogger("ImageCropDialog");
@@ -79,6 +83,7 @@ export function ImageCropDialog({
   const cropperRef = useRef<FixedCropperRef>(null);
 
   const calculateStencilSize = useStencilSize(config.aspectRatio);
+  const centeredPostProcess = useCenteredPostProcess();
 
   // Load image URL from File
   useEffect(() => {
@@ -98,62 +103,15 @@ export function ImageCropDialog({
   }, [open, imageFile]);
 
   /**
-   * onReady: centraliza a imagem usando setState (sem postProcess).
+   * onReady: marks the image as loaded for UI feedback.
    * 
-   * ROOT CAUSE FIX: moveImage() dispara transformImageAlgorithm que
-   * aplica fixedStencilAlgorithm como postProcess, desfazendo a correção.
-   * setState() com postprocess=false (default) preserva o state exato
-   * que passamos, sem recálculos.
-   * 
-   * @see AbstractCropperInstance.js linhas 257-276
+   * Centering is handled by the custom postProcess function
+   * (useCenteredPostProcess), which integrates directly into the
+   * cropper's state pipeline and survives auto-reconciliation cycles.
    */
-  const handleReady = useCallback((cropper: FixedCropperRef) => {
+  const handleReady = useCallback(() => {
     setIsImageLoaded(true);
-
-    const state = cropper.getState();
-    if (!state?.coordinates || !state.visibleArea) return;
-
-    const { coordinates, visibleArea } = state;
-
-    // Centro da IMAGEM (onde queremos que o crop fique)
-    const imageCenterX = state.imageSize.width / 2;
-    const imageCenterY = state.imageSize.height / 2;
-
-    // Centro atual das COORDINATES (onde o crop está agora - tipicamente top=0)
-    const coordsCenterX = coordinates.left + coordinates.width / 2;
-    const coordsCenterY = coordinates.top + coordinates.height / 2;
-
-    // Delta para mover o crop ao centro da imagem
-    const deltaX = imageCenterX - coordsCenterX;
-    const deltaY = imageCenterY - coordsCenterY;
-
-    const TOLERANCE = 1; // px
-
-    if (Math.abs(deltaX) > TOLERANCE || Math.abs(deltaY) > TOLERANCE) {
-      cropper.setState(
-        (currentState) => {
-          if (!currentState?.coordinates || !currentState.visibleArea) return currentState;
-          return {
-            ...currentState,
-            coordinates: {
-              ...currentState.coordinates,
-              left: currentState.coordinates.left + deltaX,
-              top: currentState.coordinates.top + deltaY,
-            },
-            visibleArea: {
-              ...currentState.visibleArea,
-              left: currentState.visibleArea.left + deltaX,
-              top: currentState.visibleArea.top + deltaY,
-            },
-          };
-        },
-        { transitions: false }
-      );
-      log.info("Centering corrected via setState (no postProcess)", {
-        deltaX: Math.round(deltaX),
-        deltaY: Math.round(deltaY),
-      });
-    }
+    log.info("Image loaded and centered via postProcess pipeline");
   }, []);
 
   // Handler de erro do cropper - diagnosticabilidade obrigatória
@@ -250,6 +208,7 @@ export function ImageCropDialog({
                   resizable: false,
                 }}
                 imageRestriction={ImageRestriction.none}
+                postProcess={centeredPostProcess}
                 backgroundWrapperProps={FIXED_IMAGE_PROPS}
                 crossOrigin={false}
                 transitions={true}
