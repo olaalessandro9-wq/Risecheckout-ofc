@@ -2,53 +2,28 @@
  * Checkout Customizer Page
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
- * Persistence logic extracted to useCheckoutPersistence hook
+ * Now uses XState state machine via useCheckoutEditorState (Dual-Layout)
  */
 
-import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Monitor, Smartphone, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckoutPreview } from "@/components/checkout/CheckoutPreview";
 import { CheckoutCustomizationPanel } from "@/components/checkout/CheckoutCustomizationPanel";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { useCheckoutEditor } from "@/hooks/useCheckoutEditor";
 import { UnsavedChangesGuard } from "@/providers/UnsavedChangesGuard";
-import { useCheckoutPersistence } from "./checkout-customizer/hooks/useCheckoutPersistence";
+import { useCheckoutEditorState } from "./checkout-customizer/hooks/useCheckoutEditorState";
 
 const CheckoutCustomizer = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const checkoutId = searchParams.get("id");
 
-  // Editor hook (UI state, drag-drop, component management)
-  const editor = useCheckoutEditor();
-
-  // Persistence hook (load/save)
-  const { state: persistence, loadCheckoutData, handleSave } = useCheckoutPersistence({
-    checkoutId,
-    customization: editor.customization,
-    setCustomization: editor.setCustomization,
-    setIsDirty: editor.setIsDirty,
-  });
+  const editor = useCheckoutEditorState(checkoutId);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
-
-  // Initial load
-  useEffect(() => {
-    if (checkoutId) loadCheckoutData(checkoutId);
-  }, [checkoutId, loadCheckoutData]);
-
-  // Reload on window focus (if not dirty)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (checkoutId && !editor.isDirty) loadCheckoutData(checkoutId);
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [checkoutId, editor.isDirty, loadCheckoutData]);
 
   return (
     <UnsavedChangesGuard isDirty={editor.isDirty}>
@@ -67,14 +42,14 @@ const CheckoutCustomizer = () => {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 border rounded-lg p-1">
                   <Button
-                    variant={editor.viewMode === "desktop" ? "secondary" : "ghost"}
+                    variant={editor.activeViewport === "desktop" ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => editor.setViewMode("desktop")}
                   >
                     <Monitor className="h-4 w-4 mr-2" /> Desktop
                   </Button>
                   <Button
-                    variant={editor.viewMode === "mobile" ? "secondary" : "ghost"}
+                    variant={editor.activeViewport === "mobile" ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => editor.setViewMode("mobile")}
                   >
@@ -86,8 +61,8 @@ const CheckoutCustomizer = () => {
                   <Eye className="h-4 w-4 mr-2" /> Preview
                 </Button>
 
-                <Button onClick={handleSave} disabled={persistence.loading || persistence.isSaving}>
-                  {persistence.loading || persistence.isSaving ? "Salvando..." : "Salvar"}
+                <Button onClick={editor.handleSave} disabled={editor.isLoading || editor.isSaving || !editor.isDirty}>
+                  {editor.isLoading || editor.isSaving ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
             </div>
@@ -102,8 +77,8 @@ const CheckoutCustomizer = () => {
                 selectedComponentId={editor.selectedComponent}
                 onSelectComponent={editor.setSelectedComponent}
                 isPreviewMode={editor.isPreviewMode}
-                productData={persistence.productData}
-                orderBumps={persistence.orderBumps}
+                productData={editor.productData}
+                orderBumps={editor.orderBumps}
               />
             </div>
 
@@ -122,7 +97,7 @@ const CheckoutCustomizer = () => {
                   activeTab={editor.activeTab}
                   onActiveTabChange={editor.setActiveTab}
                   viewMode={editor.viewMode}
-                  productId={persistence.productData?.id}
+                  productId={editor.productData?.id}
                 />
               </aside>
             )}

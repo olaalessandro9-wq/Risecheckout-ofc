@@ -89,7 +89,7 @@
 | `offer-bulk` | sessions | false | general | unified-auth-v2 |
 | `checkout-crud` | sessions | false | general | unified-auth-v2 |
 | `order-bump-crud` | sessions | false | general | unified-auth-v2 |
-| `checkout-editor` | sessions | false | general | unified-auth-v2 |
+| `checkout-editor` | sessions | false | general | unified-auth-v2 - **Dual-Layout: mobile_top/bottom_components** |
 | `product-duplicate` | sessions | false | general | unified-auth-v2 |
 | `coupon-management` | sessions | false | general | unified-auth-v2 |
 | `integration-management` | sessions | false | general | unified-auth-v2 |

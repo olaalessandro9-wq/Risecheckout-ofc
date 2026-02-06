@@ -13,6 +13,8 @@ import type { CheckoutColors } from "./checkoutColors";
 
 export type ViewMode = "desktop" | "mobile" | "public";
 
+export type CheckoutViewport = "desktop" | "mobile";
+
 // ============================================================================
 // COMPONENT TYPES
 // ============================================================================

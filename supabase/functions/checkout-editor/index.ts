@@ -46,6 +46,8 @@ interface RequestBody {
   design?: DesignSettings;
   topComponents?: unknown[];
   bottomComponents?: unknown[];
+  mobileTopComponents?: unknown[];
+  mobileBottomComponents?: unknown[];
 }
 
 interface DesignSettings {
@@ -272,7 +274,7 @@ serve(withSentry("checkout-editor", async (req) => {
       const rateCheck = await checkRateLimit(supabase, producerId, CHECKOUT_EDITOR_RATE_LIMIT);
       if (!rateCheck.allowed) return jsonResponse({ success: false, error: rateCheck.error || "Muitas requisições.", retryAfter: rateCheck.retryAfter }, corsHeaders, 429);
 
-      const { checkoutId, design, topComponents, bottomComponents } = body;
+      const { checkoutId, design, topComponents, bottomComponents, mobileTopComponents, mobileBottomComponents } = body;
       if (!checkoutId) return errorResponse("ID do checkout é obrigatório", corsHeaders, 400);
 
       const ownershipCheck = await verifyCheckoutOwnership(supabase, checkoutId, producerId);
@@ -302,6 +304,11 @@ serve(withSentry("checkout-editor", async (req) => {
 
         if (topComponents !== undefined) updates.top_components = topComponents;
         if (bottomComponents !== undefined) updates.bottom_components = bottomComponents;
+        
+        // RISE V3: Dual-Layout - Save mobile components
+        if (mobileTopComponents !== undefined) updates.mobile_top_components = mobileTopComponents;
+        if (mobileBottomComponents !== undefined) updates.mobile_bottom_components = mobileBottomComponents;
+        
         updates.components = [];
 
         const { error: updateError } = await supabase.from("checkouts").update(updates).eq("id", checkoutId);

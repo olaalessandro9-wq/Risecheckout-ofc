@@ -984,6 +984,8 @@ export type Database = {
           id: string
           is_default: boolean
           mercadopago_public_key: string | null
+          mobile_bottom_components: Json | null
+          mobile_top_components: Json | null
           name: string
           payment_button_bg_color: string | null
           payment_button_text_color: string | null
@@ -1056,6 +1058,8 @@ export type Database = {
           id?: string
           is_default?: boolean
           mercadopago_public_key?: string | null
+          mobile_bottom_components?: Json | null
+          mobile_top_components?: Json | null
           name: string
           payment_button_bg_color?: string | null
           payment_button_text_color?: string | null
@@ -1128,6 +1132,8 @@ export type Database = {
           id?: string
           is_default?: boolean
           mercadopago_public_key?: string | null
+          mobile_bottom_components?: Json | null
+          mobile_top_components?: Json | null
           name?: string
           payment_button_bg_color?: string | null
           payment_button_text_color?: string | null
