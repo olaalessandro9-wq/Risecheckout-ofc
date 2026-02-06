@@ -60,10 +60,6 @@ O Worker precisa dos seguintes secrets configurados:
 |--------|-----------|
 | `SUPABASE_PUBLISHABLE_KEY` | Publishable key do projeto Supabase (`sb_publishable_...`) |
 
-> **⚠️ MIGRAÇÃO (2026-02):** A secret foi renomeada de `SUPABASE_ANON_KEY` (legacy JWT)
-> para `SUPABASE_PUBLISHABLE_KEY` (new opaque token). Se o Worker ainda usa o nome antigo,
-> atualize o nome e o valor para a nova publishable key.
-
 ### Origins Permitidas
 
 O Worker valida as seguintes origins:
