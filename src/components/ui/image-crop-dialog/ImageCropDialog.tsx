@@ -108,28 +108,16 @@ function computeBaseImageRect(
 }
 
 /**
- * Initializes the stencil centered on the image with maximum size
- * that fits inside the image while maintaining the preset aspect ratio.
+ * Initializes the stencil covering the entire image.
+ * Since handles are free-form (no aspect ratio lock), the stencil
+ * always starts as an exact clone of the imageRect.
  */
-function initStencilRect(imageRect: Rect, aspectRatio: number): Rect {
-  const imgAspect = imageRect.width / imageRect.height;
-
-  let w: number;
-  let h: number;
-
-  if (aspectRatio > imgAspect) {
-    w = imageRect.width;
-    h = w / aspectRatio;
-  } else {
-    h = imageRect.height;
-    w = h * aspectRatio;
-  }
-
+function initStencilRect(imageRect: Rect): Rect {
   return {
-    x: imageRect.x + (imageRect.width - w) / 2,
-    y: imageRect.y + (imageRect.height - h) / 2,
-    width: w,
-    height: h,
+    x: imageRect.x,
+    y: imageRect.y,
+    width: imageRect.width,
+    height: imageRect.height,
   };
 }
 
@@ -328,9 +316,9 @@ export function ImageCropDialog({
   // === Initialize stencil when imageRect becomes available ===
   useEffect(() => {
     if (imageRect && !stencilRect) {
-      setStencilRect(initStencilRect(imageRect, config.aspectRatio));
+      setStencilRect(initStencilRect(imageRect));
     }
-  }, [imageRect, stencilRect, config.aspectRatio]);
+  }, [imageRect, stencilRect]);
 
   const handleImageError = useCallback(() => {
     log.error("Failed to load image");
