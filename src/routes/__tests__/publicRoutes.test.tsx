@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from "vitest";
 import { publicRoutes } from "../publicRoutes";
-import { isValidRouteObject, extractAllPaths } from "./_shared";
+import { isValidRouteObject } from "./_shared";
 
 // ============================================================================
 // Route Configuration Structure
