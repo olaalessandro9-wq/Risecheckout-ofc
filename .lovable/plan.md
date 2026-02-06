@@ -1,133 +1,115 @@
 
-# Renomeacao dos Secret Keys: Remover Prefixo Reservado `SUPABASE_`
+# Migracao Completa: Cloudflare Worker + Limpeza de Legacy Secrets
 
-## Problema
+## Contexto
 
-O Supabase Dashboard proibe secrets cujo nome comeca com `SUPABASE_` pois esse namespace e reservado para variaveis auto-injetadas pela plataforma (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`).
+A investigacao profunda revelou **4 areas de acao** necessarias para finalizar a migracao 100%:
 
-Os 3 secrets de dominio atuais violam essa restricao:
-- `SUPABASE_SECRET_WEBHOOKS` -- BLOQUEADO pelo Dashboard
-- `SUPABASE_SECRET_PAYMENTS` -- BLOQUEADO pelo Dashboard
-- `SUPABASE_SECRET_ADMIN` -- BLOQUEADO pelo Dashboard
+1. **Cloudflare Worker** - Atualizar o nome do secret e o codigo no repositorio
+2. **Secrets Legadas no Lovable Cloud** - Remover 2 secrets orfas
+3. **Arquivo morto no repositorio** - `src/integrations/supabase/client.ts` contem JWT legado
+4. **Documentacao do Worker** - Sincronizar o arquivo local com a versao real da Cloudflare
 
-## Analise de Solucoes
+---
 
-### Solucao A: Prefixo `RISE_`
-Nomes: `RISE_SECRET_WEBHOOKS`, `RISE_SECRET_PAYMENTS`, `RISE_SECRET_ADMIN`
+## AREA 1: Cloudflare Worker (Acao Manual do User)
 
-- Manutenibilidade: 10/10 -- Prefixo unico do projeto, zero conflito com qualquer servico
-- Zero DT: 10/10 -- Resolve o problema de forma definitiva
-- Arquitetura: 10/10 -- Namespace proprio do projeto (RISE), semanticamente correto
-- Escalabilidade: 10/10 -- Novos dominios seguem o mesmo padrao (`RISE_SECRET_*`)
-- Seguranca: 10/10 -- Sem exposicao, sem conflitos
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 1 hora
+O Worker atual usa `env.SUPABASE_ANON_KEY` (nome legado). Precisa ser atualizado para `env.SUPABASE_PUBLISHABLE_KEY`.
 
-### Solucao B: Prefixo `SB_`
-Nomes: `SB_SECRET_WEBHOOKS`, `SB_SECRET_PAYMENTS`, `SB_SECRET_ADMIN`
+### O que fazer no Cloudflare Dashboard:
 
-- Manutenibilidade: 8/10 -- `SB_` pode conflitar com futuras convencoes do Supabase
-- Zero DT: 9/10 -- Funciona hoje, mas o prefixo `SB_` pode ser reservado no futuro
-- Arquitetura: 7/10 -- Ainda amarrado ao namespace do Supabase
-- Escalabilidade: 8/10 -- Funcional mas nao semanticamente independente
-- Seguranca: 10/10 -- Sem exposicao
-- **NOTA FINAL: 8.3/10**
-- Tempo estimado: 1 hora
+**Passo 1:** Criar um novo secret no Worker com o nome correto:
+- Workers & Pages > rise-api-proxy > Settings > Variables and Secrets
+- Adicionar novo secret:
 
-### Solucao C: Prefixo `SECRET_KEY_`
-Nomes: `SECRET_KEY_WEBHOOKS`, `SECRET_KEY_PAYMENTS`, `SECRET_KEY_ADMIN`
+| Nome (NOVO) | Valor |
+|-------------|-------|
+| `SUPABASE_PUBLISHABLE_KEY` | A publishable key (`sb_publishable_...`) que voce criou no Supabase Dashboard |
 
-- Manutenibilidade: 9/10 -- Generico, claro
-- Zero DT: 10/10 -- Sem conflito com reservados
-- Arquitetura: 8/10 -- Perde a identidade do projeto
-- Escalabilidade: 9/10 -- Funcional
-- Seguranca: 10/10 -- Sem exposicao
-- **NOTA FINAL: 9.1/10**
-- Tempo estimado: 1 hora
+**Passo 2:** Atualizar o codigo do Worker (na aba "Edit Code" ou via Wrangler):
 
-### DECISAO: Solucao A - Prefixo `RISE_` (Nota 10.0)
-
-O prefixo `RISE_` e o namespace proprio do projeto, semanticamente correto, impossivel de conflitar com reservas do Supabase ou qualquer outro servico. As solucoes B e C sao inferiores por dependencia semantica (B) ou genericidade (C).
-
-## Mapeamento da Renomeacao
-
-| Nome Antigo (BLOQUEADO) | Nome Novo | Dominio |
-|-------------------------|-----------|---------|
-| `SUPABASE_SECRET_WEBHOOKS` | `RISE_SECRET_WEBHOOKS` | webhooks |
-| `SUPABASE_SECRET_PAYMENTS` | `RISE_SECRET_PAYMENTS` | payments |
-| `SUPABASE_SECRET_ADMIN` | `RISE_SECRET_ADMIN` | admin |
-| `SUPABASE_SERVICE_ROLE_KEY` | Inalterado (auto-injetado) | general |
-
-## Arquivos Modificados (7 arquivos)
-
-```text
-CODIGO (2):
-  supabase/functions/_shared/supabase-client.ts        <- DOMAIN_KEY_MAP (SSOT)
-  supabase/functions/check-secrets/index.ts             <- expectedSecrets list
-
-TESTES (1):
-  supabase/functions/check-secrets/tests/_shared.ts     <- EXPECTED_SECRETS + SECRETS_BY_CATEGORY
-
-DOCUMENTACAO (4):
-  docs/EDGE_FUNCTIONS_REGISTRY.md                       <- 3 tabelas com env vars
-  docs/API_GATEWAY_ARCHITECTURE.md                      <- 1 tabela com env vars
-  docs/SECURITY_OVERVIEW.md                             <- 1 tabela com env vars
-  .env.example                                          <- 3 placeholders
+Mudar a linha 93 de:
+```javascript
+headers.set("apikey", env.SUPABASE_ANON_KEY);
+```
+Para:
+```javascript
+headers.set("apikey", env.SUPABASE_PUBLISHABLE_KEY);
 ```
 
-## Detalhes Tecnicos
+Tambem atualizar o comentario do header (linha 1-4) e adicionar o `EXPLICIT_ORIGINS` que voce ja tem na versao real (o arquivo no repositorio esta desatualizado).
 
-### 1. Factory SSOT (`_shared/supabase-client.ts`)
-Unica mudanca necessaria -- as 3 linhas do `DOMAIN_KEY_MAP`:
+**Passo 3:** Apos confirmar que funciona, **remover** o secret antigo:
+- Deletar `SUPABASE_ANON_KEY` dos secrets do Worker
 
-```text
-// ANTES
-webhooks: "SUPABASE_SECRET_WEBHOOKS",
-payments: "SUPABASE_SECRET_PAYMENTS",
-admin:    "SUPABASE_SECRET_ADMIN",
+**Passo 4:** Deploy do Worker
 
-// DEPOIS
-webhooks: "RISE_SECRET_WEBHOOKS",
-payments: "RISE_SECRET_PAYMENTS",
-admin:    "RISE_SECRET_ADMIN",
-```
+---
 
-### 2. Check-Secrets (`check-secrets/index.ts`)
-Renomear as 3 entries na lista `expectedSecrets` e a categoria de `'supabase-domains'` para `'rise-domains'`:
+## AREA 2: Secrets Legadas no Lovable Cloud (Acao no Plano)
 
-```text
-// ANTES
-'SUPABASE_SECRET_WEBHOOKS': 'supabase-domains',
-'SUPABASE_SECRET_PAYMENTS': 'supabase-domains',
-'SUPABASE_SECRET_ADMIN': 'supabase-domains',
+A auditoria identificou **2 secrets orfas** que nenhuma Edge Function utiliza:
 
-// DEPOIS
-'RISE_SECRET_WEBHOOKS': 'rise-domains',
-'RISE_SECRET_PAYMENTS': 'rise-domains',
-'RISE_SECRET_ADMIN': 'rise-domains',
-```
+| Secret Legada | Status | Motivo da Remocao |
+|---------------|--------|-------------------|
+| `PUBLIC_SITE_URL` | Orfao | Substituido por `SITE_BASE_DOMAIN` (SSOT desde RISE V3) |
+| `STRIPE_REDIRECT_URL` | Orfao | Hardcoded em `stripe-oauth-config.ts` (SSOT) |
 
-### 3. Check-Secrets Test Shared (`check-secrets/tests/_shared.ts`)
-Renomear no `EXPECTED_SECRETS`, `EXPECTED_CATEGORIES`, e `SECRETS_BY_CATEGORY`.
+Tambem identificada **1 secret suspeita**:
 
-### 4. Documentacao (3 arquivos)
-Substituicao direta de `SUPABASE_SECRET_WEBHOOKS` por `RISE_SECRET_WEBHOOKS` (e equivalentes) em todas as tabelas.
+| Secret | Status | Analise |
+|--------|--------|---------|
+| `BUYER_SESSION_SECRET` | Potencialmente Orfao | Zero referencias no codigo (`0 matches`). Possivel legado do sistema de sessoes antigo |
 
-### 5. `.env.example`
-Atualizar os 3 placeholders com os novos nomes.
+Acao: Vou solicitar a remocao dessas 3 secrets via ferramenta.
 
-## Instrucoes para o Dashboard (pos-implementacao)
+---
 
-Apos a aplicacao do codigo, configurar no Supabase Dashboard (Settings > Edge Functions > Manage Secrets):
+## AREA 3: Atualizar Arquivo do Worker no Repositorio
 
-| Nome do Secret | Valor |
-|----------------|-------|
-| `RISE_SECRET_WEBHOOKS` | Valor da secret key "webhooks" criada na Etapa 1 |
-| `RISE_SECRET_PAYMENTS` | Valor da secret key "payments" criada na Etapa 1 |
-| `RISE_SECRET_ADMIN` | Valor da secret key "admin" criada na Etapa 1 |
+O arquivo `docs/cloudflare-worker/rise-api-proxy.js` esta desatualizado:
+- Nao tem o `EXPLICIT_ORIGINS` (que voce ja adicionou na Cloudflare real)
+- Usa `env.SUPABASE_ANON_KEY` (nome legado)
+- Comentario de header desatualizado
 
-## Impacto
+Acao: Atualizar para refletir a versao correta com:
+- `env.SUPABASE_PUBLISHABLE_KEY`
+- `EXPLICIT_ORIGINS` array
+- Header atualizado com data de 2026-02-06
 
-- **Zero breaking changes em runtime**: O fallback para `SUPABASE_SERVICE_ROLE_KEY` (general) continua funcionando ate os novos secrets serem configurados
-- **107/107 funcoes**: Nenhuma funcao precisa ser alterada -- todas chamam `getSupabaseClient('domain')` que resolve via `DOMAIN_KEY_MAP`
-- **SSOT preservado**: A unica fonte de verdade continua sendo o `DOMAIN_KEY_MAP` no factory
+---
+
+## AREA 4: Arquivo `src/integrations/supabase/client.ts`
+
+Este arquivo contem o **JWT legacy anon key hardcoded** (`eyJhbGci...`). Ele e gerado automaticamente pelo Lovable e nao pode ser editado manualmente. Porem, ele nao e importado por nenhum modulo de producao (0 imports encontrados). A arquitetura RISE V3 usa exclusivamente `api.call()` e `publicApi.call()` que passam pelo API Gateway.
+
+**Decisao:** Este arquivo e gerenciado pelo Lovable e nao pode ser removido. Como nao e utilizado em producao, nao representa risco de seguranca. Sera documentado como "arquivo auto-gerado, nao utilizado".
+
+---
+
+## Resumo de Acoes
+
+### Acoes que EU vou executar (codigo):
+1. Atualizar `docs/cloudflare-worker/rise-api-proxy.js` com `SUPABASE_PUBLISHABLE_KEY` + `EXPLICIT_ORIGINS`
+2. Solicitar remocao das 3 secrets legadas (`PUBLIC_SITE_URL`, `STRIPE_REDIRECT_URL`, `BUYER_SESSION_SECRET`)
+3. Atualizar documentacao em `API_GATEWAY_ARCHITECTURE.md` removendo nota de migracao (agora completa)
+
+### Acoes que VOCE executa (manual):
+1. **Cloudflare Dashboard:** Criar secret `SUPABASE_PUBLISHABLE_KEY` no Worker
+2. **Cloudflare Dashboard:** Atualizar codigo do Worker (linha `env.SUPABASE_ANON_KEY` -> `env.SUPABASE_PUBLISHABLE_KEY`)
+3. **Cloudflare Dashboard:** Deploy do Worker
+4. **Cloudflare Dashboard:** Apos validar, remover secret `SUPABASE_ANON_KEY` do Worker
+5. **Supabase Dashboard:** Apos validar a migracao completa, revogar as legacy API keys (JWT `anon` e `service_role` antigas)
+
+---
+
+## Checklist Final Pos-Migracao
+
+| Item | Responsavel |
+|------|-------------|
+| Worker usa `SUPABASE_PUBLISHABLE_KEY` | User (Cloudflare) |
+| Secret `SUPABASE_ANON_KEY` removida do Worker | User (Cloudflare) |
+| Secrets legadas removidas do Lovable Cloud | AI (automatico) |
+| Arquivo do Worker no repo atualizado | AI (automatico) |
+| Legacy JWT keys revogadas no Supabase Dashboard | User (Supabase) |
+| Validar login/checkout funciona apos migracao | User (teste manual) |
