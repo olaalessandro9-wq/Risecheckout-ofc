@@ -49,6 +49,7 @@ export interface FixedHeaderSettings {
   // Visual settings
   alignment: 'left' | 'center';
   size: 'small' | 'medium' | 'large';
+  /** @deprecated Use MembersAreaBuilderSettings.gradient_overlay (global SSOT) */
   gradient_overlay?: GradientOverlayConfig;
   
   /** @deprecated Use show_stats instead - kept for backwards compatibility */
@@ -73,6 +74,7 @@ export interface BannerSettings {
   slides: BannerSlide[];
   transition_seconds: number;
   height: 'small' | 'medium' | 'large';
+  /** @deprecated Use MembersAreaBuilderSettings.gradient_overlay (global SSOT) */
   gradient_overlay?: GradientOverlayConfig;
 }
 
@@ -163,6 +165,10 @@ export interface MembersAreaBuilderSettings {
   
   // Sidebar Animation (Desktop only - mobile always uses bottom nav)
   sidebar_animation: 'click' | 'hover';
+  
+  // Global Gradient Overlay (Netflix-style, applies to entire members area)
+  // SSOT: All sections read from here instead of per-section config
+  gradient_overlay: GradientOverlayConfig;
   
   // Login Page
   login_layout: 'centered' | 'sidebar';

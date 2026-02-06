@@ -14,7 +14,7 @@ import {
   generateCombinedOverlayStyle,
   resolveGradientConfig 
 } from '@/modules/members-area-builder/utils/gradientUtils';
-import type { FixedHeaderSettings } from '@/modules/members-area-builder/types';
+import type { FixedHeaderSettings, GradientOverlayConfig } from '@/modules/members-area-builder/types';
 
 interface BuyerFixedHeaderSectionProps {
   settings: FixedHeaderSettings;
@@ -23,6 +23,8 @@ interface BuyerFixedHeaderSectionProps {
   productName?: string;
   productDescription?: string;
   onStartCourse?: () => void;
+  /** Global gradient config from MembersAreaBuilderSettings (SSOT) */
+  gradientConfig?: GradientOverlayConfig;
 }
 
 /**
@@ -41,6 +43,7 @@ export function BuyerFixedHeaderSection({
   productName,
   productDescription,
   onStartCourse,
+  gradientConfig: gradientConfigProp,
 }: BuyerFixedHeaderSectionProps) {
   const hasImage = !!settings.bg_image_url;
   
@@ -51,8 +54,8 @@ export function BuyerFixedHeaderSection({
   const showDescription = settings.show_description ?? false;
   const showCtaButton = settings.show_cta_button ?? false;
   
-  // Resolve gradient config
-  const gradientConfig = resolveGradientConfig(settings.gradient_overlay);
+  // Resolve gradient: global config (SSOT) takes priority, fallback to per-section (backwards compat)
+  const gradientConfig = resolveGradientConfig(gradientConfigProp ?? settings.gradient_overlay);
 
   // RISE V3: Hero header sizes with viewport units + safety limits
   const heightClass = {

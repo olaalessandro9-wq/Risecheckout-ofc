@@ -13,7 +13,7 @@ import { SectionView } from '../sections/SectionView';
 import { MenuPreview } from '../preview/MenuPreview';
 import { MobileBottomNav } from '../preview/MobileBottomNav';
 import { resolveGradientConfig, buildGradientContentStyle } from '../../utils/gradientUtils';
-import type { BuilderState, BuilderActions, SectionType, FixedHeaderSettings } from '../../types';
+import type { BuilderState, BuilderActions, SectionType } from '../../types';
 
 interface BuilderCanvasProps {
   state: BuilderState;
@@ -31,14 +31,16 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
   const showMenuDesktop = settings.show_menu_desktop ?? true;
   const showMenuMobile = settings.show_menu_mobile ?? true;
 
-  // Compute background override for custom gradient color continuity
-  // Sets BOTH --background (for children) AND backgroundColor (overrides hardcoded Tailwind)
-  const contentStyle = useMemo(() => {
-    if (!fixedHeader) return undefined;
-    const headerSettings = fixedHeader.settings as FixedHeaderSettings;
-    const gradientConfig = resolveGradientConfig(headerSettings.gradient_overlay);
-    return buildGradientContentStyle(gradientConfig);
-  }, [fixedHeader]);
+  // Global gradient config (SSOT) - used for both contentStyle and section propagation
+  const globalGradientConfig = useMemo(() => 
+    resolveGradientConfig(settings.gradient_overlay),
+    [settings.gradient_overlay]
+  );
+
+  const contentStyle = useMemo(() => 
+    buildGradientContentStyle(globalGradientConfig),
+    [globalGradientConfig]
+  );
 
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -113,6 +115,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                         theme={settings.theme}
                         modules={modules}
                         isPreviewMode={isPreviewMode}
+                        gradientConfig={globalGradientConfig}
                       />
                     </SectionWrapper>
                   )}
@@ -137,6 +140,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                       modules={section.type === 'modules' ? modules : undefined}
                       onModuleClick={section.type === 'modules' ? handleModuleClick : undefined}
                       isPreviewMode={isPreviewMode}
+                      gradientConfig={globalGradientConfig}
                     />
                     </SectionWrapper>
                   ))}
@@ -226,6 +230,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                     theme={settings.theme}
                     modules={modules}
                     isPreviewMode={isPreviewMode}
+                    gradientConfig={globalGradientConfig}
                   />
                 </SectionWrapper>
               )}
@@ -250,6 +255,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
                         modules={section.type === 'modules' ? modules : undefined}
                         onModuleClick={section.type === 'modules' ? handleModuleClick : undefined}
                         isPreviewMode={isPreviewMode}
+                        gradientConfig={globalGradientConfig}
                       />
                 </SectionWrapper>
               ))}

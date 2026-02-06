@@ -40,6 +40,7 @@ function createMockSettings(): MembersAreaBuilderSettings {
     show_menu_mobile: true,
     menu_items: [],
     sidebar_animation: "click",
+    gradient_overlay: { enabled: true, direction: 'bottom', strength: 60, use_theme_color: true },
     login_layout: "centered",
   };
 }
