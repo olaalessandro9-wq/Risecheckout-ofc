@@ -244,3 +244,68 @@ export function resolveGradientConfig(
     custom_color: gradientOverlay.custom_color ?? DEFAULT_GRADIENT_CONFIG.custom_color,
   };
 }
+
+// ============================================================================
+// BACKGROUND OVERRIDE (Custom Color extends to full content area)
+// ============================================================================
+
+/**
+ * Converts hex color to HSL string in the format CSS variables expect.
+ * Output format: "H S% L%" (e.g., "260 65% 11%")
+ * 
+ * This is specifically for overriding --background CSS variable,
+ * which uses space-separated HSL values without the hsl() wrapper.
+ */
+function hexToHSL(hex: string): string {
+  const { r: rRaw, g: gRaw, b: bRaw } = parseHexToRgb(hex);
+  
+  const r = rRaw / 255;
+  const g = gRaw / 255;
+  const b = bRaw / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    
+    switch (max) {
+      case r:
+        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        break;
+      case g:
+        h = ((b - r) / d + 2) / 6;
+        break;
+      case b:
+        h = ((r - g) / d + 4) / 6;
+        break;
+    }
+  }
+
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
+
+/**
+ * Returns the HSL override value for --background CSS variable
+ * when custom gradient color is active.
+ * 
+ * Returns null when:
+ * - Gradient is disabled
+ * - Using theme color (no override needed, already uses --background)
+ * 
+ * Returns HSL string (e.g., "260 65% 11%") when using custom color,
+ * allowing content area below the header to match the gradient fade color.
+ * 
+ * @param config - Resolved gradient configuration
+ * @returns HSL string for --background override, or null
+ */
+export function getGradientBackgroundOverride(
+  config: GradientOverlayConfig
+): string | null {
+  if (!config.enabled || config.use_theme_color) return null;
+  return hexToHSL(config.custom_color || '#000000');
+}

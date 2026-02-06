@@ -32,6 +32,7 @@ import {
   type ModulesSettings,
   type FixedHeaderSettings,
 } from "@/modules/members-area-builder/types";
+import { resolveGradientConfig, getGradientBackgroundOverride } from "@/modules/members-area-builder/utils/gradientUtils";
 import type { CardSize } from "@/modules/members-area-builder/constants/cardSizes";
 import type { TitleSize } from "@/modules/members-area-builder/constants/titleSizes";
 
@@ -133,6 +134,17 @@ export default function CourseHome() {
   // Check if we have Builder sections configured
   const hasBuilderSections = sections.length > 0;
 
+  // Compute --background override for custom gradient color continuity
+  const contentStyle = useMemo(() => {
+    const headerSection = sections.find(s => s.type === 'fixed_header');
+    if (!headerSection) return undefined;
+    const headerSettings = headerSection.settings as unknown as FixedHeaderSettings;
+    const gradientConfig = resolveGradientConfig(headerSettings.gradient_overlay);
+    const bgOverride = getGradientBackgroundOverride(gradientConfig);
+    if (!bgOverride) return undefined;
+    return { '--background': bgOverride } as React.CSSProperties;
+  }, [sections]);
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -190,7 +202,7 @@ export default function CourseHome() {
           {hasBuilderSections ? (
             // RISE V3: Arquitetura Netflix - flex-col sem gaps
             // O banner termina em cor sólida, não precisa de margin negativo
-            <div className="flex flex-col">
+            <div className="flex flex-col" style={contentStyle}>
               {sections.map((section) => {
                 // Fixed Header Section (Cakto-style)
                 if (section.type === 'fixed_header') {

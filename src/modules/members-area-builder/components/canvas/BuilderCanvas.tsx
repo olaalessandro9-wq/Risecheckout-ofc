@@ -5,14 +5,15 @@
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { SectionWrapper } from './SectionWrapper';
 import { AddSectionButton } from './AddSectionButton';
 import { SectionView } from '../sections/SectionView';
 import { MenuPreview } from '../preview/MenuPreview';
 import { MobileBottomNav } from '../preview/MobileBottomNav';
-import type { BuilderState, BuilderActions, SectionType } from '../../types';
+import { resolveGradientConfig, getGradientBackgroundOverride } from '../../utils/gradientUtils';
+import type { BuilderState, BuilderActions, SectionType, FixedHeaderSettings } from '../../types';
 
 interface BuilderCanvasProps {
   state: BuilderState;
@@ -29,6 +30,16 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
   // Menu visibility flags (defaults to true for new products without explicit settings)
   const showMenuDesktop = settings.show_menu_desktop ?? true;
   const showMenuMobile = settings.show_menu_mobile ?? true;
+
+  // Compute --background override for custom gradient color continuity
+  const contentStyle = useMemo(() => {
+    if (!fixedHeader) return undefined;
+    const headerSettings = fixedHeader.settings as FixedHeaderSettings;
+    const gradientConfig = resolveGradientConfig(headerSettings.gradient_overlay);
+    const bgOverride = getGradientBackgroundOverride(gradientConfig);
+    if (!bgOverride) return undefined;
+    return { '--background': bgOverride } as React.CSSProperties;
+  }, [fixedHeader]);
 
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -69,7 +80,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
             'max-w-sm',
             settings.theme === 'dark' ? 'bg-zinc-950' : 'bg-white'
           )}
-          style={{ minHeight: '600px' }}
+          style={{ minHeight: '600px', ...contentStyle }}
         >
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -164,6 +175,7 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
         'flex-1 flex overflow-hidden transition-all duration-300',
         settings.theme === 'dark' ? 'bg-zinc-950' : 'bg-white'
       )}
+      style={contentStyle}
       onClick={() => actions.selectSection(null)}
     >
       {/* Desktop Sidebar - Full height */}
