@@ -23,3 +23,4 @@ export { AuthThemeProvider } from "./AuthThemeProvider";
 export { PaymentThemeProvider } from "./PaymentThemeProvider";
 export { SuccessThemeProvider } from "./SuccessThemeProvider";
 export { OAuthThemeProvider } from "./OAuthThemeProvider";
+export { LegalThemeProvider } from "./LegalThemeProvider";
