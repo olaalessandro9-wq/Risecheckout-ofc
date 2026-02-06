@@ -12,7 +12,7 @@ import { AddSectionButton } from './AddSectionButton';
 import { SectionView } from '../sections/SectionView';
 import { MenuPreview } from '../preview/MenuPreview';
 import { MobileBottomNav } from '../preview/MobileBottomNav';
-import { resolveGradientConfig, getGradientBackgroundOverride } from '../../utils/gradientUtils';
+import { resolveGradientConfig, buildGradientContentStyle } from '../../utils/gradientUtils';
 import type { BuilderState, BuilderActions, SectionType, FixedHeaderSettings } from '../../types';
 
 interface BuilderCanvasProps {
@@ -31,14 +31,13 @@ export function BuilderCanvas({ state, actions }: BuilderCanvasProps) {
   const showMenuDesktop = settings.show_menu_desktop ?? true;
   const showMenuMobile = settings.show_menu_mobile ?? true;
 
-  // Compute --background override for custom gradient color continuity
+  // Compute background override for custom gradient color continuity
+  // Sets BOTH --background (for children) AND backgroundColor (overrides hardcoded Tailwind)
   const contentStyle = useMemo(() => {
     if (!fixedHeader) return undefined;
     const headerSettings = fixedHeader.settings as FixedHeaderSettings;
     const gradientConfig = resolveGradientConfig(headerSettings.gradient_overlay);
-    const bgOverride = getGradientBackgroundOverride(gradientConfig);
-    if (!bgOverride) return undefined;
-    return { '--background': bgOverride } as React.CSSProperties;
+    return buildGradientContentStyle(gradientConfig);
   }, [fixedHeader]);
 
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
