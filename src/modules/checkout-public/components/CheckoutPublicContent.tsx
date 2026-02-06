@@ -202,17 +202,14 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     enabled: true 
   });
 
-  // RISE V3: Cupom é gerenciado exclusivamente pela máquina XState (SSOT)
-  // Removido: localAppliedCoupon - estado duplicado causava bug de desconto não aplicado
-
   // Convert selectedBumps array to Set for OrderBumpList component
   const selectedBumpsSet = useMemo(() => new Set(selectedBumps), [selectedBumps]);
 
-  // Calculate total price
+  // Calculate total price respecting apply_to_order_bumps flag
   const calculateTotal = useCallback(() => {
-    let total = product.price;
+    const basePrice = product.price;
+    let total = basePrice;
     
-    // Add selected bumps
     for (const bumpId of selectedBumps) {
       const bump = orderBumps.find(b => b.id === bumpId);
       if (bump) {
@@ -220,9 +217,13 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       }
     }
     
-    // Apply coupon discount (RISE V3: apenas porcentagem suportado)
+    // Apply coupon discount respecting apply_to_order_bumps flag
     if (appliedCoupon) {
-      total = total * (1 - appliedCoupon.discount_value / 100);
+      const discountBase = appliedCoupon.apply_to_order_bumps
+        ? total
+        : basePrice;
+      const discount = (discountBase * appliedCoupon.discount_value) / 100;
+      total = total - discount;
     }
     
     return total;

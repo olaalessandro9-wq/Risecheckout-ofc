@@ -121,14 +121,9 @@ export interface PixStatusResponse {
 // COUPON
 // ============================================================================
 
-export interface AppliedCoupon {
-  id: string;
-  code: string;
-  name: string;
-  discount_type: 'percentage';
-  discount_value: number;
-  apply_to_order_bumps: boolean;
-}
+// RISE V3: AppliedCoupon canonical definition is in @/types/checkout-shared.types.ts
+// Re-exported for backward compatibility
+export type { AppliedCoupon } from './checkout-shared.types';
 
 // ============================================================================
 // CARD PAYMENT
