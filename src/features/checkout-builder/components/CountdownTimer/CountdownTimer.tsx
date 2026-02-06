@@ -91,16 +91,7 @@ export const CountdownTimer = ({
 
       {/* Texto */}
       {(isFinished ? finishedText : activeText) && (
-        <span 
-          className="text-base lg:text-lg font-medium"
-          style={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '40%',
-            display: 'inline-block',
-          }}
-        >
+        <span className="text-base lg:text-lg font-medium flex-1 min-w-0 truncate">
           {isFinished ? finishedText : activeText}
         </span>
       )}
