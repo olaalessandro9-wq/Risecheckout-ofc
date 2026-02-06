@@ -1,43 +1,60 @@
 
+# Fix: White Overlay on Legal Pages (CSS Root Cause)
 
-# Cleanup: 2 Code Hygiene Fixes (RISE V3 Section 6.4)
+## Root Cause Analysis
 
-A auditoria completa da implementacao do Legal Hub confirmou que **tudo funciona corretamente**: 8 documentos, 9 rotas, conteudo sem placeholders, cross-links internos, layout DRY, testes passando (41/41), visual OK, zero erros no console.
+The white overlay covering text on individual legal pages is caused by a **CSS compositing issue** between `backdrop-blur` and the body background color.
 
-Foram encontrados **2 problemas menores de higiene de codigo** que precisam ser corrigidos para nota 10.0/10.
+### How the bug happens:
 
----
+1. `body` has `bg-background` which in **light mode** resolves to `hsl(220 14% 96%)` (light gray)
+2. The legal page wrapper uses `bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950` -- this sets CSS `background-image` but the element's `background-color` remains **transparent**
+3. The content cards have `backdrop-blur-sm` which tells the browser to blur everything **behind** the element
+4. Since the wrapper has transparent `background-color`, the `backdrop-filter` composites the body's light gray background through the gradient, creating a washed-out whitish overlay on every card
 
-## Fix 1: Remover `contentRef` nao utilizado
+### Why the Legal Hub page works fine:
 
-**Arquivo:** `src/pages/legal/LegalPageLayout.tsx`
+The Hub page (`/legal`) does NOT use `backdrop-blur` on its cards -- it only uses `bg-white/[0.03]` without blur, so the body background never bleeds through.
 
-**Problema:** `useRef<HTMLDivElement>(null)` declarado na linha 46 e atribuido ao `<div ref={contentRef}>` na linha 151, mas nenhum codigo le `.current`. E codigo morto -- um ref que existe mas nao serve para nada.
+### Why the dev preview looks fine:
 
-**Correcao:**
-- Remover `useRef` do import (linha 10)
-- Remover a declaracao `const contentRef = useRef<HTMLDivElement>(null)` (linha 46)
-- Remover `ref={contentRef}` do `<div>` (linha 151)
+The dev preview runs in **dark mode** (body bg = `rgb(10, 10, 10)`), so even when backdrop-blur composites the body background, it's already dark. The published site runs in light mode where the body is light gray.
 
----
+## Fix
 
-## Fix 2: Remover import orfao `extractAllPaths`
+**File:** `src/pages/legal/LegalPageLayout.tsx`
 
-**Arquivo:** `src/routes/__tests__/publicRoutes.test.tsx`
+**Line 77** -- Add `bg-slate-950` to the page wrapper to set a solid, opaque `background-color`. This ensures the body's light background cannot bleed through the backdrop-filter:
 
-**Problema:** `extractAllPaths` e importado na linha 9 mas nunca chamado no arquivo. Import orfao.
+```
+// BEFORE
+<div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
 
-**Correcao:**
-- Alterar linha 9 de `import { isValidRouteObject, extractAllPaths } from "./_shared"` para `import { isValidRouteObject } from "./_shared"`
+// AFTER
+<div className="min-h-screen bg-slate-950 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+```
 
----
+`bg-slate-950` sets `background-color` (opaque dark). `bg-gradient-to-br` sets `background-image` (gradient on top). Both CSS properties coexist -- no conflict.
 
-## Resumo
+The `backdrop-blur-sm` on cards will continue working correctly because it will now only blur the dark gradient, not the light body background underneath.
 
-| Acao | Arquivo | Descricao |
-|------|---------|-----------|
-| EDIT | `src/pages/legal/LegalPageLayout.tsx` | Remover `useRef` e `contentRef` nao utilizados |
-| EDIT | `src/routes/__tests__/publicRoutes.test.tsx` | Remover import orfao `extractAllPaths` |
+**Line 79** -- Same fix for the sticky header which uses `bg-slate-950/80 backdrop-blur-xl`. Change to `bg-slate-950 backdrop-blur-xl` to ensure full opacity:
 
-Apos essas 2 correcoes, a implementacao do Legal Hub estara em **10.0/10** -- zero codigo morto, zero imports orfaos, zero divida tecnica.
+```
+// BEFORE
+<header className="border-b border-white/5 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-30">
 
+// AFTER
+<header className="border-b border-white/5 bg-slate-950/90 backdrop-blur-xl sticky top-0 z-30">
+```
+
+The header uses 80% opacity + blur for a glassmorphic effect. Bumping to 90% maintains the visual effect while preventing light body bleed-through.
+
+## Summary
+
+| Action | File | Change |
+|--------|------|--------|
+| EDIT | `src/pages/legal/LegalPageLayout.tsx` (line 77) | Add `bg-slate-950` to page wrapper |
+| EDIT | `src/pages/legal/LegalPageLayout.tsx` (line 79) | Bump header opacity from 80% to 90% |
+
+This is a 2-line fix that addresses the architectural root cause (transparent background-color + backdrop-filter compositing against a light body).
