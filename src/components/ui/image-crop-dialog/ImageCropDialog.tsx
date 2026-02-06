@@ -1,10 +1,11 @@
 /**
  * ImageCropDialog - Stencil Arrastável e Redimensionável (Estilo Cakto)
  *
- * A imagem fica FIXA no container (object-fit: contain).
- * O stencil azul é arrastável (corpo) e redimensionável (8 handles).
- * O aspect ratio é SEMPRE mantido durante o redimensionamento.
- * O stencil nunca sai dos limites da imagem.
+ * A imagem fica FIXA no container (dimensionamento manual com zoom).
+ * O stencil azul é arrastável (corpo) e redimensionável (8 handles livres).
+ * Handles movem bordas independentemente — SEM trava de aspect ratio.
+ * O stencil pode se estender além da imagem (área de xadrez = transparência).
+ * Zoom via scroll do mouse.
  *
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
@@ -65,15 +66,20 @@ const HANDLE_CURSORS: Record<HandleType, string> = {
 /** Minimum stencil dimension in pixels */
 const MIN_STENCIL_SIZE = 30;
 
+/** Zoom limits */
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 5.0;
+const ZOOM_STEP = 0.1;
+
 // ═══════════════════════════════════════════════════════════
 // GEOMETRY HELPERS
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Computes the actual rendered rect of an image inside a container
- * when using object-fit: contain.
+ * Computes the base display dimensions for an image inside a container
+ * using object-fit: contain logic (without zoom applied).
  */
-function computeImageRect(
+function computeBaseImageRect(
   containerW: number,
   containerH: number,
   naturalW: number,
@@ -103,7 +109,7 @@ function computeImageRect(
 
 /**
  * Initializes the stencil centered on the image with maximum size
- * that fits inside the image while maintaining aspect ratio.
+ * that fits inside the image while maintaining the preset aspect ratio.
  */
 function initStencilRect(imageRect: Rect, aspectRatio: number): Rect {
   const imgAspect = imageRect.width / imageRect.height;
@@ -128,16 +134,16 @@ function initStencilRect(imageRect: Rect, aspectRatio: number): Rect {
 }
 
 /**
- * Clamps the stencil rect so it stays within image bounds.
+ * Clamps a rect so it stays within bounds (for drag/move only).
  */
-function clampRect(rect: Rect, bounds: Rect): Rect {
+function clampRectMove(rect: Rect, bounds: Rect): Rect {
   const x = Math.max(bounds.x, Math.min(rect.x, bounds.x + bounds.width - rect.width));
   const y = Math.max(bounds.y, Math.min(rect.y, bounds.y + bounds.height - rect.height));
   return { ...rect, x, y };
 }
 
 /**
- * Returns the position style for a handle.
+ * Returns the position style for a handle relative to the stencil.
  */
 function getHandlePosition(handle: HandleType, rect: Rect) {
   const cx = rect.x + rect.width / 2;
@@ -156,99 +162,68 @@ function getHandlePosition(handle: HandleType, rect: Rect) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// RESIZE LOGIC
+// RESIZE LOGIC (FREE-FORM, NO ASPECT RATIO LOCK)
 // ═══════════════════════════════════════════════════════════
 
 /**
  * Computes the new stencil rect after dragging a resize handle.
- * Maintains aspect ratio and stays within image bounds.
+ * Each handle moves ONLY the edges it touches — NO aspect ratio enforcement.
+ * Stencil is clamped to the container bounds (not image bounds).
  */
 function computeResize(
   handle: HandleType,
   deltaX: number,
   deltaY: number,
   startRect: Rect,
-  aspectRatio: number,
-  bounds: Rect,
+  containerBounds: Rect,
 ): Rect {
-  let { x, y, width, height } = startRect;
+  let top = startRect.y;
+  let left = startRect.x;
+  let right = startRect.x + startRect.width;
+  let bottom = startRect.y + startRect.height;
 
-  // Determine which edges move
-  const movesLeft   = handle === "nw" || handle === "w" || handle === "sw";
-  const movesRight  = handle === "ne" || handle === "e" || handle === "se";
-  const movesTop    = handle === "nw" || handle === "n" || handle === "ne";
-  const movesBottom = handle === "sw" || handle === "s" || handle === "se";
-
-  // Calculate new dimensions based on primary axis
-  if (movesRight) {
-    width = Math.max(MIN_STENCIL_SIZE, startRect.width + deltaX);
-  } else if (movesLeft) {
-    width = Math.max(MIN_STENCIL_SIZE, startRect.width - deltaX);
+  // Move only the edges this handle controls
+  if (handle === "nw" || handle === "n" || handle === "ne") {
+    top = startRect.y + deltaY;
+  }
+  if (handle === "sw" || handle === "s" || handle === "se") {
+    bottom = startRect.y + startRect.height + deltaY;
+  }
+  if (handle === "nw" || handle === "w" || handle === "sw") {
+    left = startRect.x + deltaX;
+  }
+  if (handle === "ne" || handle === "e" || handle === "se") {
+    right = startRect.x + startRect.width + deltaX;
   }
 
-  if (movesBottom) {
-    height = Math.max(MIN_STENCIL_SIZE, startRect.height + deltaY);
-  } else if (movesTop) {
-    height = Math.max(MIN_STENCIL_SIZE, startRect.height - deltaY);
-  }
+  // Clamp to container bounds
+  top = Math.max(containerBounds.y, top);
+  left = Math.max(containerBounds.x, left);
+  right = Math.min(containerBounds.x + containerBounds.width, right);
+  bottom = Math.min(containerBounds.y + containerBounds.height, bottom);
 
-  // Enforce aspect ratio: use the dominant dimension
-  if (handle === "n" || handle === "s") {
-    // Vertical-only handles: height drives width
-    width = height * aspectRatio;
-  } else if (handle === "e" || handle === "w") {
-    // Horizontal-only handles: width drives height
-    height = width / aspectRatio;
-  } else {
-    // Corner handles: use the larger delta
-    const candidateH = width / aspectRatio;
-    const candidateW = height * aspectRatio;
-    if (candidateH <= height) {
-      height = candidateH;
+  // Enforce minimum size
+  if (right - left < MIN_STENCIL_SIZE) {
+    if (handle === "nw" || handle === "w" || handle === "sw") {
+      left = right - MIN_STENCIL_SIZE;
     } else {
-      width = candidateW;
+      right = left + MIN_STENCIL_SIZE;
+    }
+  }
+  if (bottom - top < MIN_STENCIL_SIZE) {
+    if (handle === "nw" || handle === "n" || handle === "ne") {
+      top = bottom - MIN_STENCIL_SIZE;
+    } else {
+      bottom = top + MIN_STENCIL_SIZE;
     }
   }
 
-  // Minimum size enforcement
-  if (width < MIN_STENCIL_SIZE) {
-    width = MIN_STENCIL_SIZE;
-    height = width / aspectRatio;
-  }
-  if (height < MIN_STENCIL_SIZE) {
-    height = MIN_STENCIL_SIZE;
-    width = height * aspectRatio;
-  }
-
-  // Calculate new position based on anchor (opposite corner/edge stays fixed)
-  if (movesLeft) {
-    x = startRect.x + startRect.width - width;
-  }
-  if (movesTop) {
-    y = startRect.y + startRect.height - height;
-  }
-
-  // Constrain to image bounds
-  if (x < bounds.x) {
-    x = bounds.x;
-    width = movesLeft ? (startRect.x + startRect.width - bounds.x) : width;
-    height = width / aspectRatio;
-  }
-  if (y < bounds.y) {
-    y = bounds.y;
-    height = movesTop ? (startRect.y + startRect.height - bounds.y) : height;
-    width = height * aspectRatio;
-  }
-  if (x + width > bounds.x + bounds.width) {
-    width = bounds.x + bounds.width - x;
-    height = width / aspectRatio;
-  }
-  if (y + height > bounds.y + bounds.height) {
-    height = bounds.y + bounds.height - y;
-    width = height * aspectRatio;
-  }
-
-  return { x, y, width, height };
+  return {
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -272,6 +247,7 @@ export function ImageCropDialog({
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
   const [stencilRect, setStencilRect] = useState<Rect | null>(null);
+  const [zoom, setZoom] = useState(1.0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -289,6 +265,7 @@ export function ImageCropDialog({
       setIsLoading(true);
       setNaturalSize(null);
       setStencilRect(null);
+      setZoom(1.0);
       const url = URL.createObjectURL(imageFile);
       setImageUrl(url);
       return () => URL.revokeObjectURL(url);
@@ -314,16 +291,30 @@ export function ImageCropDialog({
     return () => observer.disconnect();
   }, [containerEl]);
 
-  // === Computed: image rect (where the image actually renders in the container) ===
+  // === Computed: image rect with zoom applied ===
   const imageRect = useMemo(() => {
     if (!containerSize || !naturalSize) return null;
-    return computeImageRect(
+    const base = computeBaseImageRect(
       containerSize.width,
       containerSize.height,
       naturalSize.width,
       naturalSize.height,
     );
-  }, [containerSize, naturalSize]);
+    const zoomedW = base.width * zoom;
+    const zoomedH = base.height * zoom;
+    return {
+      x: (containerSize.width - zoomedW) / 2,
+      y: (containerSize.height - zoomedH) / 2,
+      width: zoomedW,
+      height: zoomedH,
+    };
+  }, [containerSize, naturalSize, zoom]);
+
+  // === Container bounds (for clamping stencil) ===
+  const containerBounds = useMemo((): Rect | null => {
+    if (!containerSize) return null;
+    return { x: 0, y: 0, width: containerSize.width, height: containerSize.height };
+  }, [containerSize]);
 
   // === Image load handler: initializes stencil ===
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -341,46 +332,29 @@ export function ImageCropDialog({
     }
   }, [imageRect, stencilRect, config.aspectRatio]);
 
-  // === Re-initialize stencil when container resizes (proportional) ===
-  useEffect(() => {
-    if (!imageRect || !stencilRect) return;
-
-    // Ensure stencil stays within image bounds after resize
-    const clamped = clampRect(stencilRect, imageRect);
-
-    // Also ensure stencil doesn't exceed image dimensions
-    let { width, height } = clamped;
-    if (width > imageRect.width) {
-      width = imageRect.width;
-      height = width / config.aspectRatio;
-    }
-    if (height > imageRect.height) {
-      height = imageRect.height;
-      width = height * config.aspectRatio;
-    }
-
-    const finalRect = clampRect({ ...clamped, width, height }, imageRect);
-
-    if (
-      finalRect.x !== stencilRect.x ||
-      finalRect.y !== stencilRect.y ||
-      finalRect.width !== stencilRect.width ||
-      finalRect.height !== stencilRect.height
-    ) {
-      setStencilRect(finalRect);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageRect]);
-
   const handleImageError = useCallback(() => {
     log.error("Failed to load image");
     toast.error("Falha ao carregar a imagem para edição");
     setIsLoading(false);
   }, []);
 
+  // === Zoom via mouse wheel (non-passive listener) ===
+  useEffect(() => {
+    if (!containerEl) return undefined;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      setZoom((prev) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, prev + delta)));
+    };
+
+    containerEl.addEventListener("wheel", handleWheel, { passive: false });
+    return () => containerEl.removeEventListener("wheel", handleWheel);
+  }, [containerEl]);
+
   // === Mouse/Touch interaction for drag and resize ===
   useEffect(() => {
-    if (!containerEl || !imageRect) return undefined;
+    if (!containerEl || !containerBounds) return undefined;
 
     const handlePointerMove = (clientX: number, clientY: number) => {
       const drag = dragRef.current;
@@ -390,13 +364,13 @@ export function ImageCropDialog({
       const deltaY = clientY - drag.startMouseY;
 
       if (drag.type === "move") {
-        const newRect = clampRect(
+        const newRect = clampRectMove(
           {
             ...drag.startRect,
             x: drag.startRect.x + deltaX,
             y: drag.startRect.y + deltaY,
           },
-          imageRect,
+          containerBounds,
         );
         setStencilRect(newRect);
       } else if (drag.type === "resize" && drag.handle) {
@@ -405,8 +379,7 @@ export function ImageCropDialog({
           deltaX,
           deltaY,
           drag.startRect,
-          config.aspectRatio,
-          imageRect,
+          containerBounds,
         );
         setStencilRect(newRect);
       }
@@ -443,7 +416,7 @@ export function ImageCropDialog({
       document.removeEventListener("touchmove", handleTouchMove);
       document.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [containerEl, imageRect, stencilRect, config.aspectRatio]);
+  }, [containerEl, containerBounds, stencilRect]);
 
   // === Start drag (body) ===
   const handleStencilMouseDown = useCallback((e: React.MouseEvent) => {
@@ -541,9 +514,6 @@ export function ImageCropDialog({
   const overlayClipPath = useMemo(() => {
     if (!stencilRect || !containerSize) return undefined;
     const { x, y, width, height } = stencilRect;
-    const cw = containerSize.width;
-    const ch = containerSize.height;
-    // Inset polygon: outer rect → inner rect (stencil hole)
     return `polygon(
       0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,
       ${x}px ${y}px,
@@ -574,8 +544,28 @@ export function ImageCropDialog({
             ref={containerRef}
             className="crop-container w-full h-[500px] max-h-[60vh] relative rounded-lg overflow-hidden select-none"
           >
-            {/* Image: fixed, fills container with object-fit contain */}
-            {imageUrl && (
+            {/* Image: fixed, manually sized with zoom */}
+            {imageUrl && imageRect && (
+              <img
+                ref={imageRef}
+                src={imageUrl}
+                alt="Imagem para edição"
+                draggable={false}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
+                className="absolute pointer-events-none"
+                style={{
+                  left: imageRect.x,
+                  top: imageRect.y,
+                  width: imageRect.width,
+                  height: imageRect.height,
+                  opacity: naturalSize ? 1 : 0,
+                }}
+              />
+            )}
+
+            {/* Fallback img for initial load (before imageRect is computed) */}
+            {imageUrl && !imageRect && (
               <img
                 ref={imageRef}
                 src={imageUrl}
@@ -584,10 +574,7 @@ export function ImageCropDialog({
                 onLoad={handleImageLoad}
                 onError={handleImageError}
                 className="absolute inset-0 w-full h-full pointer-events-none"
-                style={{
-                  objectFit: "contain",
-                  opacity: naturalSize ? 1 : 0,
-                }}
+                style={{ objectFit: "contain", opacity: 0 }}
               />
             )}
 

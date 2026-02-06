@@ -2,7 +2,9 @@
  * cropExport - Export de imagem baseado em stencilRect + imageRect
  *
  * Mapeia a posição do stencil no display para coordenadas na imagem original,
- * extrai a região correspondente e renderiza no canvas de output.
+ * calcula a INTERSEÇÃO entre o stencil e a imagem, e renderiza apenas
+ * a parte da imagem que está sob o stencil. Áreas fora da imagem
+ * permanecem transparentes (canal alpha PNG).
  *
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
@@ -39,10 +41,12 @@ export interface CropExportParams {
  * Exporta a região do stencil como um arquivo PNG.
  *
  * Lógica:
- * 1. Calcula escala display → natural (naturalWidth / imageRect.width)
- * 2. Mapeia stencilRect para coordenadas na imagem original
- * 3. Desenha a região fonte no canvas de output (outputWidth × outputHeight)
- * 4. Converte para blob PNG → File
+ * 1. Calcula a interseção entre stencilRect e imageRect (display coords)
+ * 2. Se não há interseção → retorna PNG totalmente transparente
+ * 3. Mapeia a interseção para coordenadas na imagem original (source)
+ * 4. Mapeia a interseção para coordenadas no canvas de output (destination)
+ * 5. Desenha apenas a parte intersectada → áreas fora ficam transparentes
+ * 6. Converte para blob PNG → File
  */
 export function exportCropToPng(params: CropExportParams): Promise<File> {
   const {
@@ -70,37 +74,71 @@ export function exportCropToPng(params: CropExportParams): Promise<File> {
       // Canvas começa transparente
       ctx.clearRect(0, 0, outputWidth, outputHeight);
 
-      // Escala do display para coordenadas naturais da imagem
+      // ── Interseção entre stencil e imagem (display coords) ──
+      const intersectLeft = Math.max(stencilRect.x, imageRect.x);
+      const intersectTop = Math.max(stencilRect.y, imageRect.y);
+      const intersectRight = Math.min(
+        stencilRect.x + stencilRect.width,
+        imageRect.x + imageRect.width,
+      );
+      const intersectBottom = Math.min(
+        stencilRect.y + stencilRect.height,
+        imageRect.y + imageRect.height,
+      );
+
+      // Se não há interseção → PNG totalmente transparente
+      if (intersectLeft >= intersectRight || intersectTop >= intersectBottom) {
+        log.info("No intersection — exporting transparent PNG", {
+          outputSize: `${outputWidth}x${outputHeight}`,
+        });
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to create PNG blob from canvas"));
+              return;
+            }
+            resolve(new File([blob], "cropped-image.png", { type: "image/png" }));
+          },
+          "image/png",
+        );
+        return;
+      }
+
+      // ── Source: coordenadas na imagem original ──
       const scaleX = naturalWidth / imageRect.width;
       const scaleY = naturalHeight / imageRect.height;
 
-      // Posição do stencil relativa à imagem (não ao container)
-      const sourceX = (stencilRect.x - imageRect.x) * scaleX;
-      const sourceY = (stencilRect.y - imageRect.y) * scaleY;
-      const sourceW = stencilRect.width * scaleX;
-      const sourceH = stencilRect.height * scaleY;
+      const sourceX = (intersectLeft - imageRect.x) * scaleX;
+      const sourceY = (intersectTop - imageRect.y) * scaleY;
+      const sourceW = (intersectRight - intersectLeft) * scaleX;
+      const sourceH = (intersectBottom - intersectTop) * scaleY;
 
-      // Clamp para não ultrapassar os limites da imagem
-      const clampedSourceX = Math.max(0, Math.min(sourceX, naturalWidth));
-      const clampedSourceY = Math.max(0, Math.min(sourceY, naturalHeight));
-      const clampedSourceW = Math.min(sourceW, naturalWidth - clampedSourceX);
-      const clampedSourceH = Math.min(sourceH, naturalHeight - clampedSourceY);
+      // ── Destination: coordenadas no canvas de output ──
+      const destScaleX = outputWidth / stencilRect.width;
+      const destScaleY = outputHeight / stencilRect.height;
+
+      const destX = (intersectLeft - stencilRect.x) * destScaleX;
+      const destY = (intersectTop - stencilRect.y) * destScaleY;
+      const destW = (intersectRight - intersectLeft) * destScaleX;
+      const destH = (intersectBottom - intersectTop) * destScaleY;
 
       ctx.drawImage(
         imageElement,
-        clampedSourceX,
-        clampedSourceY,
-        clampedSourceW,
-        clampedSourceH,
-        0,
-        0,
-        outputWidth,
-        outputHeight,
+        sourceX,
+        sourceY,
+        sourceW,
+        sourceH,
+        destX,
+        destY,
+        destW,
+        destH,
       );
 
-      log.info("Canvas rendered", {
+      log.info("Canvas rendered with intersection", {
         outputSize: `${outputWidth}x${outputHeight}`,
-        source: `(${clampedSourceX.toFixed(1)}, ${clampedSourceY.toFixed(1)}) ${clampedSourceW.toFixed(1)}x${clampedSourceH.toFixed(1)}`,
+        source: `(${sourceX.toFixed(1)}, ${sourceY.toFixed(1)}) ${sourceW.toFixed(1)}x${sourceH.toFixed(1)}`,
+        dest: `(${destX.toFixed(1)}, ${destY.toFixed(1)}) ${destW.toFixed(1)}x${destH.toFixed(1)}`,
       });
 
       canvas.toBlob(
