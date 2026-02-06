@@ -7,7 +7,7 @@
  * Handles: header, sticky sidebar, scroll-to-section, responsive layout.
  */
 
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Calendar, Mail } from "lucide-react";
 import { motion } from "framer-motion";
@@ -43,7 +43,6 @@ export function LegalPageLayout({
   sections,
 }: LegalPageLayoutProps) {
   const navigate = useNavigate();
-  const contentRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState(sections[0]?.id ?? "");
 
   const scrollToSection = useCallback((sectionId: string) => {
@@ -148,7 +147,7 @@ export function LegalPageLayout({
           </nav>
 
           {/* Main content */}
-          <div ref={contentRef} className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0">
             <div className="space-y-10">
               {sections.map((section) => (
                 <motion.section
