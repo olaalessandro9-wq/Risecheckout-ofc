@@ -1,200 +1,186 @@
 
-# Auditoria Completa: Coupon Dual-State Fix
 
-## Resultado da Implementacao
+# Auditoria Final: Sistema de Cupons -- Resultado e Pendencias Residuais
 
-A eliminacao do estado dual foi executada **corretamente**. O fluxo de dados agora e unidirecional:
+## VEREDICTO GERAL: 95% SUCESSO
 
-```text
-SharedOrderSummary (valida via API)
-  --> onApplyCoupon(couponData) (prop)
-    --> CheckoutPublicContent.applyCoupon(coupon) (hook)
-      --> XState: APPLY_COUPON --> context.appliedCoupon = couponData (SSOT)
-        --> createOrderInput(context) --> couponId: context.appliedCoupon.id
-          --> Backend: coupon_id enviado corretamente
-```
+A implementacao principal (eliminacao dual-state, calculo respeitando `apply_to_order_bumps`, delecao de codigo morto) esta CORRETA e funcional. Porem, duas violacoes de DRY/SSOT foram identificadas que impedem o score perfeito de 10.0/10.
 
-Zero feedback loops. Zero estado duplicado. Zero `useEffect` de sincronizacao.
+---
 
-## Verificacao: O Que Ficou CORRETO
+## CHECKLIST DE VALIDACAO
+
+### Arquitetura (Dual-State Elimination)
 
 | Item | Status | Evidencia |
 |------|--------|-----------|
-| `onTotalChange` removido completamente | OK | Zero resultados na busca |
-| `handleTotalChange` removido completamente | OK | Zero resultados na busca |
-| XState APPLY_COUPON/REMOVE_COUPON | OK | Machine line 138-139, events definidos |
-| `applyCoupon`/`removeCoupon` no hook | OK | Lines 146-152 de useCheckoutPublicMachine.ts |
-| Props fluindo CheckoutPublicContent --> Layout --> Summary | OK | Lines 379-381, 134, 85-87 |
-| Controlled/Uncontrolled pattern | OK | `isControlled = !!onApplyCoupon` (line 93) |
-| `createOrderInput` lendo `context.appliedCoupon?.id` | OK | Line 59 de inputs.ts |
-| Backend `coupon-processor.ts` respeitando `apply_to_order_bumps` | OK | Line 161 |
-| Documentacao do componente | OK | JSDoc atualizado (lines 1-12) |
-| Comentarios em ingles tecnico | OK | Todos os comentarios de secao |
+| `onTotalChange` removido completamente | OK | Zero resultados na busca global |
+| `handleTotalChange` removido completamente | OK | Zero resultados na busca global |
+| `CouponField.tsx` deletado | OK | Diretorio `src/components/checkout/` nao contem CouponField |
+| XState APPLY_COUPON/REMOVE_COUPON funcionais | OK | Machine line 138-139 |
+| `applyCoupon`/`removeCoupon` no hook XState | OK | Lines 146-152 de useCheckoutPublicMachine.ts |
+| Props unidirecionais Content -> Layout -> Summary | OK | Lines 380-382, 134, 85-87 |
+| Controlled/Uncontrolled pattern | OK | `isControlled = !!onApplyCoupon` (SharedOrderSummary line 79) |
+| `createOrderInput` lendo `context.appliedCoupon?.id` | OK | checkoutPublicMachine.inputs.ts line 64 |
+| `calculateTotalFromContext` respeitando `apply_to_order_bumps` | OK | Lines 33-38 |
+| `calculateTotal` respeitando `apply_to_order_bumps` | OK | CheckoutPublicContent lines 221-227 |
 
-## PROBLEMAS ENCONTRADOS
+### Codigo Morto
 
-### PROBLEMA 1 (CRITICO): `calculateTotalFromContext` ignora `apply_to_order_bumps`
+| Item | Status | Evidencia |
+|------|--------|-----------|
+| `CouponField.tsx` removido | OK | Confirmado pelo list_dir |
+| `AppliedCoupon` de `useCouponValidation.ts` removida | OK | Importa de `checkout-shared.types.ts` (line 16) |
+| `AppliedCoupon` de `checkout-payment.types.ts` unificada | OK | Re-export via `export type { AppliedCoupon } from './checkout-shared.types'` |
+| `AppliedCoupon` de `hooks/checkout/payment/types.ts` unificada | OK | Re-export via `export type { AppliedCoupon } from '@/types/checkout-shared.types'` |
 
-**Arquivo:** `src/modules/checkout-public/machines/checkoutPublicMachine.inputs.ts` (lines 21-38)
+### Limites de Linha (Protocolo RISE V3: max 300)
 
-```text
-CODIGO ATUAL (ERRADO):
-  let total = basePrice + bumpsTotal;
-  if (context.appliedCoupon) {
-    total = total * (1 - context.appliedCoupon.discount_value / 100);
-  }
-  // SEMPRE aplica desconto sobre total (base + bumps)
-  // IGNORA apply_to_order_bumps flag
-```
+| Arquivo | Linhas | Status |
+|---------|--------|--------|
+| `SharedOrderSummary.tsx` | 283 | OK |
+| `validateCouponApi.ts` | 88 | OK |
+| `CouponInput.tsx` | 88 | OK |
+| `useCouponValidation.ts` | 120 | OK |
+| `checkoutPublicMachine.inputs.ts` | 114 | OK |
+| `SharedCheckoutLayout.tsx` | 153 | OK |
+| `CheckoutPublicContent.tsx` | 392 | VIOLACAO (pre-existente, fora do escopo desta correcao) |
 
-```text
-BACKEND (CORRETO):
-  const discountBase = couponData.apply_to_order_bumps ? totalAmount : finalPrice;
-  // Respeita a flag corretamente
-```
+### Documentacao e Comentarios
 
-Esta funcao e usada para calcular o `amount` enviado aos actors de PIX e Cartao:
-- `processPixInput` (line 77): `amount: calculateTotalFromContext(context)`
-- `processCardInput` (line 96): `amount: calculateTotalFromContext(context)`
+| Arquivo | JSDoc | Comentarios de Secao | Status |
+|---------|-------|---------------------|--------|
+| `SharedOrderSummary.tsx` | OK (lines 1-14) | OK (ingles tecnico) | OK |
+| `validateCouponApi.ts` | OK (lines 1-13) | OK | OK |
+| `useCouponValidation.ts` | OK (lines 1-10) | OK | OK |
+| `checkoutPublicMachine.inputs.ts` | OK (lines 1-10) | OK | OK |
+| `CheckoutPublicContent.tsx` | OK (lines 1-19) | OK (changelog removido, line 244 clean) | OK |
+| `checkout-shared.types.ts` | OK (lines 118-123) SSOT warning | OK | OK |
+| `checkout-payment.types.ts` | OK (lines 124-126) re-export note | OK | OK |
+| `hooks/checkout/payment/types.ts` | OK (lines 1-6) re-export note | OK | OK |
 
-**Impacto:** Quando `apply_to_order_bumps = false` E existem bumps selecionados, o amount enviado ao gateway de pagamento difere do amount que o backend calcula. O backend recalcula e corrige, MAS ha risco de inconsistencia entre o valor exibido no gateway e o valor real.
+---
 
-### PROBLEMA 2 (CRITICO): `calculateTotal` em CheckoutPublicContent ignora `apply_to_order_bumps`
+## PENDENCIAS ENCONTRADAS (2)
 
-**Arquivo:** `src/modules/checkout-public/components/CheckoutPublicContent.tsx` (lines 212-229)
+### PENDENCIA 1 (MODERADA): `CouponData` e `AppliedCoupon` sao interfaces identicas definidas separadamente
 
-```text
-CODIGO ATUAL (ERRADO):
-  if (appliedCoupon) {
-    total = total * (1 - appliedCoupon.discount_value / 100);
-  }
-  // SEMPRE aplica sobre total (base + bumps)
-  // IGNORA apply_to_order_bumps flag
-```
+**Locais:**
+- `CouponData` em `checkoutPublicMachine.types.ts` (lines 45-52): `{ id, code, name, discount_type: 'percentage', discount_value, apply_to_order_bumps }`
+- `AppliedCoupon` em `checkout-shared.types.ts` (lines 124-131): `{ id, code, name, discount_type: 'percentage', discount_value, apply_to_order_bumps }`
 
-Este valor e passado como `amount` para o componente de cartao de credito (MercadoPago/Stripe), que pode mostrar o valor errado ao usuario durante o pagamento.
+**Campos sao 100% identicos.** TypeScript trata ambos como compativeis (structural typing), portanto NAO existe bug em runtime. Porem, manter duas interfaces identicas viola o principio DRY e cria risco de manutencao: se uma mudar, a outra pode nao ser atualizada.
 
-**NOTA:** `SharedOrderSummary` (line 196) calcula CORRETAMENTE:
-```text
-const discountBase = effectiveCoupon.apply_to_order_bumps ? subtotal : productPrice;
-```
-
-Ou seja, o resumo do pedido mostra R$5.00 corretamente, mas o amount enviado ao iframe de pagamento pode ser R$4.00 (se bumps + apply_to_order_bumps=false com valores diferentes).
-
-### PROBLEMA 3 (MODERADO): Codigo morto - `CouponField.tsx`
-
-**Arquivo:** `src/components/checkout/CouponField.tsx` (228 linhas)
-
-Componente LEGADO que:
-- Nao e importado por NENHUM arquivo
-- Usa `validateCouponRpc` (RPC direto, violacao do protocolo RISE V3 - frontend nao deveria usar RPC)
-- Tem sua propria `AppliedCoupon` interface (duplicacao)
-- Usa estado local proprio (o mesmo padrao dual-state que acabamos de eliminar)
-
-**Veredicto:** Codigo 100% morto. Deve ser DELETADO.
-
-### PROBLEMA 4 (MODERADO): `AppliedCoupon` exportada de `useCouponValidation.ts` nao e mais usada
-
-**Arquivo:** `src/hooks/checkout/useCouponValidation.ts` (line 27-34)
-
-A interface `AppliedCoupon` exportada deste hook nao e importada por nenhum arquivo. `SharedOrderSummary` agora importa `AppliedCoupon` de `checkout-shared.types.ts`. A exportacao no hook e codigo morto.
-
-### PROBLEMA 5 (MODERADO): Tres definicoes separadas de `AppliedCoupon`
-
-| Arquivo | `name` | `apply_to_order_bumps` | Status |
-|---------|--------|----------------------|--------|
-| `checkout-shared.types.ts` | optional | optional | CANONICA (importada pelo Summary) |
-| `useCouponValidation.ts` | required | required | NAO IMPORTADA (morta) |
-| `CouponField.tsx` | required | required | MORTA (arquivo inteiro) |
-| `checkoutPublicMachine.types.ts` (CouponData) | required | required | Usada pelo XState |
-| `checkout-payment.types.ts` | required | required | Usada por types de pagamento |
-
-Deveria existir UMA UNICA definicao canonica.
-
-### PROBLEMA 6 (MENOR): `SharedOrderSummary.tsx` tem 332 linhas
-
-Ultrapassa o limite de 300 linhas do Protocolo RISE V3 por 32 linhas. A logica de validacao controlada (lines 103-158) poderia ser extraida.
-
-### PROBLEMA 7 (MENOR): `CheckoutPublicContent.tsx` tem 391 linhas
-
-Ultrapassa o limite de 300 linhas do Protocolo RISE V3 por 91 linhas. Este e um problema pre-existente.
-
-### PROBLEMA 8 (MENOR): Comentario de changelog em CheckoutPublicContent
-
-Line 206: `// Removido: localAppliedCoupon - estado duplicado causava bug de desconto não aplicado`
-
-Comentario documenta o que foi removido (changelog), nao o que o codigo FAZ. Deveria ser removido ou simplificado.
-
-## Plano de Correcao
-
-### Correcao 1: `calculateTotalFromContext` -- Respeitar `apply_to_order_bumps`
+**Correcao:** Transformar `CouponData` em alias de `AppliedCoupon`:
 
 ```text
-ANTES:
-  let total = basePrice + bumpsTotal;
-  if (context.appliedCoupon) {
-    total = total * (1 - context.appliedCoupon.discount_value / 100);
-  }
-
-DEPOIS:
-  let total = basePrice + bumpsTotal;
-  if (context.appliedCoupon) {
-    const discountBase = context.appliedCoupon.apply_to_order_bumps
-      ? total
-      : basePrice;
-    const discount = (discountBase * context.appliedCoupon.discount_value) / 100;
-    total = total - discount;
-  }
+// Em checkoutPublicMachine.types.ts
+import type { AppliedCoupon } from '@/types/checkout-shared.types';
+export type CouponData = AppliedCoupon;
 ```
 
-### Correcao 2: `calculateTotal` em CheckoutPublicContent -- Mesma correcao
+### PENDENCIA 2 (MENOR): `CouponValidationResponse` duplicada em dois arquivos
+
+**Locais:**
+- `validateCouponApi.ts` lines 25-36 (usado no modo controlado/publico)
+- `useCouponValidation.ts` lines 20-31 (usado no modo uncontrolled/editor)
+
+Interfaces identicas. A resposta vem da mesma Edge Function (`validate-coupon`), entao faz sentido ter UMA definicao.
+
+**Correcao:** Exportar `CouponValidationResponse` de `validateCouponApi.ts` e importar em `useCouponValidation.ts`.
+
+---
+
+## Analise de Solucoes
+
+### Solucao A: Manter como esta (aceitar as 2 pendencias)
+
+- Manutenibilidade: 7/10 -- Duas interfaces identicas criam risco de divergencia futura
+- Zero DT: 6/10 -- DRY violado em dois locais
+- Arquitetura: 7/10 -- Structural typing mascara o problema, mas a intenção nao esta documentada
+- Escalabilidade: 8/10 -- Funcional, mas adicionar campos ao cupom exige atualizacao em 2 lugares
+- Seguranca: 10/10 -- Sem impacto de seguranca
+- **NOTA FINAL: 7.3/10**
+- Tempo estimado: 0 minutos
+
+### Solucao B: Consolidar `CouponData` como alias + unificar `CouponValidationResponse`
+
+- Manutenibilidade: 10/10 -- Uma unica definicao canonica, zero duplicacao
+- Zero DT: 10/10 -- Elimina ambas as violacoes DRY
+- Arquitetura: 10/10 -- SSOT absoluto para tipos de cupom
+- Escalabilidade: 10/10 -- Adicionar campos ao cupom toca apenas `checkout-shared.types.ts`
+- Seguranca: 10/10 -- Sem impacto de seguranca
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 5 minutos
+
+### DECISAO: Solucao B (Nota 10.0)
+
+A Solucao A mantem duas interfaces identicas que podem divergir no futuro, violando DRY e SSOT. A Solucao B elimina o problema na raiz com mudancas minimas e zero risco de regressao.
+
+---
+
+## Plano de Execucao
+
+### Arquivo 1: `src/modules/checkout-public/machines/checkoutPublicMachine.types.ts`
+
+Substituir a interface `CouponData` (lines 45-52) por um type alias:
 
 ```text
 ANTES:
-  if (appliedCoupon) {
-    total = total * (1 - appliedCoupon.discount_value / 100);
-  }
+export interface CouponData {
+  id: string;
+  code: string;
+  name: string;
+  discount_type: 'percentage';
+  discount_value: number;
+  apply_to_order_bumps: boolean;
+}
 
 DEPOIS:
-  if (appliedCoupon) {
-    const discountBase = appliedCoupon.apply_to_order_bumps
-      ? total
-      : product.price;
-    const discount = (discountBase * appliedCoupon.discount_value) / 100;
-    total = total - discount;
-  }
+import type { AppliedCoupon } from '@/types/checkout-shared.types';
+export type CouponData = AppliedCoupon;
 ```
 
-### Correcao 3: Deletar `CouponField.tsx`
+Todos os arquivos que importam `CouponData` continuam funcionando sem mudancas (o tipo exportado permanece identico).
 
-Deletar o arquivo `src/components/checkout/CouponField.tsx` (228 linhas de codigo morto).
+### Arquivo 2: `src/hooks/checkout/validateCouponApi.ts`
 
-### Correcao 4: Remover `AppliedCoupon` export de `useCouponValidation.ts`
+Exportar `CouponValidationResponse`:
 
-Remover a `export interface AppliedCoupon` do hook e usar a definicao canonica de `checkout-shared.types.ts` internamente.
+```text
+ANTES:
+interface CouponValidationResponse {
 
-### Correcao 5: Limpar comentario de changelog
+DEPOIS:
+export interface CouponValidationResponse {
+```
 
-Substituir o comentario de changelog (line 205-206 de CheckoutPublicContent) por um comentario que descreve o estado ATUAL.
+### Arquivo 3: `src/hooks/checkout/useCouponValidation.ts`
 
-### Correcao 6: Extrair logica de validacao controlada de SharedOrderSummary
+Remover a interface duplicada `CouponValidationResponse` e importar de `validateCouponApi.ts`:
 
-Extrair a funcao `controlledValidate` e o tipo `CouponValidationResponse` para um arquivo utilitario dedicado (`src/hooks/checkout/validateCouponApi.ts`), reduzindo o SharedOrderSummary abaixo de 300 linhas.
+```text
+ANTES:
+interface CouponValidationResponse {
+  success?: boolean;
+  error?: string;
+  data?: { ... };
+}
 
-## Arvore de Arquivos Afetados
+DEPOIS:
+import type { CouponValidationResponse } from './validateCouponApi';
+```
+
+### Arvore de Arquivos
 
 ```text
 src/
-  components/checkout/
-    CouponField.tsx                              <- DELETAR (codigo morto)
-    shared/
-      SharedOrderSummary.tsx                     <- Extrair logica de validacao
+  modules/checkout-public/machines/
+    checkoutPublicMachine.types.ts   <- CouponData = AppliedCoupon alias
   hooks/checkout/
-    useCouponValidation.ts                       <- Remover AppliedCoupon export
-    validateCouponApi.ts                         <- NOVO (logica de validacao extraida)
-  modules/checkout-public/
-    components/
-      CheckoutPublicContent.tsx                  <- Corrigir calculateTotal + limpar comentario
-    machines/
-      checkoutPublicMachine.inputs.ts            <- Corrigir calculateTotalFromContext
+    validateCouponApi.ts             <- export CouponValidationResponse
+    useCouponValidation.ts           <- import CouponValidationResponse
 ```
+
+Apos estas 3 correcoes, o sistema de cupons atinge **RISE V3 Score 10.0/10** com zero duplicacao, zero codigo morto, e SSOT absoluto.
+
