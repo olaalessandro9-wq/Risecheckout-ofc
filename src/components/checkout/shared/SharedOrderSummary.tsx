@@ -225,11 +225,11 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
                   className="w-12 h-12 object-cover rounded-md shadow-sm"
                 />
               )}
-              <div className="flex-1 flex justify-between items-center">
-                <p className="text-sm pr-4" style={{ color: design.colors.secondaryText }}>
+              <div className="flex-1 flex justify-between items-start gap-3 min-w-0">
+                <p className="text-sm min-w-0 line-clamp-2" style={{ color: design.colors.secondaryText }}>
                   {bump.name}
                 </p>
-                <span className="font-medium whitespace-nowrap" style={{ color: design.colors.primaryText }}>
+                <span className="font-medium whitespace-nowrap flex-shrink-0" style={{ color: design.colors.primaryText }}>
                   R$ {(Number(bump.price) / 100).toFixed(2).replace('.', ',')}
                 </span>
               </div>
