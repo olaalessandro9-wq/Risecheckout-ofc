@@ -1,7 +1,7 @@
 # API Gateway Architecture
 
 > **RISE Protocol V3** - Zero Secrets in Frontend (10.0/10)  
-> **Última atualização:** 2026-01-26
+> **Última atualização:** 2026-02-06
 
 ## Visão Geral
 
@@ -32,14 +32,14 @@ O RiseCheckout utiliza uma arquitetura de **API Gateway BFF (Backend-for-Fronten
 │   │  api.risecheckout.com                                        │           │
 │   ├─────────────────────────────────────────────────────────────┤           │
 │   │  1. Valida Origin (allowlist)                                │           │
-│   │  2. Injeta header "apikey" (via Secret)                      │           │
+│   │  2. Injeta header "apikey" (publishable key via Secret)      │           │
 │   │  3. Forward cookies (credentials)                            │           │
 │   │  4. Aplica Security Headers                                  │           │
 │   │  5. Timeout + correlation-id                                 │           │
 │   └────────┬────────────────────────────────────────────────────┘           │
 │            │                                                                 │
 │            │  POST https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/   │
-│            │  + apikey: {SECRET do Worker}                                   │
+│            │  + apikey: {PUBLISHABLE KEY do Worker}                          │
 │            │  + Cookie passthrough                                           │
 │            ▼                                                                 │
 │   ┌─────────────────┐                                                        │
@@ -58,7 +58,11 @@ O Worker precisa dos seguintes secrets configurados:
 
 | Secret | Descrição |
 |--------|-----------|
-| `SUPABASE_ANON_KEY` | Anon key do projeto Supabase |
+| `SUPABASE_PUBLISHABLE_KEY` | Publishable key do projeto Supabase (`sb_publishable_...`) |
+
+> **⚠️ MIGRAÇÃO (2026-02):** A secret foi renomeada de `SUPABASE_ANON_KEY` (legacy JWT)
+> para `SUPABASE_PUBLISHABLE_KEY` (new opaque token). Se o Worker ainda usa o nome antigo,
+> atualize o nome e o valor para a nova publishable key.
 
 ### Origins Permitidas
 
@@ -115,7 +119,7 @@ O Worker aplica os seguintes headers de segurança:
 ### Proteções
 
 1. **Validação de Origin**: Apenas origins na allowlist são aceitas
-2. **Injeção de apikey**: Chave nunca exposta no frontend
+2. **Injeção de apikey**: Publishable key nunca exposta no frontend
 3. **Forward de cookies**: Autenticação via httpOnly cookies
 4. **Timeout**: 30s padrão para evitar requests pendurados
 
@@ -136,11 +140,14 @@ connect-src 'self' https://api.risecheckout.com https://*.sentry.io ...
 1. Editar allowlist no Worker
 2. Deploy via Cloudflare Dashboard ou Wrangler CLI
 
-### Rotacionando apikey
+### Rotacionando publishable key
 
-1. Gerar nova anon key no Supabase (se necessário)
-2. Atualizar secret `SUPABASE_ANON_KEY` no Cloudflare
+1. Gerar nova publishable key no Supabase Dashboard (Settings > API Keys)
+2. Atualizar secret `SUPABASE_PUBLISHABLE_KEY` no Cloudflare
 3. Deploy do Worker
+
+> **Nota:** A rotação da publishable key não afeta sessões ativas (autenticação
+> é baseada em cookies httpOnly, não na publishable key).
 
 ### Monitoramento
 
@@ -148,27 +155,48 @@ connect-src 'self' https://api.risecheckout.com https://*.sentry.io ...
 - Métricas de latência e errors
 - Correlation ID para rastreamento end-to-end
 
-## Migração
+## Migração de API Keys (2026)
 
-### Antes (RISE V2)
+### Sistema Antigo (Legacy - DEPRECATED)
+
+| Key | Formato | Status |
+|-----|---------|--------|
+| `anon` key | JWT (`eyJ...`) | ❌ DEPRECATED |
+| `service_role` key | JWT (`eyJ...`) | ❌ DEPRECATED |
+
+### Sistema Novo (Active)
+
+| Key | Formato | Uso |
+|-----|---------|-----|
+| Publishable key | `sb_publishable_...` | Frontend (via Cloudflare Worker) |
+| Secret key | `sb_secret_...` | Backend (Edge Functions auto-injected) |
+
+### O que mudou
+
+1. **Cloudflare Worker**: Secret atualizada de JWT anon key para `sb_publishable_...`
+2. **Edge Functions**: `verify_jwt = false` em TODAS as funções (new keys não são JWTs)
+3. **Env vars backend**: Nomes mantidos (`SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`),
+   valores atualizados automaticamente pelo Supabase
+
+### Antes (Legacy)
 
 ```typescript
-// ❌ Frontend enviava apikey no header
+// ❌ Frontend enviava apikey no header (RISE V2)
 const headers = {
-  "apikey": SUPABASE_ANON_KEY, // Exposta no bundle
+  "apikey": SUPABASE_ANON_KEY, // JWT exposto no bundle
   "Content-Type": "application/json",
 };
 ```
 
-### Depois (RISE V3)
+### Depois (RISE V3 + New Keys)
 
 ```typescript
-// ✅ Frontend não envia apikey
+// ✅ Frontend não envia apikey (RISE V3)
 const headers = {
   "Content-Type": "application/json",
   "X-Correlation-Id": correlationId,
 };
-// Worker injeta apikey automaticamente
+// Worker injeta publishable key automaticamente
 ```
 
 ## Troubleshooting
@@ -182,7 +210,7 @@ const headers = {
 ### 401 Unauthorized
 
 1. Verificar se cookies estão presentes (DevTools > Application > Cookies)
-2. Verificar se Worker está injetando apikey corretamente
+2. Verificar se Worker está injetando publishable key corretamente
 3. Verificar logs da Edge Function no Supabase
 
 ### 502 Bad Gateway
@@ -190,3 +218,9 @@ const headers = {
 1. Verificar se Supabase está online
 2. Verificar logs do Worker no Cloudflare
 3. Verificar timeout (pode ser request lento)
+
+### Edge Function rejeita request após migração
+
+1. Verificar se `verify_jwt = false` está no `supabase/config.toml`
+2. Verificar se a publishable key está correta no Worker
+3. Verificar logs: `supabase functions logs <function-name>`

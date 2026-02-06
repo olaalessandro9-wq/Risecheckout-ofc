@@ -25,14 +25,14 @@ Esta política de segurança descreve as diretrizes e melhores práticas para ga
 
 | Tipo | Exemplos | Motivo |
 |------|----------|--------|
-| Supabase Anon Key | `SUPABASE_ANON_KEY` | Projetada para ser pública |
+| Supabase Publishable Key | `sb_publishable_...` (env: `SUPABASE_ANON_KEY`) | Projetada para ser pública |
 | Supabase URL | `SUPABASE_URL` | Pública por design |
 | Stripe Publishable Key | `pk_live_...`, `pk_test_...` | Projetada para frontend |
 
 ### 2.2 Acesso a Secrets
 
 - **Edge Functions:** Use `Deno.env.get("SECRET_NAME")` para acessar secrets do Supabase.
-- **Frontend:** Use apenas as chaves públicas (`SUPABASE_URL`, `SUPABASE_ANON_KEY`).
+- **Frontend:** O frontend NÃO usa chaves diretamente. O Cloudflare Worker (api.risecheckout.com) injeta a publishable key automaticamente.
 
 ### 2.3 Rotação de Secrets
 
@@ -97,10 +97,10 @@ O `.gitignore` está configurado para ignorar:
 
 ```markdown
 # ❌ ERRADO
-curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+curl -H "apikey: sb_publishable_abc123..."
 
 # ✅ CORRETO
-curl -H "Authorization: Bearer <YOUR_SUPABASE_ANON_KEY>"
+curl -H "apikey: <YOUR_SUPABASE_PUBLISHABLE_KEY>"
 ```
 
 ### 4.2 Lista de Placeholders Padrão
@@ -108,7 +108,7 @@ curl -H "Authorization: Bearer <YOUR_SUPABASE_ANON_KEY>"
 | Placeholder | Descrição |
 |-------------|-----------|
 | `<YOUR_PROJECT_REF>` | Project reference do Supabase |
-| `<YOUR_SUPABASE_ANON_KEY>` | Anon key do Supabase |
+| `<YOUR_SUPABASE_PUBLISHABLE_KEY>` | Publishable key do Supabase |
 | `<YOUR_ENCRYPTION_KEY>` | Chave de criptografia |
 | `<YOUR_WEBHOOK_TOKEN>` | Token de webhook |
 | `<YOUR_API_KEY>` | API key genérica |

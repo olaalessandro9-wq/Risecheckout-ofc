@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-02-04 (UTMify Backend SSOT - Eventos completos no backend)  
+> Última atualização: 2026-02-06 (API Keys Migration - Legacy JWT → Publishable/Secret)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,11 +10,13 @@
 
 ```
 ╔═══════════════════════════════════════════════════════════════╗
-║  ✅ RISE PROTOCOL V3 - 10.0/10 - ZERO AUTH.USERS LEGACY       ║
-║     105 Edge Functions | 214 RLS Policies | Zero Legacy       ║
+║  ✅ RISE PROTOCOL V3 - 10.0/10 - NEW API KEYS MIGRATED       ║
+║     107 Edge Functions | 214 RLS Policies | Zero Legacy       ║
 ║     ACCESS_TOKEN: 4h | REFRESH_THRESHOLD: 30m | LOCK: 30s     ║
 ║     ~110 Test Files | ~550+ Edge Tests | Zero Monoliths       ║
 ║     SSOT: 'users' table | auth.users: ABANDONED               ║
+║     API KEYS: publishable (sb_publishable_) + secret          ║
+║     verify_jwt: false (ALL functions) | config.toml: 107      ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
 
@@ -28,11 +30,13 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Funções** | 105 |
-| **No código local** | 105 |
+| **Total de Funções** | 107 |
+| **No código local** | 107 |
 | **Apenas deployadas** | 0 |
 | **Operações Diretas Frontend** | 0 ✅ |
 | **Funções com verify_jwt=true** | 0 ✅ |
+| **config.toml entries** | 107 ✅ |
+| **API Key System** | Publishable/Secret (new) ✅ |
 | **Unified Auth Compliance** | 100% ✅ |
 | **Context Guards** | ✅ Producer + Buyer |
 | **Base URL (Frontend)** | `https://api.risecheckout.com/functions/v1/` |
@@ -42,8 +46,11 @@
 
 ## 🔐 Mecanismos de Autenticação (RISE V3 - Unified Auth)
 
-> **REGRA ABSOLUTA**: Todas as funções usam `verify_jwt = false` no `supabase/config.toml`.
+> **REGRA ABSOLUTA**: Todas as 107 funções usam `verify_jwt = false` no `supabase/config.toml`.
 > A autenticação é feita no código via cookies httpOnly + tabela `sessions` unificada.
+> 
+> **API KEYS (2026-02):** Migrado de legacy JWT (anon/service_role) para novo sistema
+> publishable/secret. As new keys NÃO são JWTs, por isso `verify_jwt = false` é obrigatório.
 
 | Mecanismo | Cookie | Validação | Funções |
 |-----------|--------|-----------|---------|
@@ -449,6 +456,8 @@
 
 | Data | Alteração |
 |------|-----------|
+| 2026-02-06 | API Keys Migration: Legacy JWT → Publishable/Secret. config.toml: 107 entries. Badge updated |
+| 2026-02-04 | UTMify Backend SSOT - Eventos completos no backend |
 | 2026-01-23 | RISE V3 Complete - Removed buyer-auth, producer-auth, buyer-session |
 | 2026-01-22 | Unified auth migration |
 | 2026-01-16 | Initial registry |

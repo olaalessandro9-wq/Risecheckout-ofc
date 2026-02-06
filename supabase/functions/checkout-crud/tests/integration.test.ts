@@ -32,15 +32,15 @@ Deno.test({
   name: "checkout-crud - auth - rejects unauthenticated requests",
   ignore: skipIntegration(),
   fn: async () => {
-    if (!config.supabaseAnonKey) {
-      throw new Error("SUPABASE_ANON_KEY not configured");
+    if (!config.supabasePublishableKey) {
+      throw new Error("SUPABASE_ANON_KEY (publishable key) not configured");
     }
     
     const response = await fetch(FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": config.supabaseAnonKey,
+        "apikey": config.supabasePublishableKey,
       },
       body: JSON.stringify({ action: "create", productId: "test", name: "test", offerId: "test" }),
     });

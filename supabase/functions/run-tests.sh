@@ -12,6 +12,10 @@
 # Environment Variables:
 #   VERBOSE=1  - Use verbose output (default: compact dot reporter)
 # 
+# NOTE: Supabase env var SUPABASE_ANON_KEY contains the publishable key
+# (sb_publishable_...) after migration to new API key system.
+# The env var NAME is kept by Supabase for backwards compatibility.
+# 
 # @module supabase/functions/run-tests
 # =============================================================================
 
@@ -27,9 +31,10 @@ if [ -z "$SUPABASE_URL" ]; then
   export SUPABASE_URL="https://test.supabase.co"
 fi
 
+# SUPABASE_ANON_KEY env var name kept by Supabase (value is now a publishable key)
 if [ -z "$SUPABASE_ANON_KEY" ]; then
-  echo "⚠️  SUPABASE_ANON_KEY not set, using mock value for tests"
-  export SUPABASE_ANON_KEY="test-anon-key"
+  echo "⚠️  SUPABASE_ANON_KEY (publishable key) not set, using mock value for tests"
+  export SUPABASE_ANON_KEY="test-publishable-key"
 fi
 
 # Counters

@@ -1,4 +1,425 @@
+# =============================================================================
+# Supabase Project Configuration
+#
+# RISE ARCHITECT PROTOCOL V3 - 10.0/10
+#
+# CRITICAL: All functions MUST have verify_jwt = false.
+#
+# New Supabase API keys (publishable/secret) are NOT JWTs -- they are opaque
+# tokens resolved server-side. Setting verify_jwt = true would cause the
+# platform to reject these keys before the function code even runs.
+#
+# Authentication is handled in code via:
+# - unified-auth-v2.ts (cookies httpOnly + sessions table)
+# - Webhook signature validation
+# - Internal secret validation
+#
+# @see docs/EDGE_FUNCTIONS_REGISTRY.md for the complete auth matrix.
+# =============================================================================
+
 project_id = "wivbtmtgpsxupfjwwovf"
 
+# =============================================================================
+# ADMIN & DIAGNOSTICS
+# =============================================================================
+
+[functions.admin-data]
+verify_jwt = false
+
+[functions.admin-health]
+verify_jwt = false
+
+[functions.check-secrets]
+verify_jwt = false
+
+[functions.health]
+verify_jwt = false
+
+[functions.smoke-test]
+verify_jwt = false
+
+[functions.test-deploy]
+verify_jwt = false
+
+# =============================================================================
+# AUTHENTICATION & USER MANAGEMENT
+# =============================================================================
+
+[functions.unified-auth]
+verify_jwt = false
+
+[functions.manage-user-role]
+verify_jwt = false
+
+[functions.manage-user-status]
+verify_jwt = false
+
+[functions.session-manager]
+verify_jwt = false
+
+[functions.owner-settings]
+verify_jwt = false
+
+[functions.producer-profile]
+verify_jwt = false
+
+# =============================================================================
+# BUYER PORTAL
+# =============================================================================
+
+[functions.buyer-orders]
+verify_jwt = false
+
+[functions.buyer-profile]
+verify_jwt = false
+
+# =============================================================================
+# PRODUCTS & CHECKOUT
+# =============================================================================
+
+[functions.product-crud]
+verify_jwt = false
+
+[functions.product-duplicate]
+verify_jwt = false
+
+[functions.product-entities]
+verify_jwt = false
+
+[functions.product-full-loader]
+verify_jwt = false
+
+[functions.product-settings]
+verify_jwt = false
+
+[functions.products-crud]
+verify_jwt = false
+
+[functions.checkout-crud]
+verify_jwt = false
+
+[functions.checkout-editor]
+verify_jwt = false
+
+[functions.checkout-public-data]
+verify_jwt = false
+
+[functions.checkout-heartbeat]
+verify_jwt = false
+
+# =============================================================================
+# OFFERS & ORDER BUMPS
+# =============================================================================
+
+[functions.offer-crud]
+verify_jwt = false
+
+[functions.offer-bulk]
+verify_jwt = false
+
+[functions.order-bump-crud]
+verify_jwt = false
+
+# =============================================================================
+# COUPONS
+# =============================================================================
+
+[functions.coupon-management]
+verify_jwt = false
+
+[functions.coupon-read]
+verify_jwt = false
+
+# =============================================================================
+# ORDERS & LIFECYCLE
+# =============================================================================
+
+[functions.create-order]
+verify_jwt = false
+
+[functions.get-order-for-pix]
+verify_jwt = false
+
+[functions.get-pix-status]
+verify_jwt = false
+
+[functions.order-lifecycle-worker]
+verify_jwt = false
+
+[functions.alert-stuck-orders]
+verify_jwt = false
+
+# =============================================================================
+# PAYMENTS - MERCADOPAGO
+# =============================================================================
+
+[functions.mercadopago-create-payment]
+verify_jwt = false
+
+[functions.mercadopago-oauth-callback]
+verify_jwt = false
+
+[functions.mercadopago-webhook]
+verify_jwt = false
+
+# =============================================================================
+# PAYMENTS - STRIPE
+# =============================================================================
+
+[functions.stripe-create-payment]
+verify_jwt = false
+
+[functions.stripe-connect-oauth]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+# =============================================================================
+# PAYMENTS - PUSHINPAY
+# =============================================================================
+
+[functions.pushinpay-create-pix]
+verify_jwt = false
+
+[functions.pushinpay-get-status]
+verify_jwt = false
+
+[functions.pushinpay-stats]
+verify_jwt = false
+
+[functions.pushinpay-validate-token]
+verify_jwt = false
+
+[functions.pushinpay-webhook]
+verify_jwt = false
+
+# =============================================================================
+# PAYMENTS - ASAAS
+# =============================================================================
+
+[functions.asaas-create-payment]
+verify_jwt = false
+
+[functions.asaas-validate-credentials]
+verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false
+
+# =============================================================================
+# RECONCILIATION
+# =============================================================================
+
+[functions.reconcile-pending-orders]
+verify_jwt = false
+
+[functions.reconcile-mercadopago]
+verify_jwt = false
+
+[functions.reconcile-asaas]
+verify_jwt = false
+
+[functions.grant-member-access]
+verify_jwt = false
+
+# =============================================================================
+# AFFILIATES
+# =============================================================================
+
+[functions.affiliate-pixel-management]
+verify_jwt = false
+
+[functions.affiliation-public]
+verify_jwt = false
+
+[functions.manage-affiliation]
+verify_jwt = false
+
+[functions.request-affiliation]
+verify_jwt = false
+
+[functions.update-affiliate-settings]
+verify_jwt = false
+
+[functions.get-affiliation-details]
+verify_jwt = false
+
+[functions.get-affiliation-status]
+verify_jwt = false
+
+[functions.get-all-affiliation-statuses]
+verify_jwt = false
+
+[functions.get-my-affiliations]
+verify_jwt = false
+
+# =============================================================================
+# MEMBERS AREA
+# =============================================================================
+
+[functions.members-area-certificates]
+verify_jwt = false
+
+[functions.members-area-drip]
+verify_jwt = false
+
+[functions.members-area-groups]
+verify_jwt = false
+
+[functions.members-area-modules]
+verify_jwt = false
+
+[functions.members-area-progress]
+verify_jwt = false
+
+[functions.members-area-quizzes]
+verify_jwt = false
+
+[functions.content-crud]
+verify_jwt = false
+
+[functions.content-library]
+verify_jwt = false
+
+[functions.content-save]
+verify_jwt = false
+
+[functions.students-access]
+verify_jwt = false
+
+[functions.students-groups]
+verify_jwt = false
+
+[functions.students-invite]
+verify_jwt = false
+
+[functions.students-list]
+verify_jwt = false
+
+# =============================================================================
+# PIXELS & TRACKING
+# =============================================================================
+
+[functions.pixel-management]
+verify_jwt = false
+
+[functions.track-visit]
+verify_jwt = false
+
+[functions.utmify-conversion]
+verify_jwt = false
+
 [functions.utmify-validate-credentials]
+verify_jwt = false
+
+[functions.facebook-conversion-api]
+verify_jwt = false
+
+[functions.dashboard-analytics]
+verify_jwt = false
+
+[functions.detect-abandoned-checkouts]
+verify_jwt = false
+
+# =============================================================================
+# WEBHOOKS
+# =============================================================================
+
+[functions.trigger-webhooks]
+verify_jwt = false
+
+[functions.process-webhook-queue]
+verify_jwt = false
+
+[functions.retry-webhooks]
+verify_jwt = false
+
+[functions.send-webhook-test]
+verify_jwt = false
+
+[functions.webhook-crud]
+verify_jwt = false
+
+# =============================================================================
+# EMAIL
+# =============================================================================
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.send-confirmation-email]
+verify_jwt = false
+
+[functions.send-pix-email]
+verify_jwt = false
+
+[functions.email-preview]
+verify_jwt = false
+
+# =============================================================================
+# SECURITY & CRYPTO
+# =============================================================================
+
+[functions.decrypt-customer-data]
+verify_jwt = false
+
+[functions.decrypt-customer-data-batch]
+verify_jwt = false
+
+[functions.encrypt-token]
+verify_jwt = false
+
+[functions.security-management]
+verify_jwt = false
+
+[functions.verify-turnstile]
+verify_jwt = false
+
+[functions.rls-documentation-generator]
+verify_jwt = false
+
+[functions.rls-security-tester]
+verify_jwt = false
+
+[functions.key-rotation-executor]
+verify_jwt = false
+
+[functions.data-retention-executor]
+verify_jwt = false
+
+# =============================================================================
+# LGPD / GDPR
+# =============================================================================
+
+[functions.gdpr-forget]
+verify_jwt = false
+
+[functions.gdpr-request]
+verify_jwt = false
+
+# =============================================================================
+# VAULT & INTEGRATIONS
+# =============================================================================
+
+[functions.vault-save]
+verify_jwt = false
+
+[functions.vendor-integrations]
+verify_jwt = false
+
+[functions.integration-management]
+verify_jwt = false
+
+# =============================================================================
+# INFRASTRUCTURE
+# =============================================================================
+
+[functions.marketplace-public]
+verify_jwt = false
+
+[functions.rpc-proxy]
+verify_jwt = false
+
+[functions.storage-management]
 verify_jwt = false

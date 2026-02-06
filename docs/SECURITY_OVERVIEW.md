@@ -1,8 +1,8 @@
 # Security Infrastructure Overview
 
-> **Versão:** 3.0.0  
-> **Status:** RISE Protocol V3 Compliant (10.0/10)  
-> **Última Atualização:** 2026-01-26
+> **Versão:** 3.1.0  
+> **Status:** RISE Protocol V3 Compliant (10.0/10) - New API Keys Migrated  
+> **Última Atualização:** 2026-02-06
 
 ## Visão Geral
 
@@ -109,7 +109,7 @@ Browser (credentials: include)
          ↓
 api.call() → https://api.risecheckout.com (Cloudflare Worker)
                         ↓
-         Worker injeta apikey (Secret) + Forward cookies
+         Worker injeta publishable key (Secret) + Forward cookies
                         ↓
          https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/*
                         ↓
@@ -120,8 +120,9 @@ api.call() → https://api.risecheckout.com (Cloudflare Worker)
          Return { user_id, active_role } for context
 ```
 
-> **IMPORTANTE:** O frontend NÃO envia a apikey. O Cloudflare Worker injeta 
+> **IMPORTANTE:** O frontend NÃO envia a publishable key. O Cloudflare Worker injeta 
 > automaticamente via Secret, eliminando exposição de chaves no bundle.
+> Legacy JWT-based keys (anon/service_role) foram migradas para publishable/secret keys.
 
 ### Cookies httpOnly
 
@@ -184,7 +185,7 @@ Log results in data_retention_log
 
 | Data | Versão | Alterações |
 |------|--------|------------|
+| 2026-02-06 | 3.1.0 | Migração para new API keys (publishable/secret), eliminação de legacy JWT keys |
 | 2026-01-26 | 3.0.0 | API Gateway BFF com zero secrets no frontend |
 | 2026-01-23 | 2.0.0 | Atualizado para sistema de autenticação unificado (sessions única) |
-| 2026-01-19 | 1.0.0 | Documento inicial com todos os 5 módulos de segurança |
 | 2026-01-19 | 1.0.0 | Documento inicial com todos os 5 módulos de segurança |

@@ -45,7 +45,7 @@ O sistema RLS Documentation Generator gera automaticamente documentação Markdo
 curl -X GET \
   "https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/rls-documentation-generator" \
   -H "Accept: application/json" \
-  -H "Authorization: Bearer YOUR_ANON_KEY"
+  -H "apikey: $SUPABASE_PUBLISHABLE_KEY"
 ```
 
 **Resposta:**
@@ -64,7 +64,7 @@ curl -X GET \
 curl -X GET \
   "https://wivbtmtgpsxupfjwwovf.supabase.co/functions/v1/rls-documentation-generator" \
   -H "Accept: text/markdown" \
-  -H "Authorization: Bearer YOUR_ANON_KEY"
+  -H "apikey: $SUPABASE_PUBLISHABLE_KEY"
 ```
 
 ### Via SQL direto
@@ -130,7 +130,7 @@ Para integrar com pipelines de CI/CD:
 # Exemplo de script CI
 curl -s "$SUPABASE_URL/functions/v1/rls-documentation-generator" \
   -H "Accept: text/markdown" \
-  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+  -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
   > docs/RLS_PERMISSIONS_MATRIX.md
 
 git diff docs/RLS_PERMISSIONS_MATRIX.md

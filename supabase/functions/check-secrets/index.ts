@@ -32,11 +32,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   // Lista completa de secrets esperadas pelo sistema (NOMES CORRETOS)
+  // NOTE: Supabase auto-injects these env vars. After migrating to new API keys:
+  // - SUPABASE_ANON_KEY contains the publishable key (sb_publishable_...)
+  // - SUPABASE_SERVICE_ROLE_KEY contains the secret key (sb_secret_...)
+  // The env var NAMES remain unchanged for backwards compatibility.
   const expectedSecrets: Record<string, string> = {
-    // Supabase Core
+    // Supabase Core (env var names kept by Supabase, values are new-format keys)
     'SUPABASE_URL': 'supabase',
-    'SUPABASE_ANON_KEY': 'supabase',
-    'SUPABASE_SERVICE_ROLE_KEY': 'supabase',
+    'SUPABASE_ANON_KEY': 'supabase', // Contains publishable key (sb_publishable_...)
+    'SUPABASE_SERVICE_ROLE_KEY': 'supabase', // Contains secret key (sb_secret_...)
     'SUPABASE_DB_URL': 'supabase',
     
     // Mercado Pago
