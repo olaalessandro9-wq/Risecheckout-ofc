@@ -161,7 +161,7 @@ Supabase Dashboard > API Keys > Revogar key
          ↓
 Criar nova secret key no Dashboard
          ↓
-Edge Functions > Manage Secrets > Atualizar SUPABASE_SECRET_{DOMAIN}
+Edge Functions > Manage Secrets > Atualizar RISE_SECRET_{DOMAIN}
          ↓
 Auto-redeploy (~30s downtime no domínio X apenas)
          ↓
@@ -170,9 +170,9 @@ Outros domínios: ZERO impacto
 
 | Domínio | Env Var | Funções | Impacto Revogação |
 |---------|---------|---------|-------------------|
-| webhooks | `SUPABASE_SECRET_WEBHOOKS` | 10 | Webhooks param, vendas continuam |
-| payments | `SUPABASE_SECRET_PAYMENTS` | 18 | Pagamentos param, dashboard continua |
-| admin | `SUPABASE_SECRET_ADMIN` | 17 | Admin para, vendas continuam |
+| webhooks | `RISE_SECRET_WEBHOOKS` | 10 | Webhooks param, vendas continuam |
+| payments | `RISE_SECRET_PAYMENTS` | 18 | Pagamentos param, dashboard continua |
+| admin | `RISE_SECRET_ADMIN` | 17 | Admin para, vendas continuam |
 | general | `SUPABASE_SERVICE_ROLE_KEY` | 62 | Features gerais param, webhooks/pagamentos continuam |
 
 ```

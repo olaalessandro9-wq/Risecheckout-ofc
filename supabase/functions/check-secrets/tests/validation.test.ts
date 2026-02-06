@@ -97,10 +97,10 @@ Deno.test("check-secrets - Validation - calculatePercentage handles zero total",
 // CONSTANTS TESTS
 // ============================================================================
 
-Deno.test("check-secrets - Validation - total expected secrets is 22", () => {
-  assertEquals(TOTAL_EXPECTED_SECRETS, 22);
+Deno.test("check-secrets - Validation - total expected secrets is 25", () => {
+  assertEquals(TOTAL_EXPECTED_SECRETS, 25);
 });
 
-Deno.test("check-secrets - Validation - has 6 expected categories", () => {
-  assertEquals(EXPECTED_CATEGORIES.length, 6);
+Deno.test("check-secrets - Validation - has 7 expected categories", () => {
+  assertEquals(EXPECTED_CATEGORIES.length, 7);
 });

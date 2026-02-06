@@ -29,6 +29,10 @@ Deno.test("check-secrets - Categories - stripe category exists", () => {
   assert(EXPECTED_CATEGORIES.includes("stripe"));
 });
 
+Deno.test("check-secrets - Categories - rise-domains category exists", () => {
+  assert(EXPECTED_CATEGORIES.includes("rise-domains"));
+});
+
 Deno.test("check-secrets - Categories - pushinpay category exists", () => {
   assert(EXPECTED_CATEGORIES.includes("pushinpay"));
 });
@@ -47,6 +51,10 @@ Deno.test("check-secrets - Categories - platform category exists", () => {
 
 Deno.test("check-secrets - Categories - supabase has 4 secrets", () => {
   assertEquals(getCategorySecrets("supabase").length, 4);
+});
+
+Deno.test("check-secrets - Categories - rise-domains has 3 secrets", () => {
+  assertEquals(getCategorySecrets("rise-domains").length, 3);
 });
 
 Deno.test("check-secrets - Categories - mercadopago has 5 secrets", () => {
@@ -95,6 +103,10 @@ Deno.test("check-secrets - Categories - ASAAS_API_KEY is in asaas", () => {
 
 Deno.test("check-secrets - Categories - PLATFORM_FEE_PERCENT is in platform", () => {
   assertEquals(EXPECTED_SECRETS["PLATFORM_FEE_PERCENT"], "platform");
+});
+
+Deno.test("check-secrets - Categories - RISE_SECRET_WEBHOOKS is in rise-domains", () => {
+  assertEquals(EXPECTED_SECRETS["RISE_SECRET_WEBHOOKS"], "rise-domains");
 });
 
 // ============================================================================

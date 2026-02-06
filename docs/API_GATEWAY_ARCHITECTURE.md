@@ -234,9 +234,9 @@ limitando o blast radius ao domínio afetado.
 
 | Domínio | Env Var | Configuração |
 |---------|---------|--------------|
-| `webhooks` | `SUPABASE_SECRET_WEBHOOKS` | Manual (Supabase Secrets) |
-| `payments` | `SUPABASE_SECRET_PAYMENTS` | Manual (Supabase Secrets) |
-| `admin` | `SUPABASE_SECRET_ADMIN` | Manual (Supabase Secrets) |
+| `webhooks` | `RISE_SECRET_WEBHOOKS` | Manual (Supabase Secrets) |
+| `payments` | `RISE_SECRET_PAYMENTS` | Manual (Supabase Secrets) |
+| `admin` | `RISE_SECRET_ADMIN` | Manual (Supabase Secrets) |
 | `general` | `SUPABASE_SERVICE_ROLE_KEY` | Auto-injected by Supabase |
 
 ### Rotação de Secret Key (por domínio)

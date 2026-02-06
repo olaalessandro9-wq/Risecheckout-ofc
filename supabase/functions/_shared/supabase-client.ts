@@ -72,9 +72,9 @@ export class SupabaseConfigError extends Error {
  * 3. Revoke old key
  */
 const DOMAIN_KEY_MAP: Record<SecretDomain, string> = {
-  webhooks: "SUPABASE_SECRET_WEBHOOKS",
-  payments: "SUPABASE_SECRET_PAYMENTS",
-  admin: "SUPABASE_SECRET_ADMIN",
+  webhooks: "RISE_SECRET_WEBHOOKS",
+  payments: "RISE_SECRET_PAYMENTS",
+  admin: "RISE_SECRET_ADMIN",
   general: "SUPABASE_SERVICE_ROLE_KEY",
 };
 
