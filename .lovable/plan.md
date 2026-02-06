@@ -1,192 +1,127 @@
 
 
-# Corrigir Centralizacao da Imagem no Crop Dialog
+# Fix: Image Centering via Custom PostProcess (Root Cause Resolution)
 
-## Root Cause Analysis (Diagnostico Definitivo)
+## Root Cause (Definitive)
 
-### O bug: a formula de centralizacao esta ERRADA
-
-O codigo atual calcula:
+The `fixedStencilAlgorithm` (line 97 of `advanced-cropper/extensions/stencil-size/index.js`) applies this constraint on EVERY state update:
 
 ```text
-diffX = coordsCenterX - viewCenterX
-diffY = coordsCenterY - viewCenterY
+coordinates = moveToPositionRestrictions(coordinates, 
+  coordinatesToPositionRestrictions(visibleArea))
 ```
 
-Em um FixedCropper, as `coordinates` sao **SEMPRE** centradas na `visibleArea` (o stencil e fixo no centro do viewport). Portanto:
+This forces `coordinates.top >= visibleArea.top`. After scaling, `visibleArea.top = 0`. So `coordinates.top >= 0` always.
+
+When the image is shorter than the stencil (e.g., image 1920x600 in a 16:9 stencil needing 1080px height), centering requires `coordinates.top = 600/2 - 1080/2 = -240`. But the constraint snaps it to `coordinates.top = 0`, placing the image at the TOP of the stencil.
+
+Additionally, `autoReconcileState` runs on EVERY render via a `useLayoutEffect` with no dependency array. It calls `reconcileState()` which triggers `fixedStencilAlgorithm` with `immediately: true`. This means ANY `setState` fix in `onReady` gets immediately UNDONE on the next render.
+
+**This is why ALL previous attempts failed** -- no matter what we do in `onReady`, the auto-reconcile reverts it on the very next render cycle.
+
+## Solution: Custom PostProcess Function
+
+Instead of fighting the library AFTER initialization, we integrate centering INTO the library's own pipeline by providing a custom `postProcess` prop that wraps the standard `fixedStencil` and adds image centering.
+
+This approach works because:
+1. `postProcess` runs on EVERY state change (initialization, zoom, reconcile)
+2. Centering is maintained automatically -- no timing issues, no race conditions
+3. FixedCropper allows overriding `postProcess` via props (confirmed in source code)
+
+## Analysis of Solutions (RISE V3 Section 4.4)
+
+### Solution A: Custom postProcess wrapping fixedStencil + centering
+- Maintainability: 10/10 - Uses library's own extension point (postProcess prop)
+- Zero DT: 10/10 - Centering is part of the rendering pipeline, not a hack
+- Architecture: 10/10 - Composes with fixedStencil instead of replacing it
+- Scalability: 10/10 - Works with any image ratio, any preset, any zoom level
+- Security: 10/10
+- **FINAL SCORE: 10.0/10**
+
+### Solution B: autoReconcileState={false} + setState in onReady
+- Maintainability: 6/10 - Disabling reconcile may cause edge case bugs
+- Zero DT: 7/10 - Zoom interactions might break centering after zoom ends
+- Architecture: 5/10 - Disabling a core library feature is risky
+- Scalability: 6/10 - Window resize would not be handled correctly
+- Security: 10/10
+- **FINAL SCORE: 6.6/10**
+
+### Solution C: Custom defaultPosition + defaultCoordinates props
+- Maintainability: 7/10 - Only affects initialization, not ongoing interactions
+- Zero DT: 6/10 - Zoom would undo centering (fixedStencilAlgorithm runs after zoom)
+- Architecture: 7/10 - Correct entry point but doesn't persist through reconciliation
+- Scalability: 7/10 - Zoom + reconcile = back to top
+- Security: 10/10
+- **FINAL SCORE: 7.2/10**
+
+### DECISION: Solution A (Score 10.0)
+Solutions B and C are inferior because they don't survive reconciliation cycles. Solution A integrates directly into the state pipeline, ensuring centering persists through ALL state changes (init, zoom, resize, reconcile).
+
+## Planned Changes
+
+### File: `src/components/ui/image-crop-dialog/ImageCropDialog.tsx`
+
+**Change 1: Add imports for library postProcess utilities**
+
+Add imports for `fixedStencil` and `getTransformedImageSize` from the library.
+
+**Change 2: Create custom postProcess function**
+
+A `useMemo`/`useCallback` hook that wraps `fixedStencil`:
 
 ```text
-coordsCenterX ≈ viewCenterX  (sempre)
-coordsCenterY ≈ viewCenterY  (sempre)
-diffX ≈ 0
-diffY ≈ 0
+1. Run standard fixedStencil(state, settings, action)
+2. If action is not immediate, return result unchanged
+3. Calculate image center vs visibleArea center
+4. Shift BOTH visibleArea and coordinates by the delta
+5. This keeps the stencil centered in the viewport AND the image centered in the stencil
 ```
 
-A correcao de centralizacao **NAO FAZ NADA**. O `setState` e chamado mas com delta ~0, a imagem permanece no topo.
+This runs automatically on every state change, so centering is always maintained -- during initialization, after zoom, after reconciliation.
 
-### O que deveria acontecer
+**Change 3: Pass postProcess prop to FixedCropper**
 
-O problema real: as `coordinates` (area de crop) estao posicionadas no **TOPO** da imagem (top=0), nao no **CENTRO**. A biblioteca inicializa o crop alinhado ao topo por padrao.
+Add `postProcess={centeredPostProcess}` to the FixedCropper component. Since FixedCropper spreads user props AFTER its default `postProcess: fixedStencil`, our prop overrides it.
 
-Exemplo concreto com imagem 1920x1200 e stencil 16:9:
+**Change 4: Remove onReady centering hack**
 
-```text
-Estado atual:
-  imageSize = { width: 1920, height: 1200 }
-  coordinates = { left: 0, top: 0, width: 1920, height: 1080 }
-  -> Crop no topo da imagem, 120px da imagem abaixo do stencil
+The entire `handleReady` logic for centering becomes unnecessary. Simplify it to just `setIsImageLoaded(true)`.
 
-Estado desejado:
-  coordinates = { left: 0, top: 60, width: 1920, height: 1080 }
-  -> Crop no CENTRO da imagem, 60px acima e 60px abaixo do stencil
-```
+**Change 5: Clean up unused imports**
 
-### A formula correta
+Remove any imports that were only used by the old centering logic.
 
-Centralizar as `coordinates` na **IMAGEM** (nao na visibleArea):
-
-```text
-imageCenterY = imageSize.height / 2
-coordsCenterY = coordinates.top + coordinates.height / 2
-deltaY = imageCenterY - coordsCenterY
-
-(mesma logica para X)
-```
-
-Para manter o stencil fixo no centro do viewport, devemos deslocar **AMBOS** coordinates e visibleArea pelo mesmo delta:
-
-```text
-coordinates.left += deltaX
-coordinates.top  += deltaY
-visibleArea.left += deltaX
-visibleArea.top  += deltaY
-```
-
-Confirmado na API: `setState()` com `postprocess: false` (default) preserva o state exatamente como passamos, sem recalculos do `fixedStencilAlgorithm`.
-
----
-
-## Analise de Solucoes (RISE V3 Secao 4.4)
-
-### Solucao A: Corrigir formula para centrar coordinates na imageSize
-
-- Manutenibilidade: 10/10 - Formula matematica pura e verificavel
-- Zero DT: 10/10 - Corrige a causa raiz (formula errada), nao o sintoma
-- Arquitetura: 10/10 - Usa `imageSize` do CropperState (dado correto para o calculo correto)
-- Escalabilidade: 10/10 - Funciona com qualquer proporcao de imagem e qualquer preset
-- Seguranca: 10/10
-- **NOTA FINAL: 10.0/10**
-
-### Solucao B: Usar `defaultPosition` prop para definir posicao inicial das coordinates
-
-- Manutenibilidade: 8/10 - Depende de prop especifica da biblioteca
-- Zero DT: 9/10 - Resolve o sintoma mas nao corrige o onReady existente
-- Arquitetura: 7/10 - Requer conhecimento de prop interna que pode mudar entre versoes
-- Escalabilidade: 8/10 - Pode conflitar com outros algoritmos de inicializacao
-- Seguranca: 10/10
-- **NOTA FINAL: 8.2/10**
-
-### DECISAO: Solucao A (Nota 10.0)
-
-A Solucao B e inferior pois depende de uma prop de inicializacao que pode ser sobrescrita pelo `fixedStencilAlgorithm`. A Solucao A corrige diretamente no `onReady`, APOS toda a inicializacao, usando a formula matematica correta.
-
----
-
-## Mudancas Planejadas
-
-### Arquivo: `src/components/ui/image-crop-dialog/ImageCropDialog.tsx`
-
-**Unica mudanca: Corrigir a formula no `handleReady`** (linhas 110-152)
-
-Antes (formula ERRADA que compara coordinates vs visibleArea):
-
-```text
-// Centro das coordinates (crop area)
-const coordsCenterX = coordinates.left + coordinates.width / 2;
-const coordsCenterY = coordinates.top + coordinates.height / 2;
-
-// Centro da visibleArea (viewport)
-const viewCenterX = visibleArea.left + visibleArea.width / 2;
-const viewCenterY = visibleArea.top + visibleArea.height / 2;
-
-// Diferenca: quanto a visibleArea precisa mover...
-const diffX = coordsCenterX - viewCenterX;
-const diffY = coordsCenterY - viewCenterY;
-```
-
-Depois (formula CORRETA que centra coordinates na imageSize):
-
-```text
-// Centro da IMAGEM (onde queremos que o crop fique)
-const imageCenterX = state.imageSize.width / 2;
-const imageCenterY = state.imageSize.height / 2;
-
-// Centro atual das COORDINATES (onde o crop esta agora)
-const coordsCenterX = coordinates.left + coordinates.width / 2;
-const coordsCenterY = coordinates.top + coordinates.height / 2;
-
-// Delta para mover o crop ao centro da imagem
-const deltaX = imageCenterX - coordsCenterX;
-const deltaY = imageCenterY - coordsCenterY;
-```
-
-E no `setState`, deslocar AMBOS coordinates e visibleArea:
-
-```text
-cropper.setState((currentState) => {
-  if (!currentState?.coordinates || !currentState.visibleArea) return currentState;
-  return {
-    ...currentState,
-    coordinates: {
-      ...currentState.coordinates,
-      left: currentState.coordinates.left + deltaX,
-      top: currentState.coordinates.top + deltaY,
-    },
-    visibleArea: {
-      ...currentState.visibleArea,
-      left: currentState.visibleArea.left + deltaX,
-      top: currentState.visibleArea.top + deltaY,
-    },
-  };
-}, { transitions: false });
-```
-
-**Nenhuma outra mudanca necessaria.** O resto do componente (imagem fixa, sem zoom slider, PNG com transparencia) esta correto e funcionando.
-
----
-
-## Arvore de Arquivos
+## File Tree
 
 ```text
 src/components/ui/image-crop-dialog/
-  ImageCropDialog.tsx      <- EDITAR (corrigir handleReady, ~15 linhas)
-  ImageCropDialog.css      <- SEM MUDANCA
-  useStencilSize.ts        <- SEM MUDANCA
-  presets.ts               <- SEM MUDANCA
-  types.ts                 <- SEM MUDANCA
-  index.ts                 <- SEM MUDANCA
+  ImageCropDialog.tsx      <- EDIT (replace onReady hack with postProcess)
+  ImageCropDialog.css      <- NO CHANGE
+  useStencilSize.ts        <- NO CHANGE
+  presets.ts               <- NO CHANGE
+  types.ts                 <- NO CHANGE
+  index.ts                 <- NO CHANGE
 ```
 
----
+## Quality Checkpoint (Section 7.2)
 
-## Checkpoint de Qualidade (Secao 7.2)
+| Question | Answer |
+|----------|--------|
+| Is this the BEST solution possible? | Yes, it integrates into the library's own pipeline |
+| Is there a higher-scoring solution? | No |
+| Does this create technical debt? | Zero |
+| Will we need to "improve later"? | No |
+| Does the code survive 10 years without refactoring? | Yes |
+| Am I choosing this because it's faster? | No, because it's CORRECT |
 
-| Pergunta | Resposta |
-|----------|---------|
-| Esta e a MELHOR solucao possivel? | Sim, corrige a formula matematica na raiz |
-| Existe alguma solucao com nota maior? | Nao |
-| Isso cria divida tecnica? | Zero |
-| Precisaremos "melhorar depois"? | Nao |
-| O codigo sobrevive 10 anos sem refatoracao? | Sim |
-| Estou escolhendo isso por ser mais rapido? | Nao, e por ser CORRETO |
+## Validation Criteria
 
-## Validacao de Sucesso
-
-1. Abrir crop dialog com banner 16:9 - imagem CENTRALIZADA verticalmente
-2. Imagem quadrada em stencil 16:9 - centralizada horizontal e verticalmente
-3. Imagem ja na proporcao exata do stencil - sem deslocamento (delta = 0)
-4. Imagem fixa (sem arraste) - preservado
-5. Zoom via scroll - preservado
-6. Salvar PNG - preservado
-7. Limite 300 linhas - preservado (~230 linhas)
+1. Open crop dialog with banner 16:9 -- image CENTERED vertically
+2. Open with square image in 16:9 stencil -- image centered both axes
+3. Open with image that exactly matches stencil ratio -- no offset (delta=0)
+4. Zoom in via scroll -- image stays centered
+5. Zoom out via scroll -- image stays centered
+6. Image drag -- still disabled (fixed)
+7. Save PNG -- produces correct output
+8. File stays under 300 lines
 
