@@ -1,26 +1,22 @@
 /**
- * ImageCropDialog - Componente Unificado de Crop de Imagem (Estilo Cakto)
+ * ImageCropDialog - Componente Customizado de Crop (Zero Dependência de Biblioteca)
  * 
- * Usa FixedCropper do react-advanced-cropper com stencil fixo.
- * A imagem aparece centralizada e FIXA (sem arraste). O zoom é feito
- * exclusivamente via scroll do mouse / pinch (gesto nativo).
- * Áreas vazias mostram xadrez no editor e transparência real no PNG final.
+ * Implementação 100% própria. A centralização é feita por CSS puro
+ * (position: absolute + top: 50% + left: 50% + transform: translate(-50%, -50%)),
+ * sendo IMPOSSÍVEL de quebrar. Não depende de nenhum pipeline opaco de biblioteca.
  * 
- * A centralização é garantida via custom postProcess que integra diretamente
- * no pipeline de estado do cropper, sobrevivendo a reconciliações automáticas.
+ * Comportamento (estilo Cakto):
+ * - Stencil fixo no centro (borda azul tracejada)
+ * - Imagem centralizada e fixa (sem arraste/panning)
+ * - Zoom exclusivo via scroll do mouse / pinch gesture
+ * - Áreas vazias mostram xadrez no editor e transparência no PNG final
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createLogger } from "@/lib/logger";
 import { toast } from "sonner";
-import {
-  FixedCropper,
-  FixedCropperRef,
-  ImageRestriction,
-} from "react-advanced-cropper";
-import "react-advanced-cropper/dist/style.css";
 import "./ImageCropDialog.css";
 import {
   Dialog,
@@ -32,39 +28,68 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { getCropConfig } from "./presets";
-import { useStencilSize } from "./useStencilSize";
-import { useCenteredPostProcess } from "./useCenteredPostProcess";
+import { exportCropToPng } from "./cropExport";
 import type { ImageCropDialogProps } from "./types";
 
 const log = createLogger("ImageCropDialog");
 
-/** CSS do pattern xadrez para áreas vazias */
-const CHECKERBOARD_STYLE = {
-  background: `
-    repeating-conic-gradient(
-      #808080 0% 25%, 
-      #c0c0c0 0% 50%
-    ) 50% / 20px 20px
-  `,
-} as const;
+/** Limites de zoom */
+const MIN_ZOOM = 1.0;
+const MAX_ZOOM = 5.0;
+const ZOOM_STEP = 0.1;
+
+/** Percentual do container que o stencil pode ocupar */
+const STENCIL_PADDING = 0.9;
+
+interface NaturalSize {
+  width: number;
+  height: number;
+}
 
 /**
- * Props para desabilitar o arraste da imagem (Cakto-style: imagem fixa).
- * 
- * moveImage: false → desabilita drag via mouse/touch
- * scaleImage permanece true (default) → zoom via scroll/pinch funciona
- * 
- * Confirmado no source: CropperBackgroundWrapper passa moveImage
- * como mouseMove e touchMove ao TransformableImage interno.
+ * Calcula o tamanho do stencil que cabe no container mantendo o aspect ratio.
+ * O stencil usa 90% do container como margem de segurança.
  */
-const FIXED_IMAGE_PROPS = { moveImage: false } as const;
+function computeStencilSize(
+  containerWidth: number,
+  containerHeight: number,
+  aspectRatio: number,
+): { width: number; height: number } {
+  const maxW = containerWidth * STENCIL_PADDING;
+  const maxH = containerHeight * STENCIL_PADDING;
+
+  let w = maxW;
+  let h = maxW / aspectRatio;
+
+  if (h > maxH) {
+    h = maxH;
+    w = maxH * aspectRatio;
+  }
+
+  return { width: Math.round(w), height: Math.round(h) };
+}
 
 /**
- * Componente principal de crop de imagem (estilo Cakto)
- * 
- * Stencil fixo no centro, imagem centralizada e fixa (sem arraste),
- * zoom exclusivo via scroll do mouse.
+ * Calcula o tamanho da imagem fazendo fit-contain dentro do stencil.
+ * A imagem cabe inteira dentro do stencil sem distorcer.
  */
+function computeImageSize(
+  naturalWidth: number,
+  naturalHeight: number,
+  stencilWidth: number,
+  stencilHeight: number,
+  zoom: number,
+): { width: number; height: number } {
+  const scaleW = stencilWidth / naturalWidth;
+  const scaleH = stencilHeight / naturalHeight;
+  const baseScale = Math.min(scaleW, scaleH);
+
+  return {
+    width: Math.round(naturalWidth * baseScale * zoom),
+    height: Math.round(naturalHeight * baseScale * zoom),
+  };
+}
+
 export function ImageCropDialog({
   open,
   onOpenChange,
@@ -77,101 +102,165 @@ export function ImageCropDialog({
 }: ImageCropDialogProps) {
   const config = getCropConfig(preset, customConfig);
 
+  // === State ===
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [naturalSize, setNaturalSize] = useState<NaturalSize | null>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
+  const [zoom, setZoom] = useState(MIN_ZOOM);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const cropperRef = useRef<FixedCropperRef>(null);
 
-  const calculateStencilSize = useStencilSize(config.aspectRatio);
-  const centeredPostProcess = useCenteredPostProcess();
+  // === Refs ===
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
-  // Load image URL from File
+  // === Load image URL from File ===
   useEffect(() => {
     if (imageFile && open) {
-      setIsImageLoaded(false);
+      setIsLoading(true);
+      setNaturalSize(null);
+      setZoom(MIN_ZOOM);
       const url = URL.createObjectURL(imageFile);
       setImageUrl(url);
       return () => URL.revokeObjectURL(url);
     }
+    return undefined;
   }, [imageFile, open]);
 
-  // Reset state ao abrir
+  // === Observe container size via ResizeObserver ===
   useEffect(() => {
-    if (open) {
-      setIsImageLoaded(false);
-    }
-  }, [open, imageFile]);
+    const el = containerRef.current;
+    if (!el) return undefined;
 
-  /**
-   * onReady: marks the image as loaded for UI feedback.
-   * 
-   * Centering is handled by the custom postProcess function
-   * (useCenteredPostProcess), which integrates directly into the
-   * cropper's state pipeline and survives auto-reconciliation cycles.
-   */
-  const handleReady = useCallback(() => {
-    setIsImageLoaded(true);
-    log.info("Image loaded and centered via postProcess pipeline");
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  // Handler de erro do cropper - diagnosticabilidade obrigatória
-  const handleCropperError = useCallback(() => {
-    log.error("FixedCropper failed to load image", { imageUrl });
-    toast.error("Falha ao carregar a imagem para edição");
-    setIsImageLoaded(false);
-  }, [imageUrl]);
+  // === Image load handler ===
+  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setNaturalSize({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    });
+    setIsLoading(false);
+    log.info("Image loaded", {
+      naturalSize: `${img.naturalWidth}x${img.naturalHeight}`,
+    });
+  }, []);
 
-  // Salvar imagem como PNG com transparência real
+  const handleImageError = useCallback(() => {
+    log.error("Failed to load image");
+    toast.error("Falha ao carregar a imagem para edição");
+    setIsLoading(false);
+  }, []);
+
+  // === Computed sizes ===
+  const stencilSize = useMemo(() => {
+    if (!containerSize) return null;
+    return computeStencilSize(containerSize.width, containerSize.height, config.aspectRatio);
+  }, [containerSize, config.aspectRatio]);
+
+  const imageDisplaySize = useMemo(() => {
+    if (!naturalSize || !stencilSize) return null;
+    return computeImageSize(
+      naturalSize.width,
+      naturalSize.height,
+      stencilSize.width,
+      stencilSize.height,
+      zoom,
+    );
+  }, [naturalSize, stencilSize, zoom]);
+
+  // === Zoom via wheel ===
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom((prev) => {
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta));
+    });
+  }, []);
+
+  // === Touch pinch zoom ===
+  const lastPinchDistance = useRef<number | null>(null);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 2) {
+      lastPinchDistance.current = null;
+      return;
+    }
+
+    e.preventDefault();
+
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (lastPinchDistance.current !== null) {
+      const delta = (distance - lastPinchDistance.current) * 0.005;
+      setZoom((prev) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta)));
+    }
+
+    lastPinchDistance.current = distance;
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    lastPinchDistance.current = null;
+  }, []);
+
+  // === Save/Export ===
   const handleSaveCrop = useCallback(async () => {
-    if (!cropperRef.current) {
-      log.warn("No cropper instance available");
+    if (!imageRef.current || !stencilSize || !imageDisplaySize) {
+      log.warn("Cannot save: missing refs or computed sizes");
       return;
     }
 
     setIsSaving(true);
 
     try {
-      const canvas = cropperRef.current.getCanvas({
-        width: config.outputWidth,
-        height: config.outputHeight,
+      const croppedFile = await exportCropToPng({
+        imageElement: imageRef.current,
+        stencilDisplayWidth: stencilSize.width,
+        stencilDisplayHeight: stencilSize.height,
+        imageDisplayWidth: imageDisplaySize.width,
+        imageDisplayHeight: imageDisplaySize.height,
+        outputWidth: config.outputWidth,
+        outputHeight: config.outputHeight,
       });
 
-      if (!canvas) {
-        log.error("Failed to get canvas from cropper");
-        setIsSaving(false);
-        return;
-      }
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            log.error("Failed to create blob");
-            setIsSaving(false);
-            return;
-          }
-
-          const croppedFile = new File(
-            [blob],
-            imageFile.name.replace(/\.[^.]+$/, ".png"),
-            { type: "image/png" }
-          );
-
-          log.info("Crop completed successfully", {
-            preset,
-            config: config.label,
-            outputSize: `${config.outputWidth}x${config.outputHeight}`,
-          });
-          onCropComplete(croppedFile);
-          onOpenChange(false);
-          setIsSaving(false);
-        },
-        "image/png"
+      // Rename to match original file name with .png extension
+      const renamedFile = new File(
+        [croppedFile],
+        imageFile.name.replace(/\.[^.]+$/, ".png"),
+        { type: "image/png" },
       );
+
+      log.info("Crop completed", {
+        preset,
+        config: config.label,
+        outputSize: `${config.outputWidth}x${config.outputHeight}`,
+        zoom: zoom.toFixed(2),
+      });
+
+      onCropComplete(renamedFile);
+      onOpenChange(false);
     } catch (error) {
-      log.error("Error cropping image", error);
+      log.error("Error exporting crop", error);
+      toast.error("Erro ao salvar a imagem");
+    } finally {
       setIsSaving(false);
     }
-  }, [imageFile, onCropComplete, onOpenChange, config, preset]);
+  }, [imageFile, onCropComplete, onOpenChange, config, preset, stencilSize, imageDisplaySize, zoom]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -189,35 +278,57 @@ export function ImageCropDialog({
         </DialogHeader>
 
         <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
-          {/* Cropper Area com xadrez de fundo */}
+          {/* Crop area com checkerboard background */}
           <div
-            className="w-full h-[500px] max-h-[60vh] relative rounded-lg overflow-hidden"
-            style={CHECKERBOARD_STYLE}
+            ref={containerRef}
+            className="crop-container w-full h-[500px] max-h-[60vh] relative rounded-lg overflow-hidden select-none"
+            onWheel={handleWheel}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
-            {imageUrl && (
-              <FixedCropper
-                ref={cropperRef}
-                src={imageUrl}
-                className="rise-cropper absolute inset-0"
-                style={{ background: "transparent" }}
-                stencilSize={calculateStencilSize}
-                stencilProps={{
-                  handlers: false,
-                  lines: true,
-                  movable: false,
-                  resizable: false,
+            {/* Stencil overlay (centralizado via CSS) */}
+            {stencilSize && (
+              <div
+                className="crop-stencil absolute pointer-events-none"
+                style={{
+                  width: stencilSize.width,
+                  height: stencilSize.height,
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
                 }}
-                imageRestriction={ImageRestriction.none}
-                postProcess={centeredPostProcess}
-                backgroundWrapperProps={FIXED_IMAGE_PROPS}
-                crossOrigin={false}
-                transitions={true}
-                onReady={handleReady}
-                onError={handleCropperError}
               />
             )}
-            {/* Loading indicator enquanto a imagem carrega */}
-            {imageUrl && !isImageLoaded && (
+
+            {/* Imagem (centralizada via CSS — IMPOSSÍVEL de quebrar) */}
+            {imageUrl && (
+              <img
+                ref={imageRef}
+                src={imageUrl}
+                alt="Imagem para edição"
+                draggable={false}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
+                className="absolute pointer-events-none"
+                style={{
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  ...(imageDisplaySize
+                    ? {
+                        width: imageDisplaySize.width,
+                        height: imageDisplaySize.height,
+                      }
+                    : {
+                        // Antes do load, esconde a imagem (sem dimensões)
+                        opacity: 0,
+                      }),
+                }}
+              />
+            )}
+
+            {/* Loading overlay */}
+            {isLoading && imageUrl && (
               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                 <div className="bg-black/60 rounded-lg px-4 py-2 flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
@@ -236,7 +347,7 @@ export function ImageCropDialog({
           >
             Cancelar
           </Button>
-          <Button onClick={handleSaveCrop} disabled={isSaving}>
+          <Button onClick={handleSaveCrop} disabled={isSaving || isLoading}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salvar
           </Button>
