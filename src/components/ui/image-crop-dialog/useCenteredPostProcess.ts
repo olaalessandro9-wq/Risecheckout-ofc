@@ -1,37 +1,65 @@
 /**
- * useCenteredPostProcess - Custom postProcess for FixedCropper
- * 
- * Wraps the library's `fixedStencil` postProcess to ensure the image
- * is always centered in the viewport (visibleArea center = image center).
- * 
- * WHY THIS EXISTS:
- * The default `fixedStencilAlgorithm` places coordinates at the top of the
- * image and centers visibleArea on those coordinates (line 94 of the lib).
- * Additionally, `autoReconcileState` re-runs fixedStencilAlgorithm on every
- * render with `immediately: true`, undoing any centering applied via onReady
- * or setState. By integrating centering INTO the postProcess pipeline, we
- * guarantee centering survives all reconciliation cycles.
- * 
- * HOW IT WORKS:
- * 1. Delegates to `fixedStencil` for all standard FixedCropper logic
- * 2. After fixedStencil produces its result, calculates the delta between
- *    the image center and the visibleArea center
- * 3. Shifts BOTH visibleArea and coordinates by this delta, keeping the
- *    stencil centered in the viewport while centering the image
- * 
- * This only runs for `immediately: true` actions (settled states), matching
- * the same guard used by `fixedStencil` itself.
- * 
- * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * useCenteredPostProcess - Algoritmo customizado para FixedCropper
+ *
+ * Substitui completamente o `fixedStencilAlgorithm` da biblioteca
+ * `advanced-cropper` para garantir que a imagem sempre apareça
+ * centralizada no viewport.
+ *
+ * CAUSA RAIZ DO PROBLEMA:
+ * O `fixedStencilAlgorithm` original (linha 97 do source) executa:
+ *   coordinates = moveToPositionRestrictions(coordinates,
+ *     mergePositionRestrictions(
+ *       coordinatesToPositionRestrictions(visibleArea),
+ *       getAreaPositionRestrictions(result, settings)
+ *     ))
+ *
+ * Isso OBRIGA as coordinates a ficarem dentro da visibleArea.
+ * Quando a imagem tem proporção diferente do stencil, a visibleArea
+ * após o scaling fica com dimensões incompatíveis, empurrando as
+ * coordinates para o topo/esquerda.
+ *
+ * SOLUÇÃO:
+ * Reimplementar o algoritmo usando os mesmos utilitários da biblioteca,
+ * mas substituindo a linha 97 por centralização explícita na imagem.
+ * As coordinates são posicionadas no centro da imagem (imageSize/2),
+ * e a visibleArea é centralizada sobre elas.
+ *
+ * O algoritmo preserva:
+ * - Scaling da visibleArea proporcional ao stencil (linha 87 original)
+ * - Restrições de tamanho da área (linhas 89-92 original)
+ * - Centralização da visibleArea nas coordinates (linha 94 original)
+ * - Restrições de posição da área (linha 96 original)
+ *
+ * Mas REMOVE a restrição que empurra coordinates para dentro da
+ * visibleArea (linha 97 original), substituindo por centralização.
  */
 
 import { useCallback } from "react";
 import type { CropperState } from "react-advanced-cropper";
 import type { FixedCropperSettings } from "react-advanced-cropper";
-import { fixedStencil } from "advanced-cropper/extensions/stencil-size";
 
-/** Tolerance in pixels below which centering is considered correct */
-const CENTERING_TOLERANCE = 1;
+// Utilitários matemáticos da biblioteca (service/utils.js)
+import {
+  applyScale,
+  fitToSizeRestrictions,
+  applyMove,
+  diff,
+  getCenter,
+  moveToPositionRestrictions,
+} from "advanced-cropper/service/utils.js";
+
+// Helpers da biblioteca (service/helpers.js)
+import {
+  getAreaSizeRestrictions,
+  getAreaPositionRestrictions,
+  isInitializedState,
+} from "advanced-cropper/service/helpers.js";
+
+// Estado imutável (state/copyState.js)
+import { copyState } from "advanced-cropper/state/copyState.js";
+
+// Extensão stencil-size (extensions/stencil-size/index.js)
+import { getStencilSize } from "advanced-cropper/extensions/stencil-size";
 
 interface PostprocessAction {
   name?: string;
@@ -41,10 +69,92 @@ interface PostprocessAction {
 }
 
 /**
- * Returns a stable postProcess function that wraps fixedStencil
- * and ensures the image is centered in the viewport.
- * 
- * Usage: `<FixedCropper postProcess={centeredPostProcess} />`
+ * Algoritmo customizado que replica fixedStencilAlgorithm
+ * mas centraliza as coordinates na imagem em vez de
+ * constraintá-las dentro da visibleArea.
+ *
+ * Fluxo:
+ * 1. Copia estado (imutabilidade)
+ * 2. Calcula stencilSize
+ * 3. Redimensiona visibleArea (proporcional ao stencil/boundary)
+ * 4. Aplica restrições de tamanho
+ * 5. CENTRALIZA coordinates na imagem ← O FIX
+ * 6. Centraliza visibleArea nas coordinates
+ * 7. Aplica restrições de posição da área
+ */
+function centeredFixedStencilAlgorithm(
+  state: CropperState,
+  settings: FixedCropperSettings,
+): CropperState {
+  if (!isInitializedState(state)) {
+    return state;
+  }
+
+  const result = copyState(state);
+
+  // Passo 1: Calcular stencilSize (identico à linha 85 original)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stencil = getStencilSize(state, settings as any);
+
+  // Passo 2: Redimensionar visibleArea (identico à linha 87 original)
+  // Scale = (coordsWidth * boundaryWidth) / (visibleAreaWidth * stencilWidth)
+  result.visibleArea = applyScale(
+    result.visibleArea,
+    (result.coordinates.width * result.boundary.width) /
+      (result.visibleArea.width * stencil.width),
+  );
+
+  // Passo 3: Verificar restrições de tamanho (identico às linhas 89-92 original)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scale = fitToSizeRestrictions(
+    result.visibleArea,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getAreaSizeRestrictions(result, settings as any),
+  );
+  if (scale !== 1) {
+    result.visibleArea = applyScale(result.visibleArea, scale);
+    result.coordinates = applyScale(result.coordinates, scale);
+  }
+
+  // Passo 4: ★ CENTRALIZAR coordinates na imagem ★
+  // ESTE É O FIX - em vez de constraintar dentro da visibleArea
+  // (que é o que a linha 97 original faz e causa o bug),
+  // posicionamos as coordinates no centro exato da imagem.
+  result.coordinates = {
+    ...result.coordinates,
+    left: result.imageSize.width / 2 - result.coordinates.width / 2,
+    top: result.imageSize.height / 2 - result.coordinates.height / 2,
+  };
+
+  // Passo 5: Centralizar visibleArea nas coordinates (identico à linha 94 original)
+  result.visibleArea = applyMove(
+    result.visibleArea,
+    diff(getCenter(result.coordinates), getCenter(result.visibleArea)),
+  );
+
+  // Passo 6: Aplicar restrições de posição da área (identico à linha 96 original)
+  result.visibleArea = moveToPositionRestrictions(
+    result.visibleArea,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getAreaPositionRestrictions(result, settings as any),
+  );
+
+  // NÃO aplicamos moveToPositionRestrictions nas coordinates
+  // (que era a linha 97 original - a causa raiz do bug)
+  // As coordinates ficam centradas na imagem, e a visibleArea
+  // se ajusta ao redor delas.
+
+  return result;
+}
+
+/**
+ * Hook que retorna a função postProcess para o FixedCropper.
+ *
+ * Substitui completamente o `fixedStencil` da biblioteca.
+ * Só executa para ações `immediately: true` (estados settled),
+ * o mesmo guard usado pelo `fixedStencil` original.
+ *
+ * Uso: `<FixedCropper postProcess={centeredPostProcess} />`
  */
 export function useCenteredPostProcess() {
   return useCallback(
@@ -53,56 +163,12 @@ export function useCenteredPostProcess() {
       settings: FixedCropperSettings,
       action: PostprocessAction,
     ): CropperState => {
-      // 1. Delegate to the standard fixedStencil for all FixedCropper logic
-      //    Cast settings to satisfy the library's internal type which extends CoreSettings
-      //    FixedCropperSettings is a superset at runtime but TypeScript can't verify it
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = fixedStencil(state, settings as any, action as any);
-
-      // 2. Only center for immediate (settled) actions
-      //    Non-immediate actions are intermediate animation states
-      if (!action?.immediately) return result;
-
-      // 3. Guard: skip if state is not fully initialized
-      if (!result.coordinates || !result.visibleArea || !result.imageSize) {
-        return result;
+      // Só processar ações settled (identico ao guard do fixedStencil original)
+      if (!action?.immediately) {
+        return state;
       }
 
-      // 4. Calculate delta to center image in viewport
-      const imageCenterX = result.imageSize.width / 2;
-      const imageCenterY = result.imageSize.height / 2;
-      const coordsCenterX =
-        result.coordinates.left + result.coordinates.width / 2;
-      const coordsCenterY =
-        result.coordinates.top + result.coordinates.height / 2;
-
-      const deltaX = imageCenterX - coordsCenterX;
-      const deltaY = imageCenterY - coordsCenterY;
-
-      // 5. Skip if already centered (avoid unnecessary state churn)
-      if (
-        Math.abs(deltaX) < CENTERING_TOLERANCE &&
-        Math.abs(deltaY) < CENTERING_TOLERANCE
-      ) {
-        return result;
-      }
-
-      // 6. Shift BOTH visibleArea and coordinates by the same delta
-      //    This keeps coordinates centered in visibleArea (stencil position)
-      //    while centering the image in the viewport
-      return {
-        ...result,
-        coordinates: {
-          ...result.coordinates,
-          left: result.coordinates.left + deltaX,
-          top: result.coordinates.top + deltaY,
-        },
-        visibleArea: {
-          ...result.visibleArea,
-          left: result.visibleArea.left + deltaX,
-          top: result.visibleArea.top + deltaY,
-        },
-      };
+      return centeredFixedStencilAlgorithm(state, settings);
     },
     [],
   );
