@@ -126,8 +126,8 @@ export function useOrderBumpForm({
       if (product) {
         setFormData((prev) => ({
           ...prev,
-          customTitle: editOrderBump.custom_title || product.name,
-          customDescription: editOrderBump.custom_description || product.description || "",
+      customTitle: editOrderBump.custom_title ?? product.name,
+          customDescription: editOrderBump.custom_description ?? product.description ?? "",
         }));
       }
     }
@@ -240,8 +240,8 @@ export function useOrderBumpForm({
         // original_price is the MARKETING price (strikethrough) - never used for billing
         original_price: formData.discountEnabled ? parseBRLInput(formData.discountPrice) : null,
         call_to_action: formData.callToAction?.trim() || null,
-        custom_title: formData.customTitle?.trim() || null,
-        custom_description: formData.customDescription?.trim() || null,
+        custom_title: formData.customTitle !== undefined ? formData.customTitle.trim() : null,
+        custom_description: formData.customDescription !== undefined ? formData.customDescription.trim() : null,
         show_image: !!formData.showImage,
       };
 
