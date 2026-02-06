@@ -64,7 +64,7 @@ export async function validateCouponCode(
 
     if (error) {
       log.error('Edge function error', error);
-      return { success: false, error: 'Erro ao validar cupom. Tente novamente.' };
+      return { success: false, error: error.message || 'Erro ao validar cupom. Tente novamente.' };
     }
 
     if (!data?.success) {

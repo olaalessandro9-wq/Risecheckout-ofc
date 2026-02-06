@@ -63,7 +63,7 @@ export function useCouponValidation({ productId }: UseCouponValidationParams): U
 
       if (error) {
         log.error('Edge function error', error);
-        toast.error('Erro ao validar cupom. Tente novamente.');
+        toast.error(error.message || 'Erro ao validar cupom. Tente novamente.');
         return;
       }
 
