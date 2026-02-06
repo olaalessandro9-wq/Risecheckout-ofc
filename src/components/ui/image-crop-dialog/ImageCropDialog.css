@@ -1,9 +1,9 @@
 /**
  * ImageCropDialog CSS
- * 
- * Estilos para o componente customizado de crop (sem biblioteca externa).
- * Usa CSS puro para checkerboard background e stencil overlay.
- * 
+ *
+ * Estilos para o stencil arrastável/redimensionável estilo Cakto.
+ * Handles de resize nos cantos e bordas, overlay escuro fora do stencil.
+ *
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
@@ -20,9 +20,31 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
-   STENCIL: Borda azul tracejada (estilo Cakto)
-   Delimita a área de crop visualmente.
+   STENCIL: Borda azul tracejada, arrastável
+   Delimita a área de crop. Cursor 'move' indica que é arrastável.
    ═══════════════════════════════════════════════════════════ */
 .crop-stencil {
   border: 2px dashed rgba(59, 130, 246, 0.8);
+  box-sizing: border-box;
+  z-index: 2;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HANDLES: Quadradinhos de redimensionamento (8 pontos)
+   Posicionados nos cantos e pontos médios das bordas.
+   ═══════════════════════════════════════════════════════════ */
+.crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: white;
+  border: 2px solid rgba(59, 130, 246, 0.9);
+  border-radius: 1px;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  touch-action: none;
+}
+
+.crop-handle:hover {
+  background-color: rgba(59, 130, 246, 0.3);
 }

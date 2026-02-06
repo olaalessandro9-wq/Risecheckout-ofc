@@ -1,10 +1,9 @@
 /**
- * cropExport - Função pura de exportação de imagem cropada para PNG
- * 
- * Recebe a imagem original, as dimensões do stencil e do output,
- * e o nível de zoom. Retorna um File PNG com a imagem centralizada
- * no canvas de output, preservando transparência nas áreas vazias.
- * 
+ * cropExport - Export de imagem baseado em stencilRect + imageRect
+ *
+ * Mapeia a posição do stencil no display para coordenadas na imagem original,
+ * extrai a região correspondente e renderiza no canvas de output.
+ *
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
@@ -12,17 +11,24 @@ import { createLogger } from "@/lib/logger";
 
 const log = createLogger("cropExport");
 
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface CropExportParams {
   /** Elemento <img> já carregado com a imagem original */
   imageElement: HTMLImageElement;
-  /** Largura do stencil no display (px) */
-  stencilDisplayWidth: number;
-  /** Altura do stencil no display (px) */
-  stencilDisplayHeight: number;
-  /** Largura da imagem no display (px, já com zoom aplicado) */
-  imageDisplayWidth: number;
-  /** Altura da imagem no display (px, já com zoom aplicado) */
-  imageDisplayHeight: number;
+  /** Retângulo do stencil no espaço do container (display coords) */
+  stencilRect: Rect;
+  /** Retângulo real que a imagem ocupa no container (display coords) */
+  imageRect: Rect;
+  /** Largura natural da imagem original */
+  naturalWidth: number;
+  /** Altura natural da imagem original */
+  naturalHeight: number;
   /** Largura desejada do output final (px) */
   outputWidth: number;
   /** Altura desejada do output final (px) */
@@ -30,26 +36,21 @@ export interface CropExportParams {
 }
 
 /**
- * Exporta a região visível do crop como um arquivo PNG.
- * 
+ * Exporta a região do stencil como um arquivo PNG.
+ *
  * Lógica:
- * 1. Cria canvas com outputWidth × outputHeight
- * 2. Calcula a escala entre o stencil no display e o output
- * 3. Centraliza a imagem no canvas usando a mesma lógica de CSS centering
- * 4. Desenha a imagem com drawImage (source region = imagem inteira)
- * 5. Converte para blob PNG → File
- * 
- * A centralização no canvas espelha EXATAMENTE a centralização CSS:
- * drawX = (outputWidth - scaledImageWidth) / 2
- * drawY = (outputHeight - scaledImageHeight) / 2
+ * 1. Calcula escala display → natural (naturalWidth / imageRect.width)
+ * 2. Mapeia stencilRect para coordenadas na imagem original
+ * 3. Desenha a região fonte no canvas de output (outputWidth × outputHeight)
+ * 4. Converte para blob PNG → File
  */
 export function exportCropToPng(params: CropExportParams): Promise<File> {
   const {
     imageElement,
-    stencilDisplayWidth,
-    stencilDisplayHeight,
-    imageDisplayWidth,
-    imageDisplayHeight,
+    stencilRect,
+    imageRect,
+    naturalWidth,
+    naturalHeight,
     outputWidth,
     outputHeight,
   } = params;
@@ -66,31 +67,40 @@ export function exportCropToPng(params: CropExportParams): Promise<File> {
         return;
       }
 
-      // Canvas começa transparente (PNG preserva transparência)
+      // Canvas começa transparente
       ctx.clearRect(0, 0, outputWidth, outputHeight);
 
-      // Escala do display → output
-      const scaleX = outputWidth / stencilDisplayWidth;
-      const scaleY = outputHeight / stencilDisplayHeight;
+      // Escala do display para coordenadas naturais da imagem
+      const scaleX = naturalWidth / imageRect.width;
+      const scaleY = naturalHeight / imageRect.height;
 
-      // Tamanho da imagem no espaço do output
-      const drawWidth = imageDisplayWidth * scaleX;
-      const drawHeight = imageDisplayHeight * scaleY;
+      // Posição do stencil relativa à imagem (não ao container)
+      const sourceX = (stencilRect.x - imageRect.x) * scaleX;
+      const sourceY = (stencilRect.y - imageRect.y) * scaleY;
+      const sourceW = stencilRect.width * scaleX;
+      const sourceH = stencilRect.height * scaleY;
 
-      // Centralizar imagem no canvas (espelha CSS centering)
-      const drawX = (outputWidth - drawWidth) / 2;
-      const drawY = (outputHeight - drawHeight) / 2;
+      // Clamp para não ultrapassar os limites da imagem
+      const clampedSourceX = Math.max(0, Math.min(sourceX, naturalWidth));
+      const clampedSourceY = Math.max(0, Math.min(sourceY, naturalHeight));
+      const clampedSourceW = Math.min(sourceW, naturalWidth - clampedSourceX);
+      const clampedSourceH = Math.min(sourceH, naturalHeight - clampedSourceY);
 
       ctx.drawImage(
         imageElement,
-        0, 0, imageElement.naturalWidth, imageElement.naturalHeight,
-        drawX, drawY, drawWidth, drawHeight,
+        clampedSourceX,
+        clampedSourceY,
+        clampedSourceW,
+        clampedSourceH,
+        0,
+        0,
+        outputWidth,
+        outputHeight,
       );
 
       log.info("Canvas rendered", {
         outputSize: `${outputWidth}x${outputHeight}`,
-        drawPosition: `(${drawX.toFixed(1)}, ${drawY.toFixed(1)})`,
-        drawSize: `${drawWidth.toFixed(1)}x${drawHeight.toFixed(1)}`,
+        source: `(${clampedSourceX.toFixed(1)}, ${clampedSourceY.toFixed(1)}) ${clampedSourceW.toFixed(1)}x${clampedSourceH.toFixed(1)}`,
       });
 
       canvas.toBlob(
