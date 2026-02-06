@@ -2,7 +2,7 @@
  * get-affiliation-status - Edge Function para verificar status de afiliação
  * 
  * Verifica se o usuário logado já é afiliado de um produto e retorna o status.
- * Usa service_role para bypass de RLS (sistema usa autenticação customizada).
+ * Usa domain 'general' para bypass de RLS via factory centralizado.
  * 
  * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  */
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    // Criar cliente Supabase com service_role para bypass de RLS
+    // Criar cliente Supabase via factory centralizado (domain: general)
     const supabaseClient = getSupabaseClient('general');
 
     // Auth via unified-auth (opcional - retorna null se não autenticado)

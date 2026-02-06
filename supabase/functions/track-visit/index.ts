@@ -48,7 +48,7 @@ Deno.serve(async (req: Request) => {
                req.headers.get("cf-connecting-ip") ||
                null;
 
-    // Create Supabase client with service role (bypass RLS)
+    // Create Supabase client via centralized factory (domain: general)
     const supabase = getSupabaseClient('general');
 
     // Insert visit record

@@ -83,7 +83,7 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient('general');
 
     // 1. Authentication
     const user = await getAuthenticatedUser(supabase, req);

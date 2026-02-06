@@ -122,7 +122,7 @@ serve(async (req) => {
     const userId = producer.id;
     log.info(`Usuário: ${userId.substring(0, 8)}...`);
 
-    // 2. Reutilizar supabaseAdmin para queries (RISE V3: service_role only)
+    // 2. Reutilizar supabaseAdmin para queries (RISE V3: domain 'general')
     // Ownership validation is done explicitly via user_id check below
 
     // 4. Parse do payload
