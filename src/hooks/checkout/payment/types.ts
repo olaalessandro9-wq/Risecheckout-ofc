@@ -1,7 +1,8 @@
 /**
  * Payment Types - Tipos centralizados para o módulo de pagamento
  * 
- * Arquivo único de tipos elimina inconsistências entre hooks.
+ * RISE V3: AppliedCoupon moved to @/types/checkout-shared.types.ts (SSOT)
+ * Re-exported here for backward compatibility.
  */
 
 import type { PaymentMethod, CheckoutFormData } from "@/types/checkout";
@@ -13,18 +14,9 @@ import type { PaymentMethod, CheckoutFormData } from "@/types/checkout";
 export type PixGateway = 'pushinpay' | 'mercadopago' | 'stripe' | 'asaas';
 export type CreditCardGateway = 'mercadopago' | 'stripe' | 'asaas';
 
-// ============================================================================
-// COUPON
-// ============================================================================
-
-export interface AppliedCoupon {
-  id: string;
-  code: string;
-  name: string;
-  discount_type: "percentage";
-  discount_value: number;
-  apply_to_order_bumps: boolean;
-}
+// RISE V3: AppliedCoupon canonical definition is in @/types/checkout-shared.types.ts
+// Re-exported for backward compatibility
+export type { AppliedCoupon } from '@/types/checkout-shared.types';
 
 // ============================================================================
 // ORDER CREATION

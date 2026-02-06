@@ -2,12 +2,18 @@
  * Hook: useCouponValidation
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Local coupon validation hook for editor/preview modes ONLY.
+ * In public checkout, XState is the SSOT for coupon state — see validateCouponApi.ts.
+ * 
+ * @module hooks/checkout
  */
 
 import { useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
+import type { AppliedCoupon } from '@/types/checkout-shared.types';
 
 const log = createLogger('CouponValidation');
 
@@ -22,15 +28,6 @@ interface CouponValidationResponse {
     discount_value: number;
     apply_to_order_bumps: boolean;
   };
-}
-
-export interface AppliedCoupon {
-  id: string;
-  code: string;
-  name: string;
-  discount_type: 'percentage';
-  discount_value: number;
-  apply_to_order_bumps: boolean;
 }
 
 interface UseCouponValidationParams {
@@ -93,7 +90,7 @@ export function useCouponValidation({ productId }: UseCouponValidationParams): U
         name: data.data.name,
         discount_type: 'percentage' as const,
         discount_value: data.data.discount_value,
-        apply_to_order_bumps: data.data.apply_to_order_bumps,
+        apply_to_order_bumps: data.data.apply_to_order_bumps ?? false,
       };
 
       setAppliedCoupon(appliedCouponData);

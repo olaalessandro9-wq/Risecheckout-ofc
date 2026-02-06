@@ -28,9 +28,14 @@ export function calculateTotalFromContext(context: CheckoutPublicContext): numbe
   
   let total = basePrice + bumpsTotal;
   
-  // Apply coupon discount (RISE V3: apenas porcentagem suportado)
+  // Apply coupon discount respecting apply_to_order_bumps flag
+  // RISE V3: Only percentage discounts are supported
   if (context.appliedCoupon) {
-    total = total * (1 - context.appliedCoupon.discount_value / 100);
+    const discountBase = context.appliedCoupon.apply_to_order_bumps
+      ? total
+      : basePrice;
+    const discount = (discountBase * context.appliedCoupon.discount_value) / 100;
+    total = total - discount;
   }
   
   // Prices are already in cents (e.g., 4990 = R$49.90)

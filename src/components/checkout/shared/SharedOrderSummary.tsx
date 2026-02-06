@@ -1,30 +1,29 @@
 /**
- * SharedOrderSummary (REFATORADO - RISE V3 SSOT)
+ * SharedOrderSummary (RISE V3 SSOT)
  * 
- * Componente compartilhado para resumo do pedido
- * Usado por: Builder, Preview e Checkout Público
+ * Shared order summary component.
+ * Used by: Builder, Preview, and Public Checkout.
  * 
- * RISE V3 COUPON ARCHITECTURE:
- * - Modo Controlado (public checkout): Recebe appliedCoupon/onApplyCoupon/onRemoveCoupon via props.
- *   XState é o SSOT. Zero estado duplicado, zero feedback loops.
- * - Modo Local (editor/preview): Usa useCouponValidation internamente.
- *   Sem ordens reais, sem risco de dessincronia.
+ * COUPON ARCHITECTURE:
+ * - Controlled mode (public checkout): Receives appliedCoupon/onApplyCoupon/onRemoveCoupon via props.
+ *   XState is the SSOT. Zero duplicate state, zero feedback loops.
+ * - Uncontrolled mode (editor/preview): Uses useCouponValidation hook internally.
+ *   No real orders, no desync risk.
+ * 
+ * @module components/checkout/shared
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useCouponValidation } from '@/hooks/checkout/useCouponValidation';
+import { validateCouponCode } from '@/hooks/checkout/validateCouponApi';
 import type { AppliedCoupon } from '@/types/checkout-shared.types';
 import { CouponInput } from './CouponInput';
-import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { createLogger } from '@/lib/logger';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-const log = createLogger('SharedOrderSummary');
 
 interface OrderBump {
   id: string;
@@ -34,19 +33,6 @@ interface OrderBump {
   image_url?: string;
   original_price?: number;
   call_to_action?: string;
-}
-
-interface CouponValidationResponse {
-  success?: boolean;
-  error?: string;
-  data?: {
-    id: string;
-    code: string;
-    name: string;
-    discount_type: string;
-    discount_value: number;
-    apply_to_order_bumps: boolean;
-  };
 }
 
 interface SharedOrderSummaryProps {
@@ -68,11 +54,11 @@ interface SharedOrderSummaryProps {
     };
   };
   mode?: 'editor' | 'preview' | 'public';
-  /** RISE V3: Controlled coupon state from XState (public checkout only) */
+  /** Controlled coupon state from XState (public checkout only) */
   appliedCoupon?: AppliedCoupon | null;
-  /** RISE V3: Callback to apply validated coupon to XState (public checkout only) */
+  /** Callback to apply validated coupon to XState (public checkout only) */
   onApplyCoupon?: (coupon: AppliedCoupon) => void;
-  /** RISE V3: Callback to remove coupon from XState (public checkout only) */
+  /** Callback to remove coupon from XState (public checkout only) */
   onRemoveCoupon?: () => void;
 }
 
@@ -92,69 +78,35 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
 
   const isControlled = !!onApplyCoupon;
 
-  // Uncontrolled mode: local hook for editor/preview
-  // Hook MUST be called unconditionally (React rules)
+  // Uncontrolled mode: local hook for editor/preview (called unconditionally per React rules)
   const localCouponHook = useCouponValidation({ productId: productData.id });
 
   // Controlled mode: local input state only (coupon text + loading flag)
   const [controlledCouponCode, setControlledCouponCode] = useState('');
   const [controlledIsValidating, setControlledIsValidating] = useState(false);
 
-  // Controlled mode: validate coupon via API, then push to XState
+  // Controlled mode: validate via extracted API function, then push to XState
   const controlledValidate = useCallback(async () => {
     if (!controlledCouponCode.trim()) {
       toast.error('Digite um código de cupom');
       return;
     }
-
     if (!productData.id) {
       toast.error('Produto não identificado');
       return;
     }
 
     setControlledIsValidating(true);
+    const result = await validateCouponCode(controlledCouponCode.trim(), productData.id);
+    setControlledIsValidating(false);
 
-    try {
-      log.debug('Validando cupom (controlled)', {
-        code: controlledCouponCode.trim(),
-        productId: productData.id,
-      });
-
-      const { data, error } = await api.publicCall<CouponValidationResponse>('checkout-public-data', {
-        action: 'validate-coupon',
-        couponCode: controlledCouponCode.trim(),
-        productId: productData.id,
-      });
-
-      if (error) {
-        log.error('Edge function error', error);
-        toast.error('Erro ao validar cupom. Tente novamente.');
-        return;
-      }
-
-      if (!data?.success) {
-        toast.error(data?.error || 'Cupom inválido');
-        return;
-      }
-
-      const couponData: AppliedCoupon = {
-        id: data.data!.id,
-        code: data.data!.code,
-        name: data.data!.name,
-        discount_type: 'percentage' as const,
-        discount_value: data.data!.discount_value,
-        apply_to_order_bumps: data.data!.apply_to_order_bumps,
-      };
-
-      // Push directly to XState (SSOT) - zero dual state
-      onApplyCoupon!(couponData);
-      toast.success(`Cupom "${data.data!.code}" aplicado com sucesso!`);
-    } catch (err: unknown) {
-      log.error('Erro ao validar cupom', err);
-      toast.error('Erro ao validar cupom. Tente novamente.');
-    } finally {
-      setControlledIsValidating(false);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
     }
+
+    onApplyCoupon!(result.coupon);
+    toast.success(`Cupom "${result.coupon.code}" aplicado com sucesso!`);
   }, [controlledCouponCode, productData.id, onApplyCoupon]);
 
   // Controlled mode: remove coupon from XState + clear local input
@@ -194,7 +146,6 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
   const discountAmount = useMemo(() => {
     if (!effectiveCoupon) return 0;
     const discountBase = effectiveCoupon.apply_to_order_bumps ? subtotal : productPrice;
-    // RISE V3: Apenas desconto por porcentagem é suportado
     return (discountBase * effectiveCoupon.discount_value) / 100;
   }, [effectiveCoupon, subtotal, productPrice]);
 
@@ -215,7 +166,7 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
         className="rounded-lg border p-4 space-y-4"
         style={{ borderColor, backgroundColor: 'transparent' }}
       >
-        {/* Produto Principal */}
+        {/* Main Product */}
         <div className="flex items-center gap-4 pb-4 border-b" style={{ borderColor }}>
           {productData.image_url && (
             <img
@@ -256,7 +207,7 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
           </div>
         </div>
 
-        {/* Order Bumps Selecionados */}
+        {/* Selected Order Bumps */}
         {Array.from(selectedBumps).map(bumpId => {
           const bump = orderBumps.find(b => b.id === bumpId);
           if (!bump) return null;
@@ -286,7 +237,7 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
           );
         })}
 
-        {/* Campo de Cupom */}
+        {/* Coupon Field */}
         <CouponInput
           couponCode={effectiveCouponCode}
           onCouponCodeChange={effectiveSetCouponCode}
@@ -297,7 +248,7 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
           design={design}
         />
 
-        {/* Subtotal (se houver cupom) */}
+        {/* Subtotal (shown when coupon is applied) */}
         {effectiveCoupon && (
           <div className="flex justify-between items-center pt-3 mt-3 border-t" style={{ borderColor }}>
             <span className="text-sm" style={{ color: design.colors.secondaryText }}>Subtotal</span>
@@ -307,7 +258,7 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
           </div>
         )}
 
-        {/* Desconto */}
+        {/* Discount */}
         {effectiveCoupon && discountAmount > 0 && (
           <div className="flex justify-between items-center pt-2">
             <span className="text-sm font-medium" style={{ color: '#10B981' }}>

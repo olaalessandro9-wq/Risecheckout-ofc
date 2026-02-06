@@ -116,15 +116,18 @@ export function normalizeRequiredFields(
 // ============================================================================
 
 /**
- * Cupom aplicado no checkout
+ * Cupom aplicado no checkout - SINGLE SOURCE OF TRUTH
+ * 
+ * All other files (checkout-payment.types, hooks/checkout/payment/types)
+ * re-export this type. Do NOT create new AppliedCoupon interfaces elsewhere.
  */
 export interface AppliedCoupon {
   id: string;
   code: string;
-  name?: string;
+  name: string;
   discount_type: 'percentage';
   discount_value: number;
-  apply_to_order_bumps?: boolean;
+  apply_to_order_bumps: boolean;
 }
 
 // ============================================================================
