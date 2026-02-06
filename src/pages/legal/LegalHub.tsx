@@ -2,6 +2,9 @@
  * LegalHub - Central page listing all legal documents
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * Uses LegalThemeProvider for opaque background barrier.
+ * All colors use semantic design tokens from index.css.
  */
 
 import { Link } from "react-router-dom";
@@ -17,6 +20,7 @@ import {
   BookOpen,
   Scale,
 } from "lucide-react";
+import { LegalThemeProvider } from "@/components/theme-providers";
 
 // ============================================================================
 // DOCUMENT REGISTRY
@@ -106,70 +110,73 @@ function LegalHub() {
         />
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 sm:px-6 py-16">
-        <div className="max-w-5xl mx-auto">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-14"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium mb-6">
-              <Scale className="w-3.5 h-3.5" />
-              Atualizado em {LAST_UPDATED}
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-              Documentos Legais
-            </h1>
-            <p className="text-slate-400 max-w-lg mx-auto">
-              Transparência é prioridade. Conheça todos os termos e políticas
-              que regem o uso da plataforma RiseCheckout.
-            </p>
-          </motion.div>
+      <LegalThemeProvider>
+        {/* Gradient layer (decorative, inside the opaque provider) */}
+        <div className="min-h-screen bg-gradient-to-br from-[hsl(var(--legal-bg-gradient-from))] via-[hsl(var(--legal-bg-gradient-via))] to-[hsl(var(--legal-bg-gradient-to))] px-4 sm:px-6 py-16">
+          <div className="max-w-5xl mx-auto">
+            {/* Header */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-14"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[hsl(var(--legal-accent-bg)/0.1)] text-[hsl(var(--legal-accent-text))] text-xs font-medium mb-6">
+                <Scale className="w-3.5 h-3.5" />
+                Atualizado em {LAST_UPDATED}
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-[hsl(var(--legal-text-primary))] mb-3">
+                Documentos Legais
+              </h1>
+              <p className="text-[hsl(var(--legal-text-muted))] max-w-lg mx-auto">
+                Transparência é prioridade. Conheça todos os termos e políticas
+                que regem o uso da plataforma RiseCheckout.
+              </p>
+            </motion.div>
 
-          {/* Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {LEGAL_DOCUMENTS.map((doc, i) => {
-              const Icon = doc.icon;
-              return (
-                <motion.div
-                  key={doc.href}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Link
-                    to={doc.href}
-                    className="group flex items-start gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 hover:bg-white/[0.05] transition-all duration-300"
+            {/* Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {LEGAL_DOCUMENTS.map((doc, i) => {
+                const Icon = doc.icon;
+                return (
+                  <motion.div
+                    key={doc.href}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
                   >
-                    <div className={`p-2.5 rounded-xl ${doc.bg} shrink-0`}>
-                      <Icon className={`w-5 h-5 ${doc.color}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <h2 className="font-semibold text-white group-hover:text-emerald-400 transition-colors">
-                        {doc.title}
-                      </h2>
-                      <p className="text-sm text-slate-400 mt-0.5">
-                        {doc.description}
-                      </p>
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </div>
+                    <Link
+                      to={doc.href}
+                      className="group flex items-start gap-4 p-5 rounded-2xl bg-[hsl(var(--legal-card-bg)/0.03)] border border-[hsl(var(--legal-card-border)/0.05)] hover:border-[hsl(var(--legal-card-border)/0.1)] hover:bg-[hsl(var(--legal-card-bg)/0.05)] transition-all duration-300"
+                    >
+                      <div className={`p-2.5 rounded-xl ${doc.bg} shrink-0`}>
+                        <Icon className={`w-5 h-5 ${doc.color}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="font-semibold text-[hsl(var(--legal-text-primary))] group-hover:text-[hsl(var(--legal-accent-text))] transition-colors">
+                          {doc.title}
+                        </h2>
+                        <p className="text-sm text-[hsl(var(--legal-text-muted))] mt-0.5">
+                          {doc.description}
+                        </p>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </div>
 
-          {/* Footer */}
-          <div className="text-center mt-16 space-y-2">
-            <p className="text-xs text-slate-500">
-              Rise Community LTDA — CNPJ: 58.566.585/0001-91
-            </p>
-            <p className="text-xs text-slate-600">
-              suporte@risecheckout.com
-            </p>
+            {/* Footer */}
+            <div className="text-center mt-16 space-y-2">
+              <p className="text-xs text-[hsl(var(--legal-text-subtle))]">
+                Rise Community LTDA — CNPJ: 58.566.585/0001-91
+              </p>
+              <p className="text-xs text-[hsl(var(--legal-text-faint))]">
+                suporte@risecheckout.com
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </LegalThemeProvider>
     </>
   );
 }

@@ -390,6 +390,40 @@
     --checkout-error-card-bg: 0 0% 100%;        /* white */
     --checkout-error-icon-bg: 0 86% 97%;        /* red-100 equivalent */
     --checkout-error-icon: 0 84% 60%;           /* red-500 */
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       LEGAL PAGES DESIGN TOKENS
+       Sistema unificado de cores para páginas legais (tema escuro exclusivo)
+       Usado em: LegalHub, LegalPageLayout (todas as páginas de termos/políticas)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Legal Background Tokens */
+    --legal-bg: 222 47% 5%;                     /* slate-950 */
+    --legal-bg-gradient-from: 222 47% 5%;       /* slate-950 */
+    --legal-bg-gradient-via: 217 33% 17%;       /* slate-900 */
+    --legal-bg-gradient-to: 222 47% 5%;         /* slate-950 */
+    
+    /* Legal Text Tokens */
+    --legal-text-primary: 0 0% 100%;            /* white */
+    --legal-text-secondary: 215 16% 75%;        /* slate-300 */
+    --legal-text-muted: 215 14% 65%;            /* slate-400 */
+    --legal-text-subtle: 215 13% 50%;           /* slate-500 */
+    --legal-text-faint: 215 12% 40%;            /* slate-600 */
+    
+    /* Legal Card Tokens */
+    --legal-card-bg: 0 0% 100%;                 /* white - para uso com opacity */
+    --legal-card-border: 0 0% 100%;             /* white - para uso com opacity */
+    
+    /* Legal Border Tokens */
+    --legal-border: 0 0% 100%;                  /* white - para uso com opacity */
+    
+    /* Legal Accent Tokens (Emerald Theme) */
+    --legal-accent: 160 84% 39%;                /* emerald-500 */
+    --legal-accent-text: 158 64% 52%;           /* emerald-400 */
+    --legal-accent-bg: 160 84% 39%;             /* emerald-500 - para uso com opacity */
+    
+    /* Legal Header Tokens */
+    --legal-header-bg: 222 47% 5%;              /* slate-950 - opaque header */
   }
 
   body {
