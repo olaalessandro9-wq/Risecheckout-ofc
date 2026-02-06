@@ -1,186 +1,222 @@
 
 
-# Auditoria Final: Sistema de Cupons -- Resultado e Pendencias Residuais
+# Migration: Legacy JWT API Keys to New Publishable/Secret API Keys
 
-## VEREDICTO GERAL: 95% SUCESSO
+## Context
 
-A implementacao principal (eliminacao dual-state, calculo respeitando `apply_to_order_bumps`, delecao de codigo morto) esta CORRETA e funcional. Porem, duas violacoes de DRY/SSOT foram identificadas que impedem o score perfeito de 10.0/10.
+Supabase is deprecating the legacy JWT-based `anon` and `service_role` API keys. The new system uses:
 
----
+- **Publishable key** (`sb_publishable_...`) -- replaces `anon` key (safe for frontend)
+- **Secret key** (`sb_secret_...`) -- replaces `service_role` key (backend only)
 
-## CHECKLIST DE VALIDACAO
+Late 2026 (TBC), legacy keys will be **deleted** and apps still using them will **break**. Migrating now eliminates this ticking time bomb of technical debt.
 
-### Arquitetura (Dual-State Elimination)
+## Current State Analysis
 
-| Item | Status | Evidencia |
-|------|--------|-----------|
-| `onTotalChange` removido completamente | OK | Zero resultados na busca global |
-| `handleTotalChange` removido completamente | OK | Zero resultados na busca global |
-| `CouponField.tsx` deletado | OK | Diretorio `src/components/checkout/` nao contem CouponField |
-| XState APPLY_COUPON/REMOVE_COUPON funcionais | OK | Machine line 138-139 |
-| `applyCoupon`/`removeCoupon` no hook XState | OK | Lines 146-152 de useCheckoutPublicMachine.ts |
-| Props unidirecionais Content -> Layout -> Summary | OK | Lines 380-382, 134, 85-87 |
-| Controlled/Uncontrolled pattern | OK | `isControlled = !!onApplyCoupon` (SharedOrderSummary line 79) |
-| `createOrderInput` lendo `context.appliedCoupon?.id` | OK | checkoutPublicMachine.inputs.ts line 64 |
-| `calculateTotalFromContext` respeitando `apply_to_order_bumps` | OK | Lines 33-38 |
-| `calculateTotal` respeitando `apply_to_order_bumps` | OK | CheckoutPublicContent lines 221-227 |
+### Frontend
+| Component | Current State | Uses Legacy Key? |
+|-----------|-------------|-----------------|
+| `src/integrations/supabase/client.ts` | Hardcoded legacy JWT | Yes (but DEAD CODE -- no file imports `supabase` from it) |
+| `src/config/supabase.ts` | `API_GATEWAY_URL` only, no keys | No |
+| `src/config/env.ts` | `supabaseAnonKey` from `VITE_SUPABASE_ANON_KEY` | Yes (but DEAD CODE -- not imported anywhere) |
+| `src/lib/api/public-client.ts` | Calls API Gateway, no keys | No |
+| `src/lib/api/*.ts` | Calls API Gateway, no keys | No |
 
-### Codigo Morto
+**Conclusion:** The RISE API Gateway architecture already eliminated keys from the active frontend. The legacy references are dead code.
 
-| Item | Status | Evidencia |
-|------|--------|-----------|
-| `CouponField.tsx` removido | OK | Confirmado pelo list_dir |
-| `AppliedCoupon` de `useCouponValidation.ts` removida | OK | Importa de `checkout-shared.types.ts` (line 16) |
-| `AppliedCoupon` de `checkout-payment.types.ts` unificada | OK | Re-export via `export type { AppliedCoupon } from './checkout-shared.types'` |
-| `AppliedCoupon` de `hooks/checkout/payment/types.ts` unificada | OK | Re-export via `export type { AppliedCoupon } from '@/types/checkout-shared.types'` |
+### Cloudflare Worker (API Gateway)
+| Secret | Current Value | Needs Update |
+|--------|--------------|-------------|
+| `SUPABASE_ANON_KEY` | Legacy JWT anon key | YES -- must become publishable key |
 
-### Limites de Linha (Protocolo RISE V3: max 300)
+### Backend (Edge Functions)
+| Component | Current State | Impact |
+|-----------|-------------|--------|
+| `SUPABASE_SERVICE_ROLE_KEY` env var | Used by 100+ functions | AUTO-UPDATED by Supabase platform |
+| `SUPABASE_ANON_KEY` env var | Referenced in `check-secrets`, tests | AUTO-UPDATED by Supabase platform |
+| `config.toml` | Only 1 function has `verify_jwt = false` | CRITICAL -- must add ALL 105 functions |
+| `getSupabaseClient()` factory | Only 1 function uses it | No code change needed |
 
-| Arquivo | Linhas | Status |
-|---------|--------|--------|
-| `SharedOrderSummary.tsx` | 283 | OK |
-| `validateCouponApi.ts` | 88 | OK |
-| `CouponInput.tsx` | 88 | OK |
-| `useCouponValidation.ts` | 120 | OK |
-| `checkoutPublicMachine.inputs.ts` | 114 | OK |
-| `SharedCheckoutLayout.tsx` | 153 | OK |
-| `CheckoutPublicContent.tsx` | 392 | VIOLACAO (pre-existente, fora do escopo desta correcao) |
-
-### Documentacao e Comentarios
-
-| Arquivo | JSDoc | Comentarios de Secao | Status |
-|---------|-------|---------------------|--------|
-| `SharedOrderSummary.tsx` | OK (lines 1-14) | OK (ingles tecnico) | OK |
-| `validateCouponApi.ts` | OK (lines 1-13) | OK | OK |
-| `useCouponValidation.ts` | OK (lines 1-10) | OK | OK |
-| `checkoutPublicMachine.inputs.ts` | OK (lines 1-10) | OK | OK |
-| `CheckoutPublicContent.tsx` | OK (lines 1-19) | OK (changelog removido, line 244 clean) | OK |
-| `checkout-shared.types.ts` | OK (lines 118-123) SSOT warning | OK | OK |
-| `checkout-payment.types.ts` | OK (lines 124-126) re-export note | OK | OK |
-| `hooks/checkout/payment/types.ts` | OK (lines 1-6) re-export note | OK | OK |
+### Documentation
+| File | Has Legacy References | Needs Update |
+|------|---------------------|-------------|
+| `docs/API_GATEWAY_ARCHITECTURE.md` | `SUPABASE_ANON_KEY` | YES |
+| `docs/EDGE_FUNCTIONS_REGISTRY.md` | Badge, metrics | YES |
+| `docs/SECURITY_OVERVIEW.md` | Anon key references | YES |
+| `.env.example` | `VITE_SUPABASE_ANON_KEY` | YES |
+| `check-secrets/index.ts` | `SUPABASE_ANON_KEY` | YES |
 
 ---
 
-## PENDENCIAS ENCONTRADAS (2)
+## Critical Technical Detail: `verify_jwt` and New Keys
 
-### PENDENCIA 1 (MODERADA): `CouponData` e `AppliedCoupon` sao interfaces identicas definidas separadamente
+New publishable/secret keys are NOT JWTs. They are opaque tokens (`sb_publishable_...`, `sb_secret_...`). The Supabase API Gateway resolves them into temporary short-lived JWTs internally.
 
-**Locais:**
-- `CouponData` em `checkoutPublicMachine.types.ts` (lines 45-52): `{ id, code, name, discount_type: 'percentage', discount_value, apply_to_order_bumps }`
-- `AppliedCoupon` em `checkout-shared.types.ts` (lines 124-131): `{ id, code, name, discount_type: 'percentage', discount_value, apply_to_order_bumps }`
+When `verify_jwt = true` (the default), the Supabase platform attempts JWT verification on the `apikey` header BEFORE the edge function code runs. With new keys, this verification **fails** because the key is not a JWT.
 
-**Campos sao 100% identicos.** TypeScript trata ambos como compativeis (structural typing), portanto NAO existe bug em runtime. Porem, manter duas interfaces identicas viola o principio DRY e cria risco de manutencao: se uma mudar, a outra pode nao ser atualizada.
+Therefore, `verify_jwt = false` must be set for ALL functions BEFORE disabling legacy keys. The RISE architecture already does auth in code (cookies + sessions table via `unified-auth-v2.ts`), so platform-level JWT verification is redundant.
 
-**Correcao:** Transformar `CouponData` em alias de `AppliedCoupon`:
-
-```text
-// Em checkoutPublicMachine.types.ts
-import type { AppliedCoupon } from '@/types/checkout-shared.types';
-export type CouponData = AppliedCoupon;
-```
-
-### PENDENCIA 2 (MENOR): `CouponValidationResponse` duplicada em dois arquivos
-
-**Locais:**
-- `validateCouponApi.ts` lines 25-36 (usado no modo controlado/publico)
-- `useCouponValidation.ts` lines 20-31 (usado no modo uncontrolled/editor)
-
-Interfaces identicas. A resposta vem da mesma Edge Function (`validate-coupon`), entao faz sentido ter UMA definicao.
-
-**Correcao:** Exportar `CouponValidationResponse` de `validateCouponApi.ts` e importar em `useCouponValidation.ts`.
+Currently `supabase/config.toml` only lists 1 function. The other 104 functions use the default `verify_jwt = true`. This is a pre-existing inconsistency (the EDGE_FUNCTIONS_REGISTRY claims all functions have `verify_jwt = false`).
 
 ---
 
-## Analise de Solucoes
+## Solution Analysis
 
-### Solucao A: Manter como esta (aceitar as 2 pendencias)
+### Solution A: Minimal -- Only update keys, fix config.toml
+- Manutenibilidade: 6/10 -- Dead code remains, docs outdated
+- Zero DT: 5/10 -- Legacy references create confusion
+- Arquitetura: 6/10 -- Inconsistent naming across codebase
+- Escalabilidade: 8/10 -- Keys work but docs mislead future devs
+- Seguranca: 9/10 -- New keys are more secure
+- **NOTA FINAL: 6.5/10**
+- Tempo estimado: 15 minutos
 
-- Manutenibilidade: 7/10 -- Duas interfaces identicas criam risco de divergencia futura
-- Zero DT: 6/10 -- DRY violado em dois locais
-- Arquitetura: 7/10 -- Structural typing mascara o problema, mas a intenção nao esta documentada
-- Escalabilidade: 8/10 -- Funcional, mas adicionar campos ao cupom exige atualizacao em 2 lugares
-- Seguranca: 10/10 -- Sem impacto de seguranca
-- **NOTA FINAL: 7.3/10**
-- Tempo estimado: 0 minutos
-
-### Solucao B: Consolidar `CouponData` como alias + unificar `CouponValidationResponse`
-
-- Manutenibilidade: 10/10 -- Uma unica definicao canonica, zero duplicacao
-- Zero DT: 10/10 -- Elimina ambas as violacoes DRY
-- Arquitetura: 10/10 -- SSOT absoluto para tipos de cupom
-- Escalabilidade: 10/10 -- Adicionar campos ao cupom toca apenas `checkout-shared.types.ts`
-- Seguranca: 10/10 -- Sem impacto de seguranca
+### Solution B: Complete migration with dead code removal, doc updates, and naming normalization
+- Manutenibilidade: 10/10 -- Zero legacy references, all docs current, naming consistent
+- Zero DT: 10/10 -- No dead code, no outdated docs, no legacy naming
+- Arquitetura: 10/10 -- config.toml covers all functions, docs match reality
+- Escalabilidade: 10/10 -- Future devs see only the new system
+- Seguranca: 10/10 -- New keys + all legacy references purged
 - **NOTA FINAL: 10.0/10**
-- Tempo estimado: 5 minutos
+- Tempo estimado: 30-45 minutos
 
-### DECISAO: Solucao B (Nota 10.0)
+### DECISION: Solution B (Nota 10.0)
 
-A Solucao A mantem duas interfaces identicas que podem divergir no futuro, violando DRY e SSOT. A Solucao B elimina o problema na raiz com mudancas minimas e zero risco de regressao.
+Solution A leaves dead code and outdated documentation, which will confuse future development and creates a false impression that legacy keys are still in use. Solution B ensures zero traces of the legacy system remain in the codebase.
 
 ---
 
-## Plano de Execucao
+## Execution Plan
 
-### Arquivo 1: `src/modules/checkout-public/machines/checkoutPublicMachine.types.ts`
+### Phase 1: Code Preparation (Lovable -- what I implement)
 
-Substituir a interface `CouponData` (lines 45-52) por um type alias:
+#### 1.1 `supabase/config.toml` -- Add ALL 105 functions with `verify_jwt = false`
 
-```text
-ANTES:
-export interface CouponData {
-  id: string;
-  code: string;
-  name: string;
-  discount_type: 'percentage';
-  discount_value: number;
-  apply_to_order_bumps: boolean;
-}
-
-DEPOIS:
-import type { AppliedCoupon } from '@/types/checkout-shared.types';
-export type CouponData = AppliedCoupon;
-```
-
-Todos os arquivos que importam `CouponData` continuam funcionando sem mudancas (o tipo exportado permanece identico).
-
-### Arquivo 2: `src/hooks/checkout/validateCouponApi.ts`
-
-Exportar `CouponValidationResponse`:
+This is the most critical change. Every edge function must have its entry. Format:
 
 ```text
-ANTES:
-interface CouponValidationResponse {
+project_id = "wivbtmtgpsxupfjwwovf"
 
-DEPOIS:
-export interface CouponValidationResponse {
+[functions.admin-data]
+verify_jwt = false
+
+[functions.admin-health]
+verify_jwt = false
+
+... (all 105 functions)
 ```
 
-### Arquivo 3: `src/hooks/checkout/useCouponValidation.ts`
+Functions to include (from `supabase/functions/` directory listing):
+admin-data, admin-health, affiliate-pixel-management, affiliation-public, alert-stuck-orders, asaas-create-payment, asaas-validate-credentials, asaas-webhook, buyer-orders, buyer-profile, check-secrets, checkout-crud, checkout-editor, checkout-heartbeat, checkout-public-data, content-crud, content-library, content-save, coupon-management, coupon-read, create-order, dashboard-analytics, data-retention-executor, decrypt-customer-data, decrypt-customer-data-batch, detect-abandoned-checkouts, email-preview, encrypt-token, facebook-conversion-api, gdpr-forget, gdpr-request, get-affiliation-details, get-affiliation-status, get-all-affiliation-statuses, get-my-affiliations, get-order-for-pix, get-pix-status, grant-member-access, health, integration-management, key-rotation-executor, manage-affiliation, manage-user-role, manage-user-status, marketplace-public, members-area-certificates, members-area-drip, members-area-groups, members-area-modules, members-area-progress, members-area-quizzes, mercadopago-create-payment, mercadopago-oauth-callback, mercadopago-webhook, offer-bulk, offer-crud, order-bump-crud, order-lifecycle-worker, owner-settings, pixel-management, process-webhook-queue, producer-profile, product-crud, product-duplicate, product-entities, product-full-loader, product-settings, products-crud, pushinpay-create-pix, pushinpay-get-status, pushinpay-stats, pushinpay-validate-token, pushinpay-webhook, reconcile-asaas, reconcile-mercadopago, reconcile-pending-orders, request-affiliation, retry-webhooks, rls-documentation-generator, rls-security-tester, rpc-proxy, security-management, send-confirmation-email, send-email, send-pix-email, send-webhook-test, session-manager, smoke-test, storage-management, stripe-connect-oauth, stripe-create-payment, stripe-webhook, students-access, students-groups, students-invite, students-list, test-deploy, track-visit, trigger-webhooks, unified-auth, update-affiliate-settings, utmify-conversion, utmify-validate-credentials, vault-save, vendor-integrations, verify-turnstile, webhook-crud
 
-Remover a interface duplicada `CouponValidationResponse` e importar de `validateCouponApi.ts`:
+#### 1.2 `src/config/env.ts` -- Remove dead Supabase config
+
+The `supabaseAnonKey`, `supabaseUrl`, and `isSupabaseConfigured()` are dead code (no file imports them). Remove the entire "SUPABASE CONFIG" section. The RISE architecture uses `src/config/supabase.ts` exclusively.
+
+#### 1.3 `src/config/supabase.ts` -- Update documentation
+
+Update JSDoc to reference new API key system instead of "anon key".
+
+#### 1.4 `check-secrets/index.ts` -- Update key name references
+
+Change `'SUPABASE_ANON_KEY': 'supabase'` to document the new naming convention. The env var NAME stays the same (Supabase platform auto-updates the value), but the documentation should clarify what it actually contains now.
+
+#### 1.5 `check-secrets/tests/_shared.ts` -- Update test fixtures
+
+Same update as the main function.
+
+#### 1.6 `_shared/testing/test-config.ts` -- Update variable naming
+
+Rename `supabaseAnonKey` to `supabasePublishableKey` for clarity in test config.
+
+#### 1.7 `supabase/functions/run-tests.sh` -- Update variable references
+
+Update SUPABASE_ANON_KEY references to match new naming.
+
+#### 1.8 `docs/API_GATEWAY_ARCHITECTURE.md` -- Full update
+
+- Change "SUPABASE_ANON_KEY" to "SUPABASE_PUBLISHABLE_KEY" in Cloudflare Worker secrets table
+- Update "Rotacionando apikey" section
+- Add migration notes
+
+#### 1.9 `.env.example` -- Update key names
+
+Replace `VITE_SUPABASE_ANON_KEY` references with notes about new publishable key system.
+
+#### 1.10 `docs/RLS_DOCUMENTATION_GENERATOR.md` -- Update auth header examples
+
+Replace `YOUR_ANON_KEY` with appropriate new key references.
+
+#### 1.11 `tests/test-storage-ownership.sh` -- Update script references
+
+Update `ANON_KEY` / `anon_key` variables to use publishable key naming.
+
+### Phase 2: External Changes (User does manually)
+
+These steps must be done IN ORDER after Phase 1 code is deployed:
+
+#### Step 1: Verify new keys exist
+Go to Supabase Dashboard > Settings > API Keys > "Publishable and secret API keys" tab.
+Confirm you see a publishable key starting with `sb_publishable_...` and a secret key starting with `sb_secret_...`.
+
+#### Step 2: Update Cloudflare Worker secret
+In Cloudflare Dashboard (or via Wrangler CLI):
+1. Update the Worker secret from `SUPABASE_ANON_KEY` (legacy JWT value) to the new publishable key value (`sb_publishable_...`)
+2. Consider renaming the secret to `SUPABASE_PUBLISHABLE_KEY` for clarity
+3. Deploy the Worker
+
+#### Step 3: Test the system
+- Test a public checkout flow (PIX + Card)
+- Test authenticated producer flows (login, product CRUD)
+- Test buyer auth (login, member area access)
+- Verify all edge functions respond correctly
+
+#### Step 4: Disable legacy keys
+Only after confirming everything works:
+1. Supabase Dashboard > Settings > API Keys > "Legacy anon, service_role API keys" tab
+2. Click "Disable JWT-based API keys"
+3. Test again to confirm nothing breaks
+
+#### Step 5: Final validation
+- Run `smoke-test` edge function
+- Run `health` edge function
+- Verify dashboard analytics loads
+- Verify webhook processing (PushinPay, MercadoPago, Stripe)
+
+---
+
+## File Tree
 
 ```text
-ANTES:
-interface CouponValidationResponse {
-  success?: boolean;
-  error?: string;
-  data?: { ... };
-}
-
-DEPOIS:
-import type { CouponValidationResponse } from './validateCouponApi';
+MODIFIED:
+  supabase/config.toml                          <- ALL 105 functions with verify_jwt = false
+  src/config/env.ts                             <- Remove dead Supabase config section
+  src/config/supabase.ts                        <- Update JSDoc for new key system
+  supabase/functions/check-secrets/index.ts     <- Update key naming/docs
+  supabase/functions/check-secrets/tests/_shared.ts <- Update test fixtures
+  supabase/functions/_shared/testing/test-config.ts <- Rename variable
+  supabase/functions/run-tests.sh               <- Update variable naming
+  docs/API_GATEWAY_ARCHITECTURE.md              <- Full update for new key system
+  .env.example                                  <- Update key references
+  docs/RLS_DOCUMENTATION_GENERATOR.md           <- Update auth examples
+  tests/test-storage-ownership.sh               <- Update key variables
 ```
 
-### Arvore de Arquivos
+## Risk Assessment
 
-```text
-src/
-  modules/checkout-public/machines/
-    checkoutPublicMachine.types.ts   <- CouponData = AppliedCoupon alias
-  hooks/checkout/
-    validateCouponApi.ts             <- export CouponValidationResponse
-    useCouponValidation.ts           <- import CouponValidationResponse
-```
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|-----------|
+| Edge functions fail after disabling legacy keys | LOW | HIGH | `verify_jwt = false` deployed BEFORE disabling legacy keys |
+| Cloudflare Worker breaks | LOW | HIGH | Update Worker secret BEFORE disabling legacy keys |
+| Some test scripts fail | MEDIUM | LOW | Update all scripts in Phase 1 |
+| Supabase platform env vars not auto-updated | VERY LOW | HIGH | Supabase docs confirm auto-update behavior |
 
-Apos estas 3 correcoes, o sistema de cupons atinge **RISE V3 Score 10.0/10** com zero duplicacao, zero codigo morto, e SSOT absoluto.
+## Rollback Plan
+
+If anything breaks after disabling legacy keys:
+1. Supabase Dashboard > API Keys > Legacy tab > Re-enable legacy keys
+2. Revert Cloudflare Worker secret to legacy anon key value
+3. System immediately functional again
+
+Legacy keys can be re-enabled at any time until they are permanently removed by Supabase (late 2026).
 
