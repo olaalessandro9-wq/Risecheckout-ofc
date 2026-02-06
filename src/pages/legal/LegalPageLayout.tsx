@@ -74,9 +74,9 @@ export function LegalPageLayout({
   }, [sections]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-slate-950 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       {/* Header */}
-      <header className="border-b border-white/5 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-30">
+      <header className="border-b border-white/5 bg-slate-950/90 backdrop-blur-xl sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate("/legal")}
