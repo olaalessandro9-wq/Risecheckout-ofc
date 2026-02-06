@@ -56,6 +56,8 @@ describe("OrderBumpFormFields", () => {
     },
   ];
 
+  const mockOnClearFieldError = vi.fn();
+
   const defaultProps = {
     formData: { ...DEFAULT_FORM_VALUES },
     products: mockProducts,
@@ -64,7 +66,9 @@ describe("OrderBumpFormFields", () => {
     selectedProduct: undefined,
     selectedOffer: undefined,
     discountPercentage: 0,
+    validationErrors: {},
     onFieldChange: mockOnFieldChange,
+    onClearFieldError: mockOnClearFieldError,
   };
 
   beforeEach(() => {

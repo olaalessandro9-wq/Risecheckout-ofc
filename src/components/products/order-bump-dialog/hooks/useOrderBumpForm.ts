@@ -10,7 +10,13 @@ import { api } from "@/lib/api";
 import { parseBRLInput } from "@/lib/money";
 import { NormalizedOffer } from "@/services/offers";
 import { OrderBumpFormData, OrderBumpProduct, DEFAULT_FORM_VALUES, EditOrderBump } from "../types";
+import { ORDER_BUMP_FIELD_LIMITS } from "@/lib/constants/field-limits";
 import { createLogger } from "@/lib/logger";
+
+export interface OrderBumpValidationErrors {
+  customTitle?: string;
+  customDescription?: string;
+}
 
 const log = createLogger("UseOrderBumpForm");
 
@@ -52,6 +58,16 @@ export function useOrderBumpForm({
   });
   const [loading, setLoading] = useState(false);
   const [productInitialized, setProductInitialized] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<OrderBumpValidationErrors>({});
+
+  const clearFieldError = useCallback((field: keyof OrderBumpValidationErrors) => {
+    setValidationErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
 
   const STORAGE_KEY = `orderBumpForm_${productId}`;
 
@@ -180,6 +196,23 @@ export function useOrderBumpForm({
       return;
     }
 
+    // Validate field limits (SSOT)
+    const errors: OrderBumpValidationErrors = {};
+    const titleLength = (formData.customTitle ?? "").length;
+    const descLength = (formData.customDescription ?? "").length;
+
+    if (titleLength > ORDER_BUMP_FIELD_LIMITS.CUSTOM_TITLE) {
+      errors.customTitle = `O título deve ter no máximo ${ORDER_BUMP_FIELD_LIMITS.CUSTOM_TITLE} caracteres. Atual: ${titleLength}`;
+    }
+    if (descLength > ORDER_BUMP_FIELD_LIMITS.CUSTOM_DESCRIPTION) {
+      errors.customDescription = `A descrição deve ter no máximo ${ORDER_BUMP_FIELD_LIMITS.CUSTOM_DESCRIPTION} caracteres. Atual: ${descLength}`;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
     const selectedOffer = offers.find((o) => o.id === selectedOfferId);
     const currentPriceInCents = selectedOffer?.price || selectedProduct?.price || 0;
     const originPriceInCents = parseBRLInput(formData.discountPrice);
@@ -266,6 +299,8 @@ export function useOrderBumpForm({
       selectedOfferId,
     },
     loading,
+    validationErrors,
+    clearFieldError,
     updateField,
     handleSave,
     handleCancel,

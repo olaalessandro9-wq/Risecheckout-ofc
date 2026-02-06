@@ -56,3 +56,10 @@ export const FIXED_HEADER_LIMITS = {
   /** Texto do botão CTA: até 30 caracteres */
   CTA_BUTTON_TEXT_MAX: 30,
 } as const;
+
+export const ORDER_BUMP_FIELD_LIMITS = {
+  /** Título customizado do order bump: até 100 caracteres */
+  CUSTOM_TITLE: 100,
+  /** Descrição customizada do order bump: até 300 caracteres */
+  CUSTOM_DESCRIPTION: 300,
+} as const;

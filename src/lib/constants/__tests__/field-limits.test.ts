@@ -16,6 +16,7 @@ import {
   TIMER_LIMITS,
   PRODUCT_DUPLICATION,
   FIXED_HEADER_LIMITS,
+  ORDER_BUMP_FIELD_LIMITS,
 } from "@/lib/constants/field-limits";
 
 describe("Field Limits Constants", () => {
@@ -137,6 +138,21 @@ describe("Field Limits Constants", () => {
     });
   });
 
+  describe("ORDER_BUMP_FIELD_LIMITS", () => {
+    it("should have CUSTOM_TITLE limit of 100", () => {
+      expect(ORDER_BUMP_FIELD_LIMITS.CUSTOM_TITLE).toBe(100);
+    });
+
+    it("should have CUSTOM_DESCRIPTION limit of 300", () => {
+      expect(ORDER_BUMP_FIELD_LIMITS.CUSTOM_DESCRIPTION).toBe(300);
+    });
+
+    it("should be a const assertion object", () => {
+      expect(typeof ORDER_BUMP_FIELD_LIMITS).toBe("object");
+      expect(ORDER_BUMP_FIELD_LIMITS).not.toBeNull();
+    });
+  });
+
   describe("value consistency", () => {
     it("should have all limits as positive numbers", () => {
       expect(PRODUCT_FIELD_LIMITS.NAME).toBeGreaterThan(0);
@@ -146,6 +162,8 @@ describe("Field Limits Constants", () => {
       expect(CHECKOUT_TEXT_LIMITS.FONT_SIZE_MAX).toBeGreaterThan(0);
       expect(TIMER_LIMITS.TEXT_MAX_LENGTH).toBeGreaterThan(0);
       expect(FIXED_HEADER_LIMITS.TITLE_MAX).toBeGreaterThan(0);
+      expect(ORDER_BUMP_FIELD_LIMITS.CUSTOM_TITLE).toBeGreaterThan(0);
+      expect(ORDER_BUMP_FIELD_LIMITS.CUSTOM_DESCRIPTION).toBeGreaterThan(0);
     });
 
     it("should have PRODUCT and OFFER NAME limits be equal", () => {
