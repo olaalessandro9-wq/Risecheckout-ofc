@@ -195,22 +195,33 @@ export function calculateChartData(
   startDate: Date,
   endDate: Date
 ): ChartDataPoint[] {
+  // Step 1: Pre-allocate ALL days in the range with zero values
+  // Same pattern as calculateHourlyChartData (which pre-allocates all 24 hours)
   const chartDataMap = new Map<string, ChartDataPoint>();
+  const current = new Date(startDate);
 
-  orders.forEach((order) => {
-    // Use timezone service to get the correct date in São Paulo
-    const date = timezoneService.getDateInTimezone(order.created_at);
+  while (current <= endDate) {
+    const dateKey = timezoneService.getDateInTimezone(current);
 
-    if (!chartDataMap.has(date)) {
-      chartDataMap.set(date, {
-        date,
+    if (!chartDataMap.has(dateKey)) {
+      chartDataMap.set(dateKey, {
+        date: dateKey,
         revenue: 0,
         fees: 0,
         emails: 0,
       });
     }
 
-    const dataPoint = chartDataMap.get(date)!;
+    current.setDate(current.getDate() + 1);
+  }
+
+  // Step 2: Accumulate order data into the pre-allocated slots
+  orders.forEach((order) => {
+    const date = timezoneService.getDateInTimezone(order.created_at);
+    const dataPoint = chartDataMap.get(date);
+
+    // Only accumulate if the order falls within the pre-allocated range
+    if (!dataPoint) return;
 
     if (order.status?.toLowerCase() === "paid") {
       dataPoint.revenue += (order.amount_cents || 0) / 100;
@@ -223,27 +234,6 @@ export function calculateChartData(
     }
   });
 
-  let chartData = Array.from(chartDataMap.values());
-
-  if (chartData.length === 0) {
-    const daysDiff = Math.ceil(
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const numPoints = Math.min(Math.max(daysDiff, 7), 30);
-
-    for (let i = 0; i < numPoints; i++) {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + Math.floor((i * daysDiff) / numPoints));
-      chartData.push({
-        date: timezoneService.getDateInTimezone(date),
-        revenue: 0,
-        fees: 0,
-        emails: 0,
-      });
-    }
-  }
-
-  chartData.sort((a, b) => a.date.localeCompare(b.date));
-
-  return chartData;
+  // Step 3: Convert to array (Map preserves insertion order = chronological)
+  return Array.from(chartDataMap.values());
 }

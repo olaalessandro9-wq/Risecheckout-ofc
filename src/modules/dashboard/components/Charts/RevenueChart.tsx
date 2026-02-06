@@ -229,7 +229,7 @@ export function RevenueChart({
               tickLine={false}
               axisLine={false}
               dy={10}
-              padding={{ left: 20, right: 20 }}
+              padding={{ left: 5, right: 5 }}
               interval={isUltrawide ? "preserveStartEnd" : "preserveEnd"}
               minTickGap={isUltrawide ? 100 : 50}
             />
