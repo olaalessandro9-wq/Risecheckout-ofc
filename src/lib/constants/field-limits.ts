@@ -63,3 +63,8 @@ export const ORDER_BUMP_FIELD_LIMITS = {
   /** Descrição customizada do order bump: até 300 caracteres */
   CUSTOM_DESCRIPTION: 300,
 } as const;
+
+export const CHECKOUT_FIELD_LIMITS = {
+  /** Nome do checkout: até 100 caracteres */
+  NAME: 100,
+} as const;

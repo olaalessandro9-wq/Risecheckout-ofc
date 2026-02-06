@@ -14,6 +14,7 @@
 import { useState, useEffect } from "react";
 import { X, AlertCircle, Loader2 } from "lucide-react";
 import { createLogger } from "@/lib/logger";
+import { CHECKOUT_FIELD_LIMITS } from "@/lib/constants/field-limits";
 
 const log = createLogger("CheckoutConfigDialog");
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ export const CheckoutConfigDialog = ({
   const [isDefault, setIsDefault] = useState(false);
   const [selectedOfferId, setSelectedOfferId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     if (checkout) {
@@ -86,11 +88,18 @@ export const CheckoutConfigDialog = ({
       const defaultOffer = availableOffers.find(offer => offer.is_default);
       setSelectedOfferId(defaultOffer ? defaultOffer.id : (availableOffers[0]?.id || ""));
     }
+    setNameError(null);
   }, [checkout, open, currentOfferId, availableOffers]);
 
   const handleSave = async () => {
     if (!name || !selectedOfferId) {
       toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    // Validate field limits (SSOT)
+    if (name.length > CHECKOUT_FIELD_LIMITS.NAME) {
+      setNameError(`O nome deve ter no máximo ${CHECKOUT_FIELD_LIMITS.NAME} caracteres. Atual: ${name.length}`);
       return;
     }
 
@@ -172,11 +181,17 @@ export const CheckoutConfigDialog = ({
             <Input
               id="checkout-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (nameError) setNameError(null);
+              }}
               placeholder="Digite o nome do checkout"
-              className="bg-background border-border"
+              className={`bg-background ${nameError ? "border-destructive" : "border-border"}`}
               disabled={saving}
             />
+            {nameError && (
+              <p className="text-[11px] text-destructive leading-tight">{nameError}</p>
+            )}
           </div>
 
           {/* Definir como padrão */}
