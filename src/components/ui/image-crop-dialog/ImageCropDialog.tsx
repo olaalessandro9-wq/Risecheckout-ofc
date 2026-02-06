@@ -2,9 +2,9 @@
  * ImageCropDialog - Componente Unificado de Crop de Imagem (Estilo Cakto)
  * 
  * Usa FixedCropper do react-advanced-cropper com stencil fixo.
- * A imagem aparece 100% visível dentro do stencil, com liberdade total
- * de zoom e pan. Áreas vazias mostram xadrez no editor e recebem cor
- * sólida ao salvar.
+ * A imagem aparece centralizada e FIXA (sem arraste). O zoom é feito
+ * exclusivamente via scroll do mouse / pinch (gesto nativo).
+ * Áreas vazias mostram xadrez no editor e transparência real no PNG final.
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
@@ -27,8 +27,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Loader2, ZoomIn, ZoomOut } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getCropConfig } from "./presets";
 import { useStencilSize } from "./useStencilSize";
 import type { ImageCropDialogProps } from "./types";
@@ -46,9 +45,21 @@ const CHECKERBOARD_STYLE = {
 } as const;
 
 /**
+ * Props para desabilitar o arraste da imagem (Cakto-style: imagem fixa).
+ * 
+ * moveImage: false → desabilita drag via mouse/touch
+ * scaleImage permanece true (default) → zoom via scroll/pinch funciona
+ * 
+ * Confirmado no source: CropperBackgroundWrapper passa moveImage
+ * como mouseMove e touchMove ao TransformableImage interno.
+ */
+const FIXED_IMAGE_PROPS = { moveImage: false } as const;
+
+/**
  * Componente principal de crop de imagem (estilo Cakto)
  * 
- * Stencil fixo no centro, imagem aparece completa, zoom/pan livres.
+ * Stencil fixo no centro, imagem centralizada e fixa (sem arraste),
+ * zoom exclusivo via scroll do mouse.
  */
 export function ImageCropDialog({
   open,
@@ -63,7 +74,6 @@ export function ImageCropDialog({
   const config = getCropConfig(preset, customConfig);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(100);
   const [isSaving, setIsSaving] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const cropperRef = useRef<FixedCropperRef>(null);
@@ -80,30 +90,22 @@ export function ImageCropDialog({
     }
   }, [imageFile, open]);
 
-  // Reset zoom ao abrir
+  // Reset state ao abrir
   useEffect(() => {
     if (open) {
-      setZoom(100);
       setIsImageLoaded(false);
     }
   }, [open, imageFile]);
 
-  // Zoom via slider
-  const handleZoomChange = useCallback(
-    (value: number[]) => {
-      const newZoom = value[0];
-      if (cropperRef.current) {
-        const zoomFactor = newZoom / zoom;
-        cropperRef.current.zoomImage(zoomFactor, { transitions: true });
-      }
-      setZoom(newZoom);
-    },
-    [zoom]
-  );
-
   /**
-   * onReady: centraliza a imagem se fixedStencilAlgorithm descentrou
-   * (root cause: escala visibleArea para top=0 quando aspect ratios diferem).
+   * onReady: centraliza a imagem usando setState (sem postProcess).
+   * 
+   * ROOT CAUSE FIX: moveImage() dispara transformImageAlgorithm que
+   * aplica fixedStencilAlgorithm como postProcess, desfazendo a correção.
+   * setState() com postprocess=false (default) preserva o state exato
+   * que passamos, sem recálculos.
+   * 
+   * @see AbstractCropperInstance.js linhas 257-276
    */
   const handleReady = useCallback((cropper: FixedCropperRef) => {
     setIsImageLoaded(true);
@@ -128,23 +130,24 @@ export function ImageCropDialog({
     const TOLERANCE = 1; // px
 
     if (Math.abs(diffX) > TOLERANCE || Math.abs(diffY) > TOLERANCE) {
-      // moveImage(left, top) move a IMAGEM. Mover a imagem para a direita
-      // equivale a mover a visibleArea para a esquerda. Para centralizar
-      // a visibleArea nas coordinates, invertemos o diff.
-      cropper.moveImage(-diffX, -diffY);
-      log.info("Centering corrected after initialization", {
+      cropper.setState(
+        (currentState) => {
+          if (!currentState) return currentState;
+          return {
+            ...currentState,
+            visibleArea: {
+              ...currentState.visibleArea,
+              left: currentState.visibleArea.left + diffX,
+              top: currentState.visibleArea.top + diffY,
+            },
+          };
+        },
+        { transitions: false }
+      );
+      log.info("Centering corrected via setState (no postProcess)", {
         diffX: Math.round(diffX),
         diffY: Math.round(diffY),
       });
-    }
-  }, []);
-
-  // onTransformImageEnd dispara após cada zoom/pan do usuário
-  const handleTransformEnd = useCallback((cropper: FixedCropperRef) => {
-    const state = cropper.getState();
-    if (state?.visibleArea && state.boundary.width > 0) {
-      const visibleAreaScale = state.boundary.width / state.visibleArea.width;
-      setZoom(Math.round(visibleAreaScale * 100));
     }
   }, []);
 
@@ -155,7 +158,7 @@ export function ImageCropDialog({
     setIsImageLoaded(false);
   }, [imageUrl]);
 
-  // Salvar imagem com áreas vazias preenchidas
+  // Salvar imagem como PNG com transparência real
   const handleSaveCrop = useCallback(async () => {
     if (!cropperRef.current) {
       log.warn("No cropper instance available");
@@ -242,10 +245,10 @@ export function ImageCropDialog({
                   resizable: false,
                 }}
                 imageRestriction={ImageRestriction.none}
+                backgroundWrapperProps={FIXED_IMAGE_PROPS}
                 crossOrigin={false}
                 transitions={true}
                 onReady={handleReady}
-                onTransformImageEnd={handleTransformEnd}
                 onError={handleCropperError}
               />
             )}
@@ -258,23 +261,6 @@ export function ImageCropDialog({
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Zoom Control */}
-          <div className="flex items-center gap-4 px-4">
-            <ZoomOut className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Slider
-              value={[zoom]}
-              onValueChange={handleZoomChange}
-              min={10}
-              max={400}
-              step={1}
-              className="flex-1"
-            />
-            <ZoomIn className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground whitespace-nowrap w-14 text-right">
-              {zoom}%
-            </span>
           </div>
         </div>
 
