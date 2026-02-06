@@ -71,13 +71,13 @@ export function useCenteredPostProcess() {
       // 4. Calculate delta to center image in viewport
       const imageCenterX = result.imageSize.width / 2;
       const imageCenterY = result.imageSize.height / 2;
-      const viewCenterX =
-        result.visibleArea.left + result.visibleArea.width / 2;
-      const viewCenterY =
-        result.visibleArea.top + result.visibleArea.height / 2;
+      const coordsCenterX =
+        result.coordinates.left + result.coordinates.width / 2;
+      const coordsCenterY =
+        result.coordinates.top + result.coordinates.height / 2;
 
-      const deltaX = imageCenterX - viewCenterX;
-      const deltaY = imageCenterY - viewCenterY;
+      const deltaX = imageCenterX - coordsCenterX;
+      const deltaY = imageCenterY - coordsCenterY;
 
       // 5. Skip if already centered (avoid unnecessary state churn)
       if (
