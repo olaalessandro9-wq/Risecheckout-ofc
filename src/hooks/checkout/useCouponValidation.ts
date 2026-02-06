@@ -14,21 +14,9 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
 import type { AppliedCoupon } from '@/types/checkout-shared.types';
+import type { CouponValidationResponse } from './validateCouponApi';
 
 const log = createLogger('CouponValidation');
-
-interface CouponValidationResponse {
-  success?: boolean;
-  error?: string;
-  data?: {
-    id: string;
-    code: string;
-    name: string;
-    discount_type: string;
-    discount_value: number;
-    apply_to_order_bumps: boolean;
-  };
-}
 
 interface UseCouponValidationParams {
   productId?: string;

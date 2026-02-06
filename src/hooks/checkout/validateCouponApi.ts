@@ -22,7 +22,7 @@ const log = createLogger('validateCouponApi');
 // TYPES
 // ============================================================================
 
-interface CouponValidationResponse {
+export interface CouponValidationResponse {
   success?: boolean;
   error?: string;
   data?: {
