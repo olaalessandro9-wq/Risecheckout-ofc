@@ -16,5 +16,6 @@
  */
 
 export { ImageCropDialog } from "./ImageCropDialog";
+export { exportCropToPng } from "./cropExport";
 export { CROP_PRESETS, getCropConfig, DEFAULT_PRESET } from "./presets";
 export type { ImageCropDialogProps, CropConfig, CropPresetName } from "./types";
