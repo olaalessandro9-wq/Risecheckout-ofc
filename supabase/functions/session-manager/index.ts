@@ -25,7 +25,8 @@
  * ============================================================================
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { getUnifiedAccessToken } from "../_shared/unified-auth-v2.ts";
@@ -104,9 +105,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase: SupabaseClientAny = createClient(supabaseUrl, serviceRoleKey);
+    const supabase: SupabaseClientAny = getSupabaseClient('general');
 
     // Authenticate request
     const auth = await authenticateRequest(req, supabase);

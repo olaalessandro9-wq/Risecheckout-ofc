@@ -12,7 +12,7 @@
  * ============================================================================
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import type { SupabaseClientAny, TestRequest } from "./types.ts";
@@ -39,10 +39,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Initialize Supabase client with service role
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase: SupabaseClientAny = createClient(supabaseUrl, serviceRoleKey);
+    // Initialize Supabase client with admin domain key
+    const supabase: SupabaseClientAny = getSupabaseClient('admin');
 
     // Parse request
     const body: TestRequest = await req.json();

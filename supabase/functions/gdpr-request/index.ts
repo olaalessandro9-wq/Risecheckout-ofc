@@ -9,7 +9,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, getClientIP, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { sendEmail } from "../_shared/zeptomail.ts";
@@ -162,10 +162,8 @@ serve(async (req: Request) => {
   }
 
   try {
-    // 3. Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // 3. Supabase client with admin domain key
+    const supabase = getSupabaseClient('admin');
 
     // 4. Rate limiting (RISE V3 - Config centralizada)
     const rateLimitResult = await rateLimitMiddleware(
