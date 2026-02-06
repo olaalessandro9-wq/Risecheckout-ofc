@@ -1,5 +1,6 @@
 /**
  * FixedHeader Editor - Editor panel for fixed header section
+ * Gradient controls removed: now managed globally via GlobalSettingsPanel
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
@@ -8,9 +9,7 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { 
   Select,
   SelectContent,
@@ -21,13 +20,7 @@ import {
 import { ImageUploadWithCrop } from '../../shared/ImageUploadWithCrop';
 import { HEADER_UPLOAD_CONFIG } from '../../shared/imageUploadConfigs';
 import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
-import type { 
-  Section, 
-  FixedHeaderSettings, 
-  GradientDirection,
-  GradientOverlayConfig,
-} from '../../../types';
-import { DEFAULT_GRADIENT_OVERLAY } from '../../../types';
+import type { Section, FixedHeaderSettings } from '../../../types';
 
 interface FixedHeaderEditorProps {
   section: Section;
@@ -37,22 +30,12 @@ interface FixedHeaderEditorProps {
 
 export function FixedHeaderEditor({ section, onUpdate, productId }: FixedHeaderEditorProps) {
   const settings = section.settings as FixedHeaderSettings;
-  const gradientOverlay = settings.gradient_overlay ?? DEFAULT_GRADIENT_OVERLAY;
 
   // Backwards compatibility
   const showStats = settings.show_stats ?? settings.show_module_count ?? true;
   const showTitle = settings.show_title ?? true;
   const showDescription = settings.show_description ?? false;
   const showCtaButton = settings.show_cta_button ?? false;
-
-  const updateGradient = (updates: Partial<GradientOverlayConfig>) => {
-    onUpdate({ 
-      gradient_overlay: { 
-        ...gradientOverlay, 
-        ...updates 
-      } 
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -245,93 +228,6 @@ export function FixedHeaderEditor({ section, onUpdate, productId }: FixedHeaderE
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      {/* ========== GRADIENT SECTION ========== */}
-      <div className="space-y-3 pt-4 border-t">
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label>Efeito de Gradiente</Label>
-            <p className="text-xs text-muted-foreground">
-              Suaviza a transição para o conteúdo
-            </p>
-          </div>
-          <Switch
-            checked={gradientOverlay.enabled}
-            onCheckedChange={(enabled) => updateGradient({ enabled })}
-          />
-        </div>
-        
-        {gradientOverlay.enabled && (
-          <>
-            {/* Direction */}
-            <div className="space-y-2">
-              <Label>Direção</Label>
-              <Select
-                value={gradientOverlay.direction}
-                onValueChange={(direction: GradientDirection) => updateGradient({ direction })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bottom">Para Baixo ↓</SelectItem>
-                  <SelectItem value="top">Para Cima ↑</SelectItem>
-                  <SelectItem value="left">Para Esquerda ←</SelectItem>
-                  <SelectItem value="right">Para Direita →</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Strength Slider */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Intensidade</Label>
-                <span className="text-xs text-muted-foreground">
-                  {gradientOverlay.strength}%
-                </span>
-              </div>
-              <Slider
-                value={[gradientOverlay.strength]}
-                onValueChange={([strength]) => updateGradient({ strength })}
-                min={0}
-                max={100}
-                step={1}
-              />
-            </div>
-            
-            {/* Color Mode */}
-            <div className="space-y-2">
-              <Label>Cor do Gradiente</Label>
-              <RadioGroup
-                value={gradientOverlay.use_theme_color ? 'theme' : 'custom'}
-                onValueChange={(value) => updateGradient({ use_theme_color: value === 'theme' })}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="theme" id="header-gradient-theme" />
-                  <Label htmlFor="header-gradient-theme" className="font-normal cursor-pointer">
-                    Usar cor do tema (recomendado)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="custom" id="header-gradient-custom" />
-                  <Label htmlFor="header-gradient-custom" className="font-normal cursor-pointer">
-                    Cor customizada
-                  </Label>
-                </div>
-              </RadioGroup>
-              
-              {!gradientOverlay.use_theme_color && (
-                <Input
-                  type="color"
-                  value={gradientOverlay.custom_color || '#000000'}
-                  onChange={(e) => updateGradient({ custom_color: e.target.value })}
-                  className="h-10 w-full cursor-pointer"
-                />
-              )}
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

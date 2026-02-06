@@ -37,15 +37,17 @@ interface BannerSettings {
 interface BuyerBannerSectionProps {
   settings: BannerSettings;
   title?: string | null;
+  /** Global gradient config from MembersAreaBuilderSettings (SSOT) */
+  gradientConfig?: GradientOverlayConfig;
 }
 
-export function BuyerBannerSection({ settings, title }: BuyerBannerSectionProps) {
+export function BuyerBannerSection({ settings, title, gradientConfig: gradientConfigProp }: BuyerBannerSectionProps) {
   const slides = settings.slides || [];
   const hasSlides = slides.length > 0;
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Resolve gradient config with backwards compatibility
-  const gradientConfig = resolveGradientConfig(settings.gradient_overlay);
+  // Resolve gradient: global config (SSOT) takes priority, fallback to per-section (backwards compat)
+  const gradientConfig = resolveGradientConfig(gradientConfigProp ?? settings.gradient_overlay);
 
   const autoplayPlugin = Autoplay({
     delay: (settings.transition_seconds || 5) * 1000,

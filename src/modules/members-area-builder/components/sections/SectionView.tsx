@@ -1,11 +1,12 @@
 /**
  * Section View - Renderiza a seção correta baseado no tipo
+ * Propagates global gradientConfig to sections that need it
  * 
  * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import React from 'react';
-import type { Section, ViewMode, MemberModule } from '../../types';
+import type { Section, ViewMode, MemberModule, GradientOverlayConfig } from '../../types';
 import { FixedHeaderView } from './FixedHeader/FixedHeaderView';
 import { BannerView } from './Banner/BannerView';
 import { ModulesView } from './Modules/ModulesView';
@@ -22,6 +23,8 @@ interface SectionViewProps {
   onModuleClick?: (moduleId: string) => void;
   isPreviewMode?: boolean;
   productName?: string;
+  /** Global gradient config from MembersAreaBuilderSettings (SSOT) */
+  gradientConfig?: GradientOverlayConfig;
 }
 
 export function SectionView({ 
@@ -31,7 +34,8 @@ export function SectionView({
   modules, 
   onModuleClick,
   isPreviewMode = false,
-  productName
+  productName,
+  gradientConfig,
 }: SectionViewProps) {
   const commonProps = { viewMode, theme, isPreviewMode };
 
@@ -43,10 +47,11 @@ export function SectionView({
           {...commonProps} 
           modules={modules}
           productName={productName}
+          gradientConfig={gradientConfig}
         />
       );
     case 'banner':
-      return <BannerView section={section} {...commonProps} />;
+      return <BannerView section={section} {...commonProps} gradientConfig={gradientConfig} />;
     case 'modules':
       return <ModulesView section={section} {...commonProps} modules={modules} onModuleClick={onModuleClick} />;
     case 'courses':

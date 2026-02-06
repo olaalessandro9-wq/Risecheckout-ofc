@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { ImageIcon } from 'lucide-react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-import type { Section, BannerSettings, ViewMode } from '../../../types';
+import type { Section, BannerSettings, ViewMode, GradientOverlayConfig } from '../../../types';
 import { 
   generateCombinedOverlayStyle,
   resolveGradientConfig 
@@ -25,16 +25,18 @@ interface BannerViewProps {
   section: Section;
   viewMode: ViewMode;
   theme: 'light' | 'dark';
+  /** Global gradient config from MembersAreaBuilderSettings (SSOT) */
+  gradientConfig?: GradientOverlayConfig;
 }
 
-export function BannerView({ section, viewMode, theme }: BannerViewProps) {
+export function BannerView({ section, viewMode, theme, gradientConfig: gradientConfigProp }: BannerViewProps) {
   const settings = section.settings as BannerSettings;
   const slides = settings.slides || [];
   const hasSlides = slides.length > 0;
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Resolve gradient config with backwards compatibility
-  const gradientConfig = resolveGradientConfig(settings.gradient_overlay);
+  // Resolve gradient: global config (SSOT) takes priority, fallback to per-section (backwards compat)
+  const gradientConfig = resolveGradientConfig(gradientConfigProp ?? settings.gradient_overlay);
 
   const autoplayPlugin = Autoplay({
     delay: (settings.transition_seconds || 5) * 1000,

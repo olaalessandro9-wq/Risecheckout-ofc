@@ -1,17 +1,14 @@
 /**
  * Banner Editor - Editor de configurações do banner
- * Com suporte a Gradient Overlay customizável (Netflix-style)
+ * Gradient controls removed: now managed globally via GlobalSettingsPanel
  * 
- * @see RISE ARCHITECT PROTOCOL V3 - Solution 10.0/10
+ * @see RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { 
   Select,
   SelectContent,
@@ -22,14 +19,7 @@ import {
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { ImageUploadWithCrop } from '../../shared/ImageUploadWithCrop';
 import { BANNER_UPLOAD_CONFIG } from '../../shared/imageUploadConfigs';
-import type { 
-  Section, 
-  BannerSettings, 
-  BannerSlide, 
-  GradientDirection,
-  GradientOverlayConfig,
-} from '../../../types';
-import { DEFAULT_GRADIENT_OVERLAY } from '../../../types';
+import type { Section, BannerSettings, BannerSlide } from '../../../types';
 
 interface BannerEditorProps {
   section: Section;
@@ -40,7 +30,6 @@ interface BannerEditorProps {
 export function BannerEditor({ section, onUpdate, productId }: BannerEditorProps) {
   const settings = section.settings as BannerSettings;
   const slides = settings.slides || [];
-  const gradientOverlay = settings.gradient_overlay ?? DEFAULT_GRADIENT_OVERLAY;
 
   const addSlide = () => {
     const newSlide: BannerSlide = {
@@ -61,15 +50,6 @@ export function BannerEditor({ section, onUpdate, productId }: BannerEditorProps
 
   const removeSlide = (index: number) => {
     onUpdate({ slides: slides.filter((_, i) => i !== index) });
-  };
-
-  const updateGradient = (updates: Partial<GradientOverlayConfig>) => {
-    onUpdate({ 
-      gradient_overlay: { 
-        ...gradientOverlay, 
-        ...updates 
-      } 
-    });
   };
 
   return (
@@ -173,93 +153,6 @@ export function BannerEditor({ section, onUpdate, productId }: BannerEditorProps
           value={settings.transition_seconds || 5}
           onChange={(e) => onUpdate({ transition_seconds: parseInt(e.target.value) || 5 })}
         />
-      </div>
-
-      {/* Gradient Overlay Settings */}
-      <div className="space-y-3 pt-4 border-t">
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label>Efeito de Gradiente</Label>
-            <p className="text-xs text-muted-foreground">
-              Suaviza a transição do banner para o conteúdo
-            </p>
-          </div>
-          <Switch
-            checked={gradientOverlay.enabled}
-            onCheckedChange={(enabled) => updateGradient({ enabled })}
-          />
-        </div>
-        
-        {gradientOverlay.enabled && (
-          <>
-            {/* Direction */}
-            <div className="space-y-2">
-              <Label>Direção</Label>
-              <Select
-                value={gradientOverlay.direction}
-                onValueChange={(direction: GradientDirection) => updateGradient({ direction })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bottom">Para Baixo ↓</SelectItem>
-                  <SelectItem value="top">Para Cima ↑</SelectItem>
-                  <SelectItem value="left">Para Esquerda ←</SelectItem>
-                  <SelectItem value="right">Para Direita →</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Strength Slider */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Intensidade</Label>
-                <span className="text-xs text-muted-foreground">
-                  {gradientOverlay.strength}%
-                </span>
-              </div>
-              <Slider
-                value={[gradientOverlay.strength]}
-                onValueChange={([strength]) => updateGradient({ strength })}
-                min={0}
-                max={100}
-                step={1}
-              />
-            </div>
-            
-            {/* Color Mode */}
-            <div className="space-y-2">
-              <Label>Cor do Gradiente</Label>
-              <RadioGroup
-                value={gradientOverlay.use_theme_color ? 'theme' : 'custom'}
-                onValueChange={(value) => updateGradient({ use_theme_color: value === 'theme' })}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="theme" id="gradient-theme" />
-                  <Label htmlFor="gradient-theme" className="font-normal cursor-pointer">
-                    Usar cor do tema (recomendado)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="custom" id="gradient-custom" />
-                  <Label htmlFor="gradient-custom" className="font-normal cursor-pointer">
-                    Cor customizada
-                  </Label>
-                </div>
-              </RadioGroup>
-              
-              {!gradientOverlay.use_theme_color && (
-                <Input
-                  type="color"
-                  value={gradientOverlay.custom_color || '#000000'}
-                  onChange={(e) => updateGradient({ custom_color: e.target.value })}
-                  className="h-10 w-full cursor-pointer"
-                />
-              )}
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

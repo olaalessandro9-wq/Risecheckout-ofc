@@ -113,6 +113,7 @@ export const DEFAULT_BUILDER_SETTINGS: MembersAreaBuilderSettings = {
   show_menu_mobile: true,
   menu_items: DEFAULT_MENU_ITEMS,
   sidebar_animation: 'click',
+  gradient_overlay: DEFAULT_GRADIENT_OVERLAY,
   login_layout: 'centered',
   login_background_url: undefined,
   login_logo_url: undefined,

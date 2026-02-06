@@ -88,6 +88,7 @@ export function parseSettings(data: unknown): MembersAreaBuilderSettings {
     show_menu_mobile: partial.show_menu_mobile ?? DEFAULT_BUILDER_SETTINGS.show_menu_mobile,
     menu_items: partial.menu_items ?? DEFAULT_BUILDER_SETTINGS.menu_items,
     sidebar_animation: partial.sidebar_animation ?? DEFAULT_BUILDER_SETTINGS.sidebar_animation,
+    gradient_overlay: partial.gradient_overlay ?? DEFAULT_BUILDER_SETTINGS.gradient_overlay,
     login_layout: partial.login_layout ?? DEFAULT_BUILDER_SETTINGS.login_layout,
     login_background_url: partial.login_background_url,
     login_logo_url: partial.login_logo_url,

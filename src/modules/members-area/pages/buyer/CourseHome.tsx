@@ -134,15 +134,16 @@ export default function CourseHome() {
   // Check if we have Builder sections configured
   const hasBuilderSections = sections.length > 0;
 
-  // Compute background override for custom gradient color continuity
-  // Sets BOTH --background (for children) AND backgroundColor (overrides hardcoded Tailwind)
-  const contentStyle = useMemo(() => {
-    const headerSection = sections.find(s => s.type === 'fixed_header');
-    if (!headerSection) return undefined;
-    const headerSettings = headerSection.settings as unknown as FixedHeaderSettings;
-    const gradientConfig = resolveGradientConfig(headerSettings.gradient_overlay);
-    return buildGradientContentStyle(gradientConfig);
-  }, [sections]);
+  // Global gradient config (SSOT) from membersAreaSettings
+  const globalGradientConfig = useMemo(() => 
+    resolveGradientConfig(membersAreaSettings.gradient_overlay),
+    [membersAreaSettings.gradient_overlay]
+  );
+
+  const contentStyle = useMemo(() => 
+    buildGradientContentStyle(globalGradientConfig),
+    [globalGradientConfig]
+  );
 
   if (authLoading || isLoading) {
     return (
@@ -225,8 +226,8 @@ export default function CourseHome() {
                       lessonCount={lessonCount}
                       productName={product?.name}
                       productDescription={product?.description || undefined}
+                      gradientConfig={globalGradientConfig}
                       onStartCourse={() => {
-                        // Navigate to first content of first module
                         const firstModule = modules[0];
                         const firstContent = firstModule?.contents?.[0];
                         if (firstContent) {
@@ -257,6 +258,7 @@ export default function CourseHome() {
                       key={section.id}
                       settings={bannerSettings}
                       title={section.title}
+                      gradientConfig={globalGradientConfig}
                     />
                   );
                 }

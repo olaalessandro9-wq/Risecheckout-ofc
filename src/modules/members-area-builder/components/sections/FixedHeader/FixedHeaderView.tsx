@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { ImageIcon, Play, BookOpen, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FIXED_HEADER_LIMITS } from '@/lib/constants/field-limits';
-import type { Section, FixedHeaderSettings, ViewMode } from '../../../types';
+import type { Section, FixedHeaderSettings, ViewMode, GradientOverlayConfig } from '../../../types';
 import type { MemberModule, ModuleWithContents } from '@/modules/members-area/types/module.types';
 import { 
   generateCombinedOverlayStyle,
@@ -25,6 +25,8 @@ interface FixedHeaderViewProps {
   productName?: string;
   productDescription?: string;
   isPreviewMode?: boolean;
+  /** Global gradient config from MembersAreaBuilderSettings (SSOT) */
+  gradientConfig?: GradientOverlayConfig;
 }
 
 /**
@@ -54,7 +56,8 @@ export function FixedHeaderView({
   modules = [],
   productName,
   productDescription,
-  isPreviewMode = false 
+  isPreviewMode = false,
+  gradientConfig: gradientConfigProp,
 }: FixedHeaderViewProps) {
   const settings = section.settings as FixedHeaderSettings;
   const hasImage = !!settings.bg_image_url;
@@ -66,8 +69,8 @@ export function FixedHeaderView({
   const showDescription = settings.show_description ?? false;
   const showCtaButton = settings.show_cta_button ?? false;
   
-  // Resolve gradient config
-  const gradientConfig = resolveGradientConfig(settings.gradient_overlay);
+  // Resolve gradient: global config (SSOT) takes priority, fallback to per-section (backwards compat)
+  const gradientConfig = resolveGradientConfig(gradientConfigProp ?? settings.gradient_overlay);
 
   // RISE V3: Hero header sizes with viewport units + safety limits
   const heightClass = {
