@@ -29,7 +29,7 @@ export function LessonHeader({
   showRating = true,
 }: LessonHeaderProps) {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 border-b border-border/50 bg-background">
       <div className="flex items-center justify-between h-12 px-3 md:px-4">
         {/* Back Button */}
         <Link to={`/minha-conta/produto/${productId}`}>

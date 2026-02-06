@@ -83,7 +83,7 @@ export function MembersAreaThemeProvider({
     <div 
       style={cssVars} 
       className={cn(
-        "members-area-root min-h-screen bg-background",
+        "members-area-root min-h-screen bg-background text-foreground",
         isDarkTheme && "dark"
       )}
     >
