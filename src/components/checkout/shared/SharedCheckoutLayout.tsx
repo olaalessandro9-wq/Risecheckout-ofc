@@ -37,7 +37,9 @@ interface SharedCheckoutLayoutProps {
   creditCardGateway?: string;
   amount?: number;
   onSubmitPayment?: (token: string, installments: number, paymentMethodId: string, issuerId: string, holderDocument?: string) => Promise<void>;
-  onTotalChange?: (total: number, appliedCoupon: AppliedCoupon | null) => void;
+  appliedCoupon?: AppliedCoupon | null;
+  onApplyCoupon?: (coupon: AppliedCoupon) => void;
+  onRemoveCoupon?: () => void;
   additionalContent?: React.ReactNode;
   formWrapper?: (children: React.ReactNode, formRef: React.RefObject<HTMLFormElement>) => React.ReactNode;
 }
@@ -45,7 +47,7 @@ interface SharedCheckoutLayoutProps {
 export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
   productData, orderBumps, design, selectedPayment, onPaymentChange, selectedBumps, onToggleBump,
   mode, formData, formErrors, onFieldChange, requiredFields, isProcessing, publicKey,
-  creditCardGateway, amount, onSubmitPayment, onTotalChange, additionalContent, formWrapper,
+  creditCardGateway, amount, onSubmitPayment, appliedCoupon, onApplyCoupon, onRemoveCoupon, additionalContent, formWrapper,
 }) => {
   const { formRef, handleCardSubmitReady, handleCheckoutClick } = useCheckoutSubmit(selectedPayment);
 
@@ -129,7 +131,7 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
       {productData && (
         <>
           <Divider />
-          <SharedOrderSummary productData={productData} orderBumps={orderBumps} selectedBumps={selectedBumps} design={design} mode={mode} onTotalChange={onTotalChange} />
+          <SharedOrderSummary productData={productData} orderBumps={orderBumps} selectedBumps={selectedBumps} design={design} mode={mode} appliedCoupon={appliedCoupon} onApplyCoupon={onApplyCoupon} onRemoveCoupon={onRemoveCoupon} />
         </>
       )}
 

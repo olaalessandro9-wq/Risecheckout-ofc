@@ -240,15 +240,9 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     setPaymentMethod(method);
   }, [setPaymentMethod]);
 
-  // RISE V3: Sincronizar cupom com máquina XState (SSOT)
-  // Antes: apenas atualizava estado local, cupom não era enviado ao backend
-  const handleTotalChange = useCallback((_total: number, coupon: typeof appliedCoupon) => {
-    if (coupon) {
-      applyCoupon(coupon);
-    } else if (appliedCoupon) {
-      removeCoupon();
-    }
-  }, [applyCoupon, removeCoupon, appliedCoupon]);
+  // RISE V3: Cupom é gerenciado diretamente pela máquina XState (SSOT)
+  // Callbacks passados diretamente ao SharedOrderSummary via layout props
+  // Zero feedback loops, zero estado duplicado
 
   // Tracking Service (apenas UTMify) - cast to expected type or null
   const { fireInitiateCheckout } = useTrackingService({
@@ -382,7 +376,9 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
           creditCardGateway={creditCardGateway}
           amount={memoizedAmount}
           onSubmitPayment={handleCardSubmit}
-          onTotalChange={handleTotalChange}
+          appliedCoupon={appliedCoupon}
+          onApplyCoupon={applyCoupon}
+          onRemoveCoupon={removeCoupon}
           formWrapper={(children, formRef) => (
             <form ref={formRef as React.RefObject<HTMLFormElement>} onSubmit={handleSubmit} className="space-y-6">
               {children}
