@@ -6,11 +6,9 @@
  */
 
 import { useCallback, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
-import { membersAreaQueryKeys } from "./useMembersAreaSettings";
 import type { MemberModule, ModuleWithContents } from "../types";
 import type { MembersAreaMachineEvent } from "./machines";
 
@@ -35,7 +33,6 @@ export function useMembersAreaModules({
   dispatch,
 }: UseMembersAreaModulesProps): UseMembersAreaModulesReturn {
   const previousModulesRef = useRef<ModuleWithContents[]>([]);
-  const queryClient = useQueryClient();
 
   const addModule = useCallback(async (
     title: string,
@@ -84,14 +81,8 @@ export function useMembersAreaModules({
     }
 
     dispatch({ type: 'UPDATE_MODULE', id, data: updateData });
-    // Invalidate cache for cross-view sync with builder
-    if (productId) {
-      queryClient.invalidateQueries({ 
-        queryKey: membersAreaQueryKeys.modules(productId) 
-      });
-    }
     toast.success("Módulo atualizado!");
-  }, [dispatch, productId, queryClient]);
+  }, [dispatch]);
 
   const deleteModule = useCallback(async (id: string): Promise<void> => {
     const { error } = await api.call<{ success: boolean; error?: string }>('members-area-modules', {
