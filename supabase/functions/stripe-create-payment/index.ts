@@ -14,7 +14,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
@@ -54,10 +54,7 @@ serve(withSentry('stripe-create-payment', async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+  const supabase = getSupabaseClient('payments');
 
   // 1. Rate Limiting (RISE V3 - Config específica por gateway)
   const rateLimitResponse = await rateLimitOnlyMiddleware(

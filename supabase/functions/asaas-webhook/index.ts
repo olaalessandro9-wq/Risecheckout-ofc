@@ -12,7 +12,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from '../_shared/supabase-client.ts';
 import { logSecurityEvent, SecurityAction } from "../_shared/audit-logger.ts";
 import { 
   createSuccessResponse, 
@@ -30,8 +30,7 @@ import { validateAsaasIP } from '../_shared/ip-whitelist.ts';
 const FUNCTION_VERSION = "5";
 const logger = createLogger('asaas-webhook', FUNCTION_VERSION);
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+// RISE V3: Supabase client via centralized factory (webhooks domain)
 const ASAAS_WEBHOOK_TOKEN = Deno.env.get('ASAAS_WEBHOOK_TOKEN') || '';
 
 const ENFORCE_IP_WHITELIST = Deno.env.get('ASAAS_ENFORCE_IP_WHITELIST') === 'true';
@@ -59,7 +58,7 @@ serve(async (req) => {
     return new Response(null, { headers: CORS_HEADERS });
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = getSupabaseClient('webhooks');
   
   let event: AsaasWebhookEvent | null = null;
   let orderId: string | undefined;

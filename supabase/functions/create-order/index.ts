@@ -20,7 +20,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient, type SupabaseClient } from "../_shared/supabase-client.ts";
 import { rateLimitOnlyMiddleware, getIdentifier, getClientIP, RATE_LIMIT_CONFIGS } from "../_shared/rate-limiting/index.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
@@ -80,10 +80,7 @@ serve(withSentry('create-order', async (req) => {
   const corsHeaders = corsResult.headers;
 
   // 1. Rate Limiting
-  const supabaseForRateLimit = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+  const supabaseForRateLimit = getSupabaseClient('payments');
   const identifier = getIdentifier(req);
   const rateLimitResponse = await rateLimitOnlyMiddleware(
     supabaseForRateLimit,
@@ -99,10 +96,7 @@ serve(withSentry('create-order', async (req) => {
 
   try {
     // 2. Setup Supabase
-    const supabase: SupabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabase: SupabaseClient = getSupabaseClient('payments');
 
     // 3. Parse Body
     let body: unknown;

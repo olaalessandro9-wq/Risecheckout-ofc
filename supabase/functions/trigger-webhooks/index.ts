@@ -11,7 +11,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 import {
@@ -44,9 +44,7 @@ serve(async (req) => {
 
     log.info(`Versão ${FUNCTION_VERSION} iniciada (P0-5 secured)`);
     
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabase = getSupabaseClient('webhooks');
 
     const { order_id, event_type } = await req.json();
     if (!order_id || !event_type) throw new Error("Campos obrigatórios ausentes");

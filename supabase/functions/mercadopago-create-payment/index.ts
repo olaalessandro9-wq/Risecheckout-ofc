@@ -11,7 +11,7 @@
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSupabaseClient, type SupabaseClient } from '../_shared/supabase-client.ts';
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from '../_shared/cors-v2.ts';
 import { rateLimitOnlyMiddleware, getIdentifier, RATE_LIMIT_CONFIGS } from '../_shared/rate-limiting/index.ts';
 import { getVendorCredentials } from '../_shared/vault-credentials.ts';
@@ -141,11 +141,7 @@ serve(async (req) => {
   }
 
   try {
-    const supabase: SupabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    const supabase: SupabaseClient = getSupabaseClient('payments');
     
     // Rate Limiting
     const rateLimitResponse = await rateLimitOnlyMiddleware(

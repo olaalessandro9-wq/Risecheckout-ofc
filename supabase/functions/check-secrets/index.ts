@@ -43,6 +43,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     'SUPABASE_SERVICE_ROLE_KEY': 'supabase', // Contains secret key (sb_secret_...)
     'SUPABASE_DB_URL': 'supabase',
     
+    // Multi-Secret Key Domains (RISE V3 - Blast Radius Isolation)
+    'SUPABASE_SECRET_WEBHOOKS': 'supabase-domains',
+    'SUPABASE_SECRET_PAYMENTS': 'supabase-domains',
+    'SUPABASE_SECRET_ADMIN': 'supabase-domains',
+    
     // Mercado Pago
     'MERCADOPAGO_ACCESS_TOKEN': 'mercadopago',
     'MERCADOPAGO_CLIENT_SECRET': 'mercadopago',

@@ -18,7 +18,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient, type SupabaseClient } from "../_shared/supabase-client.ts";
 
 // Módulos compartilhados
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
@@ -43,8 +43,7 @@ import { createSuccessResponse, createErrorResponse, createRateLimitResponse } f
 
 const log = createLogger("asaas-create-payment");
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// RISE V3: Supabase client via centralized factory (payments domain)
 
 serve(async (req) => {
   // ============================================================================
@@ -62,7 +61,7 @@ serve(async (req) => {
     corsHeaders = corsResult.headers;
   }
 
-  const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabase: SupabaseClient = getSupabaseClient('payments');
   const identifier = getIdentifier(req);
 
   // Rate Limiting
