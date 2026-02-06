@@ -4,7 +4,7 @@
  * @version 3.0.0 - RISE Protocol V3 (unified-auth)
  * 
  * Lista todas as afiliações do usuário logado.
- * Usa service_role para bypass de RLS (sistema usa autenticação customizada).
+ * Usa domain 'general' para bypass de RLS via factory centralizado.
  */
 
 import { getSupabaseClient } from "../_shared/supabase-client.ts";
