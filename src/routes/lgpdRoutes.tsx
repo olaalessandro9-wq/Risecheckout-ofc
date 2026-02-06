@@ -5,7 +5,8 @@
  * 
  * Rotas de conformidade LGPD:
  * - Direito ao esquecimento
- * - Política de privacidade
+ * 
+ * NOTA: PoliticaDePrivacidade movida para publicRoutes (legal hub) em 06/02/2026
  */
 
 import { Suspense } from "react";
@@ -17,7 +18,6 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 // ============================================================================
 const GdprRequest = lazyWithRetry(() => import("@/pages/lgpd/GdprRequest"));
 const GdprConfirm = lazyWithRetry(() => import("@/pages/lgpd/GdprConfirm"));
-const PoliticaDePrivacidade = lazyWithRetry(() => import("@/pages/PoliticaDePrivacidade"));
 
 // ============================================================================
 // PAGE LOADER
@@ -41,9 +41,5 @@ export const lgpdRoutes: RouteObject[] = [
   { 
     path: "/lgpd/confirmar", 
     element: <Suspense fallback={<PageLoader />}><GdprConfirm /></Suspense> 
-  },
-  { 
-    path: "/politica-de-privacidade", 
-    element: <Suspense fallback={<PageLoader />}><PoliticaDePrivacidade /></Suspense> 
   },
 ];

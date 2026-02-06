@@ -2,6 +2,8 @@
  * @file lgpdRoutes.test.tsx
  * @description Tests for LGPD Routes configuration
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
+ * 
+ * NOTA: PoliticaDePrivacidade movida para publicRoutes (legal hub) em 06/02/2026
  */
 
 import { describe, it, expect } from "vitest";
@@ -17,8 +19,8 @@ describe("lgpdRoutes Configuration", () => {
     expect(Array.isArray(lgpdRoutes)).toBe(true);
   });
 
-  it("should have at least 2 routes", () => {
-    expect(lgpdRoutes.length).toBeGreaterThanOrEqual(2);
+  it("should have exactly 2 routes", () => {
+    expect(lgpdRoutes.length).toBe(2);
   });
 
   it("all routes should be valid RouteObjects", () => {

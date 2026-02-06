@@ -4,7 +4,7 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Rotas acessíveis sem autenticação:
- * - Auth, checkout público, pagamentos, LGPD
+ * - Auth, checkout público, pagamentos, LGPD, Legal
  * 
  * NOTA: Landing pages arquivadas em 04/02/2026
  * A rota "/" agora redireciona para "/auth"
@@ -29,7 +29,17 @@ const MercadoPagoPayment = lazyWithRetry(() => import("@/pages/MercadoPagoPaymen
 const PaymentSuccessPage = lazyWithRetry(() => import("@/pages/PaymentSuccessPage"));
 const OAuthSuccess = lazyWithRetry(() => import("@/pages/OAuthSuccess"));
 const SolicitarAfiliacao = lazyWithRetry(() => import("@/pages/SolicitarAfiliacao"));
-const TermosDeUso = lazyWithRetry(() => import("@/pages/TermosDeUso"));
+
+// Legal Pages
+const LegalHub = lazyWithRetry(() => import("@/pages/legal/LegalHub"));
+const TermosDeUso = lazyWithRetry(() => import("@/pages/legal/TermosDeUso"));
+const TermosDeCompra = lazyWithRetry(() => import("@/pages/legal/TermosDeCompra"));
+const PoliticaDePrivacidade = lazyWithRetry(() => import("@/pages/legal/PoliticaDePrivacidade"));
+const PoliticaDeCookies = lazyWithRetry(() => import("@/pages/legal/PoliticaDeCookies"));
+const PoliticaDeReembolso = lazyWithRetry(() => import("@/pages/legal/PoliticaDeReembolso"));
+const PoliticaDePagamentos = lazyWithRetry(() => import("@/pages/legal/PoliticaDePagamentos"));
+const PoliticaDeConteudo = lazyWithRetry(() => import("@/pages/legal/PoliticaDeConteudo"));
+const PoliticaDeDireitosAutorais = lazyWithRetry(() => import("@/pages/legal/PoliticaDeDireitosAutorais"));
 
 // ============================================================================
 // PAGE LOADER (for non-auth pages)
@@ -71,9 +81,6 @@ export const publicRoutes: RouteObject[] = [
   },
   
   // Checkout & Payments
-  // ZERO LATENCY ARCHITECTURE: Both /c/:slug and /pay/:slug use the same component
-  // The resolve-universal BFF accepts both checkout_slug and payment_link_slug
-  // @see supabase/functions/checkout-public-data/handlers/resolve-universal-handler.ts
   { 
     path: "/c/:slug", 
     element: <Suspense fallback={<PageLoader />}><PublicCheckoutV2 /></Suspense> 
@@ -109,9 +116,41 @@ export const publicRoutes: RouteObject[] = [
     element: <Suspense fallback={<PageLoader />}><SolicitarAfiliacao /></Suspense> 
   },
   
-  // Legal
+  // Legal Hub + Individual Pages
+  { 
+    path: "/legal", 
+    element: <Suspense fallback={<PageLoader />}><LegalHub /></Suspense> 
+  },
   { 
     path: "/termos-de-uso", 
     element: <Suspense fallback={<PageLoader />}><TermosDeUso /></Suspense> 
+  },
+  { 
+    path: "/termos-de-compra", 
+    element: <Suspense fallback={<PageLoader />}><TermosDeCompra /></Suspense> 
+  },
+  { 
+    path: "/politica-de-privacidade", 
+    element: <Suspense fallback={<PageLoader />}><PoliticaDePrivacidade /></Suspense> 
+  },
+  { 
+    path: "/politica-de-cookies", 
+    element: <Suspense fallback={<PageLoader />}><PoliticaDeCookies /></Suspense> 
+  },
+  { 
+    path: "/politica-de-reembolso", 
+    element: <Suspense fallback={<PageLoader />}><PoliticaDeReembolso /></Suspense> 
+  },
+  { 
+    path: "/politica-de-pagamentos", 
+    element: <Suspense fallback={<PageLoader />}><PoliticaDePagamentos /></Suspense> 
+  },
+  { 
+    path: "/politica-de-conteudo", 
+    element: <Suspense fallback={<PageLoader />}><PoliticaDeConteudo /></Suspense> 
+  },
+  { 
+    path: "/politica-de-direitos-autorais", 
+    element: <Suspense fallback={<PageLoader />}><PoliticaDeDireitosAutorais /></Suspense> 
   },
 ];
