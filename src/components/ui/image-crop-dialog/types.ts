@@ -21,8 +21,6 @@ export interface CropConfig {
   outputHeight: number;
   /** Label legível para exibição (opcional) */
   label?: string;
-  /** Cor de fundo para áreas não cobertas pela imagem (default: "#1a1a2e") */
-  backgroundColor?: string;
 }
 
 /**
