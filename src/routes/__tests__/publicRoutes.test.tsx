@@ -21,8 +21,8 @@ describe("publicRoutes Configuration", () => {
     expect(Array.isArray(publicRoutes)).toBe(true);
   });
 
-  it("should have at least 10 routes", () => {
-    expect(publicRoutes.length).toBeGreaterThanOrEqual(10);
+  it("should have at least 18 routes", () => {
+    expect(publicRoutes.length).toBeGreaterThanOrEqual(18);
   });
 
   it("all routes should be valid RouteObjects", () => {
@@ -133,10 +133,58 @@ describe("OAuth & Affiliation Routes", () => {
 // ============================================================================
 
 describe("Legal Routes", () => {
+  it("should have legal hub route (/legal)", () => {
+    const hubRoute = publicRoutes.find((r) => r.path === "/legal");
+    expect(hubRoute).toBeDefined();
+    expect(hubRoute?.element).toBeDefined();
+  });
+
   it("should have terms of use route (/termos-de-uso)", () => {
     const termsRoute = publicRoutes.find((r) => r.path === "/termos-de-uso");
     expect(termsRoute).toBeDefined();
     expect(termsRoute?.element).toBeDefined();
+  });
+
+  it("should have purchase terms route (/termos-de-compra)", () => {
+    const purchaseRoute = publicRoutes.find((r) => r.path === "/termos-de-compra");
+    expect(purchaseRoute).toBeDefined();
+    expect(purchaseRoute?.element).toBeDefined();
+  });
+
+  it("should have privacy policy route (/politica-de-privacidade)", () => {
+    const privacyRoute = publicRoutes.find((r) => r.path === "/politica-de-privacidade");
+    expect(privacyRoute).toBeDefined();
+    expect(privacyRoute?.element).toBeDefined();
+  });
+
+  it("should have cookies policy route (/politica-de-cookies)", () => {
+    const cookiesRoute = publicRoutes.find((r) => r.path === "/politica-de-cookies");
+    expect(cookiesRoute).toBeDefined();
+    expect(cookiesRoute?.element).toBeDefined();
+  });
+
+  it("should have refund policy route (/politica-de-reembolso)", () => {
+    const refundRoute = publicRoutes.find((r) => r.path === "/politica-de-reembolso");
+    expect(refundRoute).toBeDefined();
+    expect(refundRoute?.element).toBeDefined();
+  });
+
+  it("should have payments policy route (/politica-de-pagamentos)", () => {
+    const paymentsRoute = publicRoutes.find((r) => r.path === "/politica-de-pagamentos");
+    expect(paymentsRoute).toBeDefined();
+    expect(paymentsRoute?.element).toBeDefined();
+  });
+
+  it("should have content policy route (/politica-de-conteudo)", () => {
+    const contentRoute = publicRoutes.find((r) => r.path === "/politica-de-conteudo");
+    expect(contentRoute).toBeDefined();
+    expect(contentRoute?.element).toBeDefined();
+  });
+
+  it("should have copyright policy route (/politica-de-direitos-autorais)", () => {
+    const copyrightRoute = publicRoutes.find((r) => r.path === "/politica-de-direitos-autorais");
+    expect(copyrightRoute).toBeDefined();
+    expect(copyrightRoute?.element).toBeDefined();
   });
 });
 
@@ -153,7 +201,6 @@ describe("Route Elements", () => {
 
   it("all routes should use Suspense wrapper", () => {
     publicRoutes.forEach((route) => {
-      // Check if element is a Suspense component (React element with type.name === 'Suspense')
       expect(route.element).toBeTruthy();
     });
   });
@@ -173,7 +220,6 @@ describe("Path Validation", () => {
   it("should have valid path formats", () => {
     publicRoutes.forEach((route) => {
       if (route.path) {
-        // Paths should start with / or be a parameter
         expect(route.path).toMatch(/^\/|^:/);
       }
     });
@@ -187,7 +233,6 @@ describe("Path Validation", () => {
       .flat()
       .filter(Boolean) as string[];
 
-    // All parameters should use snake_case or camelCase consistently
     paramsUsed.forEach((param) => {
       expect(param).toMatch(/^:[a-zA-Z_]+$/);
     });

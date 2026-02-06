@@ -69,13 +69,13 @@ export const CheckoutFooter = ({ colors, maxWidth = "1100px" }: CheckoutFooterPr
         {/* Links Legais */}
         <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
           <a 
-            href="/termos-de-uso" 
+            href="/termos-de-compra" 
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline transition-all"
             style={{ color: colors?.footer?.secondaryText || '#9CA3AF' }}
           >
-            Termos de Uso
+            Termos de Compra
           </a>
           <span style={{ color: colors?.footer?.secondaryText || '#9CA3AF', opacity: 0.5 }}>•</span>
           <a 
@@ -86,6 +86,16 @@ export const CheckoutFooter = ({ colors, maxWidth = "1100px" }: CheckoutFooterPr
             style={{ color: colors?.footer?.secondaryText || '#9CA3AF' }}
           >
             Política de Privacidade
+          </a>
+          <span style={{ color: colors?.footer?.secondaryText || '#9CA3AF', opacity: 0.5 }}>•</span>
+          <a 
+            href="/politica-de-pagamentos" 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline transition-all"
+            style={{ color: colors?.footer?.secondaryText || '#9CA3AF' }}
+          >
+            Política de Pagamentos
           </a>
         </div>
 
