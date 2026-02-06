@@ -28,11 +28,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, ZoomIn, ZoomOut } from "lucide-react";
-import { getCropConfig, DEFAULT_BACKGROUND_COLOR } from "./presets";
+import { getCropConfig } from "./presets";
 import { useStencilSize } from "./useStencilSize";
 import type { ImageCropDialogProps } from "./types";
 
 const log = createLogger("ImageCropDialog");
+
+/** CSS overrides para o cropper (overlay transparente + borda azul no stencil) */
+const CROPPER_OVERRIDES_CSS = `
+  .crop-overlay-transparent {
+    color: transparent !important;
+  }
+  .crop-stencil-line {
+    border-color: rgba(59, 130, 246, 0.8) !important;
+    border-width: 2px !important;
+  }
+`;
 
 /** CSS do pattern xadrez para áreas vazias */
 const CHECKERBOARD_STYLE = {
@@ -135,7 +146,6 @@ export function ImageCropDialog({
       const canvas = cropperRef.current.getCanvas({
         width: config.outputWidth,
         height: config.outputHeight,
-        fillColor: config.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
       });
 
       if (!canvas) {
@@ -154,8 +164,8 @@ export function ImageCropDialog({
 
           const croppedFile = new File(
             [blob],
-            imageFile.name.replace(/\.[^.]+$/, ".jpg"),
-            { type: "image/jpeg" }
+            imageFile.name.replace(/\.[^.]+$/, ".png"),
+            { type: "image/png" }
           );
 
           log.info("Crop completed successfully", {
@@ -167,8 +177,7 @@ export function ImageCropDialog({
           onOpenChange(false);
           setIsSaving(false);
         },
-        "image/jpeg",
-        0.9
+        "image/png"
       );
     } catch (error) {
       log.error("Error cropping image", error);
@@ -178,7 +187,9 @@ export function ImageCropDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-hidden flex flex-col">
+          {/* CSS overrides para overlay transparente e borda azul */}
+          <style dangerouslySetInnerHTML={{ __html: CROPPER_OVERRIDES_CSS }} />
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <p className="text-sm text-muted-foreground">
@@ -209,6 +220,8 @@ export function ImageCropDialog({
                   lines: true,
                   movable: false,
                   resizable: false,
+                  overlayClassName: "crop-overlay-transparent",
+                  lineClassName: "crop-stencil-line",
                 }}
                 imageRestriction={ImageRestriction.none}
                 crossOrigin={false}
