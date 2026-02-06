@@ -35,11 +35,3 @@ export interface OrderBumpApiResponse {
   };
 }
 
-export interface CheckoutPersistenceState {
-  loading: boolean;
-  isSaving: boolean;
-  productData: ProductData | null;
-  orderBumps: OrderBump[];
-  productOffers: ProductOffer[];
-  currentLinks: PaymentLinkData[];
-}

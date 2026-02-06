@@ -31,7 +31,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { CheckoutLayout } from '@/components/checkout/layout/CheckoutLayout';
 import { ComponentRenderer } from '@/components/checkout/builder/ComponentRenderer';
 import CheckoutComponentRenderer from '@/components/checkout/CheckoutComponentRenderer';
-import { CheckoutCustomization, ViewMode } from '@/hooks/useCheckoutEditor';
+import type { CheckoutCustomization, ViewMode } from '@/types/checkoutEditor';
 import { ThemePreset } from '@/types/theme';
 import { cn } from '@/lib/utils';
 
