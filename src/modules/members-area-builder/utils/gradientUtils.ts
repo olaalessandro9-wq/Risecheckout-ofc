@@ -143,11 +143,16 @@ export function generateBottomFadeCSS(config: GradientOverlayConfig): string {
   const NUM_STOPS = 10;
   
   // Start position: higher strength = fade starts earlier
-  // strength 0   → startPercent = 60% (fade starts late, subtle)
+  // strength 0   → startPercent = 70% (fade starts very late, nearly invisible)
   // strength 100 → startPercent = 20% (fade starts early, aggressive)
-  const startPercent = 60 - (s * 40);
+  const startPercent = 70 - (s * 50);
   const endPercent = 100;
   const range = endPercent - startPercent;
+  
+  // Maximum alpha at the bottom: proportional to strength
+  // strength 0   → maxAlpha = 0.1 (nearly transparent)
+  // strength 100 → maxAlpha = 1.0 (fully opaque)
+  const maxAlpha = 0.1 + (s * 0.9);
   
   // Build gradient stops with smoothstep easing
   const stops: string[] = ['transparent 0%'];
@@ -157,18 +162,13 @@ export function generateBottomFadeCSS(config: GradientOverlayConfig): string {
     stops.push(`transparent ${startPercent.toFixed(0)}%`);
   }
   
-  // Generate NUM_STOPS with smoothstep easing
+  // Generate NUM_STOPS with smoothstep easing, scaled by maxAlpha
   for (let i = 1; i <= NUM_STOPS; i++) {
     const t = i / NUM_STOPS; // 0.1, 0.2, ..., 1.0
-    const alpha = smoothstep(t); // Eased opacity (follows perception curve)
+    const alpha = smoothstep(t) * maxAlpha; // Eased & scaled by max intensity
     const percent = startPercent + (range * t);
     
-    if (i === NUM_STOPS) {
-      // Last stop is solid color
-      stops.push(`${color.solid} ${percent.toFixed(0)}%`);
-    } else {
-      stops.push(`${color.withAlpha(alpha)} ${percent.toFixed(0)}%`);
-    }
+    stops.push(`${color.withAlpha(alpha)} ${percent.toFixed(0)}%`);
   }
   
   return `linear-gradient(to bottom, ${stops.join(', ')})`;
@@ -315,9 +315,12 @@ export function buildGradientContentStyle(
   if (!config.enabled || config.use_theme_color) return undefined;
 
   const hsl = hexToHSL(config.custom_color || '#000000');
+  const s = clampStrength(config.strength) / 100;
+  // Same curve as header gradient maxAlpha for visual unity
+  const alpha = 0.1 + (s * 0.9);
 
   return {
     '--background': hsl,
-    backgroundColor: `hsl(${hsl})`,
+    backgroundColor: `hsl(${hsl} / ${alpha})`,
   } as React.CSSProperties;
 }

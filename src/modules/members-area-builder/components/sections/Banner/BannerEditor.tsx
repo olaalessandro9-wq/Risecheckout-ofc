@@ -222,9 +222,9 @@ export function BannerEditor({ section, onUpdate, productId }: BannerEditorProps
               <Slider
                 value={[gradientOverlay.strength]}
                 onValueChange={([strength]) => updateGradient({ strength })}
-                min={20}
+                min={0}
                 max={100}
-                step={5}
+                step={1}
               />
             </div>
             
