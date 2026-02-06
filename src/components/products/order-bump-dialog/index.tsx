@@ -81,6 +81,8 @@ export function OrderBumpDialog({
   const {
     formData,
     loading,
+    validationErrors,
+    clearFieldError,
     updateField,
     handleSave,
     handleCancel,
@@ -152,6 +154,8 @@ export function OrderBumpDialog({
             selectedProduct={selectedProduct}
             selectedOffer={selectedOffer}
             discountPercentage={priceData.discountPercentage}
+            validationErrors={validationErrors}
+            onClearFieldError={clearFieldError}
             onFieldChange={(field, value) => {
               if (field === "selectedProductId") {
                 handleProductChange(value as string);

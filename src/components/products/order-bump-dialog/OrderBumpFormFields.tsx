@@ -13,6 +13,7 @@ import { formatCentsToBRL as formatBRL } from "@/lib/money";
 import { parseBRLInput } from "@/lib/money";
 import { NormalizedOffer } from "@/services/offers";
 import { OrderBumpProduct, OrderBumpFormData } from "./types";
+import type { OrderBumpValidationErrors } from "./hooks/useOrderBumpForm";
 
 interface OrderBumpFormFieldsProps {
   formData: OrderBumpFormData;
@@ -22,7 +23,9 @@ interface OrderBumpFormFieldsProps {
   selectedProduct: OrderBumpProduct | undefined;
   selectedOffer: NormalizedOffer | undefined;
   discountPercentage: number;
+  validationErrors: OrderBumpValidationErrors;
   onFieldChange: <K extends keyof OrderBumpFormData>(field: K, value: OrderBumpFormData[K]) => void;
+  onClearFieldError: (field: keyof OrderBumpValidationErrors) => void;
 }
 
 function formatCurrency(value: string): string {
@@ -43,7 +46,9 @@ export function OrderBumpFormFields({
   selectedProduct,
   selectedOffer,
   discountPercentage,
+  validationErrors,
   onFieldChange,
+  onClearFieldError,
 }: OrderBumpFormFieldsProps) {
   const handleDiscountPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCurrency(e.target.value);
@@ -186,13 +191,22 @@ export function OrderBumpFormFields({
         <Input
           id="customTitle"
           value={formData.customTitle}
-          onChange={(e) => onFieldChange("customTitle", e.target.value)}
-          className="bg-background border-border text-foreground"
+          onChange={(e) => {
+            onFieldChange("customTitle", e.target.value);
+            if (validationErrors.customTitle) onClearFieldError("customTitle");
+          }}
+          className={`bg-background text-foreground ${
+            validationErrors.customTitle ? "border-destructive" : "border-border"
+          }`}
           placeholder="Nome do seu produto"
         />
-        <p className="text-[11px] text-muted-foreground leading-tight">
-          Nome que aparece no order bump (padrão: nome do produto)
-        </p>
+        {validationErrors.customTitle ? (
+          <p className="text-[11px] text-destructive leading-tight">{validationErrors.customTitle}</p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground leading-tight">
+            Nome que aparece no order bump (padrão: nome do produto)
+          </p>
+        )}
       </div>
 
       {/* Description */}
@@ -203,13 +217,22 @@ export function OrderBumpFormFields({
         <Input
           id="customDescription"
           value={formData.customDescription}
-          onChange={(e) => onFieldChange("customDescription", e.target.value)}
-          className="bg-background border-border text-foreground"
+          onChange={(e) => {
+            onFieldChange("customDescription", e.target.value);
+            if (validationErrors.customDescription) onClearFieldError("customDescription");
+          }}
+          className={`bg-background text-foreground ${
+            validationErrors.customDescription ? "border-destructive" : "border-border"
+          }`}
           placeholder="Adicione a compra"
         />
-        <p className="text-[11px] text-muted-foreground leading-tight">
-          Texto descritivo do order bump
-        </p>
+        {validationErrors.customDescription ? (
+          <p className="text-[11px] text-destructive leading-tight">{validationErrors.customDescription}</p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground leading-tight">
+            Texto descritivo do order bump
+          </p>
+        )}
       </div>
 
       {/* Show Image Checkbox */}
