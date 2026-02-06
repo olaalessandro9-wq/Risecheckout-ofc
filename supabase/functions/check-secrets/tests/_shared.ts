@@ -37,6 +37,7 @@ export interface SecretsReport {
 
 export const EXPECTED_CATEGORIES = [
   "supabase",
+  "rise-domains",
   "mercadopago",
   "stripe",
   "pushinpay",
@@ -50,6 +51,11 @@ export const EXPECTED_SECRETS: Record<string, string> = {
   'SUPABASE_ANON_KEY': 'supabase', // Contains publishable key (sb_publishable_...)
   'SUPABASE_SERVICE_ROLE_KEY': 'supabase', // Contains secret key (sb_secret_...)
   'SUPABASE_DB_URL': 'supabase',
+  
+  // Multi-Secret Key Domains (RISE V3 - Blast Radius Isolation) (3)
+  'RISE_SECRET_WEBHOOKS': 'rise-domains',
+  'RISE_SECRET_PAYMENTS': 'rise-domains',
+  'RISE_SECRET_ADMIN': 'rise-domains',
   
   // Mercado Pago (5)
   'MERCADOPAGO_ACCESS_TOKEN': 'mercadopago',
@@ -84,6 +90,7 @@ export const TOTAL_EXPECTED_SECRETS = Object.keys(EXPECTED_SECRETS).length;
 
 export const SECRETS_BY_CATEGORY: Record<string, string[]> = {
   supabase: ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_URL'],
+  'rise-domains': ['RISE_SECRET_WEBHOOKS', 'RISE_SECRET_PAYMENTS', 'RISE_SECRET_ADMIN'],
   mercadopago: ['MERCADOPAGO_ACCESS_TOKEN', 'MERCADOPAGO_CLIENT_SECRET', 'MERCADOPAGO_REDIRECT_URI', 'MERCADOPAGO_WEBHOOK_SECRET', 'MERCADOPAGO_COLLECTOR_ID'],
   stripe: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_CLIENT_ID'],
   pushinpay: ['PUSHINPAY_API_TOKEN', 'PUSHINPAY_WEBHOOK_TOKEN', 'PUSHINPAY_PLATFORM_ACCOUNT_ID', 'PUSHINPAY_BASE_URL_PROD', 'PUSHINPAY_BASE_URL_SANDBOX'],

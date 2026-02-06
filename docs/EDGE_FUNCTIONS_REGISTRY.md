@@ -69,9 +69,9 @@
 
 | Domínio | Env Var | Funções | Risco Vazamento | Impacto Revogação |
 |---------|---------|---------|-----------------|-------------------|
-| **webhooks** | `SUPABASE_SECRET_WEBHOOKS` | 10 | ALTO (URLs expostas) | Webhooks param, checkout continua |
-| **payments** | `SUPABASE_SECRET_PAYMENTS` | 18 | ALTO (endpoints públicos) | Pagamentos param, dashboard continua |
-| **admin** | `SUPABASE_SECRET_ADMIN` | 17 | BAIXO (sessão autenticada) | Admin para, vendas continuam |
+| **webhooks** | `RISE_SECRET_WEBHOOKS` | 10 | ALTO (URLs expostas) | Webhooks param, checkout continua |
+| **payments** | `RISE_SECRET_PAYMENTS` | 18 | ALTO (endpoints públicos) | Pagamentos param, dashboard continua |
+| **admin** | `RISE_SECRET_ADMIN` | 17 | BAIXO (sessão autenticada) | Admin para, vendas continuam |
 | **general** | `SUPABASE_SERVICE_ROLE_KEY` | 62 | MÉDIO (mistura pub/auth) | Features gerais param, pagamentos/webhooks continuam |
 
 > **SSOT:** O mapeamento domínio → env var está em `_shared/supabase-client.ts` (factory centralizada).
