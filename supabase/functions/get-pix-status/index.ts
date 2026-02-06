@@ -20,7 +20,7 @@
  * @version 1.0.0
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -93,10 +93,7 @@ Deno.serve(withSentry('get-pix-status', async (req) => {
     }
 
     // Create Supabase client
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabase = getSupabaseClient('payments');
 
     // Fetch order PIX data (only public fields)
     const { data: order, error: orderError } = await supabase

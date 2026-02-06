@@ -4,7 +4,7 @@
  * @version 2.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Zero any)
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { 
   rateLimitMiddleware, 
@@ -75,10 +75,7 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabaseClient: SupabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseClient = getSupabaseClient('webhooks');
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(

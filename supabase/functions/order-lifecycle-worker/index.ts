@@ -13,7 +13,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { type RefundReason } from "../_shared/webhook-post-refund.ts";
@@ -40,10 +40,7 @@ serve(async (req) => {
     return new Response(null, { headers: PUBLIC_CORS_HEADERS });
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
+  const supabase = getSupabaseClient('webhooks');
 
   const result: ProcessingResult = { processed: 0, skipped: 0, errors: 0, total: 0 };
 

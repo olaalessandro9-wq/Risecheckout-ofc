@@ -16,7 +16,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { buildSiteUrl, getSiteBaseUrl } from "../_shared/site-urls.ts";
@@ -77,9 +77,7 @@ serve(async (req) => {
     log.info('Iniciando processamento');
 
     // 1. Inicializar Supabase Client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient('payments');
 
     // 2. Extrair parâmetros da URL
     const url = new URL(req.url);

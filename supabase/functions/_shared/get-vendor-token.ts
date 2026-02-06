@@ -1,12 +1,13 @@
 /**
  * get-vendor-token.ts - Helpers para buscar tokens e configs do Vault
  * 
- * @version 2.0.0
+ * @version 3.0.0 - Multi-Secret Key Architecture
  * 
  * P0-4: Tokens nunca devem ir para o frontend
+ * Uses 'payments' domain since it deals with gateway credentials.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSupabaseClient, type SupabaseClient } from "./supabase-client.ts";
 import { createLogger } from "./logger.ts";
 
 const log = createLogger("VendorToken");
@@ -36,13 +37,9 @@ export async function getVendorToken(
   vendorId: string,
   gateway: string
 ): Promise<string | null> {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
+  const supabase: SupabaseClient = getSupabaseClient("payments");
 
   try {
-    // Buscar access_token do Vault via SQL (client JS não tem método .vault)
     const secretName = `${gateway}_${vendorId}_access_token`;
     const { data, error } = await supabase
       .rpc('get_vault_secret', { p_name: secretName });
@@ -68,13 +65,9 @@ export async function getVendorIntegrationConfig(
   vendorId: string,
   gateway: string
 ): Promise<VendorIntegration | null> {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
+  const supabase: SupabaseClient = getSupabaseClient("payments");
 
   try {
-    // Buscar configuração completa (com access_token) do backend
     const { data, error } = await supabase
       .from('vendor_integrations')
       .select('*')

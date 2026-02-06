@@ -12,7 +12,7 @@
  */
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSupabaseClient } from '../_shared/supabase-client.ts';
 import { logSecurityEvent, SecurityAction } from '../_shared/audit-logger.ts';
 import { 
   createSuccessResponse, 
@@ -47,9 +47,7 @@ serve(async (req) => {
   }
 
   // Inicializar Supabase fora do try para uso no DLQ
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = getSupabaseClient('webhooks');
 
   // ========== RATE LIMITING ==========
   const clientIP = getClientIP(req);

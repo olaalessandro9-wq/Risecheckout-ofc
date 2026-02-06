@@ -13,7 +13,7 @@
  * @version 4.1.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10 (Zero any)
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient, type SupabaseClient } from "../_shared/supabase-client.ts";
 import { withSentry, captureException } from "../_shared/sentry.ts";
 import { handleCorsV2, PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { 
@@ -96,9 +96,7 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
 
   try {
     // 1. Criar cliente Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = getSupabaseClient('payments');
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(

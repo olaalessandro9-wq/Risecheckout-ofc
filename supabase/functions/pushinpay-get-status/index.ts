@@ -10,7 +10,7 @@
  * @version 2.1.0 - Zero `any` compliance (RISE ARCHITECT PROTOCOL V3 - 10.0/10)
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient, type SupabaseClient } from "../_shared/supabase-client.ts";
 import { 
   getGatewayCredentials,
   validateCredentials
@@ -59,9 +59,7 @@ Deno.serve(async (req) => {
 
   try {
     // 1. Criar cliente Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = getSupabaseClient('payments');
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
