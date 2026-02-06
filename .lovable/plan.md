@@ -1,79 +1,94 @@
 
-# Plano: Corrigir Centralizacao, Remover Zoom Slider, Fixar Imagem
 
-## Root Cause Analysis (Investigacao Profunda)
+# Corrigir Centralizacao da Imagem no Crop Dialog
 
-### Porque `moveImage()` no `onReady` NAO funciona
+## Root Cause Analysis (Diagnostico Definitivo)
 
-Tracei o codigo-fonte completo da biblioteca (`AbstractCropperInstance.js`, linhas 225-234):
+### O bug: a formula de centralizacao esta ERRADA
 
-```text
-moveImage(left, top)
-  -> transformImage({move: {left, top}}, {immediately: true})
-    -> transformImageAlgorithm(state, settings, transform)
-    -> applyPostProcess({immediately: true}, result)
-      -> fixedStencilAlgorithm(state, settings)  // RECALCULA TUDO!
-```
-
-O `moveImage()` usa `immediately: true` por default. Isso faz o `fixedStencilAlgorithm` rodar como postProcess, que **RECALCULA e REPOSICIONA** a visibleArea inteira, desfazendo a correcao de centralizacao.
-
-O `fixedStencilAlgorithm` (linhas 82-101 de `stencil-size/index.js`) faz:
-1. `applyScale(visibleArea, scaleFactor)` - escala ao redor do centro
-2. `applyMove(visibleArea, diff(center(coords), center(visibleArea)))` - centra na coords
-3. `moveToPositionRestrictions(...)` - aplica restricoes
-
-O problema esta no passo 1: `applyScale` escala ao redor do centro da visibleArea. Quando a visibleArea tem `top` negativo (para centralizar a imagem), a escala ELIMINA esse offset negativo, resultando em `top ≈ 0`. O passo 2 recalcula o centro e confirma que ja esta centrado (porque ambos os centros coincidem no centro da imagem). Mas visualmente a imagem fica no topo porque a proporcao entre visibleArea e boundary mudou.
-
-### A solucao correta: `setState()` com `postprocess: false`
-
-Confirmado no codigo-fonte (`AbstractCropperInstance.js`, linhas 257-276):
+O codigo atual calcula:
 
 ```text
-setState(modifier, options) {
-  var postprocess = options.postprocess || false;  // DEFAULT: false!
-  
-  if (postprocess) {
-    return applyPostProcess(..., newState);  // Roda fixedStencilAlgorithm
-  } else {
-    return newState;  // PRESERVA o state como passamos!
-  }
-}
+diffX = coordsCenterX - viewCenterX
+diffY = coordsCenterY - viewCenterY
 ```
 
-`setState()` com `postprocess: false` (que e o DEFAULT) NAO roda `fixedStencilAlgorithm`. Isso significa que podemos ajustar a `visibleArea` diretamente e a correcao sera preservada.
+Em um FixedCropper, as `coordinates` sao **SEMPRE** centradas na `visibleArea` (o stencil e fixo no centro do viewport). Portanto:
 
----
+```text
+coordsCenterX ≈ viewCenterX  (sempre)
+coordsCenterY ≈ viewCenterY  (sempre)
+diffX ≈ 0
+diffY ≈ 0
+```
 
-## 3 Problemas a Resolver
+A correcao de centralizacao **NAO FAZ NADA**. O `setState` e chamado mas com delta ~0, a imagem permanece no topo.
 
-| Problema | Causa Raiz | Solucao |
-|----------|-----------|---------|
-| Imagem no topo | `moveImage()` e desfeito pelo postProcess | Usar `setState()` sem postProcess |
-| Imagem se move ao arrastar | `moveImage={true}` e o default no `CropperBackgroundWrapper` | Passar `backgroundWrapperProps={{ moveImage: false }}` |
-| Barra de zoom indesejada | UI explicita no componente | Remover o Slider e os icones ZoomIn/ZoomOut |
+### O que deveria acontecer
+
+O problema real: as `coordinates` (area de crop) estao posicionadas no **TOPO** da imagem (top=0), nao no **CENTRO**. A biblioteca inicializa o crop alinhado ao topo por padrao.
+
+Exemplo concreto com imagem 1920x1200 e stencil 16:9:
+
+```text
+Estado atual:
+  imageSize = { width: 1920, height: 1200 }
+  coordinates = { left: 0, top: 0, width: 1920, height: 1080 }
+  -> Crop no topo da imagem, 120px da imagem abaixo do stencil
+
+Estado desejado:
+  coordinates = { left: 0, top: 60, width: 1920, height: 1080 }
+  -> Crop no CENTRO da imagem, 60px acima e 60px abaixo do stencil
+```
+
+### A formula correta
+
+Centralizar as `coordinates` na **IMAGEM** (nao na visibleArea):
+
+```text
+imageCenterY = imageSize.height / 2
+coordsCenterY = coordinates.top + coordinates.height / 2
+deltaY = imageCenterY - coordsCenterY
+
+(mesma logica para X)
+```
+
+Para manter o stencil fixo no centro do viewport, devemos deslocar **AMBOS** coordinates e visibleArea pelo mesmo delta:
+
+```text
+coordinates.left += deltaX
+coordinates.top  += deltaY
+visibleArea.left += deltaX
+visibleArea.top  += deltaY
+```
+
+Confirmado na API: `setState()` com `postprocess: false` (default) preserva o state exatamente como passamos, sem recalculos do `fixedStencilAlgorithm`.
 
 ---
 
 ## Analise de Solucoes (RISE V3 Secao 4.4)
 
-### Solucao A: setState sem postProcess + backgroundWrapperProps + remover slider UI
-- Manutenibilidade: 10/10 - Usa API documentada da biblioteca corretamente
-- Zero DT: 10/10 - Corrige a causa raiz, nao o sintoma
-- Arquitetura: 10/10 - Zero hacks, zero workarounds, cada prop faz exatamente o que deve
-- Escalabilidade: 10/10 - Funciona com qualquer preset/imagem
+### Solucao A: Corrigir formula para centrar coordinates na imageSize
+
+- Manutenibilidade: 10/10 - Formula matematica pura e verificavel
+- Zero DT: 10/10 - Corrige a causa raiz (formula errada), nao o sintoma
+- Arquitetura: 10/10 - Usa `imageSize` do CropperState (dado correto para o calculo correto)
+- Escalabilidade: 10/10 - Funciona com qualquer proporcao de imagem e qualquer preset
 - Seguranca: 10/10
 - **NOTA FINAL: 10.0/10**
 
-### Solucao B: Delay/setTimeout antes de moveImage para esperar animacao do dialog
-- Manutenibilidade: 6/10 - Timing fragil, depende de duracao de animacao
-- Zero DT: 4/10 - Race condition potencial
-- Arquitetura: 3/10 - Hack temporal
-- Escalabilidade: 5/10 - Quebra em dispositivos lentos
+### Solucao B: Usar `defaultPosition` prop para definir posicao inicial das coordinates
+
+- Manutenibilidade: 8/10 - Depende de prop especifica da biblioteca
+- Zero DT: 9/10 - Resolve o sintoma mas nao corrige o onReady existente
+- Arquitetura: 7/10 - Requer conhecimento de prop interna que pode mudar entre versoes
+- Escalabilidade: 8/10 - Pode conflitar com outros algoritmos de inicializacao
 - Seguranca: 10/10
-- **NOTA FINAL: 5.0/10**
+- **NOTA FINAL: 8.2/10**
 
 ### DECISAO: Solucao A (Nota 10.0)
-Solucao B e um hack temporal que viola a Secao 5.1 (Zero Remendos). A Solucao A usa a API correta da biblioteca conforme documentacao no codigo-fonte.
+
+A Solucao B e inferior pois depende de uma prop de inicializacao que pode ser sobrescrita pelo `fixedStencilAlgorithm`. A Solucao A corrige diretamente no `onReady`, APOS toda a inicializacao, usando a formula matematica correta.
 
 ---
 
@@ -81,68 +96,62 @@ Solucao B e um hack temporal que viola a Secao 5.1 (Zero Remendos). A Solucao A 
 
 ### Arquivo: `src/components/ui/image-crop-dialog/ImageCropDialog.tsx`
 
-**Mudanca 1: Corrigir `handleReady` - usar `setState` sem postProcess**
+**Unica mudanca: Corrigir a formula no `handleReady`** (linhas 110-152)
+
+Antes (formula ERRADA que compara coordinates vs visibleArea):
 
 ```text
-ANTES:
-  cropper.moveImage(-diffX, -diffY);
+// Centro das coordinates (crop area)
+const coordsCenterX = coordinates.left + coordinates.width / 2;
+const coordsCenterY = coordinates.top + coordinates.height / 2;
 
-DEPOIS:
-  cropper.setState((currentState) => {
-    if (!currentState) return null;
-    return {
-      ...currentState,
-      visibleArea: {
-        ...currentState.visibleArea,
-        left: currentState.visibleArea.left + diffX,
-        top: currentState.visibleArea.top + diffY,
-      },
-    };
-  }, { transitions: false });
+// Centro da visibleArea (viewport)
+const viewCenterX = visibleArea.left + visibleArea.width / 2;
+const viewCenterY = visibleArea.top + visibleArea.height / 2;
+
+// Diferenca: quanto a visibleArea precisa mover...
+const diffX = coordsCenterX - viewCenterX;
+const diffY = coordsCenterY - viewCenterY;
 ```
 
-`setState` sem `postprocess: true` (default e `false`) NAO executa `fixedStencilAlgorithm`, preservando a centralizacao.
-
-**Mudanca 2: Desabilitar arraste da imagem**
-
-Adicionar prop `backgroundWrapperProps` ao FixedCropper para desabilitar o drag:
+Depois (formula CORRETA que centra coordinates na imageSize):
 
 ```text
-ANTES:
-<FixedCropper
-  ...
-/>
+// Centro da IMAGEM (onde queremos que o crop fique)
+const imageCenterX = state.imageSize.width / 2;
+const imageCenterY = state.imageSize.height / 2;
 
-DEPOIS:
-<FixedCropper
-  ...
-  backgroundWrapperProps={{ moveImage: false }}
-/>
+// Centro atual das COORDINATES (onde o crop esta agora)
+const coordsCenterX = coordinates.left + coordinates.width / 2;
+const coordsCenterY = coordinates.top + coordinates.height / 2;
+
+// Delta para mover o crop ao centro da imagem
+const deltaX = imageCenterX - coordsCenterX;
+const deltaY = imageCenterY - coordsCenterY;
 ```
 
-Confirmado no codigo-fonte (`CropperBackgroundWrapper`, linha 1300):
-- `moveImage` e passado ao `TransformableImage` como `mouseMove` e `touchMove`
-- Com `moveImage: false`, ambos ficam `false`, desabilitando drag completamente
-- `scaleImage` (zoom via scroll) continua `true` por default
+E no `setState`, deslocar AMBOS coordinates e visibleArea:
 
-**Mudanca 3: Remover barra de zoom (slider + icones)**
+```text
+cropper.setState((currentState) => {
+  if (!currentState?.coordinates || !currentState.visibleArea) return currentState;
+  return {
+    ...currentState,
+    coordinates: {
+      ...currentState.coordinates,
+      left: currentState.coordinates.left + deltaX,
+      top: currentState.coordinates.top + deltaY,
+    },
+    visibleArea: {
+      ...currentState.visibleArea,
+      left: currentState.visibleArea.left + deltaX,
+      top: currentState.visibleArea.top + deltaY,
+    },
+  };
+}, { transitions: false });
+```
 
-Remover completamente:
-- O `<Slider>` de zoom
-- Os icones `<ZoomOut>` e `<ZoomIn>`
-- O texto de porcentagem `{zoom}%`
-- O state `zoom` e o handler `handleZoomChange`
-- O callback `handleTransformEnd` (so servia para sincronizar o slider)
-- Os imports de `Slider`, `ZoomIn`, `ZoomOut`
-
-O zoom continua funcionando via scroll do mouse (comportamento nativo do FixedCropper via `scaleImage={true}` que e o default).
-
-**Mudanca 4: Limpar imports nao utilizados**
-
-Remover:
-- `Slider` de `@/components/ui/slider`
-- `ZoomIn`, `ZoomOut` de `lucide-react`
-- State `zoom` e `setZoom`
+**Nenhuma outra mudanca necessaria.** O resto do componente (imagem fixa, sem zoom slider, PNG com transparencia) esta correto e funcionando.
 
 ---
 
@@ -150,7 +159,7 @@ Remover:
 
 ```text
 src/components/ui/image-crop-dialog/
-  ImageCropDialog.tsx      <- EDITAR (3 mudancas cirurgicas)
+  ImageCropDialog.tsx      <- EDITAR (corrigir handleReady, ~15 linhas)
   ImageCropDialog.css      <- SEM MUDANCA
   useStencilSize.ts        <- SEM MUDANCA
   presets.ts               <- SEM MUDANCA
@@ -164,7 +173,7 @@ src/components/ui/image-crop-dialog/
 
 | Pergunta | Resposta |
 |----------|---------|
-| Esta e a MELHOR solucao possivel? | Sim, usa API correta da biblioteca |
+| Esta e a MELHOR solucao possivel? | Sim, corrige a formula matematica na raiz |
 | Existe alguma solucao com nota maior? | Nao |
 | Isso cria divida tecnica? | Zero |
 | Precisaremos "melhorar depois"? | Nao |
@@ -173,9 +182,11 @@ src/components/ui/image-crop-dialog/
 
 ## Validacao de Sucesso
 
-1. Abrir crop dialog com banner 16:9 - imagem CENTRALIZADA (igual Cakto)
-2. Tentar arrastar imagem - NAO se move (fixa)
-3. Barra de zoom - NAO existe (removida)
-4. Zoom via scroll do mouse - FUNCIONA
-5. Salvar - produz PNG correto
-6. Limite 300 linhas - respeitado (arquivo ficara ~230 linhas, menos que atual)
+1. Abrir crop dialog com banner 16:9 - imagem CENTRALIZADA verticalmente
+2. Imagem quadrada em stencil 16:9 - centralizada horizontal e verticalmente
+3. Imagem ja na proporcao exata do stencil - sem deslocamento (delta = 0)
+4. Imagem fixa (sem arraste) - preservado
+5. Zoom via scroll - preservado
+6. Salvar PNG - preservado
+7. Limite 300 linhas - preservado (~230 linhas)
+
