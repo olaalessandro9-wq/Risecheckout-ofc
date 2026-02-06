@@ -9,7 +9,11 @@
 
 import { useEffect, useCallback } from 'react';
 import { useMachine } from '@xstate/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
+import { createLogger } from '@/lib/logger';
+import { membersAreaQueryKeys } from '@/modules/members-area/hooks/useMembersAreaSettings';
 import { builderMachine } from '../machines';
 import { getSectionDefaults } from '../registry';
 import type { 
@@ -71,8 +75,11 @@ export interface UseMembersAreaStateReturn {
 /**
  * State management hook using XState State Machine
  */
+const builderLog = createLogger("MembersAreaBuilder");
+
 export function useMembersAreaState(productId: string | undefined): UseMembersAreaStateReturn {
   const [snapshot, send] = useMachine(builderMachine);
+  const queryClient = useQueryClient();
 
   // Load data when productId changes
   useEffect(() => {
@@ -221,8 +228,31 @@ export function useMembersAreaState(productId: string | undefined): UseMembersAr
   }, [productId, send]);
 
   const updateModule = useCallback(async (id: string, data: Partial<MemberModule>) => {
+    // 1. Persist to database via Edge Function
+    const { error } = await api.call<{ success: boolean; error?: string }>('members-area-modules', {
+      action: 'update',
+      moduleId: id,
+      data,
+    });
+
+    if (error) {
+      builderLog.error("Failed to update module", { error });
+      toast.error("Erro ao atualizar módulo");
+      return;
+    }
+
+    // 2. Update local XState state
     send({ type: 'UPDATE_MODULE', id, data });
-  }, [send]);
+
+    // 3. Invalidate React Query cache for cross-view sync
+    if (productId) {
+      queryClient.invalidateQueries({ 
+        queryKey: membersAreaQueryKeys.modules(productId) 
+      });
+    }
+
+    toast.success("Módulo atualizado!");
+  }, [send, productId, queryClient]);
 
   const selectModule = useCallback((id: string | null) => {
     send({ type: 'SELECT_MODULE', id });
