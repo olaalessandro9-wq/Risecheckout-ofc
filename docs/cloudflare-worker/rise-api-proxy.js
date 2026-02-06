@@ -1,12 +1,17 @@
 // rise-api-proxy Worker - RISE ARCHITECT PROTOCOL V3 - 10.0/10
 // API Gateway - Zero Secrets in Frontend Architecture
 // FIX: Preserva múltiplos Set-Cookie headers corretamente
-// UPDATED: 2026-02-02 - SECURITY HARDENED - Only risecheckout.com allowed
+// UPDATED: 2026-02-06 - SECURITY HARDENED - *.risecheckout.com + explicit origins
 
 const SUPABASE_URL = "https://wivbtmtgpsxupfjwwovf.supabase.co";
 
-// Domínio principal (wildcard match para todos subdomínios)
+// Domínio principal com wildcard (único com wildcard)
 const MAIN_DOMAIN = "risecheckout.com";
+
+// Origins explícitos adicionais (sem wildcard - listados individualmente)
+const EXPLICIT_ORIGINS = [
+  "https://sandrodev.lovable.app"
+];
 
 function isAllowedOrigin(origin) {
   if (!origin) return false;
@@ -15,9 +20,14 @@ function isAllowedOrigin(origin) {
     const url = new URL(origin);
     const hostname = url.hostname;
 
-    // Permitir risecheckout.com e *.risecheckout.com
+    // 1. Match exato do domínio root (risecheckout.com)
     if (hostname === MAIN_DOMAIN) return true;
+
+    // 2. Match de qualquer subdomínio (*.risecheckout.com)
     if (hostname.endsWith("." + MAIN_DOMAIN)) return true;
+
+    // 3. Match de origins explícitos (sem wildcard)
+    if (EXPLICIT_ORIGINS.includes(origin)) return true;
   } catch (e) {
     return false;
   }
@@ -90,7 +100,7 @@ export default {
     // Clonar headers e INJETAR apikey do Secret
     const headers = new Headers(request.headers);
     headers.set("Host", "wivbtmtgpsxupfjwwovf.supabase.co");
-    headers.set("apikey", env.SUPABASE_ANON_KEY);
+    headers.set("apikey", env.SUPABASE_PUBLISHABLE_KEY);
 
     // Proxy request
     const response = await fetch(targetUrl, {
