@@ -316,6 +316,18 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       ? (checkout.bottom_components as CheckoutComponent[])
       : [];
 
+    // RISE V3: Dual-Layout - Detect mobile and use mobile-specific components if available
+    const checkoutAny = checkout as unknown as Record<string, unknown>;
+    const mobileTopRaw = checkoutAny.mobile_top_components;
+    const mobileBottomRaw = checkoutAny.mobile_bottom_components;
+    const mobileTop: CheckoutComponent[] = Array.isArray(mobileTopRaw) ? (mobileTopRaw as CheckoutComponent[]) : [];
+    const mobileBottom: CheckoutComponent[] = Array.isArray(mobileBottomRaw) ? (mobileBottomRaw as CheckoutComponent[]) : [];
+    const hasMobileComponents = mobileTop.length > 0 || mobileBottom.length > 0;
+    const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 768;
+
+    const resolvedTop = (isMobileDevice && hasMobileComponents) ? mobileTop : topComponents;
+    const resolvedBottom = (isMobileDevice && hasMobileComponents) ? mobileBottom : bottomComponents;
+
     // Extract backgroundImage from checkout.design (JSON field)
     const checkoutDesignJson = checkout.design as Record<string, unknown> | undefined;
     const backgroundImage = checkoutDesignJson?.backgroundImage as 
@@ -329,10 +341,10 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
         colors: design.colors,
         backgroundImage,
       },
-      topComponents,
-      bottomComponents,
+      topComponents: resolvedTop,
+      bottomComponents: resolvedBottom,
     };
-  }, [checkout.top_components, checkout.bottom_components, checkout.theme, checkout.font, checkout.design, design]);
+  }, [checkout.top_components, checkout.bottom_components, checkout.theme, checkout.font, checkout.design, design, checkout]);
 
   // ============================================================================
   // RENDER

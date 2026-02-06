@@ -38,6 +38,8 @@ const CHECKOUT_SELECT = `
   components,
   top_components,
   bottom_components,
+  mobile_top_components,
+  mobile_bottom_components,
   status,
   design,
   theme,
@@ -79,6 +81,8 @@ interface CheckoutRow {
   components: unknown;
   top_components: unknown;
   bottom_components: unknown;
+  mobile_top_components: unknown;
+  mobile_bottom_components: unknown;
   status: string | null;
   design: unknown;
   theme: string | null;
@@ -314,6 +318,8 @@ async function resolveWithCheckout(
         components: checkout.components,
         top_components: checkout.top_components,
         bottom_components: checkout.bottom_components,
+        mobile_top_components: checkout.mobile_top_components,
+        mobile_bottom_components: checkout.mobile_bottom_components,
         design: checkout.design,
         theme: checkout.theme,
         pix_gateway: checkout.pix_gateway,

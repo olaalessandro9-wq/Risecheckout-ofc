@@ -30,6 +30,8 @@ const CHECKOUT_SELECT = `
   components,
   top_components,
   bottom_components,
+  mobile_top_components,
+  mobile_bottom_components,
   status,
   design,
   theme,
