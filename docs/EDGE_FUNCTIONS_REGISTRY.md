@@ -1,7 +1,7 @@
 # Rise Checkout - Edge Functions Registry
 
 > **🔴 FONTE DA VERDADE MÁXIMA** - Este documento lista TODAS as Edge Functions deployadas no Supabase.  
-> Última atualização: 2026-02-06 (API Keys Migration - Legacy JWT → Publishable/Secret)  
+> Última atualização: 2026-02-06 (Multi-Secret Key Architecture - 4 Domínios de Isolamento)  
 > Mantenedor: AI Assistant + User
 
 ---
@@ -10,13 +10,14 @@
 
 ```
 ╔═══════════════════════════════════════════════════════════════╗
-║  ✅ RISE PROTOCOL V3 - 10.0/10 - NEW API KEYS MIGRATED       ║
+║  ✅ RISE PROTOCOL V3 - 10.0/10 - MULTI-SECRET KEY ARCH       ║
 ║     107 Edge Functions | 214 RLS Policies | Zero Legacy       ║
 ║     ACCESS_TOKEN: 4h | REFRESH_THRESHOLD: 30m | LOCK: 30s     ║
 ║     ~110 Test Files | ~550+ Edge Tests | Zero Monoliths       ║
 ║     SSOT: 'users' table | auth.users: ABANDONED               ║
-║     API KEYS: publishable (sb_publishable_) + secret          ║
+║     API KEYS: publishable + 4 secret domains (isolation)      ║
 ║     verify_jwt: false (ALL functions) | config.toml: 107      ║
+║     SECRET DOMAINS: webhooks | payments | admin | general     ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
 
@@ -37,6 +38,7 @@
 | **Funções com verify_jwt=true** | 0 ✅ |
 | **config.toml entries** | 107 ✅ |
 | **API Key System** | Publishable/Secret (new) ✅ |
+| **Secret Domains** | 4 (webhooks, payments, admin, general) ✅ |
 | **Unified Auth Compliance** | 100% ✅ |
 | **Context Guards** | ✅ Producer + Buyer |
 | **Base URL (Frontend)** | `https://api.risecheckout.com/functions/v1/` |
@@ -51,6 +53,9 @@
 > 
 > **API KEYS (2026-02):** Migrado de legacy JWT (anon/service_role) para novo sistema
 > publishable/secret. As new keys NÃO são JWTs, por isso `verify_jwt = false` é obrigatório.
+>
+> **MULTI-SECRET KEY (2026-02):** As 107 funções são isoladas em 4 domínios de segurança,
+> cada um com sua própria secret key. Se uma key for vazada, revoga-se APENAS ela.
 
 | Mecanismo | Cookie | Validação | Funções |
 |-----------|--------|-----------|---------|
@@ -60,131 +65,147 @@
 > **RISE V3 (Jan 2026):** Sistema 100% unificado. Zero fallbacks. Zero tabelas legadas.
 > O frontend usa `credentials: 'include'` e nunca acessa tokens diretamente (proteção XSS total).
 
+### 🔑 Multi-Secret Key Architecture (4 Domínios)
+
+| Domínio | Env Var | Funções | Risco Vazamento | Impacto Revogação |
+|---------|---------|---------|-----------------|-------------------|
+| **webhooks** | `SUPABASE_SECRET_WEBHOOKS` | 10 | ALTO (URLs expostas) | Webhooks param, checkout continua |
+| **payments** | `SUPABASE_SECRET_PAYMENTS` | 18 | ALTO (endpoints públicos) | Pagamentos param, dashboard continua |
+| **admin** | `SUPABASE_SECRET_ADMIN` | 17 | BAIXO (sessão autenticada) | Admin para, vendas continuam |
+| **general** | `SUPABASE_SERVICE_ROLE_KEY` | 62 | MÉDIO (mistura pub/auth) | Features gerais param, pagamentos/webhooks continuam |
+
+> **SSOT:** O mapeamento domínio → env var está em `_shared/supabase-client.ts` (factory centralizada).
+> Cada função chama `getSupabaseClient('domain')` e o factory resolve a key correta.
+> Se a key do domínio não estiver configurada, há fallback automático para `general` (com warning log).
+
 ### Tabela de Auth por Função
 
-| Função | Auth Mechanism | verify_jwt | Observação |
-|--------|----------------|------------|------------|
-| **Product Management** | | | |
-| `product-crud` | sessions | false | unified-auth-v2 |
-| `product-settings` | sessions | false | unified-auth-v2 |
-| `offer-crud` | sessions | false | unified-auth-v2 |
-| `offer-bulk` | sessions | false | unified-auth-v2 |
-| `checkout-crud` | sessions | false | unified-auth-v2 |
-| `order-bump-crud` | sessions | false | unified-auth-v2 |
-| `checkout-editor` | sessions | false | unified-auth-v2 |
-| `product-duplicate` | sessions | false | unified-auth-v2 |
-| `coupon-management` | sessions | false | unified-auth-v2 |
-| `integration-management` | sessions | false | unified-auth-v2 |
-| **User Management** | | | |
-| `manage-user-role` | sessions | false | unified-auth-v2, owner only |
-| `manage-user-status` | sessions | false | unified-auth-v2, admin+ |
-| `unified-auth` | public | false | SSOT - Login/Register/Refresh/Request-Refresh endpoint |
-| **Security & Crypto** | | | |
-| `decrypt-customer-data` | sessions | false | unified-auth-v2, owner check |
-| `decrypt-customer-data-batch` | sessions | false | unified-auth-v2, owner check |
-| `encrypt-token` | sessions | false | unified-auth-v2 |
-| `security-management` | sessions | false | unified-auth-v2 |
-| **Affiliates** | | | |
-| `manage-affiliation` | sessions | false | unified-auth-v2 |
-| `request-affiliation` | sessions | false | unified-auth-v2 |
-| `update-affiliate-settings` | sessions | false | unified-auth-v2 |
-| `get-affiliation-status` | sessions | false | unified-auth-v2 |
-| `get-all-affiliation-statuses` | sessions | false | unified-auth-v2 |
-| `get-my-affiliations` | sessions | false | unified-auth-v2 |
-| `get-affiliation-details` | sessions | false | unified-auth-v2 |
-| **Vault & Credentials** | | | |
-| `vault-save` | sessions | false | unified-auth-v2 |
-| **Email** | | | |
-| `send-email` | sessions | false | unified-auth-v2 (v2.0.0) |
-| `send-confirmation-email` | internal | false | Chamada interna |
-| `send-pix-email` | internal | false | Chamada interna |
-| **Buyer Portal** | | | |
-| `buyer-orders` | sessions | false | unified-auth-v2 |
-| `buyer-profile` | sessions | false | unified-auth-v2 |
-| **Members Area** | | | |
-| `members-area-modules` | sessions | false | unified-auth-v2 |
-| `members-area-drip` | sessions | false | unified-auth-v2 |
-| `members-area-progress` | sessions | false | unified-auth-v2 |
-| `members-area-quizzes` | sessions | false | unified-auth-v2 |
-| `members-area-certificates` | sessions | false | unified-auth-v2 |
-| `members-area-groups` | sessions | false | unified-auth-v2 |
-| `content-crud` | sessions | false | unified-auth-v2 |
-| `content-save` | sessions | false | unified-auth-v2 |
-| `students-invite` | sessions | false | unified-auth-v2 |
-| `students-access` | sessions | false | unified-auth-v2 |
-| `students-groups` | sessions | false | unified-auth-v2 |
-| `students-list` | sessions | false | unified-auth-v2 |
-| `pixel-management` | sessions | false | unified-auth-v2 |
-| `affiliate-pixel-management` | sessions | false | unified-auth-v2 |
-| **Webhooks** | | | |
-| `mercadopago-webhook` | webhook | false | Signature validation |
-| `pushinpay-webhook` | webhook | false | Signature validation |
-| `stripe-webhook` | webhook | false | Signature validation |
-| `asaas-webhook` | webhook | false | Signature validation |
-| `trigger-webhooks` | internal | false | Chamada interna |
-| `process-webhook-queue` | internal | false | Chamada interna |
-| `retry-webhooks` | internal | false | Chamada interna |
-| `send-webhook-test` | sessions | false | unified-auth-v2 |
-| `webhook-crud` | sessions | false | unified-auth-v2 (modularized v3.1.0) |
-| **OAuth Callbacks** | | | |
-| `mercadopago-oauth-callback` | oauth | false | OAuth flow |
-| `stripe-connect-oauth` | oauth | false | OAuth flow |
-| **Checkout (Public)** | | | |
-| `create-order` | public | false | Clientes anônimos |
-| `mercadopago-create-payment` | public | false | Clientes anônimos |
-| `stripe-create-payment` | public | false | Clientes anônimos |
-| `asaas-create-payment` | public | false | Clientes anônimos |
-| `asaas-validate-credentials` | public | false | Validação |
-| `pushinpay-create-pix` | public | false | Clientes anônimos |
-| `pushinpay-get-status` | public | false | Polling status |
-| `pushinpay-validate-token` | public | false | Validação |
-| `get-order-for-pix` | public | false | PIX page |
-| `verify-turnstile` | public | false | Captcha |
-| **Tracking & Analytics** | | | |
-| `utmify-conversion` | public | false | Tracking |
-| `facebook-conversion-api` | public | false | Tracking |
-| `dashboard-analytics` | sessions | false | unified-auth-v2 |
-| `checkout-heartbeat` | public | false | Heartbeat |
-| `detect-abandoned-checkouts` | internal | false | Cron |
-| `track-visit` | public | false | Tracking |
-| **Reconciliation** | | | |
-| `reconcile-pending-orders` | internal | false | Orquestrador |
-| `reconcile-mercadopago` | internal | false | Gateway specific |
-| `reconcile-asaas` | internal | false | Gateway specific |
-| `grant-member-access` | internal | false | Chamada interna |
-| `alert-stuck-orders` | internal | false | Cron |
-| `smoke-test` | public | false | Health check |
-| **LGPD/GDPR** | | | |
-| `gdpr-request` | public | false | User request |
-| `gdpr-forget` | public | false | User request |
-| **Health & Diagnostics** | | | |
-| `check-secrets` | public | false | Debug |
-| `health` | public | false | Health check |
-| `test-deploy` | public | false | Deploy test |
-| `admin-health` | sessions | false | unified-auth-v2 |
-| `owner-settings` | sessions | false | unified-auth-v2, owner only |
-| **Security Infrastructure (RISE V3)** | | | |
-| `rls-documentation-generator` | internal | false | Gera documentação RLS automática |
-| `key-rotation-executor` | internal | false | Gerenciamento de rotação de chaves |
-| `rls-security-tester` | internal | false | Framework de testes RLS |
-| `session-manager` | sessions | false | Gerenciamento de sessões |
-| `data-retention-executor` | internal | false | Limpeza de dados automatizada |
-| **RISE Protocol V3** | | | |
-| `rpc-proxy` | sessions | false | unified-auth-v2 |
-| `storage-management` | sessions | false | unified-auth-v2 |
-| `pushinpay-stats` | sessions | false | unified-auth-v2 |
-| **Dashboard & Data** | | | |
-| `admin-data` | sessions | false | unified-auth-v2 - **RETORNA CENTAVOS** |
-| `product-entities` | sessions | false | unified-auth-v2 |
-| `products-crud` | sessions | false | Core CRUD (RISE V3) |
-| `producer-profile` | sessions | false | Profile + gateway connections |
-| `coupon-read` | sessions | false | get-coupon (RISE V3) |
-| `content-library` | sessions | false | get-video-library (RISE V3) |
-| `vendor-integrations` | sessions | false | unified-auth-v2 |
-| **Public Endpoints** | | | |
-| `affiliation-public` | public | false | Dados públicos de afiliação |
-| `checkout-public-data` | public | false | BFF Modular (12 handlers) - Zero Latency |
-| `marketplace-public` | public | false | Endpoints públicos marketplace |
+| Função | Auth Mechanism | verify_jwt | Secret Domain | Observação |
+|--------|----------------|------------|---------------|------------|
+| **Product Management** | | | | |
+| `product-crud` | sessions | false | general | unified-auth-v2 |
+| `product-settings` | sessions | false | general | unified-auth-v2 |
+| `offer-crud` | sessions | false | general | unified-auth-v2 |
+| `offer-bulk` | sessions | false | general | unified-auth-v2 |
+| `checkout-crud` | sessions | false | general | unified-auth-v2 |
+| `order-bump-crud` | sessions | false | general | unified-auth-v2 |
+| `checkout-editor` | sessions | false | general | unified-auth-v2 |
+| `product-duplicate` | sessions | false | general | unified-auth-v2 |
+| `coupon-management` | sessions | false | general | unified-auth-v2 |
+| `integration-management` | sessions | false | general | unified-auth-v2 |
+| **User Management** | | | | |
+| `manage-user-role` | sessions | false | admin | unified-auth-v2, owner only |
+| `manage-user-status` | sessions | false | admin | unified-auth-v2, admin+ |
+| `unified-auth` | public | false | general | SSOT - Login/Register/Refresh/Request-Refresh endpoint |
+| **Security & Crypto** | | | | |
+| `decrypt-customer-data` | sessions | false | admin | unified-auth-v2, owner check |
+| `decrypt-customer-data-batch` | sessions | false | admin | unified-auth-v2, owner check |
+| `encrypt-token` | sessions | false | admin | unified-auth-v2 |
+| `security-management` | sessions | false | admin | unified-auth-v2 |
+| **Affiliates** | | | | |
+| `manage-affiliation` | sessions | false | general | unified-auth-v2 |
+| `request-affiliation` | sessions | false | general | unified-auth-v2 |
+| `update-affiliate-settings` | sessions | false | general | unified-auth-v2 |
+| `get-affiliation-status` | sessions | false | general | unified-auth-v2 |
+| `get-all-affiliation-statuses` | sessions | false | general | unified-auth-v2 |
+| `get-my-affiliations` | sessions | false | general | unified-auth-v2 |
+| `get-affiliation-details` | sessions | false | general | unified-auth-v2 |
+| **Vault & Credentials** | | | | |
+| `vault-save` | sessions | false | admin | unified-auth-v2 |
+| **Email** | | | | |
+| `send-email` | sessions | false | general | unified-auth-v2 (v2.0.0) |
+| `send-confirmation-email` | internal | false | general | Chamada interna |
+| `send-pix-email` | internal | false | general | Chamada interna |
+| **Buyer Portal** | | | | |
+| `buyer-orders` | sessions | false | general | unified-auth-v2 |
+| `buyer-profile` | sessions | false | general | unified-auth-v2 |
+| **Members Area** | | | | |
+| `members-area-modules` | sessions | false | general | unified-auth-v2 |
+| `members-area-drip` | sessions | false | general | unified-auth-v2 |
+| `members-area-progress` | sessions | false | general | unified-auth-v2 |
+| `members-area-quizzes` | sessions | false | general | unified-auth-v2 |
+| `members-area-certificates` | sessions | false | general | unified-auth-v2 |
+| `members-area-groups` | sessions | false | general | unified-auth-v2 |
+| `content-crud` | sessions | false | general | unified-auth-v2 |
+| `content-save` | sessions | false | general | unified-auth-v2 |
+| `students-invite` | sessions | false | general | unified-auth-v2 |
+| `students-access` | sessions | false | general | unified-auth-v2 |
+| `students-groups` | sessions | false | general | unified-auth-v2 |
+| `students-list` | sessions | false | general | unified-auth-v2 |
+| `pixel-management` | sessions | false | general | unified-auth-v2 |
+| `affiliate-pixel-management` | sessions | false | general | unified-auth-v2 |
+| **Webhooks** | | | | |
+| `mercadopago-webhook` | webhook | false | webhooks | Signature validation |
+| `pushinpay-webhook` | webhook | false | webhooks | Signature validation |
+| `stripe-webhook` | webhook | false | webhooks | Signature validation |
+| `asaas-webhook` | webhook | false | webhooks | Signature validation |
+| `trigger-webhooks` | internal | false | webhooks | Chamada interna |
+| `process-webhook-queue` | internal | false | webhooks | Chamada interna |
+| `retry-webhooks` | internal | false | webhooks | Chamada interna |
+| `send-webhook-test` | sessions | false | webhooks | unified-auth-v2 |
+| `webhook-crud` | sessions | false | webhooks | unified-auth-v2 (modularized v3.1.0) |
+| **OAuth Callbacks** | | | | |
+| `mercadopago-oauth-callback` | oauth | false | payments | OAuth flow |
+| `stripe-connect-oauth` | oauth | false | payments | OAuth flow |
+| **Checkout (Public)** | | | | |
+| `create-order` | public | false | payments | Clientes anônimos |
+| `mercadopago-create-payment` | public | false | payments | Clientes anônimos |
+| `stripe-create-payment` | public | false | payments | Clientes anônimos |
+| `asaas-create-payment` | public | false | payments | Clientes anônimos |
+| `asaas-validate-credentials` | public | false | payments | Validação |
+| `pushinpay-create-pix` | public | false | payments | Clientes anônimos |
+| `pushinpay-get-status` | public | false | payments | Polling status |
+| `pushinpay-validate-token` | public | false | payments | Validação |
+| `get-order-for-pix` | public | false | payments | PIX page |
+| `verify-turnstile` | public | false | general | Captcha |
+| **Tracking & Analytics** | | | | |
+| `utmify-conversion` | public | false | general | Tracking |
+| `facebook-conversion-api` | public | false | general | Tracking |
+| `dashboard-analytics` | sessions | false | general | unified-auth-v2 |
+| `checkout-heartbeat` | public | false | general | Heartbeat |
+| `detect-abandoned-checkouts` | internal | false | general | Cron |
+| `track-visit` | public | false | general | Tracking |
+| **Reconciliation** | | | | |
+| `reconcile-pending-orders` | internal | false | payments | Orquestrador |
+| `reconcile-mercadopago` | internal | false | payments | Gateway specific |
+| `reconcile-asaas` | internal | false | payments | Gateway specific |
+| `grant-member-access` | internal | false | payments | Chamada interna |
+| `alert-stuck-orders` | internal | false | payments | Cron |
+| `smoke-test` | public | false | general | Health check |
+| **LGPD/GDPR** | | | | |
+| `gdpr-request` | public | false | admin | User request |
+| `gdpr-forget` | public | false | admin | User request |
+| **Health & Diagnostics** | | | | |
+| `check-secrets` | public | false | general | Debug |
+| `health` | public | false | general | Health check |
+| `test-deploy` | public | false | general | Deploy test |
+| `admin-health` | sessions | false | admin | unified-auth-v2 |
+| `owner-settings` | sessions | false | admin | unified-auth-v2, owner only |
+| **Security Infrastructure (RISE V3)** | | | | |
+| `rls-documentation-generator` | internal | false | admin | Gera documentação RLS automática |
+| `key-rotation-executor` | internal | false | admin | Gerenciamento de rotação de chaves |
+| `rls-security-tester` | internal | false | admin | Framework de testes RLS |
+| `session-manager` | sessions | false | general | Gerenciamento de sessões |
+| `data-retention-executor` | internal | false | admin | Limpeza de dados automatizada |
+| **RISE Protocol V3** | | | | |
+| `rpc-proxy` | sessions | false | admin | unified-auth-v2 |
+| `storage-management` | sessions | false | general | unified-auth-v2 |
+| `pushinpay-stats` | sessions | false | payments | unified-auth-v2 |
+| **Dashboard & Data** | | | | |
+| `admin-data` | sessions | false | admin | unified-auth-v2 - **RETORNA CENTAVOS** |
+| `product-entities` | sessions | false | general | unified-auth-v2 |
+| `products-crud` | sessions | false | general | Core CRUD (RISE V3) |
+| `producer-profile` | sessions | false | general | Profile + gateway connections |
+| `coupon-read` | sessions | false | general | get-coupon (RISE V3) |
+| `content-library` | sessions | false | general | get-video-library (RISE V3) |
+| `vendor-integrations` | sessions | false | general | unified-auth-v2 |
+| **Public Endpoints** | | | | |
+| `affiliation-public` | public | false | general | Dados públicos de afiliação |
+| `checkout-public-data` | public | false | general | BFF Modular (12 handlers) - Zero Latency |
+| `marketplace-public` | public | false | general | Endpoints públicos marketplace |
+| `email-preview` | sessions | false | general | unified-auth-v2 |
+| `get-pix-status` | public | false | payments | Recuperação de PIX (v3.5.4) |
+| `utmify-validate-credentials` | sessions | false | general | Diagnóstico de tokens UTMify |
 
 ---
 
@@ -450,12 +471,22 @@
 - **internal** = Chamada interna (cron, outras edge functions)
 - **oauth** = Callback de OAuth flow
 
+### Secret Domains
+
+| Domínio | Env Var | Descrição |
+|---------|---------|-----------|
+| `webhooks` | `SUPABASE_SECRET_WEBHOOKS` | Callbacks de gateways, fila de webhooks outbound |
+| `payments` | `SUPABASE_SECRET_PAYMENTS` | Criação de pagamentos, reconciliação, acesso pós-pagamento |
+| `admin` | `SUPABASE_SECRET_ADMIN` | Segurança, criptografia, GDPR, vault, gerenciamento de roles |
+| `general` | `SUPABASE_SERVICE_ROLE_KEY` | Auth, CRUD, checkout, área de membros, afiliados, tracking |
+
 ---
 
 ## Changelog
 
 | Data | Alteração |
 |------|-----------|
+| 2026-02-06 | Multi-Secret Key Architecture: 4 domínios de isolamento (webhooks, payments, admin, general). Factory centralizada em `_shared/supabase-client.ts`. 107 funções migradas |
 | 2026-02-06 | API Keys Migration: Legacy JWT → Publishable/Secret. config.toml: 107 entries. Badge updated |
 | 2026-02-04 | UTMify Backend SSOT - Eventos completos no backend |
 | 2026-01-23 | RISE V3 Complete - Removed buyer-auth, producer-auth, buyer-session |

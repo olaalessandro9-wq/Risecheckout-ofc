@@ -1,7 +1,7 @@
 # Security Infrastructure Overview
 
-> **Versão:** 3.1.0  
-> **Status:** RISE Protocol V3 Compliant (10.0/10) - New API Keys Migrated  
+> **Versão:** 3.2.0  
+> **Status:** RISE Protocol V3 Compliant (10.0/10) - Multi-Secret Key Architecture  
 > **Última Atualização:** 2026-02-06
 
 ## Visão Geral
@@ -47,6 +47,7 @@ O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade comp
 | RLS Security Tester | [RLS_SECURITY_TESTER.md](./RLS_SECURITY_TESTER.md) | ✅ ATIVO | Framework de testes automatizados |
 | Data Retention System | [DATA_RETENTION_SYSTEM.md](./DATA_RETENTION_SYSTEM.md) | ✅ ATIVO | Limpeza automatizada conforme LGPD |
 | **API Gateway BFF** | [API_GATEWAY_ARCHITECTURE.md](./API_GATEWAY_ARCHITECTURE.md) | ✅ ATIVO | Gateway com zero secrets no frontend |
+| **Multi-Secret Key** | [API_GATEWAY_ARCHITECTURE.md](./API_GATEWAY_ARCHITECTURE.md#multi-secret-key-architecture-4-domínios) | ✅ ATIVO | 4 domínios de isolamento de secret keys |
 
 ## Edge Functions de Segurança
 
@@ -77,6 +78,7 @@ O RiseCheckout implementa uma infraestrutura de segurança enterprise-grade comp
 | Funções de Cleanup | 19 |
 | Edge Functions de Segurança | 6 |
 | Secrets no Frontend | **0** (via API Gateway) |
+| **Secret Key Domains** | **4** (webhooks, payments, admin, general) |
 
 ## Conformidade
 
@@ -123,6 +125,8 @@ api.call() → https://api.risecheckout.com (Cloudflare Worker)
 > **IMPORTANTE:** O frontend NÃO envia a publishable key. O Cloudflare Worker injeta 
 > automaticamente via Secret, eliminando exposição de chaves no bundle.
 > Legacy JWT-based keys (anon/service_role) foram migradas para publishable/secret keys.
+> **Multi-Secret Key Architecture:** 4 domínios de isolamento (webhooks, payments, admin, general)
+> com factory centralizada em `_shared/supabase-client.ts`.
 
 ### Cookies httpOnly
 
@@ -134,7 +138,7 @@ api.call() → https://api.risecheckout.com (Cloudflare Worker)
 > **Proteção XSS:** Tokens nunca expostos ao JavaScript. Domain=.risecheckout.com 
 > permite compartilhamento entre subdomínios (app, pay, api).
 
-### Rotação de Chaves
+### Rotação de Chaves de Criptografia
 
 ```
 key-rotation-executor (action: rotate)
@@ -148,7 +152,28 @@ Activate key → Update status to 'active'
 Log in key_rotation_log
 ```
 
-### Limpeza Automatizada
+### Rotação de Secret Keys (Multi-Domain)
+
+```
+Secret key comprometida no domínio X
+         ↓
+Supabase Dashboard > API Keys > Revogar key
+         ↓
+Criar nova secret key no Dashboard
+         ↓
+Edge Functions > Manage Secrets > Atualizar SUPABASE_SECRET_{DOMAIN}
+         ↓
+Auto-redeploy (~30s downtime no domínio X apenas)
+         ↓
+Outros domínios: ZERO impacto
+```
+
+| Domínio | Env Var | Funções | Impacto Revogação |
+|---------|---------|---------|-------------------|
+| webhooks | `SUPABASE_SECRET_WEBHOOKS` | 10 | Webhooks param, vendas continuam |
+| payments | `SUPABASE_SECRET_PAYMENTS` | 18 | Pagamentos param, dashboard continua |
+| admin | `SUPABASE_SECRET_ADMIN` | 17 | Admin para, vendas continuam |
+| general | `SUPABASE_SERVICE_ROLE_KEY` | 62 | Features gerais param, webhooks/pagamentos continuam |
 
 ```
 pg_cron (03:00 UTC daily)
@@ -185,6 +210,7 @@ Log results in data_retention_log
 
 | Data | Versão | Alterações |
 |------|--------|------------|
+| 2026-02-06 | 3.2.0 | Multi-Secret Key Architecture: 4 domínios de isolamento, factory centralizada, rotação por domínio |
 | 2026-02-06 | 3.1.0 | Migração para new API keys (publishable/secret), eliminação de legacy JWT keys |
 | 2026-01-26 | 3.0.0 | API Gateway BFF com zero secrets no frontend |
 | 2026-01-23 | 2.0.0 | Atualizado para sistema de autenticação unificado (sessions única) |
