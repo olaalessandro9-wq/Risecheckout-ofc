@@ -9,7 +9,8 @@
  * Ações: save-all (atômico: delete + insert)
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse, ProducerAuth } from "../_shared/unified-auth.ts";
 import { verifyAffiliateOwnership } from "../_shared/ownership.ts";
@@ -148,10 +149,7 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = getSupabaseClient('general');
 
     // Authentication
     let producer: ProducerAuth;

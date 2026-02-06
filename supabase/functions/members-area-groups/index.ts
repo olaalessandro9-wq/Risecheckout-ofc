@@ -4,7 +4,8 @@
  * @version 3.0.0 - RISE Protocol V3 Compliance (Modular Router + Handlers)
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
@@ -30,9 +31,7 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = getSupabaseClient('general');
 
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(

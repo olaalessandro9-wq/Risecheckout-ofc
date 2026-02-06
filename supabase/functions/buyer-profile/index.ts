@@ -8,7 +8,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { getAuthenticatedUser } from "../_shared/unified-auth-v2.ts";
@@ -26,9 +26,7 @@ serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient('general');
 
     // RISE V3: Use unified auth - validates via sessions table + __Secure-rise_access cookie (Domain=.risecheckout.com)
     const user = await getAuthenticatedUser(supabase, req);

@@ -15,7 +15,8 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { requireAuthenticatedProducer } from "../_shared/unified-auth.ts";
 import { 
@@ -92,10 +93,7 @@ serve(async (req) => {
 
   try {
     // Rate limiting - criar cliente admin primeiro
-    const supabaseAdmin: SupabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseAdmin: SupabaseClient = getSupabaseClient('general');
 
     const rateLimitResult = await rateLimitMiddleware(
       supabaseAdmin,

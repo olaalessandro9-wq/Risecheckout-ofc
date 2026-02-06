@@ -7,7 +7,7 @@
  * @version 1.0.0 - RISE ARCHITECT PROTOCOL V3 - 10.0/10
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -49,10 +49,7 @@ Deno.serve(async (req: Request) => {
                null;
 
     // Create Supabase client with service role (bypass RLS)
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = getSupabaseClient('general');
 
     // Insert visit record
     const { error: insertError } = await supabase

@@ -13,7 +13,8 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -191,10 +192,7 @@ serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabase: SupabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase: SupabaseClient = getSupabaseClient('general');
 
     const body = await req.json() as RequestBody;
     const { action, productId, filters } = body;

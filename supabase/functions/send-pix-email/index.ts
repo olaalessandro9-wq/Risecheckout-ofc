@@ -10,7 +10,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { PUBLIC_CORS_HEADERS } from "../_shared/cors-v2.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { getNoReplyEmail } from "../_shared/email-config.ts";
@@ -24,10 +24,8 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient('general');
 
     if (!resendApiKey) {
       log.error("RESEND_API_KEY not configured");

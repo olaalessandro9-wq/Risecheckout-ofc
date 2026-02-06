@@ -6,7 +6,7 @@
  * @version 2.0.0 - RISE V3 Unified Auth
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { 
   rateLimitMiddleware, 
   RATE_LIMIT_CONFIGS,
@@ -55,9 +55,7 @@ Deno.serve(async (req) => {
   const corsHeaders = corsResult.headers;
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = getSupabaseClient('general');
 
     // VULN-002: Rate limiting para members area
     const rateLimitResult = await rateLimitMiddleware(
