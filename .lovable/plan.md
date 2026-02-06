@@ -1,57 +1,133 @@
 
+# Renomeacao dos Secret Keys: Remover Prefixo Reservado `SUPABASE_`
 
-# Correção Final: 2 Issues de Consistência e Limpeza Legacy
+## Problema
 
-## Contexto
+O Supabase Dashboard proibe secrets cujo nome comeca com `SUPABASE_` pois esse namespace e reservado para variaveis auto-injetadas pela plataforma (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`).
 
-A auditoria completa da Multi-Secret Key Architecture revelou que 107/107 funcoes estao corretamente migradas para o factory centralizado. Porem, 2 issues menores foram identificados que violam o padrao RISE V3 de "Zero Legacy".
+Os 3 secrets de dominio atuais violam essa restricao:
+- `SUPABASE_SECRET_WEBHOOKS` -- BLOQUEADO pelo Dashboard
+- `SUPABASE_SECRET_PAYMENTS` -- BLOQUEADO pelo Dashboard
+- `SUPABASE_SECRET_ADMIN` -- BLOQUEADO pelo Dashboard
 
-## Issue 1: Chamada Implicita em `utmify-validate-credentials`
+## Analise de Solucoes
 
-**Arquivo:** `supabase/functions/utmify-validate-credentials/index.ts` (linha 86)
+### Solucao A: Prefixo `RISE_`
+Nomes: `RISE_SECRET_WEBHOOKS`, `RISE_SECRET_PAYMENTS`, `RISE_SECRET_ADMIN`
 
-**Problema:** Usa `getSupabaseClient()` (sem parametro) ao inves de `getSupabaseClient('general')` (explicito). Funcionalmente identico pois o default e `'general'`, mas inconsistente com o padrao explicito usado nas outras 103 funcoes.
+- Manutenibilidade: 10/10 -- Prefixo unico do projeto, zero conflito com qualquer servico
+- Zero DT: 10/10 -- Resolve o problema de forma definitiva
+- Arquitetura: 10/10 -- Namespace proprio do projeto (RISE), semanticamente correto
+- Escalabilidade: 10/10 -- Novos dominios seguem o mesmo padrao (`RISE_SECRET_*`)
+- Seguranca: 10/10 -- Sem exposicao, sem conflitos
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 1 hora
 
-**Correcao:**
+### Solucao B: Prefixo `SB_`
+Nomes: `SB_SECRET_WEBHOOKS`, `SB_SECRET_PAYMENTS`, `SB_SECRET_ADMIN`
+
+- Manutenibilidade: 8/10 -- `SB_` pode conflitar com futuras convencoes do Supabase
+- Zero DT: 9/10 -- Funciona hoje, mas o prefixo `SB_` pode ser reservado no futuro
+- Arquitetura: 7/10 -- Ainda amarrado ao namespace do Supabase
+- Escalabilidade: 8/10 -- Funcional mas nao semanticamente independente
+- Seguranca: 10/10 -- Sem exposicao
+- **NOTA FINAL: 8.3/10**
+- Tempo estimado: 1 hora
+
+### Solucao C: Prefixo `SECRET_KEY_`
+Nomes: `SECRET_KEY_WEBHOOKS`, `SECRET_KEY_PAYMENTS`, `SECRET_KEY_ADMIN`
+
+- Manutenibilidade: 9/10 -- Generico, claro
+- Zero DT: 10/10 -- Sem conflito com reservados
+- Arquitetura: 8/10 -- Perde a identidade do projeto
+- Escalabilidade: 9/10 -- Funcional
+- Seguranca: 10/10 -- Sem exposicao
+- **NOTA FINAL: 9.1/10**
+- Tempo estimado: 1 hora
+
+### DECISAO: Solucao A - Prefixo `RISE_` (Nota 10.0)
+
+O prefixo `RISE_` e o namespace proprio do projeto, semanticamente correto, impossivel de conflitar com reservas do Supabase ou qualquer outro servico. As solucoes B e C sao inferiores por dependencia semantica (B) ou genericidade (C).
+
+## Mapeamento da Renomeacao
+
+| Nome Antigo (BLOQUEADO) | Nome Novo | Dominio |
+|-------------------------|-----------|---------|
+| `SUPABASE_SECRET_WEBHOOKS` | `RISE_SECRET_WEBHOOKS` | webhooks |
+| `SUPABASE_SECRET_PAYMENTS` | `RISE_SECRET_PAYMENTS` | payments |
+| `SUPABASE_SECRET_ADMIN` | `RISE_SECRET_ADMIN` | admin |
+| `SUPABASE_SERVICE_ROLE_KEY` | Inalterado (auto-injetado) | general |
+
+## Arquivos Modificados (7 arquivos)
+
+```text
+CODIGO (2):
+  supabase/functions/_shared/supabase-client.ts        <- DOMAIN_KEY_MAP (SSOT)
+  supabase/functions/check-secrets/index.ts             <- expectedSecrets list
+
+TESTES (1):
+  supabase/functions/check-secrets/tests/_shared.ts     <- EXPECTED_SECRETS + SECRETS_BY_CATEGORY
+
+DOCUMENTACAO (4):
+  docs/EDGE_FUNCTIONS_REGISTRY.md                       <- 3 tabelas com env vars
+  docs/API_GATEWAY_ARCHITECTURE.md                      <- 1 tabela com env vars
+  docs/SECURITY_OVERVIEW.md                             <- 1 tabela com env vars
+  .env.example                                          <- 3 placeholders
+```
+
+## Detalhes Tecnicos
+
+### 1. Factory SSOT (`_shared/supabase-client.ts`)
+Unica mudanca necessaria -- as 3 linhas do `DOMAIN_KEY_MAP`:
+
 ```text
 // ANTES
-const supabase = getSupabaseClient();
+webhooks: "SUPABASE_SECRET_WEBHOOKS",
+payments: "SUPABASE_SECRET_PAYMENTS",
+admin:    "SUPABASE_SECRET_ADMIN",
 
 // DEPOIS
-const supabase = getSupabaseClient('general');
+webhooks: "RISE_SECRET_WEBHOOKS",
+payments: "RISE_SECRET_PAYMENTS",
+admin:    "RISE_SECRET_ADMIN",
 ```
 
-## Issue 2: 5 Comentarios Legacy Referenciando `service_role`
-
-Comentarios antigos que mencionam `service_role` diretamente, quando deveriam referenciar a arquitetura de dominios.
-
-| Arquivo | Linha | Comentario Atual | Comentario Corrigido |
-|---------|-------|------------------|---------------------|
-| `get-my-affiliations/index.ts` | 7 | "Usa service_role para bypass de RLS" | "Usa domain 'general' para bypass de RLS via factory centralizado" |
-| `get-affiliation-status/index.ts` | 5 | "Usa service_role para bypass de RLS" | "Usa domain 'general' para bypass de RLS via factory centralizado" |
-| `get-affiliation-status/index.ts` | 52 | "Criar cliente Supabase com service_role para bypass de RLS" | "Criar cliente Supabase via factory centralizado (domain: general)" |
-| `update-affiliate-settings/index.ts` | 125 | "Reutilizar supabaseAdmin para queries (RISE V3: service_role only)" | "Reutilizar supabaseAdmin para queries (RISE V3: domain 'general')" |
-| `track-visit/index.ts` | 51 | "Create Supabase client with service role (bypass RLS)" | "Create Supabase client via centralized factory (domain: general)" |
-
-## Arvore de Arquivos Modificados
+### 2. Check-Secrets (`check-secrets/index.ts`)
+Renomear as 3 entries na lista `expectedSecrets` e a categoria de `'supabase-domains'` para `'rise-domains'`:
 
 ```text
-MODIFICADOS (6 arquivos - correcoes cirurgicas):
-  supabase/functions/utmify-validate-credentials/index.ts  <- getSupabaseClient('general')
-  supabase/functions/get-my-affiliations/index.ts           <- Comentario atualizado
-  supabase/functions/get-affiliation-status/index.ts        <- 2 comentarios atualizados
-  supabase/functions/update-affiliate-settings/index.ts     <- Comentario atualizado
-  supabase/functions/track-visit/index.ts                   <- Comentario atualizado
+// ANTES
+'SUPABASE_SECRET_WEBHOOKS': 'supabase-domains',
+'SUPABASE_SECRET_PAYMENTS': 'supabase-domains',
+'SUPABASE_SECRET_ADMIN': 'supabase-domains',
+
+// DEPOIS
+'RISE_SECRET_WEBHOOKS': 'rise-domains',
+'RISE_SECRET_PAYMENTS': 'rise-domains',
+'RISE_SECRET_ADMIN': 'rise-domains',
 ```
 
-## Pos-Correcao
+### 3. Check-Secrets Test Shared (`check-secrets/tests/_shared.ts`)
+Renomear no `EXPECTED_SECRETS`, `EXPECTED_CATEGORIES`, e `SECRETS_BY_CATEGORY`.
 
-Apos estas 6 correcoes, a migracao estara em **100% de conformidade** com o RISE Protocol V3:
-- Zero chamadas legadas a `createClient`
-- Zero referencias diretas a `SUPABASE_SERVICE_ROLE_KEY` em codigo de producao
-- Zero comentarios referenciando o sistema legado
-- 107/107 funcoes usando o factory centralizado com dominio explicito
-- Documentacao 100% atualizada
+### 4. Documentacao (3 arquivos)
+Substituicao direta de `SUPABASE_SECRET_WEBHOOKS` por `RISE_SECRET_WEBHOOKS` (e equivalentes) em todas as tabelas.
 
-O User podera entao prosseguir com a **Fase 6 (Manual)**: criar as 3 secret keys no Supabase Dashboard e configurar os Supabase Secrets.
+### 5. `.env.example`
+Atualizar os 3 placeholders com os novos nomes.
 
+## Instrucoes para o Dashboard (pos-implementacao)
+
+Apos a aplicacao do codigo, configurar no Supabase Dashboard (Settings > Edge Functions > Manage Secrets):
+
+| Nome do Secret | Valor |
+|----------------|-------|
+| `RISE_SECRET_WEBHOOKS` | Valor da secret key "webhooks" criada na Etapa 1 |
+| `RISE_SECRET_PAYMENTS` | Valor da secret key "payments" criada na Etapa 1 |
+| `RISE_SECRET_ADMIN` | Valor da secret key "admin" criada na Etapa 1 |
+
+## Impacto
+
+- **Zero breaking changes em runtime**: O fallback para `SUPABASE_SERVICE_ROLE_KEY` (general) continua funcionando ate os novos secrets serem configurados
+- **107/107 funcoes**: Nenhuma funcao precisa ser alterada -- todas chamam `getSupabaseClient('domain')` que resolve via `DOMAIN_KEY_MAP`
+- **SSOT preservado**: A unica fonte de verdade continua sendo o `DOMAIN_KEY_MAP` no factory
