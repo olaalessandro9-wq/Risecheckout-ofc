@@ -111,7 +111,10 @@ export function ImageCropDialog({
   const [isSaving, setIsSaving] = useState(false);
 
   // === Refs ===
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
+  const containerRef = useCallback((node: HTMLDivElement | null) => {
+    setContainerEl(node);
+  }, []);
   const imageRef = useRef<HTMLImageElement>(null);
 
   // === Load image URL from File ===
@@ -127,10 +130,9 @@ export function ImageCropDialog({
     return undefined;
   }, [imageFile, open]);
 
-  // === Observe container size via ResizeObserver ===
+  // === Observe container size via ResizeObserver (depends on callback ref) ===
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return undefined;
+    if (!containerEl) return undefined;
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
@@ -142,9 +144,9 @@ export function ImageCropDialog({
       }
     });
 
-    observer.observe(el);
+    observer.observe(containerEl);
     return () => observer.disconnect();
-  }, []);
+  }, [containerEl]);
 
   // === Image load handler ===
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -182,41 +184,59 @@ export function ImageCropDialog({
     );
   }, [naturalSize, stencilSize, zoom]);
 
-  // === Zoom via wheel ===
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoom((prev) => {
-      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-      return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta));
-    });
-  }, []);
+  // === Zoom via wheel (non-passive addEventListener to allow preventDefault) ===
+  useEffect(() => {
+    if (!containerEl) return undefined;
 
-  // === Touch pinch zoom ===
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom((prev) => {
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta));
+      });
+    };
+
+    containerEl.addEventListener("wheel", handler, { passive: false });
+    return () => containerEl.removeEventListener("wheel", handler);
+  }, [containerEl]);
+
+  // === Touch pinch zoom (non-passive addEventListener) ===
   const lastPinchDistance = useRef<number | null>(null);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length !== 2) {
+  useEffect(() => {
+    if (!containerEl) return undefined;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2) {
+        lastPinchDistance.current = null;
+        return;
+      }
+
+      e.preventDefault();
+
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (lastPinchDistance.current !== null) {
+        const delta = (distance - lastPinchDistance.current) * 0.005;
+        setZoom((prev) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta)));
+      }
+
+      lastPinchDistance.current = distance;
+    };
+
+    const handleTouchEnd = () => {
       lastPinchDistance.current = null;
-      return;
-    }
+    };
 
-    e.preventDefault();
-
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (lastPinchDistance.current !== null) {
-      const delta = (distance - lastPinchDistance.current) * 0.005;
-      setZoom((prev) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta)));
-    }
-
-    lastPinchDistance.current = distance;
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    lastPinchDistance.current = null;
-  }, []);
+    containerEl.addEventListener("touchmove", handleTouchMove, { passive: false });
+    containerEl.addEventListener("touchend", handleTouchEnd);
+    return () => {
+      containerEl.removeEventListener("touchmove", handleTouchMove);
+      containerEl.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [containerEl]);
 
   // === Save/Export ===
   const handleSaveCrop = useCallback(async () => {
@@ -282,9 +302,6 @@ export function ImageCropDialog({
           <div
             ref={containerRef}
             className="crop-container w-full h-[500px] max-h-[60vh] relative rounded-lg overflow-hidden select-none"
-            onWheel={handleWheel}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
             {/* Stencil overlay (centralizado via CSS) */}
             {stencilSize && (
