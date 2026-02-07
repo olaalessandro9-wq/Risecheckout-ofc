@@ -1,27 +1,26 @@
 /**
- * GatewaySelector - Componente Reutilizável para Seleção de Gateway
+ * GatewaySelector - Seleção de Gateway com design compacto e elegante
  * 
- * Este componente renderiza dinamicamente os gateways disponíveis
- * para um método de pagamento específico.
- * 
- * Características:
- * - Renderização dinâmica baseada no registry
- * - Suporta gateways ativos e "em breve"
- * - Suporta "em breve" por role (comingSoonForRoles)
- * - Exibe taxas automaticamente
- * - Type-safe
- * - Fácil de manter
+ * Cards clicáveis minimalistas com:
+ * - Nome do gateway centralizado
+ * - Check icon discreto quando selecionado
+ * - CredentialDot com tooltip para status de credencial
+ * - Badge "Em Breve" para gateways indisponíveis
+ * - Grid responsivo: 3 colunas desktop, 2 tablet, 1 mobile
  */
 
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { AlertCircle, Clock } from "lucide-react";
+import { Check, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   getActiveGatewaysByMethod,
   getGatewaysByMethod,
-  formatGatewayFees,
   type PaymentMethod,
   type PaymentGateway,
 } from "@/config/payment-gateways";
@@ -42,11 +41,9 @@ export function GatewaySelector({
   credentials = {},
 }: GatewaySelectorProps) {
   const { role } = usePermissions();
-  
-  // Buscar gateways ativos
+
   const activeGateways = getActiveGatewaysByMethod(paymentMethod);
-  
-  // Separar gateways que são "coming soon" para o role atual
+
   const { availableGateways, comingSoonForRoleGateways } = activeGateways.reduce<{
     availableGateways: PaymentGateway[];
     comingSoonForRoleGateways: PaymentGateway[];
@@ -62,15 +59,11 @@ export function GatewaySelector({
     },
     { availableGateways: [], comingSoonForRoleGateways: [] }
   );
-  
-  // Buscar gateways "em breve" globais (se habilitado)
+
   const comingSoonGateways = showComingSoon
-    ? getGatewaysByMethod(paymentMethod).filter(
-        (g) => g.status === 'coming_soon'
-      )
+    ? getGatewaysByMethod(paymentMethod).filter((g) => g.status === "coming_soon")
     : [];
 
-  // Se não houver gateways, mostrar mensagem
   if (availableGateways.length === 0 && comingSoonForRoleGateways.length === 0) {
     return (
       <div className="border rounded-lg p-4 bg-muted/30 text-center">
@@ -82,160 +75,192 @@ export function GatewaySelector({
   }
 
   return (
-    <RadioGroup
-      value={value}
-      onValueChange={onChange}
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-    >
-      {/* Gateways Disponíveis */}
-      {availableGateways.map((gateway) => (
-        <GatewayOption
-          key={gateway.id}
-          gateway={gateway}
-          paymentMethod={paymentMethod}
-          isSelected={value === gateway.id}
-          isConfigured={credentials[gateway.id]?.configured ?? true}
-          viaSecrets={credentials[gateway.id]?.viaSecrets}
-        />
-      ))}
+    <TooltipProvider delayDuration={200}>
+      <div
+        role="radiogroup"
+        aria-label={`Selecionar gateway de ${paymentMethod}`}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+      >
+        {availableGateways.map((gateway) => (
+          <GatewayCard
+            key={gateway.id}
+            gateway={gateway}
+            isSelected={value === gateway.id}
+            onSelect={() => onChange(gateway.id)}
+            credentialStatus={getCredentialStatus(gateway, credentials)}
+          />
+        ))}
 
-      {/* Gateways "Em Breve" para este Role */}
-      {comingSoonForRoleGateways.map((gateway) => (
-        <GatewayRoleComingSoonOption
-          key={gateway.id}
-          gateway={gateway}
-          paymentMethod={paymentMethod}
-        />
-      ))}
+        {comingSoonForRoleGateways.map((gateway) => (
+          <GatewayCardComingSoon
+            key={gateway.id}
+            gateway={gateway}
+          />
+        ))}
 
-      {/* Gateways "Em Breve" Globais */}
-      {comingSoonGateways.map((gateway) => (
-        <GatewayComingSoonOption
-          key={gateway.id}
-          gateway={gateway}
-          paymentMethod={paymentMethod}
-        />
-      ))}
-
-      {/* Placeholder para "Outros Gateways" */}
-      {comingSoonGateways.length === 0 && comingSoonForRoleGateways.length === 0 && (
-        <div className="border rounded-lg p-4 bg-muted/30 flex items-center gap-3 opacity-50">
-          <div className="w-4 h-4 rounded-full border-2 border-muted-foreground" />
-          <div>
-            <div className="font-medium text-muted-foreground">Outros gateways</div>
-            <div className="text-xs text-muted-foreground">Em breve</div>
-          </div>
-        </div>
-      )}
-    </RadioGroup>
+        {comingSoonGateways.map((gateway) => (
+          <GatewayCardComingSoon
+            key={gateway.id}
+            gateway={gateway}
+          />
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
 
 // ============================================
-// SUB-COMPONENTES
+// CREDENTIAL STATUS LOGIC
 // ============================================
 
-interface GatewayOptionProps {
-  gateway: PaymentGateway;
-  paymentMethod: PaymentMethod;
-  isSelected: boolean;
-  isConfigured: boolean;
-  viaSecrets?: boolean;
+type CredentialStatus = "configured" | "via-secrets" | "pending" | "none";
+
+function getCredentialStatus(
+  gateway: PaymentGateway,
+  credentials: Record<string, { configured: boolean; viaSecrets?: boolean }>
+): CredentialStatus {
+  const requiresCredentials = gateway.requiresCredentials ?? true;
+  if (!requiresCredentials) return "none";
+
+  const cred = credentials[gateway.id];
+  if (!cred) return "pending";
+  if (cred.viaSecrets) return "via-secrets";
+  if (cred.configured) return "configured";
+  return "pending";
 }
 
-function GatewayOption({ gateway, paymentMethod, isSelected, isConfigured, viaSecrets }: GatewayOptionProps) {
-  const fees = gateway.fees[paymentMethod];
-  const feesText = fees ? formatGatewayFees(fees) : 'Sem taxas';
-  
-  // ID único combinando método de pagamento + gateway para evitar conflitos
-  const uniqueId = `gateway-${paymentMethod}-${gateway.id}`;
-  
-  // Verificar se gateway requer credenciais
-  // Se viaSecrets = true (Owner), nunca desabilitar
-  const requiresCredentials = gateway.requiresCredentials ?? true;
-  const isDisabled = requiresCredentials && !isConfigured && !viaSecrets;
+// ============================================
+// CREDENTIAL DOT
+// ============================================
+
+const dotConfig: Record<Exclude<CredentialStatus, "none">, { color: string; label: string }> = {
+  configured: {
+    color: "bg-emerald-500",
+    label: "Credenciais configuradas",
+  },
+  "via-secrets": {
+    color: "bg-blue-500",
+    label: "Integrado via Secrets",
+  },
+  pending: {
+    color: "bg-amber-500",
+    label: "Configurar no Financeiro",
+  },
+};
+
+interface CredentialDotProps {
+  status: CredentialStatus;
+}
+
+function CredentialDot({ status }: CredentialDotProps) {
+  if (status === "none") return null;
+
+  const config = dotConfig[status];
 
   return (
-    <Label
-      htmlFor={uniqueId}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn(
+            "inline-block w-2 h-2 rounded-full shrink-0",
+            config.color
+          )}
+          aria-label={config.label}
+        />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">
+        {config.label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// ============================================
+// GATEWAY CARD (ACTIVE)
+// ============================================
+
+interface GatewayCardProps {
+  gateway: PaymentGateway;
+  isSelected: boolean;
+  onSelect: () => void;
+  credentialStatus: CredentialStatus;
+}
+
+function GatewayCard({ gateway, isSelected, onSelect, credentialStatus }: GatewayCardProps) {
+  const isDisabled = credentialStatus === "pending";
+
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={isSelected}
+      aria-label={gateway.displayName}
+      disabled={isDisabled}
+      onClick={onSelect}
       className={cn(
-        "border rounded-lg p-4 flex items-center gap-3 transition-all",
-        isDisabled
-          ? "opacity-50 cursor-not-allowed bg-muted/30"
-          : "cursor-pointer",
-        !isDisabled && isSelected ? "ring-2 ring-primary bg-primary/5" : "",
-        !isDisabled && !isSelected ? "hover:bg-muted/50" : ""
+        "relative flex flex-col items-center justify-center gap-1",
+        "rounded-lg border px-4 py-5 transition-all duration-200",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        isDisabled && "opacity-50 cursor-not-allowed bg-muted/30",
+        !isDisabled && isSelected && "border-primary bg-primary/5 shadow-sm",
+        !isDisabled && !isSelected && "hover:border-primary/50 hover:shadow-sm",
       )}
     >
-      <RadioGroupItem id={uniqueId} value={gateway.id} disabled={isDisabled} />
-      <div className="flex-1">
-        <div className="font-medium">{gateway.displayName}</div>
-        <div className="text-xs text-muted-foreground">{feesText}</div>
-        {gateway.description && (
-          <div className="text-xs text-muted-foreground mt-1 opacity-75">
-            {gateway.description}
-          </div>
-        )}
-        {isDisabled && (
-          <div className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Configure na página Financeiro
-          </div>
-        )}
-      </div>
-      {gateway.status === 'beta' && (
-        <span className="text-xs bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded">
+      {/* Credential Dot - top right */}
+      <span className="absolute top-2.5 right-2.5">
+        <CredentialDot status={credentialStatus} />
+      </span>
+
+      {/* Gateway Name */}
+      <span className="text-sm font-medium text-foreground">
+        {gateway.displayName}
+      </span>
+
+      {/* Beta badge */}
+      {gateway.status === "beta" && (
+        <span className="text-[10px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded-full leading-none">
           Beta
         </span>
       )}
-    </Label>
-  );
-}
 
-interface GatewayComingSoonOptionProps {
-  gateway: PaymentGateway;
-  paymentMethod: PaymentMethod;
-}
-
-function GatewayComingSoonOption({ gateway, paymentMethod }: GatewayComingSoonOptionProps) {
-  const fees = gateway.fees[paymentMethod];
-  const feesText = fees ? formatGatewayFees(fees) : 'Sem taxas';
-
-  return (
-    <div className="border rounded-lg p-4 bg-muted/30 flex items-center gap-3 opacity-50 cursor-not-allowed">
-      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground" />
-      <div className="flex-1">
-        <div className="font-medium text-muted-foreground">{gateway.displayName}</div>
-        <div className="text-xs text-muted-foreground">{feesText}</div>
-        <div className="text-xs text-muted-foreground mt-1">Em breve</div>
-      </div>
-    </div>
+      {/* Check icon - bottom right */}
+      {isSelected && (
+        <span className="absolute bottom-2 right-2.5">
+          <Check className="h-3.5 w-3.5 text-primary" />
+        </span>
+      )}
+    </button>
   );
 }
 
 // ============================================
-// GATEWAY "EM BREVE" POR ROLE
+// GATEWAY CARD (COMING SOON)
 // ============================================
 
-interface GatewayRoleComingSoonOptionProps {
+interface GatewayCardComingSoonProps {
   gateway: PaymentGateway;
-  paymentMethod: PaymentMethod;
 }
 
-function GatewayRoleComingSoonOption({ gateway, paymentMethod }: GatewayRoleComingSoonOptionProps) {
-  const fees = gateway.fees[paymentMethod];
-  const feesText = fees ? formatGatewayFees(fees) : 'Sem taxas';
-
+function GatewayCardComingSoon({ gateway }: GatewayCardComingSoonProps) {
   return (
-    <div className="border rounded-lg p-4 bg-muted/30 flex items-center gap-3 opacity-50 cursor-not-allowed">
-      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground" />
-      <div className="flex-1">
-        <div className="font-medium text-muted-foreground">{gateway.displayName}</div>
-        <div className="text-xs text-muted-foreground">{feesText}</div>
-      </div>
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border">
+    <div
+      className={cn(
+        "relative flex flex-col items-center justify-center gap-1",
+        "rounded-lg border px-4 py-5",
+        "opacity-40 cursor-not-allowed bg-muted/20"
+      )}
+    >
+      {/* Gateway Name */}
+      <span className="text-sm font-medium text-muted-foreground">
+        {gateway.displayName}
+      </span>
+
+      {/* Coming Soon Badge */}
+      <div className="flex items-center gap-1 mt-0.5">
         <Clock className="w-3 h-3 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground">Em Breve</span>
+        <span className="text-[10px] font-medium text-muted-foreground">
+          Em Breve
+        </span>
       </div>
     </div>
   );
