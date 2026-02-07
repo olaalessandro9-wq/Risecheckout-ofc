@@ -206,11 +206,16 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
   const utmifyConfig = vendorIntegration?.active ? vendorIntegration.config : null;
 
   // ULTRA TRACKING: Build Advanced Matching data from checkout form for Facebook Pixel
+  // Only emits valid data when email has a structurally valid format (contains @ and domain with .)
+  // This prevents useEffect churn in Pixel.tsx on every keystroke
   const advancedMatching = useMemo<FacebookAdvancedMatchingData | undefined>(() => {
-    if (!formData.email) return undefined;
+    const email = formData.email?.trim().toLowerCase();
+    if (!email || !email.includes('@') || !email.split('@')[1]?.includes('.')) {
+      return undefined;
+    }
     const nameParts = (formData.name || '').trim().split(/\s+/);
     return {
-      em: formData.email,
+      em: email,
       ph: formData.phone || undefined,
       fn: nameParts[0] || undefined,
       ln: nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined,
