@@ -1,87 +1,95 @@
 
 
-# Remover Asaas da Opcao de Cartao de Credito
+# Rework: Secao de Gateways de Pagamento (PIX e Cartao de Credito)
 
-## Diagnostico
+## O Que Muda
 
-No arquivo `src/config/payment-gateways.ts`, linha 58, o gateway Asaas esta configurado com:
+### Remocoes
+- **Taxas/Fees**: Remover toda exibicao de taxas de todos os gateways (texto "Taxa: R$ 2,00 + 0.99%")
+- **Descricoes**: Remover as descricoes dos gateways (texto "Gateway completo com PIX e Cartao", etc.)
 
-```typescript
-supportedMethods: ['pix', 'credit_card'],
-```
+### Redesign Visual
 
-O componente `GatewaySelector` chama `getActiveGatewaysByMethod('credit_card')` que filtra gateways cujo `supportedMethods` inclui `'credit_card'`. Como Asaas tem esse metodo listado, ele aparece na secao "Cartao de Credito".
+O design atual usa cards grandes com RadioGroupItem circular + nome + taxas + descricao + aviso de credenciais, resultando em blocos visuais pesados e com muita informacao desnecessaria.
 
-A implementacao de cartao de credito via Asaas ainda nao foi feita, entao o gateway nao deveria aparecer ali.
+O novo design sera:
 
-## Plano de Execucao
+**Cards compactos e limpos** com:
+- Nome do gateway em destaque (unica informacao textual)
+- Borda sutil com transicao suave no hover
+- Estado selecionado com borda `primary` e fundo suave `primary/5`
+- Icone de check discreto no canto superior direito quando selecionado (em vez do RadioGroupItem circular)
+- Badge "Em Breve" minimalista para gateways nao disponiveis
+- Status de credencial como um dot indicator discreto (verde = configurado, amarelo = pendente, azul = via secrets)
 
-### EDITAR `src/config/payment-gateways.ts`
+**Layout das secoes PIX e Cartao**:
+- Titulo da secao com icone contextual (QrCode para PIX, CreditCard para Cartao)
+- Grid responsivo: 3 colunas em desktop, 2 em tablet, 1 em mobile
+- Separador visual sutil entre PIX e Cartao
+- Remocao do bloco "Aviso de Configuracao" (informacao redundante ja presente no dot indicator)
 
-**Linha 58** - Remover `'credit_card'` do `supportedMethods` do Asaas:
-
-```typescript
-// DE:
-supportedMethods: ['pix', 'credit_card'],
-
-// PARA:
-supportedMethods: ['pix'],
-```
-
-**Linhas 59-66** - Remover o bloco `credit_card` dos `fees` do Asaas:
-
-```typescript
-// DE:
-fees: {
-  pix: {
-    percentage: 0.99,
-  },
-  credit_card: {
-    percentage: 3.49,
-    transaction: 49,
-  },
-},
-
-// PARA:
-fees: {
-  pix: {
-    percentage: 0.99,
-  },
-},
-```
-
-**Linha 302** - Atualizar o tipo `CreditCardGatewayId`:
-
-```typescript
-// DE:
-export type CreditCardGatewayId = 'asaas' | 'mercadopago' | 'stripe';
-
-// PARA:
-export type CreditCardGatewayId = 'mercadopago' | 'stripe';
-```
-
-### Tambem verificar: `src/config/payment-gateways.test.ts`
-
-O teste na linha 139-145 espera que Asaas apareca nos gateways de credit_card. Sera atualizado para refletir a remocao.
-
-### Nenhum outro arquivo precisa de alteracao
-
-O `GatewaySelector` e dinamico -- ele consulta o registry. Ao remover `credit_card` do `supportedMethods` do Asaas, ele automaticamente para de aparecer na secao "Cartao de Credito", sem tocar em nenhum componente de UI.
-
-O Asaas continua aparecendo normalmente na secao PIX (nenhuma mudanca la).
+**Credential Status integrado no card**:
+- Dot verde no canto com tooltip "Configurado" (em vez de texto abaixo do selector)
+- Dot azul com tooltip "Via Secrets" para Owner
+- Dot amarelo com tooltip "Configurar no Financeiro" para credenciais pendentes
 
 ## Arvore de Arquivos
 
 ```text
-src/config/
-  payment-gateways.ts       -- EDITAR (supportedMethods, fees, CreditCardGatewayId)
-  payment-gateways.test.ts  -- EDITAR (atualizar teste que espera asaas em credit_card)
+src/components/products/
+  GatewaySelector.tsx                -- REESCREVER (novo design completo)
+  settings/GatewaySection.tsx        -- EDITAR (remover GatewayCredentialStatus, simplificar layout, adicionar icones)
 ```
 
-## Resultado Esperado
+## Detalhes Tecnicos
 
-| Secao | Antes | Depois |
-|-------|-------|--------|
-| PIX | Asaas, Mercado Pago, PushinPay | Asaas, Mercado Pago, PushinPay (sem mudanca) |
-| Cartao de Credito | Asaas, Mercado Pago, Stripe | Mercado Pago, Stripe |
+### `GatewaySelector.tsx` - Reescrita Completa
+
+Mudancas estruturais:
+1. Remover toda referencia a `formatGatewayFees` e `fees`
+2. Remover exibicao de `gateway.description`
+3. Substituir `RadioGroup` + `RadioGroupItem` por cards clicaveis com estado controlado (mantendo a mesma interface `value`/`onChange`)
+4. Novo sub-componente `GatewayCard` com design minimalista
+5. Novo sub-componente `CredentialDot` para status de credencial inline
+6. Grid de 3 colunas (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`)
+
+Layout de cada card:
+
+```text
+┌─────────────────────────┐
+│                    [dot] │  <- dot de credential status (verde/amarelo/azul)
+│                         │
+│     Gateway Name        │  <- texto centralizado, font-medium
+│                         │
+│              [check] ✓  │  <- icone check sutil quando selecionado
+└─────────────────────────┘
+```
+
+Card selecionado: `border-primary bg-primary/5 shadow-sm`
+Card hover: `hover:border-primary/50 hover:shadow-sm`
+Card disabled: `opacity-50 cursor-not-allowed`
+Card coming soon: `opacity-40` + badge "Em Breve" no canto
+
+### `GatewaySection.tsx` - Simplificacao
+
+1. Remover o componente `GatewayCredentialStatus` (substituido por dot inline no card)
+2. Adicionar icones `QrCode` (PIX) e `CreditCard` (Cartao) nos titulos das secoes
+3. Remover o bloco de "Aviso de Configuracao" (info box azul)
+4. Adicionar `Separator` entre PIX e Cartao para separacao visual
+
+### Dados removidos da exibicao (mantidos no registry para uso interno)
+
+As taxas e descricoes continuam existindo no `payment-gateways.ts` para uso interno do sistema (calculo de fees no checkout, etc). Apenas a **exibicao** na UI de configuracoes e removida.
+
+## Resultado Visual Esperado
+
+| Aspecto | Antes | Depois |
+|---------|-------|--------|
+| Taxas | "Taxa: R$ 2,00 + 0.99%" visivel | Removido |
+| Descricao | "Gateway completo com PIX e Cartao" | Removido |
+| Radio button | Circulo RadioGroupItem | Check icon discreto |
+| Credential status | Texto abaixo do selector | Dot colorido no card |
+| Info box azul | Bloco grande com texto | Removido |
+| Colunas | 2 colunas | 3 colunas (desktop) |
+| Altura do card | ~80px (muito conteudo) | ~64px (compacto) |
 
