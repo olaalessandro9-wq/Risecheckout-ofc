@@ -4,7 +4,7 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * ═══════════════════════════════════════════════════════════════════════════
- * RISE V3 EXCEPTION: FILE LENGTH (~515 lines)
+ * RISE V3 EXCEPTION: FILE LENGTH (~580 lines)
  * 
  * This file exceeds the 300-line limit due to its central role as the 
  * Single Source of Truth (SSOT) for unified authentication across all
@@ -427,6 +427,101 @@ export async function createSession(
     accessTokenExpiresAt: tokens.accessTokenExpiresAt,
     refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
   };
+}
+
+// ============================================================================
+// SESSION CONTEXT RESOLUTION (SSOT for login + MFA verify)
+// ============================================================================
+
+/**
+ * Parameters for resolving a user session context.
+ * Used by both login and MFA verify handlers to avoid duplication.
+ */
+export interface ResolveSessionParams {
+  supabase: SupabaseClient;
+  user: { id: string; email: string; name: string | null };
+  roles: AppRole[];
+  req: Request;
+  preferredRole?: AppRole;
+}
+
+/**
+ * Result of session context resolution.
+ */
+export interface ResolvedSessionContext {
+  activeRole: AppRole;
+  session: SessionData;
+}
+
+/**
+ * Resolves the full session context for a user login.
+ * 
+ * RISE V3 SSOT: This is the SINGLE SOURCE OF TRUTH for post-authentication
+ * session creation. Both `login.ts` and `mfa-verify.ts` call this function
+ * to guarantee identical behavior (active role resolution, session cleanup,
+ * session creation, last_login_at update).
+ * 
+ * Steps:
+ * 1. Resolve active role (last context → preferred → hierarchy)
+ * 2. Invalidate old sessions (max 5 active per user)
+ * 3. Create new session via createSession()
+ * 4. Update last_login_at timestamp
+ */
+export async function resolveUserSessionContext(
+  params: ResolveSessionParams
+): Promise<ResolvedSessionContext | null> {
+  const { supabase, user, roles, req, preferredRole } = params;
+
+  // 1. Resolve active role
+  let activeRole: AppRole = "buyer";
+
+  const { data: lastContext } = await supabase
+    .from("user_active_context")
+    .select("active_role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (lastContext?.active_role && roles.includes(lastContext.active_role as AppRole)) {
+    activeRole = lastContext.active_role as AppRole;
+  } else if (preferredRole && roles.includes(preferredRole)) {
+    activeRole = preferredRole;
+  } else if (roles.some(r => ["owner", "admin", "user", "seller"].includes(r))) {
+    activeRole = roles.find(r => ["owner", "admin", "user", "seller"].includes(r)) || "seller";
+  }
+
+  // 2. Invalidate old sessions (max 5 active per user)
+  const { data: existingSessions } = await supabase
+    .from("sessions")
+    .select("id, created_at")
+    .eq("user_id", user.id)
+    .eq("is_valid", true)
+    .order("created_at", { ascending: false });
+
+  if (existingSessions && existingSessions.length >= 5) {
+    const sessionsToInvalidate = existingSessions.slice(4).map(s => s.id);
+    if (sessionsToInvalidate.length > 0) {
+      await supabase
+        .from("sessions")
+        .update({ is_valid: false })
+        .in("id", sessionsToInvalidate);
+      log.info("Invalidated old sessions", { count: sessionsToInvalidate.length });
+    }
+  }
+
+  // 3. Create session
+  const session = await createSession(supabase, user.id, activeRole, req);
+  if (!session) {
+    log.error("Failed to create session for user:", user.id);
+    return null;
+  }
+
+  // 4. Update last login
+  await supabase
+    .from("users")
+    .update({ last_login_at: new Date().toISOString() })
+    .eq("id", user.id);
+
+  return { activeRole, session };
 }
 
 /**

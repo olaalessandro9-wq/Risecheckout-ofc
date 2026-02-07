@@ -74,7 +74,7 @@ export async function handleMfaDisable(
       .from("user_mfa")
       .select("totp_secret_encrypted, totp_secret_iv, is_enabled")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!mfaRecord?.is_enabled) {
       return errorResponse("MFA não está ativado", corsHeaders, 400);

@@ -11,7 +11,7 @@ import { createLogger } from "../../_shared/logger.ts";
 import { errorResponse, jsonResponse } from "../../_shared/response-helpers.ts";
 import {
   verifyPassword,
-  createSession,
+  resolveUserSessionContext,
   createAuthResponse,
   createUnifiedAuthCookies,
   type AppRole,
@@ -142,7 +142,7 @@ export async function handleLogin(
         .from("user_mfa")
         .select("is_enabled")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       
       if (mfaRecord?.is_enabled) {
         // MFA enabled - require TOTP verification before session creation
@@ -165,79 +165,47 @@ export async function handleLogin(
       mfaSetupRequired = true;
     }
     
-    // Determine active role
-    let activeRole: AppRole = "buyer"; // Default
-    
-    // Check preferred role from user's last context
-    const { data: lastContext } = await supabase
-      .from("user_active_context")
-      .select("active_role")
-      .eq("user_id", user.id)
-      .single();
-    
-    if (lastContext?.active_role && roles.includes(lastContext.active_role as AppRole)) {
-      activeRole = lastContext.active_role as AppRole;
-    } else if (preferredRole && roles.includes(preferredRole)) {
-      activeRole = preferredRole;
-    } else if (roles.some(r => ["owner", "admin", "user", "seller"].includes(r))) {
-      // Producer-type roles take precedence
-      activeRole = roles.find(r => ["owner", "admin", "user", "seller"].includes(r)) || "seller";
-    }
-    
-    // RISE V3: Invalidar sessões anteriores para evitar acúmulo
-    // Mantém no máximo 5 sessões ativas por usuário
-    const { data: existingSessions } = await supabase
-      .from("sessions")
-      .select("id, created_at")
-      .eq("user_id", user.id)
-      .eq("is_valid", true)
-      .order("created_at", { ascending: false });
-    
-    if (existingSessions && existingSessions.length >= 5) {
-      // Invalidar sessões mais antigas (manter apenas as 4 mais recentes + nova)
-      const sessionsToInvalidate = existingSessions.slice(4).map(s => s.id);
-      if (sessionsToInvalidate.length > 0) {
-        await supabase
-          .from("sessions")
-          .update({ is_valid: false })
-          .in("id", sessionsToInvalidate);
-        log.info("Invalidated old sessions", { count: sessionsToInvalidate.length });
-      }
-    }
-    
-    // Create session
-    const session = await createSession(supabase, user.id, activeRole, req);
-    if (!session) {
+    // RISE V3: Resolve session context (SSOT - shared with mfa-verify handler)
+    const context = await resolveUserSessionContext({
+      supabase,
+      user: { id: user.id, email: user.email, name: user.name },
+      roles,
+      req,
+      preferredRole,
+    });
+
+    if (!context) {
       return errorResponse("Erro ao criar sessão", corsHeaders, 500);
     }
-    
-    // Update last login
-    await supabase
-      .from("users")
-      .update({ last_login_at: new Date().toISOString() })
-      .eq("id", user.id);
-    
-    log.info("Login successful", { userId: user.id, activeRole, mfaSetupRequired });
-    
+
+    log.info("Login successful", {
+      userId: user.id,
+      activeRole: context.activeRole,
+      mfaSetupRequired,
+    });
+
     // Add MFA setup flag if admin/owner hasn't configured MFA yet
     if (mfaSetupRequired) {
-      const authCookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
+      const authCookies = createUnifiedAuthCookies(
+        context.session.sessionToken,
+        context.session.refreshToken
+      );
       return jsonResponseWithCookies({
         success: true,
         mfa_setup_required: true,
         expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60,
-        expiresAt: session.accessTokenExpiresAt.toISOString(),
+        expiresAt: context.session.accessTokenExpiresAt.toISOString(),
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
         },
         roles,
-        activeRole,
+        activeRole: context.activeRole,
       }, corsHeaders, authCookies);
     }
-    
-    return createAuthResponse(session, user, roles, corsHeaders);
+
+    return createAuthResponse(context.session, user, roles, corsHeaders);
     
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);

@@ -20,7 +20,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "../../_shared/logger.ts";
 import { errorResponse } from "../../_shared/response-helpers.ts";
 import {
-  createSession,
+  resolveUserSessionContext,
   createAuthResponse,
   type AppRole,
 } from "../../_shared/unified-auth-v2.ts";
@@ -147,7 +147,7 @@ export async function handleMfaVerify(
       .update({ last_used_at: new Date().toISOString() })
       .eq("user_id", userId);
 
-    // Get user data
+    // Get user data for session context
     const { data: user } = await supabase
       .from("users")
       .select("id, email, name")
@@ -167,40 +167,21 @@ export async function handleMfaVerify(
     const roles: AppRole[] = (userRoles || []).map((r) => r.role as AppRole);
     if (!roles.includes("buyer")) roles.push("buyer");
 
-    // Determine active role (prefer last context, fallback to highest privilege)
-    const { data: lastContext } = await supabase
-      .from("user_active_context")
-      .select("active_role")
-      .eq("user_id", userId)
-      .single();
+    // RISE V3: Resolve session context (SSOT - shared with login handler)
+    const context = await resolveUserSessionContext({
+      supabase,
+      user,
+      roles,
+      req,
+    });
 
-    let activeRole: AppRole = "buyer";
-    if (
-      lastContext?.active_role &&
-      roles.includes(lastContext.active_role as AppRole)
-    ) {
-      activeRole = lastContext.active_role as AppRole;
-    } else if (roles.includes("owner")) {
-      activeRole = "owner";
-    } else if (roles.includes("admin")) {
-      activeRole = "admin";
-    }
-
-    // Create full session
-    const session = await createSession(supabase, userId, activeRole, req);
-    if (!session) {
+    if (!context) {
       return errorResponse("Erro ao criar sessão", corsHeaders, 500);
     }
 
-    // Update last login
-    await supabase
-      .from("users")
-      .update({ last_login_at: new Date().toISOString() })
-      .eq("id", userId);
+    log.info("MFA verified, session created", { userId, activeRole: context.activeRole });
 
-    log.info("MFA verified, session created", { userId, activeRole });
-
-    return createAuthResponse(session, user, roles, corsHeaders);
+    return createAuthResponse(context.session, user, roles, corsHeaders);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("MFA verify error:", msg);
