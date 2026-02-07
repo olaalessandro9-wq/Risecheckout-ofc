@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import type { AppRole } from "@/hooks/useUnifiedAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLogger } from "@/lib/logger";
 
@@ -17,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, User } from "lucide-react";
+import { MfaSettingsCard } from "@/components/auth/MfaSettingsCard";
 
 interface ProfileResponse {
   profile: {
@@ -64,7 +66,7 @@ function getInitials(name: string | null | undefined): string {
 }
 
 export default function Perfil() {
-  const { user } = useUnifiedAuth();
+  const { user, activeRole } = useUnifiedAuth();
   const queryClient = useQueryClient();
   
   const [nome, setNome] = useState("");
@@ -162,7 +164,7 @@ export default function Perfil() {
   }
   
   const initials = getInitials(profile?.name);
-  
+  const isMfaEligible = activeRole === "admin" || activeRole === "owner";
   return (
     <div className="space-y-6">
       <div>
@@ -269,6 +271,9 @@ export default function Perfil() {
           </CardContent>
         </Card>
       </div>
+
+      {/* MFA Settings - visible only for admin/owner */}
+      {isMfaEligible && <MfaSettingsCard />}
     </div>
   );
 }

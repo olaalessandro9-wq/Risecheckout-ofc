@@ -109,6 +109,19 @@ export async function validateMfaSession(
 
 /**
  * Increments the attempt counter for an MFA session.
+ * 
+ * RISE V3 Architecture Decision:
+ * Uses read-then-write pattern (SELECT + UPDATE) because Supabase JS client
+ * does not support SQL expressions (e.g., `attempts = attempts + 1`) in `.update()`.
+ * 
+ * Race condition risk: NEGLIGIBLE
+ * - Each MFA session belongs to a single user
+ * - Only one device/tab submits codes per login attempt
+ * - The 5-attempt max is a safety net, not a precision counter
+ * 
+ * Alternative considered: Creating a dedicated RPC function for atomic increment.
+ * Rejected because it adds deployment complexity without meaningful benefit
+ * in the single-user-per-session context.
  */
 export async function incrementMfaAttempts(
   supabase: SupabaseClient,

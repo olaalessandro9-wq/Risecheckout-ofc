@@ -2,7 +2,7 @@
  * Auth - Login page for producers
  * Uses unified-auth edge function (RISE Protocol V3)
  * 
- * @version 3.0.0 - Blue Theme + Inverted Layout (Form Left, Branding Right)
+ * @version 3.1.0 - MFA Integration
  */
 
 import { useState, useEffect } from "react";
@@ -16,11 +16,16 @@ import { motion } from "framer-motion";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthThemeProvider } from "@/components/theme-providers";
 import { RiseLogo } from "@/components/brand/RiseLogo";
+import { MfaVerifyDialog } from "@/components/auth/MfaVerifyDialog";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, isLoading: authLoading, isLoggingIn } = useUnifiedAuth();
+  const { login, isAuthenticated, isLoading: authLoading, isLoggingIn, invalidate } = useUnifiedAuth();
   const [loading, setLoading] = useState(false);
+
+  // MFA state
+  const [showMfaDialog, setShowMfaDialog] = useState(false);
+  const [mfaSessionToken, setMfaSessionToken] = useState("");
 
   // Login fields
   const [loginEmail, setLoginEmail] = useState("");
@@ -47,6 +52,15 @@ const Auth = () => {
       // Use unified-auth login with preferred role "user" (producer)
       const result = await login(loginEmail, loginPassword, "user");
 
+      // Check if MFA is required
+      if (result && 'mfa_required' in result && (result as Record<string, unknown>).mfa_required) {
+        const mfaResult = result as Record<string, unknown>;
+        setMfaSessionToken(mfaResult.mfa_session_token as string);
+        setShowMfaDialog(true);
+        setLoading(false);
+        return;
+      }
+
       if (!result.success) {
         toast.error(result.error || "Erro ao fazer login");
         setLoading(false);
@@ -60,6 +74,17 @@ const Auth = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMfaSuccess = () => {
+    setShowMfaDialog(false);
+    setMfaSessionToken("");
+    invalidate(); // Force re-validation of session
+    toast.success("Login realizado com sucesso!");
+  };
+
+  const handleMfaError = (message: string) => {
+    toast.error(message);
   };
 
   // RISE V3: Loading state removed - AuthPageLoader in Suspense handles this
@@ -186,6 +211,15 @@ const Auth = () => {
           </div>
         </div>
       </div>
+
+      {/* MFA Verification Dialog */}
+      <MfaVerifyDialog
+        open={showMfaDialog}
+        onOpenChange={setShowMfaDialog}
+        mfaSessionToken={mfaSessionToken}
+        onSuccess={handleMfaSuccess}
+        onError={handleMfaError}
+      />
     </AuthThemeProvider>
   );
 };
