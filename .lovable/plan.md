@@ -1,203 +1,127 @@
 
+# Auditoria Pos-Implementacao: UTMify Pixel v5.0.0
 
-# Implementacao do Pixel UTMify Frontend: Evento InitiateCheckout
+## Resultado da Auditoria
 
-## Diagnostico da Raiz
+A implementacao funcional esta 100% correta. O `Pixel.tsx` foi criado, o `Tracker.tsx` foi deletado, o `TrackingManager.tsx` consome `UTMify.Pixel`, os testes passam, e a tipagem global esta presente. Porem, a auditoria revelou **restos de comentarios/JSDoc legados** em 8 arquivos que ainda dizem "feito EXCLUSIVAMENTE no backend" -- o que agora e factualmente incorreto dado que o InitiateCheckout e disparado pelo frontend via Pixel CDN.
 
-O relatorio do Manus/Gemini esta correto no diagnostico. A integracao UTMify do RiseCheckout esta **arquiteturalmente incompleta**:
-
-- **Backend (SSOT)**: Funciona corretamente. Eventos transacionais (purchase_approved, pix_generated, refund, chargeback) sao disparados via `_shared/utmify/dispatcher.ts` nos webhooks de pagamento. Nenhuma alteracao necessaria.
-- **Frontend (Pixel)**: NAO existe. O componente `Tracker.tsx` atual e **codigo morto** -- ele apenas loga uma mensagem e retorna `null`. Nao injeta nenhum script, nao dispara nenhum evento. Enquanto isso, TODOS os outros pixels (Facebook, TikTok, Google Ads, Kwai) possuem componentes `Pixel.tsx` que injetam scripts CDN e disparam eventos.
-
-A consequencia direta: o evento `InitiateCheckout` (IC) -- um sinal comportamental critico para otimizacao de campanhas Facebook Ads via UTMify -- **nunca e disparado**.
-
-### Por que o InitiateCheckout e diferente dos outros eventos?
-
-| Tipo | Onde dispara | Exemplos |
-|------|-------------|----------|
-| Transacional | Backend (API S2S) | purchase_approved, refund, chargeback |
-| Comportamental | Frontend (Pixel/Script) | InitiateCheckout, PageView |
-
-A API backend da UTMify (`api.utmify.com.br/api-credentials/orders`) serve APENAS para eventos transacionais. O evento `InitiateCheckout` e comportamental e DEVE ser disparado pelo script frontend da UTMify (`cdn.utmify.com.br/scripts/utms/latest.js`) via `window.utmify('track', 'InitiateCheckout')`.
+Esses comentarios desatualizados violam diretamente o Protocolo RISE V3:
+- **Secao 4.2 - Manutenibilidade Infinita**: Comentarios que contradizem a realidade criam confusao para futuros mantenedores
+- **Secao 5.4 - Divida Tecnica Zero**: Documentacao desatualizada e divida tecnica textual
+- **Secao 6.4 - Higiene de Codigo**: Nomenclatura e comentarios devem ser tao claros que nao gerem ambiguidade
 
 ---
 
-## Analise de Solucoes
+## Problemas Encontrados (12 restos legados)
 
-### Solucao A: Criar `Pixel.tsx` seguindo o padrao dos outros pixels + remover `Tracker.tsx` (codigo morto)
+### GRUPO 1: JSDoc com "EXCLUSIVAMENTE no backend" (INCORRETO -- agora e hibrido)
 
-Criar um componente `Pixel.tsx` que:
-1. Injeta o script `https://cdn.utmify.com.br/scripts/utms/latest.js` no `<head>`
-2. Dispara `window.utmify('track', 'InitiateCheckout')` apos o carregamento
-3. Usa retry (polling com limite) para lidar com latencia de script
-4. Adiciona atributos `data-utmify-prevent-xcod-sck` e `data-utmify-prevent-subids` para evitar conflito com o sistema proprio de captura de UTMs do RiseCheckout
-5. Remove `Tracker.tsx` (codigo morto) e atualiza TrackingManager para usar `Pixel`
+| # | Arquivo | Linha(s) | Problema |
+|---|---------|----------|----------|
+| 1 | `src/integrations/tracking/utmify/index.ts` | 5-14 | `@version 4.0.0` e JSDoc diz "EXCLUSIVAMENTE no backend" + menciona "Tracker" |
+| 2 | `src/integrations/tracking/utmify/events.ts` | 5-8 | `@version 4.0.0` e JSDoc diz "EXCLUSIVAMENTE no backend" |
+| 3 | `src/integrations/tracking/utmify/__tests__/index.test.ts` | 5-8, 50 | `@version 4.0.0`, "EXCLUSIVAMENTE no backend", e comentario `// Component: Tracker` |
+| 4 | `src/integrations/tracking/utmify/__tests__/events.test.ts` | 5-8 | `@version 4.0.0` e "EXCLUSIVAMENTE no backend" |
+| 5 | `src/hooks/checkout/useTrackingService.ts` | 4-8, 52-53, 68, 79, 84-86 | `@version 4.0.0`, multiplas mencoes "EXCLUSIVAMENTE no backend", e **"UTMify nao tem evento de InitiateCheckout"** (FALSO) |
+| 6 | `src/hooks/checkout/useTrackingService.test.ts` | 4-8 | `@version 4.0.0` e "EXCLUSIVAMENTE no backend" |
+| 7 | `src/pages/PaymentSuccessPage.tsx` | 4-8, 116-118 | `@version 4.0.0` e "EXCLUSIVAMENTE no backend" |
 
-- Manutenibilidade: 10/10 (segue exatamente o padrao de Facebook.Pixel, TikTok.Pixel, Kwai.Pixel)
-- Zero DT: 10/10 (remove codigo morto, componente auto-contido)
-- Arquitetura: 10/10 (Single Responsibility, segue padrao existente, type-safe)
-- Escalabilidade: 10/10 (facil adicionar novos eventos no futuro)
-- Seguranca: 10/10 (nenhum token exposto -- o script CDN usa cookies, nao API key)
-- **NOTA FINAL: 10.0/10**
+### GRUPO 2: Versao desatualizada no README
 
-### Solucao B: Modificar `Tracker.tsx` para adicionar a logica de pixel
-
-Reaproveitar o componente existente e adicionar a injecao de script dentro dele.
-
-- Manutenibilidade: 6/10 (mistura responsabilidades -- o nome "Tracker" nao comunica "injecao de script")
-- Zero DT: 5/10 (nome inconsistente com os outros modulos que usam "Pixel")
-- Arquitetura: 5/10 (quebra o padrao estabelecido -- todos os outros modulos tem Pixel.tsx)
-- Escalabilidade: 7/10
-- Seguranca: 10/10
-- **NOTA FINAL: 6.2/10**
-
-### DECISAO: Solucao A (Nota 10.0)
-
-A Solucao B mantem inconsistencia de nomenclatura e viola o padrao arquitetural. A Solucao A segue o padrao existente (Facebook.Pixel, TikTok.Pixel, Kwai.Pixel), remove codigo morto, e resulta em uma arquitetura uniforme.
+| # | Arquivo | Linha | Problema |
+|---|---------|-------|----------|
+| 8 | `src/integrations/tracking/utmify/README.md` | 4 | Diz `Versao: 4.0.0 - Backend SSOT` mas ja e v5.0.0 Hibrida |
+| 9 | `src/integrations/tracking/utmify/README.md` | 35 | Diz "apenas utilitarios e tipos" -- falta mencionar o Pixel |
 
 ---
 
-## Plano de Execucao
+## Plano de Correcao
 
-### Arquivo 1: `src/types/global.d.ts` -- EDITAR
+### Arquivo 1: `src/integrations/tracking/utmify/index.ts` (linhas 2-17)
 
-Adicionar a declaracao de tipo para `window.utmify` na secao WINDOW GLOBAL DECLARATIONS, seguindo o padrao dos outros pixels:
+Atualizar JSDoc de v4.0.0 Backend SSOT para v5.0.0 Arquitetura Hibrida. Remover mencao a "Tracker", adicionar "Pixel".
 
-```text
-// ========== UTMIFY PIXEL ==========
-/** Funcao principal do UTMify Pixel */
-utmify?: UTMifyPixelFunction;
-```
+### Arquivo 2: `src/integrations/tracking/utmify/events.ts` (linhas 5-8)
 
-E adicionar a interface `UTMifyPixelFunction` na secao de tipos:
+Atualizar versao para 5.0.0 e trocar "EXCLUSIVAMENTE no backend" por "eventos transacionais no backend, eventos comportamentais (InitiateCheckout) no frontend via Pixel CDN".
 
-```text
-// UTMIFY PIXEL TYPES
-interface UTMifyPixelFunction {
-  (method: 'track', eventName: string, params?: Record<string, unknown>): void;
-  (...args: unknown[]): void;
-}
-```
+### Arquivo 3: `src/integrations/tracking/utmify/__tests__/index.test.ts` (linhas 5-8, 50)
 
-### Arquivo 2: `src/integrations/tracking/utmify/Pixel.tsx` -- CRIAR (NOVO)
+Atualizar versao para 5.0.0, corrigir JSDoc, e trocar comentario `// Component: Tracker` por `// Component: Pixel`.
 
-Componente seguindo o padrao exato de `Facebook/Pixel.tsx` e `Kwai/Pixel.tsx`:
+### Arquivo 4: `src/integrations/tracking/utmify/__tests__/events.test.ts` (linhas 5-8)
 
-1. Recebe `UTMifyIntegration | null` como prop
-2. Valida se integracao esta ativa
-3. Verifica se o script ja foi injetado (idempotencia)
-4. Cria elemento `<script>` com:
-   - `src="https://cdn.utmify.com.br/scripts/utms/latest.js"`
-   - `async` e `defer`
-   - `data-utmify-prevent-xcod-sck` (evita conflito com captura propria de UTMs)
-   - `data-utmify-prevent-subids` (evita conflito com captura propria de subids)
-5. No `onload`, dispara `window.utmify('track', 'InitiateCheckout')` com retry (ate 3 tentativas, intervalo de 500ms) caso `window.utmify` ainda nao esteja disponivel
-6. Retorna `null` (componente invisivel)
+Atualizar versao para 5.0.0 e corrigir JSDoc.
 
-Estimativa: ~80 linhas (dentro do limite de 300).
+### Arquivo 5: `src/hooks/checkout/useTrackingService.ts` (linhas 4-8, 52-53, 67-68, 79, 84-86)
 
-### Arquivo 3: `src/integrations/tracking/utmify/Tracker.tsx` -- DELETAR
+Atualizar versao para 5.0.0. Corrigir TODOS os comentarios:
+- Trocar "EXCLUSIVAMENTE no backend" por "eventos transacionais no backend (SSOT), InitiateCheckout no frontend via Pixel CDN"
+- **CRITICO**: Remover "UTMify nao tem evento de InitiateCheckout" (linha 68) -- isso e factualmente FALSO agora
 
-Codigo morto. O componente atual apenas loga e retorna null. Sera substituido por `Pixel.tsx`.
+### Arquivo 6: `src/hooks/checkout/useTrackingService.test.ts` (linhas 4-8)
 
-### Arquivo 4: `src/integrations/tracking/utmify/index.ts` -- EDITAR
+Atualizar versao para 5.0.0 e corrigir JSDoc.
 
-- Remover export de `Tracker`
-- Adicionar export de `Pixel`
+### Arquivo 7: `src/pages/PaymentSuccessPage.tsx` (linhas 4-8, 116-118)
 
-### Arquivo 5: `src/components/checkout/v2/TrackingManager.tsx` -- EDITAR
+Atualizar versao para 5.0.0 e corrigir comentarios. NOTA: esta pagina de sucesso corretamente NAO dispara eventos UTMify (o backend faz isso via webhook), entao o comentario deve refletir que eventos transacionais sao backend SSOT.
 
-Substituir `UTMify.Tracker` por `UTMify.Pixel`:
+### Arquivo 8: `src/integrations/tracking/utmify/README.md` (linhas 4, 35)
 
-Antes:
-```text
-{UTMify.shouldRunUTMify(utmifyConfig, productId) && (
-  <UTMify.Tracker integration={utmifyConfig} />
-)}
-```
-
-Depois:
-```text
-{UTMify.shouldRunUTMify(utmifyConfig, productId) && (
-  <UTMify.Pixel integration={utmifyConfig} />
-)}
-```
-
-### Arquivo 6: `src/integrations/tracking/utmify/__tests__/index.test.ts` -- EDITAR
-
-Atualizar o teste que verifica o export de `Tracker` para verificar `Pixel`.
-
-### Arquivo 7: `src/integrations/tracking/utmify/README.md` -- EDITAR
-
-Atualizar a documentacao para refletir:
-- O novo componente `Pixel.tsx` (substituindo `Tracker.tsx`)
-- A arquitetura hibrida: Backend SSOT para eventos transacionais + Frontend Pixel para eventos comportamentais
-- Adicionar `InitiateCheckout` na lista de eventos suportados
-
-### Arquivo 8: `docs/TRACKING_MODULE.md` -- EDITAR
-
-Atualizar a secao UTMify para incluir o Pixel frontend e o evento InitiateCheckout.
+- Linha 4: `Versao: 4.0.0 - Backend SSOT` -> `Versao: 5.0.0 - Arquitetura Hibrida`
+- Linha 35: "apenas utilitarios e tipos" -> "utilitarios, tipos, hooks e o componente Pixel"
 
 ---
 
-## Arquitetura Resultante
+## Verificacao de Completude
 
-```text
-EVENTOS UTMIFY - ARQUITETURA HIBRIDA
+### O que esta CORRETO (nao precisa de alteracao)
 
-Frontend (Pixel CDN):
-  - InitiateCheckout -> window.utmify('track', 'InitiateCheckout')
-  - Captura automatica de UTMs pelo script CDN
+| Item | Status | Evidencia |
+|------|--------|-----------|
+| Pixel.tsx criado | OK | 135 linhas, limpo, type-safe |
+| Tracker.tsx deletado | OK | Nao existe no filesystem |
+| global.d.ts tipado | OK | UTMifyPixelFunction + window.utmify declarados |
+| TrackingManager.tsx atualizado | OK | Usa `UTMify.Pixel` corretamente |
+| index.ts export atualizado | OK | Exporta `Pixel` (linha 32) |
+| Testes atualizados | OK | Verificam `Pixel` em vez de `Tracker` |
+| README changelog | OK | v5.0.0 documentado com detalhes |
+| TRACKING_MODULE.md | OK | Tabela 4.2 inclui InitiateCheckout com coluna "Camada" |
+| Zero referencias a UTMify.Tracker no codigo | OK | Nenhum import ou uso encontrado |
 
-Backend (API S2S - SSOT):
-  - purchase_approved -> dispatcher.ts -> api.utmify.com.br
-  - pix_generated     -> dispatcher.ts -> api.utmify.com.br
-  - purchase_refused   -> dispatcher.ts -> api.utmify.com.br
-  - refund             -> dispatcher.ts -> api.utmify.com.br
-  - chargeback         -> dispatcher.ts -> api.utmify.com.br
-```
+### O que precisa de correcao (restos textuais)
 
-## Fluxo do InitiateCheckout
+| Tipo | Quantidade | Gravidade |
+|------|-----------|-----------|
+| JSDoc com versao errada (4.0.0 -> 5.0.0) | 7 arquivos | MEDIA |
+| Comentarios "EXCLUSIVAMENTE no backend" | 7 arquivos | ALTA (factualmente incorreto) |
+| Comentario "UTMify nao tem InitiateCheckout" | 1 arquivo | CRITICA (contradiz a implementacao) |
+| README com versao e descricao erradas | 1 arquivo | MEDIA |
 
-```text
-1. Vendedor configura UTMify (cola API Token, ativa integracao)
-2. Comprador acessa checkout do produto
-3. checkout-loader retorna vendorIntegration (UTMify config)
-4. TrackingManager verifica shouldRunUTMify() = true
-5. UTMify.Pixel e renderizado:
-   a. Injeta script cdn.utmify.com.br/scripts/utms/latest.js
-   b. Script carrega e inicializa
-   c. Pixel.tsx chama window.utmify('track', 'InitiateCheckout')
-   d. UTMify registra o evento e repassa para Facebook Pixel do vendedor
-6. Resultado: Facebook Ads recebe o sinal InitiateCheckout para otimizacao
-```
+---
 
 ## Arvore de Arquivos
 
 ```text
-src/types/
-  global.d.ts                                  -- EDITAR (adicionar UTMify types)
-
 src/integrations/tracking/utmify/
-  Pixel.tsx                                    -- CRIAR (componente de pixel)
-  Tracker.tsx                                  -- DELETAR (codigo morto)
-  index.ts                                     -- EDITAR (Tracker -> Pixel)
-  README.md                                    -- EDITAR (documentacao)
-  __tests__/index.test.ts                      -- EDITAR (atualizar testes)
+  index.ts                        -- EDITAR (JSDoc: v4->v5, Tracker->Pixel)
+  events.ts                       -- EDITAR (JSDoc: v4->v5, hibrido)
+  README.md                       -- EDITAR (versao + descricao)
+  __tests__/
+    index.test.ts                 -- EDITAR (JSDoc: v4->v5, comentario Tracker->Pixel)
+    events.test.ts                -- EDITAR (JSDoc: v4->v5)
 
-src/components/checkout/v2/
-  TrackingManager.tsx                          -- EDITAR (Tracker -> Pixel)
+src/hooks/checkout/
+  useTrackingService.ts           -- EDITAR (JSDoc + 4 comentarios internos)
+  useTrackingService.test.ts      -- EDITAR (JSDoc: v4->v5)
 
-docs/
-  TRACKING_MODULE.md                           -- EDITAR (documentacao)
+src/pages/
+  PaymentSuccessPage.tsx          -- EDITAR (JSDoc + comentario interno)
 ```
 
-1 arquivo criado. 1 arquivo deletado. 6 arquivos editados.
+8 arquivos editados. Zero arquivos novos. Zero arquivos deletados.
 
-## Nota sobre Validacao
+## Nota RISE V3
 
-Apos a implementacao, a validacao pode ser feita acessando um checkout publico de um produto com UTMify habilitado e verificando:
-1. No DevTools > Network: o script `latest.js` foi carregado
-2. No DevTools > Console (via logger): "Disparando evento InitiateCheckout"
-3. No painel UTMify do vendedor: o evento IC aparece registrado
-
+Todas as correcoes sao puramente textuais (comentarios e JSDoc). Nenhuma logica de codigo sera alterada. O objetivo e eliminar 100% da divida tecnica documental para que qualquer desenvolvedor futuro entenda imediatamente que a arquitetura UTMify e **hibrida**: eventos transacionais no backend (SSOT), eventos comportamentais no frontend (Pixel CDN).
