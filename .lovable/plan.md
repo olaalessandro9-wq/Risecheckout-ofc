@@ -1,51 +1,69 @@
 
-# Correcao: "supabaseUrl is not defined" no pushinpay-create-pix
 
-## Diagnostico
+# Checkbox Obrigatorio de Aceite de Termos no Cadastro
 
-Os logs da Edge Function confirmam o erro:
+## Contexto
 
-```
-2026-02-07T03:57:28Z ERROR "supabaseUrl is not defined"
-2026-02-07T03:53:40Z ERROR "supabaseUrl is not defined"
-```
+Atualmente, o formulario de cadastro (`ProducerRegistrationForm.tsx`) exibe um texto passivo "Ao se registrar, voce concorda com nossos Termos de Uso e Politica de Privacidade" -- sem exigir acao explicita do usuario. Isso nao constitui aceite juridico valido e nao e registrado no banco de dados.
 
-No arquivo `supabase/functions/pushinpay-create-pix/index.ts`, a variavel `supabaseUrl` e referenciada em **duas linhas** mas **nunca declarada**:
-
-- **Linha 180:** passada para `buildPixPayload()` -- monta a `webhook_url` do PIX
-- **Linha 197:** passada para `triggerPixGeneratedWebhook()` -- chama a Edge Function `trigger-webhooks`
-
-JavaScript/TypeScript lanca `ReferenceError` na primeira referencia (linha 180), que e capturada pelo bloco `catch` e retornada como resposta `400 Bad Request` com `{ ok: false, error: "supabaseUrl is not defined" }`.
-
-A variavel `SUPABASE_URL` e uma variavel de ambiente **automaticamente disponivel** em todas as Edge Functions do Supabase. Nao precisa configurar nenhum secret -- basta ler com `Deno.env.get('SUPABASE_URL')`.
+A tabela `public.users` nao possui nenhuma coluna para registrar o aceite de termos.
 
 ## O Que Sera Feito
 
-### Arquivo unico: `supabase/functions/pushinpay-create-pix/index.ts`
+### 1. Banco de Dados - Adicionar coluna `terms_accepted_at`
 
-Adicionar 4 linhas apos a criacao do cliente Supabase (linha 99), antes do rate limiting (linha 102):
+Nova coluna na tabela `public.users`:
 
-```text
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-if (!supabaseUrl) {
-  log.error('SUPABASE_URL nao configurada');
-  throw new Error('Configuracao do servidor incompleta: SUPABASE_URL');
-}
-```
+| Coluna | Tipo | Default | Nullable |
+|--------|------|---------|----------|
+| `terms_accepted_at` | `timestamptz` | `null` | YES |
 
-Isso resolve ambas as referencias:
-- Linha 180: `buildPixPayload({ ..., supabaseUrl, ... })` -- agora funciona
-- Linha 197: `triggerPixGeneratedWebhook({ supabaseUrl, ... })` -- agora funciona
+O campo e `nullable` porque usuarios criados antes dessa feature nao terao aceite registrado. O valor sera preenchido com `NOW()` no momento do registro via backend.
+
+Usar `timestamptz` (e nao boolean) porque:
+- Registra **quando** o aceite foi feito (auditoria juridica)
+- Permite rastrear aceites historicos
+- Padrao LGPD para registro de consentimento
+
+### 2. Frontend - Checkbox obrigatorio no formulario
+
+No arquivo `src/components/auth/ProducerRegistrationForm.tsx`:
+
+- Adicionar estado local `termsAccepted` (boolean)
+- Adicionar checkbox com label contendo links para `/termos-de-uso` e `/politica-de-privacidade`
+- O checkbox substitui o texto passivo atual ("Ao se registrar...")
+- Posicionar entre o campo de senha e o botao "Criar conta"
+- Validacao: se `termsAccepted === false`, bloquear envio e exibir mensagem de erro
+- Enviar `termsAccepted: true` no payload para o backend
+
+O checkbox **nao sera persistido no sessionStorage** (seguranca juridica: o aceite deve ser consciente a cada tentativa).
+
+### 3. Backend - Registrar aceite no banco
+
+No arquivo `supabase/functions/unified-auth/handlers/register.ts`:
+
+- Receber campo `termsAccepted` no body da request
+- **Validar** que `termsAccepted === true` (rejeitar se falso/ausente)
+- No `INSERT` do usuario, incluir `terms_accepted_at: new Date().toISOString()`
+
+---
 
 ## Secao Tecnica
 
-### Localizacao exata
+### Arquivos modificados
 
-Entre a linha 99 (`const supabase = getSupabaseClient('payments')`) e a linha 102 (`const rateLimitResult = ...`).
+| Arquivo | Alteracao |
+|---------|-----------|
+| **Migracao SQL** | Adicionar coluna `terms_accepted_at timestamptz` |
+| `src/components/auth/ProducerRegistrationForm.tsx` | Adicionar checkbox + estado + validacao |
+| `supabase/functions/unified-auth/handlers/register.ts` | Receber e validar `termsAccepted`, gravar timestamp |
 
-### Impacto
+### Validacao dupla (frontend + backend)
 
-- Correcao de 4 linhas em 1 arquivo
-- Zero breaking changes
-- `SUPABASE_URL` e automatica no Supabase (nao precisa configurar secrets)
-- Apos deploy, o PIX via PushinPay voltara a funcionar normalmente
+- **Frontend**: Botao desabilitado ou erro visual se checkbox nao marcado
+- **Backend**: Rejeita request com `400 Bad Request` se `termsAccepted !== true`
+
+### Nao sera persistido no sessionStorage
+
+O campo `termsAccepted` e deliberadamente excluido da persistencia. O usuario deve marcar conscientemente o checkbox a cada tentativa de cadastro, garantindo consentimento ativo.
+
