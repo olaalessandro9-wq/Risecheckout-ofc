@@ -13,8 +13,11 @@ import * as UTMify from "@/integrations/tracking/utmify";
 import * as GoogleAds from "@/integrations/tracking/google-ads";
 import * as TikTok from "@/integrations/tracking/tiktok";
 import * as Kwai from "@/integrations/tracking/kwai";
+import { createLogger } from "@/lib/logger";
 import type { CheckoutPixel } from "@/types/checkout-pixels.types";
 import type { UTMifyIntegration } from "@/integrations/tracking/utmify/types";
+
+const log = createLogger("TrackingManager");
 
 // ============================================================================
 // INTERFACE
@@ -48,6 +51,15 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
   const tiktokPixels = productPixels.filter(p => p.platform === 'tiktok' && p.is_active);
   const googleAdsPixels = productPixels.filter(p => p.platform === 'google_ads' && p.is_active);
   const kwaiPixels = productPixels.filter(p => p.platform === 'kwai' && p.is_active);
+
+  // Diagnostic logging - visible in DevTools console
+  log.info("Rendering tracking pixels", {
+    total: productPixels.length,
+    facebook: facebookPixels.length,
+    tiktok: tiktokPixels.length,
+    googleAds: googleAdsPixels.length,
+    kwai: kwaiPixels.length,
+  });
 
   return (
     <>
