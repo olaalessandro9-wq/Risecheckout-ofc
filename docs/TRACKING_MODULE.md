@@ -1,7 +1,7 @@
 # Módulo de Trackeamento - RiseCheckout
 
-**Versão:** 1.2.0  
-**Data:** 22 de Janeiro de 2026  
+**Versão:** 1.3.0  
+**Data:** 07 de Fevereiro de 2026  
 **Status:** ✅ ATIVO - PRODUÇÃO  
 **RISE V3 Score:** 10.0/10
 
@@ -75,12 +75,12 @@ src/
 │   │   ├── types.ts               
 │   │   └── index.ts               
 │   ├── kwai/                      
-│   └── utmify/                    # MODULARIZADO v3.1.0
+│   └── utmify/                    # ARQUITETURA HÍBRIDA v5.0.0
 │       ├── utils.ts               # Helpers UTM (extraídos, ~100 linhas)
 │       ├── events.ts              # Eventos (~170 linhas)
 │       ├── types.ts               
 │       ├── hooks.ts               
-│       ├── Tracker.tsx            
+│       ├── Pixel.tsx              # CDN script + InitiateCheckout
 │       └── index.ts               
 │
 └── pages/
@@ -225,12 +225,13 @@ stateDiagram-v2
 
 ### 4.2 UTMify
 
-| Funcionalidade | Descrição | Status |
-|----------------|-----------|--------|
-| Conversões | Tracking de vendas aprovadas | ✅ Ativo |
-| Atribuição | `src`, `sck`, UTM params | ✅ Ativo |
-| Produtos | Seleção por produto | ✅ Ativo |
-| Eventos | Seleção de eventos para disparar | ✅ Ativo |
+| Funcionalidade | Descrição | Camada | Status |
+|----------------|-----------|--------|--------|
+| InitiateCheckout | Evento comportamental no checkout | Frontend (Pixel CDN) | ✅ Ativo |
+| Conversões | Tracking de vendas aprovadas | Backend (API S2S) | ✅ Ativo |
+| Atribuição | `src`, `sck`, UTM params | Frontend → orders → Backend | ✅ Ativo |
+| Produtos | Seleção por produto | Backend | ✅ Ativo |
+| Eventos | Seleção de eventos para disparar | Backend | ✅ Ativo |
 
 ---
 
@@ -376,6 +377,7 @@ CREATE TABLE vendor_integrations (
 
 | Data | Versão | Alteração |
 |------|--------|-----------|
+| 2026-02-07 | 1.3.0 | UTMify Arquitetura Híbrida: novo Pixel.tsx (CDN + InitiateCheckout), removido Tracker.tsx (código morto), tipagem global UTMifyPixelFunction |
 | 2026-01-22 | 1.2.0 | Modularização RISE V3: google-ads/events.ts (421 linhas) → events/ directory (conversion.ts + ecommerce.ts), utmify/events.ts → utils.ts extraído |
 | 2026-01-21 | 1.1.0 | Refatoração RISE V3: removido import não utilizado, substituído ícone deprecated, centralizado save no XState |
 | 2026-01-21 | 1.0.0 | Criação do documento (consolidação Pixels + UTMify) |

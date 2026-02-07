@@ -111,9 +111,9 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
         />
       ))}
 
-      {/* UTMify usa sistema separado (não tem product_pixels) */}
+      {/* UTMify Pixel (CDN script + InitiateCheckout) */}
       {UTMify.shouldRunUTMify(utmifyConfig, productId) && (
-        <UTMify.Tracker integration={utmifyConfig} />
+        <UTMify.Pixel integration={utmifyConfig} />
       )}
     </>
   );

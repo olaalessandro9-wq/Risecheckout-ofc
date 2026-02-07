@@ -77,6 +77,16 @@ interface KwaiPixelQueueItem {
 }
 
 // ============================================================================
+// UTMIFY PIXEL TYPES
+// ============================================================================
+
+/** Função principal do UTMify Pixel (CDN script) */
+interface UTMifyPixelFunction {
+  (method: 'track', eventName: string, params?: Record<string, unknown>): void;
+  (...args: unknown[]): void;
+}
+
+// ============================================================================
 // MERCADO PAGO SDK TYPES
 // ============================================================================
 
@@ -134,6 +144,10 @@ declare global {
     kwaiq?: KwaiPixelFunction;
     /** Fila de eventos do Kwai Pixel */
     _kwai_pixel?: KwaiPixelQueueItem[];
+
+    // ========== UTMIFY PIXEL ==========
+    /** Função principal do UTMify Pixel (CDN script) */
+    utmify?: UTMifyPixelFunction;
 
     // ========== MERCADO PAGO ==========
     /** Construtor do Mercado Pago SDK */
