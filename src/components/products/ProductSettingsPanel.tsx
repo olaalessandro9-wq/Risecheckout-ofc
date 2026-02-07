@@ -6,17 +6,18 @@
  * - Dispara actions via formDispatch
  * - Zero estado local duplicado
  * - Registra save handler via Registry Pattern
+ * - Botão "Salvar Produto" unificado com ProductHeader (usa saveAll do context)
  */
 
 import { useEffect, useCallback, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useProductContext } from "@/modules/products/context/ProductContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { getGatewayById, isGatewayAvailable } from "@/config/payment-gateways";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("ProductSettingsPanel");
@@ -41,10 +42,12 @@ export default function ProductSettingsPanel({ productId }: Props) {
     initCheckoutSettings,
     formState,
     formDispatch,
+    saveAll,
+    saving,
+    hasUnsavedChanges,
   } = useProductContext();
   
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const { role, isLoading: permissionsLoading } = usePermissions();
   const isOwner = role === "owner";
 
@@ -131,54 +134,6 @@ export default function ProductSettingsPanel({ productId }: Props) {
     }
   }, [form, updateCheckoutSettingsField]);
 
-  // Salvar (para uso local do botão)
-  const executeSave = useCallback(async () => {
-    const pixGateway = getGatewayById(form.pix_gateway);
-    const ccGateway = getGatewayById(form.credit_card_gateway);
-
-    if (!isGatewayAvailable(form.pix_gateway)) {
-      throw new Error(`Gateway de PIX "${pixGateway?.displayName || form.pix_gateway}" não está disponível.`);
-    }
-    if (!isGatewayAvailable(form.credit_card_gateway)) {
-      throw new Error(`Gateway de Cartão "${ccGateway?.displayName || form.credit_card_gateway}" não está disponível.`);
-    }
-
-    const { data, error } = await api.call<{ success?: boolean; error?: string }>('product-settings', {
-      action: 'update-settings',
-      productId,
-      settings: {
-        required_fields: form.required_fields,
-        default_payment_method: form.default_payment_method,
-        pix_gateway: form.pix_gateway,
-        credit_card_gateway: form.credit_card_gateway,
-      },
-    });
-
-    if (error || !data?.success) {
-      throw new Error(data?.error || "Erro ao salvar configurações.");
-    }
-
-    // Re-init with new settings to update serverData
-    formDispatch({ 
-      type: "INIT_CHECKOUT_SETTINGS", 
-      settings: form,
-      credentials: checkoutCredentials,
-    });
-  }, [form, productId, formDispatch, checkoutCredentials]);
-
-  // Handler para o botão local
-  const handleSave = useCallback(async () => {
-    setSaving(true);
-    try {
-      await executeSave();
-      toast.success("Configurações salvas com sucesso.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar configurações.");
-    } finally {
-      setSaving(false);
-    }
-  }, [executeSave]);
-
   // NOTA: O handler de save registry foi movido para useGlobalValidationHandlers
   // no ProductContext para garantir que a validação funcione independente
   // de qual aba está ativa. Este componente agora é apenas uma Pure View.
@@ -214,8 +169,9 @@ export default function ProductSettingsPanel({ productId }: Props) {
         <PixelsSection productId={productId} />
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Salvando..." : "Salvar Alterações"}
+          <Button onClick={saveAll} disabled={saving || !hasUnsavedChanges}>
+            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {saving ? "Salvando..." : "Salvar Produto"}
           </Button>
         </div>
       </CardContent>
