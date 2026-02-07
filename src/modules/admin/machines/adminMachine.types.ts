@@ -42,7 +42,6 @@ export interface UsersRegionContext {
   statusFilter: UserStatusFilter;
   error: string | null;
   mfaError: string | null;
-  isChangingRole: boolean;
 }
 
 export interface ProductsRegionContext {
@@ -200,7 +199,6 @@ export const initialUsersContext: UsersRegionContext = {
   statusFilter: "all",
   error: null,
   mfaError: null,
-  isChangingRole: false,
 };
 
 export const initialProductsContext: ProductsRegionContext = {
