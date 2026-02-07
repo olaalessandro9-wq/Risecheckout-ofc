@@ -96,7 +96,7 @@
 | **User Management** | | | | |
 | `manage-user-role` | sessions | false | admin | unified-auth-v2, owner only |
 | `manage-user-status` | sessions | false | admin | unified-auth-v2, admin+ |
-| `unified-auth` | public | false | general | SSOT - Login/Register/Refresh/Request-Refresh/Verify-Email/Resend-Verification/MFA-Setup/MFA-Verify-Setup/MFA-Verify/MFA-Disable/MFA-Status endpoint |
+| `unified-auth` | public | false | general | SSOT - Login/Register/Refresh/Request-Refresh/Verify-Email/Resend-Verification/MFA-Setup/MFA-Verify-Setup/MFA-Verify/MFA-Disable(guard-only)/MFA-Status endpoint |
 | **Security & Crypto** | | | | |
 | `decrypt-customer-data` | sessions | false | admin | unified-auth-v2, owner check |
 | `decrypt-customer-data-batch` | sessions | false | admin | unified-auth-v2, owner check |

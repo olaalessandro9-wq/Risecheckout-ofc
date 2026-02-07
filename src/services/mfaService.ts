@@ -43,10 +43,6 @@ export interface MfaVerifyResponse {
   error?: string;
 }
 
-export interface MfaDisableResponse {
-  success: boolean;
-  message: string;
-}
 
 export interface MfaStatusResponse {
   mfaEnabled: boolean;
@@ -130,30 +126,6 @@ export async function mfaVerify(
   return data;
 }
 
-/**
- * Disables MFA for the authenticated user.
- * Requires current password AND TOTP code for security.
- */
-export async function mfaDisable(
-  password: string,
-  code: string
-): Promise<MfaDisableResponse> {
-  const { data, error } = await api.call<MfaDisableResponse>(
-    "unified-auth/mfa-disable",
-    { password, code }
-  );
-
-  if (error) {
-    log.error("MFA disable failed:", error.message);
-    throw new Error(error.message);
-  }
-
-  if (!data?.success) {
-    throw new Error("Erro ao desativar MFA");
-  }
-
-  return data;
-}
 
 /**
  * Checks if the authenticated user has MFA enabled.
