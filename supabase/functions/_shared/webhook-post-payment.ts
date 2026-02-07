@@ -20,6 +20,7 @@ import { sendOrderConfirmationEmails, type OrderData } from './send-order-emails
 import { grantMembersAccess, type GrantAccessInput } from './grant-members-access.ts';
 import { type Logger } from './webhook-helpers.ts';
 import { dispatchUTMifyEventForOrder } from './utmify/index.ts';
+import { dispatchFacebookCAPIForOrder } from './facebook-capi/index.ts';
 
 // ============================================================================
 // TYPES
@@ -42,6 +43,7 @@ export interface PostPaymentResult {
   emailsSent: number;
   webhooksTriggered: boolean;
   utmifyDispatched: boolean;
+  facebookCAPIDispatched: boolean;
   errors: string[];
 }
 
@@ -64,6 +66,7 @@ export async function processPostPaymentActions(
     emailsSent: 0,
     webhooksTriggered: false,
     utmifyDispatched: false,
+    facebookCAPIDispatched: false,
     errors: [],
   };
 
@@ -212,6 +215,42 @@ export async function processPostPaymentActions(
     const errorMsg = utmifyError instanceof Error ? utmifyError.message : 'Erro desconhecido';
     result.errors.push(`UTMify: ${errorMsg}`);
     logger.warn('⚠️ Exceção ao disparar UTMify (não crítico)', utmifyError);
+  }
+
+  // ========================================================================
+  // 5. FACEBOOK CAPI (RISE V3 - Deduplication + Resilience)
+  // ========================================================================
+
+  try {
+    logger.info('Disparando Facebook CAPI Purchase', { orderId: input.orderId });
+
+    const capiResult = await dispatchFacebookCAPIForOrder(
+      supabase,
+      input.orderId,
+      "Purchase",
+      input.paymentMethod
+    );
+
+    if (capiResult.success && !capiResult.skipped) {
+      result.facebookCAPIDispatched = true;
+      logger.info('✅ Facebook CAPI Purchase disparado com sucesso', {
+        totalPixels: capiResult.totalPixels,
+        successCount: capiResult.successCount,
+      });
+    } else if (capiResult.skipped) {
+      logger.info('Facebook CAPI pulado:', capiResult.reason);
+    } else {
+      const failedPixels = capiResult.pixelResults
+        .filter(r => !r.success)
+        .map(r => `${r.pixelId}: ${r.error}`)
+        .join('; ');
+      result.errors.push(`Facebook CAPI: ${failedPixels}`);
+      logger.warn('⚠️ Erro(s) ao disparar Facebook CAPI (não crítico)', failedPixels);
+    }
+  } catch (capiError) {
+    const errorMsg = capiError instanceof Error ? capiError.message : 'Erro desconhecido';
+    result.errors.push(`Facebook CAPI: ${errorMsg}`);
+    logger.warn('⚠️ Exceção ao disparar Facebook CAPI (não crítico)', capiError);
   }
 
   return result;

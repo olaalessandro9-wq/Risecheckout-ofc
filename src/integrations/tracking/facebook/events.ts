@@ -2,31 +2,35 @@
  * Lógica de Disparo de Eventos do Facebook Pixel
  * Módulo: src/integrations/tracking/facebook
  * 
- * @version 2.0.0 - RISE Protocol V3 Compliant - Zero console.log
- * Este arquivo contém funções para disparar eventos do Facebook Pixel
- * e helpers específicos para o checkout do RiseCheckout.
+ * @version 3.0.0 - RISE Protocol V3 - Event ID Deduplication
+ * 
+ * All tracking functions now generate and pass an eventID to fbq()
+ * for Pixel+CAPI deduplication. The same event_id is generated
+ * deterministically on the backend for Purchase events.
  */
 
 import { FacebookEventParams } from "./types";
 import type { TrackableProduct, TrackableBump } from "@/types/tracking.types";
 import { createLogger } from "@/lib/logger";
+import {
+  generatePurchaseEventId,
+  generateViewContentEventId,
+  generateInitiateCheckoutEventId,
+  generateAddToCartEventId,
+  generateGenericEventId,
+} from "@/lib/tracking/event-id";
 
 const log = createLogger("Facebook");
 
 /**
  * Verifica se o objeto fbq está disponível no window
- * Necessário para evitar erros em SSR ou quando o script não foi carregado
- * 
- * @returns true se fbq está disponível, false caso contrário
  */
 const ensureFbq = (): boolean => {
-  // Verificar se estamos no navegador (não SSR)
   if (typeof window === "undefined") {
     log.warn("SSR detectado, fbq não disponível");
     return false;
   }
 
-  // Verificar se fbq foi inicializado
   if (!window.fbq) {
     log.warn("fbq não inicializado. Verifique se o Pixel foi carregado.");
     return false;
@@ -36,64 +40,64 @@ const ensureFbq = (): boolean => {
 };
 
 /**
- * Dispara um evento padrão do Facebook Pixel
+ * Dispara um evento padrão do Facebook Pixel com eventID para deduplicação.
  * 
  * @param eventName - Nome do evento (ex: 'ViewContent', 'Purchase')
  * @param params - Parâmetros do evento
- * 
- * @example
- * trackEvent('ViewContent', {
- *   content_name: 'Produto X',
- *   content_ids: ['123'],
- *   value: 99.90,
- *   currency: 'BRL'
- * });
+ * @param eventId - Event ID para deduplicação Pixel+CAPI (opcional)
  */
-export const trackEvent = (eventName: string, params?: FacebookEventParams): void => {
+export const trackEvent = (
+  eventName: string,
+  params?: FacebookEventParams,
+  eventId?: string
+): void => {
   if (!ensureFbq()) return;
 
   try {
-    log.info(`Disparando evento: ${eventName}`, params);
-    window.fbq!("track", eventName, params);
+    const options = eventId ? { eventID: eventId } : undefined;
+    log.info(`Disparando evento: ${eventName}`, { ...params, eventId });
+    window.fbq!("track", eventName, params, options);
   } catch (error: unknown) {
     log.error(`Erro ao disparar evento ${eventName}`, error);
   }
 };
 
 /**
- * Dispara um evento customizado do Facebook Pixel
+ * Dispara um evento customizado do Facebook Pixel com eventID.
  * 
  * @param eventName - Nome do evento customizado
  * @param params - Parâmetros do evento
- * 
- * @example
- * trackCustomEvent('BumpAdded', {
- *   bump_id: '456',
- *   bump_name: 'Pack Exclusivo'
- * });
+ * @param eventId - Event ID para deduplicação (opcional)
  */
-export const trackCustomEvent = (eventName: string, params?: FacebookEventParams): void => {
+export const trackCustomEvent = (
+  eventName: string,
+  params?: FacebookEventParams,
+  eventId?: string
+): void => {
   if (!ensureFbq()) return;
 
   try {
-    log.info(`Disparando evento customizado: ${eventName}`, params);
-    window.fbq!("trackCustom", eventName, params);
+    const options = eventId ? { eventID: eventId } : undefined;
+    log.info(`Disparando evento customizado: ${eventName}`, { ...params, eventId });
+    window.fbq!("trackCustom", eventName, params, options);
   } catch (error: unknown) {
     log.error(`Erro ao disparar evento customizado ${eventName}`, error);
   }
 };
 
 /**
- * Dispara evento ViewContent
- * Quando um usuário visualiza um produto
+ * Dispara evento ViewContent com eventID.
  * 
  * @param product - Objeto do produto com id, name, price
+ * @returns Event ID gerado (para uso em CAPI se necessário)
  */
-export const trackViewContent = (product: TrackableProduct): void => {
+export const trackViewContent = (product: TrackableProduct): string | null => {
   if (!product) {
     log.warn("Produto inválido para trackViewContent");
-    return;
+    return null;
   }
+
+  const eventId = generateViewContentEventId(product.id);
 
   trackEvent("ViewContent", {
     content_name: product.name || "Produto Desconhecido",
@@ -101,26 +105,30 @@ export const trackViewContent = (product: TrackableProduct): void => {
     content_type: "product",
     value: Number(product.price) || 0,
     currency: "BRL",
-  });
+  }, eventId);
+
+  return eventId;
 };
 
 /**
- * Dispara evento InitiateCheckout
- * Quando um usuário inicia o processo de checkout
+ * Dispara evento InitiateCheckout com eventID.
  * 
  * @param product - Objeto do produto principal
- * @param totalValue - Valor total do pedido (incluindo bumps)
- * @param itemsCount - Quantidade total de itens (produto + bumps)
+ * @param totalValue - Valor total do pedido
+ * @param itemsCount - Quantidade total de itens
+ * @returns Event ID gerado
  */
 export const trackInitiateCheckout = (
   product: TrackableProduct,
   totalValue: number,
   itemsCount: number
-): void => {
+): string | null => {
   if (!product) {
     log.warn("Produto inválido para trackInitiateCheckout");
-    return;
+    return null;
   }
+
+  const eventId = generateInitiateCheckoutEventId(product.id);
 
   trackEvent("InitiateCheckout", {
     content_name: product.name || "Produto Desconhecido",
@@ -128,30 +136,34 @@ export const trackInitiateCheckout = (
     value: totalValue,
     currency: "BRL",
     num_items: itemsCount,
-  });
+  }, eventId);
+
+  return eventId;
 };
 
 /**
- * Dispara evento Purchase
- * Quando um pagamento é confirmado
+ * Dispara evento Purchase com eventID DETERMINÍSTICO.
+ * O event_id `purchase_{orderId}` é o MESMO gerado pelo backend,
+ * permitindo deduplicação automática pelo Facebook.
  * 
  * @param orderId - ID único do pedido
- * @param valueInCents - Valor em centavos (ex: 4187 para R$ 41,87)
+ * @param valueInCents - Valor em centavos
  * @param product - Objeto do produto principal
  * @param additionalParams - Parâmetros adicionais (opcional)
+ * @returns Event ID determinístico (purchase_{orderId})
  */
 export const trackPurchase = (
   orderId: string,
   valueInCents: number,
   product: TrackableProduct,
   additionalParams?: FacebookEventParams
-): void => {
+): string | null => {
   if (!orderId || !product) {
     log.warn("Dados inválidos para trackPurchase");
-    return;
+    return null;
   }
 
-  // Converter centavos para reais
+  const eventId = generatePurchaseEventId(orderId);
   const valueInReals = valueInCents / 100;
 
   trackEvent("Purchase", {
@@ -161,72 +173,85 @@ export const trackPurchase = (
     currency: "BRL",
     transaction_id: orderId,
     ...additionalParams,
-  });
+  }, eventId);
+
+  return eventId;
 };
 
 /**
- * Dispara evento AddToCart
- * Quando um bump é adicionado ao carrinho
+ * Dispara evento AddToCart com eventID.
  * 
  * @param bump - Objeto do bump/produto adicional
- * @param cartValue - Valor total do carrinho após adicionar
+ * @param cartValue - Valor total do carrinho
+ * @returns Event ID gerado
  */
-export const trackAddToCart = (bump: TrackableBump, cartValue: number): void => {
+export const trackAddToCart = (bump: TrackableBump, cartValue: number): string | null => {
   if (!bump) {
     log.warn("Bump inválido para trackAddToCart");
-    return;
+    return null;
   }
+
+  const eventId = generateAddToCartEventId(bump.id);
 
   trackEvent("AddToCart", {
     content_name: bump.name || "Produto Adicional",
     content_ids: [bump.id],
     value: cartValue,
     currency: "BRL",
-  });
+  }, eventId);
+
+  return eventId;
 };
 
 /**
- * Dispara evento CompleteRegistration
- * Quando o formulário de checkout é preenchido
+ * Dispara evento CompleteRegistration com eventID.
  * 
  * @param email - Email do cliente
  * @param phone - Telefone do cliente (opcional)
+ * @returns Event ID gerado
  */
-export const trackCompleteRegistration = (email: string, phone?: string): void => {
+export const trackCompleteRegistration = (email: string, phone?: string): string | null => {
   if (!email) {
     log.warn("Email inválido para trackCompleteRegistration");
-    return;
+    return null;
   }
+
+  const eventId = generateGenericEventId("CompleteRegistration");
 
   trackEvent("CompleteRegistration", {
     content_name: "Checkout Form",
     ...(phone && { phone }),
-  });
+  }, eventId);
+
+  return eventId;
 };
 
 /**
- * Dispara evento PageView
- * Quando a página de checkout é carregada
+ * Dispara evento PageView com eventID.
  */
 export const trackPageView = (): void => {
   trackEvent("PageView");
 };
 
 /**
- * Dispara evento Lead
- * Quando um lead é capturado (ex: email capturado)
+ * Dispara evento Lead com eventID.
  * 
  * @param email - Email do lead
  * @param source - Fonte do lead (opcional)
+ * @returns Event ID gerado
  */
-export const trackLead = (email: string, source?: string): void => {
+export const trackLead = (email: string, source?: string): string | null => {
   if (!email) {
     log.warn("Email inválido para trackLead");
-    return;
+    return null;
   }
+
+  const eventId = generateGenericEventId("Lead");
 
   trackEvent("Lead", {
     content_name: "Lead Capturado",
     ...(source && { source }),
-  });
+  }, eventId);
+
+  return eventId;
 };

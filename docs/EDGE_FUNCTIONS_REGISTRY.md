@@ -160,7 +160,8 @@
 | `verify-turnstile` | public | false | general | Captcha |
 | **Tracking & Analytics** | | | | |
 | `utmify-conversion` | public | false | general | Tracking |
-| `facebook-conversion-api` | public | false | general | Tracking |
+| `facebook-conversion-api` | public | false | general | CAPI v2.0.0 - Event ID + Retry |
+| `reprocess-failed-facebook-events` | internal | false | general | Cron - Reprocessa CAPI falhados |
 | `dashboard-analytics` | sessions | false | general | unified-auth-v2 |
 | `checkout-heartbeat` | public | false | general | Heartbeat |
 | `detect-abandoned-checkouts` | internal | false | general | Cron |
@@ -274,7 +275,8 @@
 |------|-----|----------|------|-----------|
 | `utmify-conversion` | `.../utmify-conversion` | ✅ | public | **DEPRECATED** - Backend-only, não usar no frontend |
 | `utmify-validate-credentials` | `.../utmify-validate-credentials` | ✅ | sessions | Diagnóstico de tokens UTMify |
-| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public | Conversões Facebook CAPI |
+| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public | Facebook CAPI v2.0.0 - Event ID + Retry + Failed Queue |
+| `reprocess-failed-facebook-events` | `.../reprocess-failed-facebook-events` | ✅ | internal | Cron - Reprocessa eventos CAPI falhados (hourly) |
 | `dashboard-analytics` | `.../dashboard-analytics` | ✅ | sessions | Analytics do produtor |
 | `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | public | Heartbeat de checkout ativo |
 | `detect-abandoned-checkouts` | `.../detect-abandoned-checkouts` | ✅ | internal | Detecção de checkouts abandonados |
@@ -313,6 +315,28 @@
 > **O frontend (PaymentSuccessPage.tsx) NÃO dispara mais eventos UTMify** - código legado foi removido em v4.0.0.
 > 
 > O endpoint `utmify-conversion` permanece deployado apenas para compatibilidade com integrações externas, mas NÃO deve ser chamado pelo frontend.
+>
+> ### Facebook CAPI Shared Module (RISE V3 - v2.0.0)
+> 
+> Eventos Facebook CAPI são disparados pelo **backend** via módulo `_shared/facebook-capi/`:
+> 
+> | Arquivo | Linhas | Responsabilidade |
+> |---------|--------|------------------|
+> | `_shared/facebook-capi/types.ts` | ~120 | Tipos unificados |
+> | `_shared/facebook-capi/event-id.ts` | ~30 | Geração de event_id (deduplicação) |
+> | `_shared/facebook-capi/pixel-resolver.ts` | ~110 | Resolve pixels Facebook por produto |
+> | `_shared/facebook-capi/dispatcher.ts` | ~180 | Orquestrador principal |
+> | `_shared/facebook-capi/index.ts` | ~30 | Barrel export |
+> 
+> **Deduplicação Pixel+CAPI**: O frontend e backend geram o MESMO `event_id` para Purchase
+> (`purchase_{orderId}`), permitindo deduplicação automática pelo Facebook.
+> 
+> **Resiliência**: 3 retries com exponential backoff (1s, 2s, 4s). Falhas persistidas na
+> tabela `failed_facebook_events` e reprocessadas via cron (`reprocess-failed-facebook-events`).
+> 
+> | Evento | Disparado em | Gateway |
+> |--------|--------------|---------|
+> | `Purchase` | `webhook-post-payment.ts` (Step 5) | Todos |
 
 ### Orders
 
