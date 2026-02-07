@@ -1891,6 +1891,47 @@ export type Database = {
           },
         ]
       }
+      mfa_sessions: {
+        Row: {
+          attempts: number
+          created_at: string
+          expires_at: string
+          id: string
+          is_used: boolean
+          max_attempts: number
+          token: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          expires_at: string
+          id?: string
+          is_used?: boolean
+          max_attempts?: number
+          token: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_used?: boolean
+          max_attempts?: number
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mfa_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       migration_id_map: {
         Row: {
           migrated_at: string | null
@@ -3876,6 +3917,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_active_context_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_mfa: {
+        Row: {
+          backup_codes_hash: string[]
+          backup_codes_used: string[]
+          created_at: string
+          id: string
+          is_enabled: boolean
+          last_used_at: string | null
+          totp_secret_encrypted: string
+          totp_secret_iv: string
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          backup_codes_hash?: string[]
+          backup_codes_used?: string[]
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_used_at?: string | null
+          totp_secret_encrypted: string
+          totp_secret_iv: string
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          backup_codes_hash?: string[]
+          backup_codes_used?: string[]
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_used_at?: string | null
+          totp_secret_encrypted?: string
+          totp_secret_iv?: string
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_mfa_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "users"
