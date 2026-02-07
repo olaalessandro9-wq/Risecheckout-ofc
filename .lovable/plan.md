@@ -1,95 +1,149 @@
 
+# Substituir o "R" Generico pela Logo Real em Todo o Projeto
 
-# Rework: Secao de Gateways de Pagamento (PIX e Cartao de Credito)
+## Diagnostico
 
-## O Que Muda
+Identifiquei **12 instancias** do "R" generico em texto, distribuidas em **6 arquivos**. Cada arquivo tem 2 variantes: uma logo menor (mobile, 32x32) e uma logo maior (desktop, 40x40).
 
-### Remocoes
-- **Taxas/Fees**: Remover toda exibicao de taxas de todos os gateways (texto "Taxa: R$ 2,00 + 0.99%")
-- **Descricoes**: Remover as descricoes dos gateways (texto "Gateway completo com PIX e Cartao", etc.)
+### Mapeamento Completo
 
-### Redesign Visual
+| Arquivo | Linhas | Contexto |
+|---------|--------|----------|
+| `src/modules/navigation/components/Sidebar/SidebarBrand.tsx` | 41-42 | Sidebar do painel (40x40, texto "R") |
+| `src/pages/Auth.tsx` | 83-84, 159-160 | Tela de login (mobile 32x32 + desktop 40x40) |
+| `src/pages/RecuperarSenha.tsx` | 98-99, 257-258 | Recuperar senha (mobile + desktop) |
+| `src/pages/cadastro/components/CadastroLayout.tsx` | 42-43, 58-59 | Cadastro (mobile + desktop) |
+| `src/components/auth/reset-password/ResetPasswordLayout.tsx` | 33-34, 49-50 | Reset password (mobile + desktop) |
+| `src/modules/members-area/components/BuyerAuthLayout.tsx` | 50-51, 66-67 | Auth do comprador (mobile + desktop) |
 
-O design atual usa cards grandes com RadioGroupItem circular + nome + taxas + descricao + aviso de credenciais, resultando em blocos visuais pesados e com muita informacao desnecessaria.
+## Analise de Solucoes
 
-O novo design sera:
+### Solucao A: Substituir diretamente o texto "R" por `<img>` em cada arquivo
 
-**Cards compactos e limpos** com:
-- Nome do gateway em destaque (unica informacao textual)
-- Borda sutil com transicao suave no hover
-- Estado selecionado com borda `primary` e fundo suave `primary/5`
-- Icone de check discreto no canto superior direito quando selecionado (em vez do RadioGroupItem circular)
-- Badge "Em Breve" minimalista para gateways nao disponiveis
-- Status de credencial como um dot indicator discreto (verde = configurado, amarelo = pendente, azul = via secrets)
+- Manutenibilidade: 3/10 (12 substituicoes manuais, qualquer mudanca futura na logo requer editar 6 arquivos)
+- Zero DT: 3/10 (duplicacao massiva de logica de renderizacao)
+- Arquitetura: 3/10 (viola DRY completamente)
+- Escalabilidade: 3/10 (cada nova pagina de auth precisa copiar o padrao)
+- Seguranca: 10/10
+- **NOTA FINAL: 3.6/10**
 
-**Layout das secoes PIX e Cartao**:
-- Titulo da secao com icone contextual (QrCode para PIX, CreditCard para Cartao)
-- Grid responsivo: 3 colunas em desktop, 2 em tablet, 1 em mobile
-- Separador visual sutil entre PIX e Cartao
-- Remocao do bloco "Aviso de Configuracao" (informacao redundante ja presente no dot indicator)
+### Solucao B: Criar componente SSOT `RiseLogo` + asset local
 
-**Credential Status integrado no card**:
-- Dot verde no canto com tooltip "Configurado" (em vez de texto abaixo do selector)
-- Dot azul com tooltip "Via Secrets" para Owner
-- Dot amarelo com tooltip "Configurar no Financeiro" para credenciais pendentes
+Copiar a imagem para `src/assets/logo.jpeg`, criar um componente `RiseLogo` que encapsula toda a logica de renderizacao (tamanhos, background gradient, shadow), e importa-lo nos 6 arquivos. Qualquer mudanca futura na logo requer alterar apenas 1 arquivo.
+
+- Manutenibilidade: 10/10 (Single Source of Truth - mudar logo = 1 arquivo)
+- Zero DT: 10/10 (elimina 12 duplicacoes de codigo)
+- Arquitetura: 10/10 (componente atomico reutilizavel, SOLID)
+- Escalabilidade: 10/10 (qualquer nova pagina importa `RiseLogo`)
+- Seguranca: 10/10
+- **NOTA FINAL: 10.0/10**
+
+### DECISAO: Solucao B (Nota 10.0)
+
+A Solucao A viola DRY e cria 12 pontos de manutencao. A Solucao B centraliza tudo em um componente atomico.
+
+---
+
+## Plano de Execucao
+
+### Fase 1: Copiar Asset
+
+Copiar `user-uploads://3.jpg.jpeg` para `src/assets/logo.jpeg`.
+
+### Fase 2: Criar Componente `RiseLogo`
+
+**CRIAR** `src/components/brand/RiseLogo.tsx`
+
+Componente atomico com props de tamanho:
+
+```typescript
+interface RiseLogoProps {
+  size?: "sm" | "md";  // sm = 32px (mobile), md = 40px (desktop/sidebar)
+  className?: string;
+}
+```
+
+- Importa `logo.jpeg` de `@/assets/logo.jpeg`
+- Renderiza `<img>` com `object-contain` dentro do container com gradient + shadow
+- Tamanhos: `sm` = `w-8 h-8`, `md` = `w-10 h-10`
+- Mantam o `rounded-lg`/`rounded-xl` e o gradient background como container
+
+### Fase 3: Atualizar os 6 Arquivos
+
+Em cada arquivo, substituir o bloco:
+
+```tsx
+<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[...] to-[...] flex items-center justify-center shadow-lg shadow-[...]">
+  <span className="font-bold text-[...]">R</span>
+</div>
+```
+
+Por:
+
+```tsx
+<RiseLogo size="sm" />
+```
+
+E o bloco desktop (40x40):
+
+```tsx
+<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[...] to-[...] flex items-center justify-center shadow-lg shadow-[...]">
+  <span className="font-bold text-[...] text-xl">R</span>
+</div>
+```
+
+Por:
+
+```tsx
+<RiseLogo size="md" />
+```
+
+### Fase 4: Sidebar (caso especial)
+
+O `SidebarBrand.tsx` usa `bg-primary` em vez do auth gradient. O `RiseLogo` tera uma variante que funciona em ambos os contextos (auth theme e dashboard theme), mantendo o container com gradient no auth e `bg-primary` no dashboard.
+
+O componente aceitara uma prop `variant`:
+- `"auth"` - usa o gradient auth-accent (para paginas de auth)
+- `"default"` - usa `bg-primary` (para o sidebar do dashboard)
+
+---
 
 ## Arvore de Arquivos
 
 ```text
-src/components/products/
-  GatewaySelector.tsx                -- REESCREVER (novo design completo)
-  settings/GatewaySection.tsx        -- EDITAR (remover GatewayCredentialStatus, simplificar layout, adicionar icones)
+src/assets/
+  logo.jpeg                                          -- CRIAR (copiar da imagem enviada)
+
+src/components/brand/
+  RiseLogo.tsx                                       -- CRIAR (componente SSOT)
+
+src/modules/navigation/components/Sidebar/
+  SidebarBrand.tsx                                   -- EDITAR (usar RiseLogo)
+
+src/pages/
+  Auth.tsx                                           -- EDITAR (2 instancias -> RiseLogo)
+  RecuperarSenha.tsx                                 -- EDITAR (2 instancias -> RiseLogo)
+
+src/pages/cadastro/components/
+  CadastroLayout.tsx                                 -- EDITAR (2 instancias -> RiseLogo)
+
+src/components/auth/reset-password/
+  ResetPasswordLayout.tsx                            -- EDITAR (2 instancias -> RiseLogo)
+
+src/modules/members-area/components/
+  BuyerAuthLayout.tsx                                -- EDITAR (2 instancias -> RiseLogo)
 ```
 
-## Detalhes Tecnicos
+## Resultado
 
-### `GatewaySelector.tsx` - Reescrita Completa
+| Local | Antes | Depois |
+|-------|-------|--------|
+| Sidebar | Quadrado azul com texto "R" | Quadrado com logo real |
+| Login (mobile) | Quadrado gradient com "R" | Logo real no container gradient |
+| Login (desktop) | Quadrado gradient com "R" | Logo real no container gradient |
+| Cadastro (mobile + desktop) | Quadrado gradient com "R" | Logo real no container gradient |
+| Recuperar Senha (mobile + desktop) | Quadrado gradient com "R" | Logo real no container gradient |
+| Reset Password (mobile + desktop) | Quadrado gradient com "R" | Logo real no container gradient |
+| Buyer Auth (mobile + desktop) | Quadrado gradient com "R" | Logo real no container gradient |
 
-Mudancas estruturais:
-1. Remover toda referencia a `formatGatewayFees` e `fees`
-2. Remover exibicao de `gateway.description`
-3. Substituir `RadioGroup` + `RadioGroupItem` por cards clicaveis com estado controlado (mantendo a mesma interface `value`/`onChange`)
-4. Novo sub-componente `GatewayCard` com design minimalista
-5. Novo sub-componente `CredentialDot` para status de credencial inline
-6. Grid de 3 colunas (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`)
-
-Layout de cada card:
-
-```text
-┌─────────────────────────┐
-│                    [dot] │  <- dot de credential status (verde/amarelo/azul)
-│                         │
-│     Gateway Name        │  <- texto centralizado, font-medium
-│                         │
-│              [check] ✓  │  <- icone check sutil quando selecionado
-└─────────────────────────┘
-```
-
-Card selecionado: `border-primary bg-primary/5 shadow-sm`
-Card hover: `hover:border-primary/50 hover:shadow-sm`
-Card disabled: `opacity-50 cursor-not-allowed`
-Card coming soon: `opacity-40` + badge "Em Breve" no canto
-
-### `GatewaySection.tsx` - Simplificacao
-
-1. Remover o componente `GatewayCredentialStatus` (substituido por dot inline no card)
-2. Adicionar icones `QrCode` (PIX) e `CreditCard` (Cartao) nos titulos das secoes
-3. Remover o bloco de "Aviso de Configuracao" (info box azul)
-4. Adicionar `Separator` entre PIX e Cartao para separacao visual
-
-### Dados removidos da exibicao (mantidos no registry para uso interno)
-
-As taxas e descricoes continuam existindo no `payment-gateways.ts` para uso interno do sistema (calculo de fees no checkout, etc). Apenas a **exibicao** na UI de configuracoes e removida.
-
-## Resultado Visual Esperado
-
-| Aspecto | Antes | Depois |
-|---------|-------|--------|
-| Taxas | "Taxa: R$ 2,00 + 0.99%" visivel | Removido |
-| Descricao | "Gateway completo com PIX e Cartao" | Removido |
-| Radio button | Circulo RadioGroupItem | Check icon discreto |
-| Credential status | Texto abaixo do selector | Dot colorido no card |
-| Info box azul | Bloco grande com texto | Removido |
-| Colunas | 2 colunas | 3 colunas (desktop) |
-| Altura do card | ~80px (muito conteudo) | ~64px (compacto) |
-
+Todas as 12 instancias do "R" generico serao substituidas pela logo real, com um unico ponto de manutencao (`RiseLogo.tsx`).
