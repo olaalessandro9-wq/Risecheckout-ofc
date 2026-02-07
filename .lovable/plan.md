@@ -1,69 +1,181 @@
 
+# Implementar Verificacao de Email no Cadastro (Unified Auth)
 
-# Checkbox Obrigatorio de Aceite de Termos no Cadastro
+## Diagnostico da Causa Raiz
 
-## Contexto
+O toggle "Confirm email" no painel do Supabase so afeta o sistema nativo `auth.signUp()` da tabela `auth.users`. O Rise Checkout usa um sistema de autenticacao **completamente customizado** (Unified Auth V2) que:
 
-Atualmente, o formulario de cadastro (`ProducerRegistrationForm.tsx`) exibe um texto passivo "Ao se registrar, voce concorda com nossos Termos de Uso e Politica de Privacidade" -- sem exigir acao explicita do usuario. Isso nao constitui aceite juridico valido e nao e registrado no banco de dados.
+1. Cria usuarios diretamente na tabela `public.users`
+2. Gerencia suas proprias sessoes, cookies e hashing
+3. **Ignora completamente** o `auth.users` do Supabase
 
-A tabela `public.users` nao possui nenhuma coluna para registrar o aceite de termos.
+Portanto, aquele toggle nao tem nenhum efeito. O `register.ts` cria o usuario com `account_status: "active"` e imediatamente cria uma sessao, pulando toda verificacao.
 
 ## O Que Sera Feito
 
-### 1. Banco de Dados - Adicionar coluna `terms_accepted_at`
+### 1. Banco de Dados - Nova coluna `email_verification_token`
 
-Nova coluna na tabela `public.users`:
+A tabela `public.users` ja possui `email_verified` (boolean, default `false`). Falta a infraestrutura de token para verificacao.
 
-| Coluna | Tipo | Default | Nullable |
-|--------|------|---------|----------|
-| `terms_accepted_at` | `timestamptz` | `null` | YES |
+Nova coluna:
 
-O campo e `nullable` porque usuarios criados antes dessa feature nao terao aceite registrado. O valor sera preenchido com `NOW()` no momento do registro via backend.
+| Coluna | Tipo | Default | Nullable | Descricao |
+|--------|------|---------|----------|-----------|
+| `email_verification_token` | `text` | `null` | YES | Token criptografico para verificacao |
+| `email_verification_token_expires_at` | `timestamptz` | `null` | YES | Expiracao do token (24 horas) |
 
-Usar `timestamptz` (e nao boolean) porque:
-- Registra **quando** o aceite foi feito (auditoria juridica)
-- Permite rastrear aceites historicos
-- Padrao LGPD para registro de consentimento
+Tambem sera adicionado um novo valor ao enum `account_status_enum`:
 
-### 2. Frontend - Checkbox obrigatorio no formulario
+| Valor | Descricao |
+|-------|-----------|
+| `pending_email_verification` | Aguardando confirmacao de email |
 
-No arquivo `src/components/auth/ProducerRegistrationForm.tsx`:
+### 2. Backend - Alterar `register.ts`
 
-- Adicionar estado local `termsAccepted` (boolean)
-- Adicionar checkbox com label contendo links para `/termos-de-uso` e `/politica-de-privacidade`
-- O checkbox substitui o texto passivo atual ("Ao se registrar...")
-- Posicionar entre o campo de senha e o botao "Criar conta"
-- Validacao: se `termsAccepted === false`, bloquear envio e exibir mensagem de erro
-- Enviar `termsAccepted: true` no payload para o backend
+Mudancas no fluxo de registro:
 
-O checkbox **nao sera persistido no sessionStorage** (seguranca juridica: o aceite deve ser consciente a cada tentativa).
+- Gerar token de verificacao criptografico (`crypto.randomUUID()`)
+- Criar usuario com `account_status: "pending_email_verification"` em vez de `"active"`
+- `email_verified` permanece `false` (default)
+- Gravar `email_verification_token` e `email_verification_token_expires_at` (24h)
+- **NAO criar sessao** apos registro
+- Enviar email de verificacao via ZeptoMail com link contendo o token
+- Retornar resposta de sucesso informando que email de verificacao foi enviado (sem cookies de sessao)
 
-### 3. Backend - Registrar aceite no banco
+### 3. Backend - Novo handler `verify-email.ts`
 
-No arquivo `supabase/functions/unified-auth/handlers/register.ts`:
+Novo endpoint `POST /unified-auth/verify-email`:
 
-- Receber campo `termsAccepted` no body da request
-- **Validar** que `termsAccepted === true` (rejeitar se falso/ausente)
-- No `INSERT` do usuario, incluir `terms_accepted_at: new Date().toISOString()`
+- Receber `{ token: string }` no body
+- Buscar usuario com `email_verification_token` correspondente
+- Validar que token nao expirou (`email_verification_token_expires_at > NOW()`)
+- Atualizar usuario: `email_verified: true`, `account_status: "active"`, limpar token
+- Retornar sucesso (sem criar sessao - usuario fara login manualmente)
+
+### 4. Backend - Novo handler `resend-verification.ts`
+
+Novo endpoint `POST /unified-auth/resend-verification`:
+
+- Receber `{ email: string }` no body
+- Buscar usuario com `account_status: "pending_email_verification"`
+- Gerar novo token, atualizar no banco, enviar novo email
+- Rate limit: nao reenviar se ultimo envio foi ha menos de 60 segundos
+
+### 5. Backend - Alterar `login.ts`
+
+Adicionar verificacao antes de permitir login:
+
+- Se `email_verified === false` e `account_status === "pending_email_verification"`: bloquear login
+- Retornar mensagem informando que o email precisa ser confirmado antes de acessar a conta
+- Incluir sugestao de reenvio do email de verificacao
+
+### 6. Email Template - `email-templates-verification.ts`
+
+Novo template seguindo o padrao dos existentes (inline `<style>`, Gmail-compatible):
+
+- Header com logo Rise Checkout
+- Mensagem de boas-vindas com nome do usuario
+- Botao CTA: "Confirmar meu email"
+- Link de fallback em texto
+- Footer com dominio e suporte
+- Texto plano (versao text/plain)
+
+### 7. Frontend - Tela de "Verifique seu Email"
+
+Nova pagina `/verificar-email`:
+
+- Exibida apos registro bem-sucedido (redirect de `ProducerRegistrationForm`)
+- Mostra icone de email, mensagem "Enviamos um link de confirmacao para seu email"
+- Exibe o email usado (parcialmente mascarado)
+- Botao "Reenviar email" com cooldown de 60 segundos
+- Link "Voltar ao login"
+
+### 8. Frontend - Pagina `/confirmar-email`
+
+Nova pagina que processa o link do email:
+
+- Recebe token via query param: `/confirmar-email?token=xxx`
+- Chama `POST /unified-auth/verify-email` com o token
+- Exibe estados: carregando, sucesso (com botao "Ir para login"), ou erro (token expirado/invalido com opcao de reenvio)
+
+### 9. Frontend - Alterar `ProducerRegistrationForm.tsx`
+
+Apos registro bem-sucedido:
+
+- Em vez de navegar para `/auth`, navegar para `/verificar-email?email=xxx`
+- Remover criacao de sessao/cookies do fluxo de registro
+
+### 10. Frontend - Alterar tratamento de erro no login
+
+Quando login retornar erro de email nao verificado:
+
+- Exibir mensagem especifica: "Confirme seu email antes de acessar"
+- Oferecer link para reenviar verificacao
 
 ---
 
 ## Secao Tecnica
 
+### Arquivos criados
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `supabase/functions/unified-auth/handlers/verify-email.ts` | Handler de verificacao de token |
+| `supabase/functions/unified-auth/handlers/resend-verification.ts` | Handler de reenvio de email |
+| `supabase/functions/_shared/email-templates-verification.ts` | Template HTML + texto do email |
+| `src/pages/VerificarEmail.tsx` | Pagina "verifique seu email" (pos-registro) |
+| `src/pages/ConfirmarEmail.tsx` | Pagina que processa o link do email |
+
 ### Arquivos modificados
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| **Migracao SQL** | Adicionar coluna `terms_accepted_at timestamptz` |
-| `src/components/auth/ProducerRegistrationForm.tsx` | Adicionar checkbox + estado + validacao |
-| `supabase/functions/unified-auth/handlers/register.ts` | Receber e validar `termsAccepted`, gravar timestamp |
+| Migracao SQL | Adicionar coluna, valor no enum |
+| `supabase/functions/unified-auth/index.ts` | Registrar novos handlers (verify-email, resend-verification) |
+| `supabase/functions/unified-auth/handlers/register.ts` | Gerar token, enviar email, NAO criar sessao |
+| `supabase/functions/unified-auth/handlers/login.ts` | Bloquear login se email nao verificado |
+| `supabase/functions/_shared/auth-constants.ts` | Adicionar `PENDING_EMAIL_VERIFICATION` ao enum |
+| `src/components/auth/ProducerRegistrationForm.tsx` | Redirecionar para `/verificar-email` apos registro |
+| `src/routes/publicRoutes.tsx` | Adicionar rotas `/verificar-email` e `/confirmar-email` |
+| `docs/EDGE_FUNCTIONS_REGISTRY.md` | Documentar novos endpoints |
 
-### Validacao dupla (frontend + backend)
+### Fluxo completo
 
-- **Frontend**: Botao desabilitado ou erro visual se checkbox nao marcado
-- **Backend**: Rejeita request com `400 Bad Request` se `termsAccepted !== true`
+```text
+[Usuario preenche cadastro]
+        |
+        v
+[POST /unified-auth/register]
+  - Cria usuario com account_status: "pending_email_verification"
+  - Gera token de verificacao (UUID)
+  - Salva token + expiracao (24h) no banco
+  - Envia email via ZeptoMail com link: /confirmar-email?token=xxx
+  - NAO cria sessao
+  - Retorna { success: true, requiresEmailVerification: true }
+        |
+        v
+[Frontend redireciona para /verificar-email]
+  - Mostra "Verifique seu email"
+  - Botao "Reenviar" com cooldown 60s
+        |
+        v
+[Usuario clica no link do email]
+        |
+        v
+[Abre /confirmar-email?token=xxx]
+  - Chama POST /unified-auth/verify-email
+  - Backend valida token, marca email_verified: true, account_status: "active"
+  - Frontend mostra sucesso + botao "Ir para login"
+        |
+        v
+[Usuario faz login normalmente em /auth]
+```
 
-### Nao sera persistido no sessionStorage
+### Seguranca
 
-O campo `termsAccepted` e deliberadamente excluido da persistencia. O usuario deve marcar conscientemente o checkbox a cada tentativa de cadastro, garantindo consentimento ativo.
-
+- Token gerado com `crypto.randomUUID()` (criptograficamente seguro)
+- Token expira em 24 horas
+- Token e de uso unico (limpo apos verificacao)
+- Rate limit no reenvio (60 segundos)
+- Login bloqueado ate verificacao
+- Validacao dupla: frontend (UX) + backend (seguranca)
