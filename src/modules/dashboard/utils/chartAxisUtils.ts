@@ -156,52 +156,109 @@ function calculateHourlyTicks(
 }
 
 /**
- * Calculate daily ticks with adaptive formatting based on range length.
+ * Maximum number of daily data points that will be shown WITHOUT any
+ * tick-skipping. For ranges within this threshold, EVERY single day
+ * appears on the X-axis using the compact format.
+ *
+ * 45 labels × ~15px each = 675px — fits on any screen including
+ * mobile landscape.
+ */
+const SHORT_RANGE_THRESHOLD = 45;
+
+/**
+ * Build a compact formatter for short date ranges (≤45 days).
+ *
+ * The format minimises label width so every day fits on screen:
+ *  - First tick: always "D Mon" (e.g. "8 Jan") to anchor the viewer.
+ *  - Month-transition ticks: "D Mon" (e.g. "1 Fev") so the month
+ *    change is clearly visible.
+ *  - All other ticks: just the day number ("9", "10", "31").
+ *
+ * This yields ~12-15px per numeric label and ~35px for anchored
+ * labels, totalling well under any realistic chart width.
+ */
+function getCompactDailyFormatter(
+  allDates: readonly string[],
+): (value: string) => string {
+  // Pre-compute a Set of dates that need the month suffix.
+  const anchoredDates = new Set<string>();
+
+  if (allDates.length > 0) {
+    // First date always gets the month suffix.
+    anchoredDates.add(allDates[0]);
+
+    // Every date whose month differs from its predecessor gets the suffix.
+    for (let i = 1; i < allDates.length; i++) {
+      const prevMonth = allDates[i - 1].substring(5, 7);
+      const currMonth = allDates[i].substring(5, 7);
+      if (currMonth !== prevMonth) {
+        anchoredDates.add(allDates[i]);
+      }
+    }
+  }
+
+  return (value: string): string => {
+    const parts = value.split("-");
+    if (parts.length < 3) return value;
+
+    const day = parseInt(parts[2], 10);
+
+    if (anchoredDates.has(value)) {
+      const monthIndex = parseInt(parts[1], 10) - 1;
+      const monthName = MONTH_SHORT[monthIndex] ?? parts[1];
+      return `${day} ${monthName}`;
+    }
+
+    return String(day);
+  };
+}
+
+/**
+ * Calculate daily ticks with two clearly separated strategies:
+ *
+ * 1. Short ranges (≤ SHORT_RANGE_THRESHOLD days):
+ *    Show EVERY single day using the compact formatter.
+ *    No tick-skipping. No distribution algorithm. Zero days missing.
+ *
+ * 2. Long ranges (> SHORT_RANGE_THRESHOLD days):
+ *    Use selectWithConsistentStep to distribute ticks evenly,
+ *    with "DD Mon" or "Mon/YY" formatting.
  */
 function calculateDailyTicks(
   data: readonly ChartDataPoint[],
   chartWidth: number,
 ): XAxisConfig {
   const count = data.length;
+  const allDates = data.map((d) => d.date);
 
-  // Estimate label width based on the format that will be used
-  let estimatedLabelWidth: number;
-  if (count <= 14) {
-    estimatedLabelWidth = 50;  // "15/01" format
-  } else if (count <= 62) {
-    estimatedLabelWidth = 55;  // "8 Jan" format
-  } else {
-    estimatedLabelWidth = 58;  // "Jan/26" format
+  // ── Short range: show ALL ticks, compact format ──────────────
+  if (count <= SHORT_RANGE_THRESHOLD) {
+    return {
+      ticks: [...allDates],
+      formatter: getCompactDailyFormatter(allDates),
+    };
   }
 
+  // ── Long range: distributed ticks with full-width labels ─────
+  const estimatedLabelWidth = count <= 90 ? 55 : 58;
   const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
-  const allDates = data.map((d) => d.date);
   const ticks = selectWithConsistentStep(allDates, maxTicks);
-
-  // Choose formatter based on total data points
   const formatter = getDailyFormatter(count);
 
   return { ticks, formatter };
 }
 
 /**
- * Get the appropriate date formatter based on the number of data points.
- * 
- * - 2-14 days: "DD/MM" (e.g., "15/01")
- * - 15-62 days: "DD Mon" (e.g., "15 Jan")
- * - 63+ days: "Mon" or "Mon/YY" (e.g., "Jan" or "Jan/26")
+ * Get the appropriate date formatter for LONG ranges (> 45 days).
+ *
+ * Short ranges (≤45 days) never reach this function — they use
+ * getCompactDailyFormatter instead.
+ *
+ * - 46-90 days: "DD Mon" (e.g., "15 Jan")
+ * - 91+ days: "Mon/YY" (e.g., "Jan/26")
  */
 function getDailyFormatter(dataPointCount: number): (value: string) => string {
-  if (dataPointCount <= 14) {
-    // Short range: "DD/MM"
-    return (value: string) => {
-      const parts = value.split("-");
-      if (parts.length < 3) return value;
-      return `${parts[2]}/${parts[1]}`;
-    };
-  }
-
-  if (dataPointCount <= 62) {
+  if (dataPointCount <= 90) {
     // Medium range: "DD Mon"
     return (value: string) => {
       const parts = value.split("-");
@@ -212,7 +269,7 @@ function getDailyFormatter(dataPointCount: number): (value: string) => string {
     };
   }
 
-  // Long range: "Mon" or "Mon/YY" if spans multiple years
+  // Long range: "Mon/YY"
   return (value: string) => {
     const parts = value.split("-");
     if (parts.length < 3) return value;
