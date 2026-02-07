@@ -48,6 +48,7 @@ export interface CheckoutEditorMachineContext {
   // Originals for dirty comparison
   originalDesktopCustomization: CheckoutCustomization;
   originalMobileCustomization: CheckoutCustomization;
+  originalIsMobileSynced: boolean;
 
   // Persistence data (loaded from API)
   productData: ProductData | null;

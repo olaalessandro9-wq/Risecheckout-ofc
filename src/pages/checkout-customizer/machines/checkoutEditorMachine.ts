@@ -49,6 +49,7 @@ export const initialEditorContext: CheckoutEditorMachineContext = {
   activeId: null,
   originalDesktopCustomization: DEFAULT_CHECKOUT_DESIGN,
   originalMobileCustomization: DEFAULT_CHECKOUT_DESIGN,
+  originalIsMobileSynced: true,
   productData: null,
   orderBumps: [],
   productOffers: [],
@@ -100,6 +101,7 @@ export const checkoutEditorMachine = setup({
               isMobileSynced: d.isMobileSynced,
               originalDesktopCustomization: JSON.parse(JSON.stringify(d.desktopCustomization)),
               originalMobileCustomization: JSON.parse(JSON.stringify(d.mobileCustomization)),
+              originalIsMobileSynced: d.isMobileSynced,
               productData: d.productData,
               orderBumps: d.orderBumps,
               productOffers: d.productOffers,
@@ -296,6 +298,7 @@ export const checkoutEditorMachine = setup({
               actions: assign(({ context }) => ({
                 desktopCustomization: JSON.parse(JSON.stringify(context.originalDesktopCustomization)),
                 mobileCustomization: JSON.parse(JSON.stringify(context.originalMobileCustomization)),
+                isMobileSynced: context.originalIsMobileSynced,
                 selectedComponentId: null,
               })),
             },
@@ -319,6 +322,7 @@ export const checkoutEditorMachine = setup({
           actions: assign(({ context }) => ({
             originalDesktopCustomization: JSON.parse(JSON.stringify(context.desktopCustomization)),
             originalMobileCustomization: JSON.parse(JSON.stringify(context.mobileCustomization)),
+            originalIsMobileSynced: context.isMobileSynced,
             saveError: null,
           })),
         },

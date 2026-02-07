@@ -36,7 +36,8 @@ export function isDirty({
     context.mobileCustomization,
     context.originalMobileCustomization
   );
-  return desktopChanged || mobileChanged;
+  const syncChanged = context.isMobileSynced !== context.originalIsMobileSynced;
+  return desktopChanged || mobileChanged || syncChanged;
 }
 
 export function canSave({

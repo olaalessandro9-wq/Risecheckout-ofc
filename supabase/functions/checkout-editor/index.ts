@@ -48,6 +48,7 @@ interface RequestBody {
   bottomComponents?: unknown[];
   mobileTopComponents?: unknown[];
   mobileBottomComponents?: unknown[];
+  isMobileSynced?: boolean;
 }
 
 interface DesignSettings {
@@ -308,6 +309,9 @@ serve(withSentry("checkout-editor", async (req) => {
         // RISE V3: Dual-Layout - Save mobile components
         if (mobileTopComponents !== undefined) updates.mobile_top_components = mobileTopComponents;
         if (mobileBottomComponents !== undefined) updates.mobile_bottom_components = mobileBottomComponents;
+        
+        // RISE V3: Persist sync state explicitly
+        if (body.isMobileSynced !== undefined) updates.is_mobile_synced = body.isMobileSynced;
         
         updates.components = [];
 

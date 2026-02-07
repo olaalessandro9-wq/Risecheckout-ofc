@@ -108,12 +108,8 @@ export const loadEditorActor = fromPromise<LoadEditorOutput, LoadEditorInput>(
     const mobileTop = parseJsonSafely(checkoutAny.mobile_top_components as string, []);
     const mobileBottom = parseJsonSafely(checkoutAny.mobile_bottom_components as string, []);
 
-    // Determine sync state: mobile is synced if no mobile components exist
-    const hasMobileComponents =
-      (Array.isArray(mobileTop) && mobileTop.length > 0) ||
-      (Array.isArray(mobileBottom) && mobileBottom.length > 0);
-
-    const isMobileSynced = !hasMobileComponents;
+    // RISE V3: Read sync state explicitly from database column
+    const isMobileSynced = checkoutAny.is_mobile_synced !== false;
 
     const mobileCustomization: CheckoutCustomization = isMobileSynced
       ? JSON.parse(JSON.stringify(desktopCustomization))
@@ -196,6 +192,7 @@ export const saveEditorActor = fromPromise<SaveEditorOutput, SaveEditorInput>(
         bottomComponents: desktopCustomization.bottomComponents,
         mobileTopComponents: isMobileSynced ? [] : mobileCustomization.topComponents,
         mobileBottomComponents: isMobileSynced ? [] : mobileCustomization.bottomComponents,
+        isMobileSynced,
       }
     );
 

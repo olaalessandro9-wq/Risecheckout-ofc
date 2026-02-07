@@ -983,6 +983,7 @@ export type Database = {
           icon_color: string | null
           id: string
           is_default: boolean
+          is_mobile_synced: boolean
           mercadopago_public_key: string | null
           mobile_bottom_components: Json | null
           mobile_top_components: Json | null
@@ -1057,6 +1058,7 @@ export type Database = {
           icon_color?: string | null
           id?: string
           is_default?: boolean
+          is_mobile_synced?: boolean
           mercadopago_public_key?: string | null
           mobile_bottom_components?: Json | null
           mobile_top_components?: Json | null
@@ -1131,6 +1133,7 @@ export type Database = {
           icon_color?: string | null
           id?: string
           is_default?: boolean
+          is_mobile_synced?: boolean
           mercadopago_public_key?: string | null
           mobile_bottom_components?: Json | null
           mobile_top_components?: Json | null
