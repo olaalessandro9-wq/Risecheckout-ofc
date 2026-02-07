@@ -70,5 +70,31 @@ export function generateInstallments(
 
   return installments;
 }
+/**
+ * Formata exibição de parcelas para UI
+ * 
+ * 1x → "R$ 49,90"
+ * 9x → "9x de R$ 7,01"
+ */
+export function formatInstallmentDisplay(
+  amountCents: number,
+  installments: number
+): string {
+  if (installments <= 1) {
+    return `R$ ${(amountCents / 100).toFixed(2).replace('.', ',')}`;
+  }
+
+  const allInstallments = generateInstallments(amountCents, { maxInstallments: installments });
+  const match = allInstallments.find(i => i.value === installments);
+
+  if (match) {
+    return `${installments}x de R$ ${match.installmentAmount.toFixed(2).replace('.', ',')}`;
+  }
+
+  // Fallback: divisão simples
+  const simpleValue = amountCents / 100 / installments;
+  return `${installments}x de R$ ${simpleValue.toFixed(2).replace('.', ',')}`;
+}
+
 // NOTA: formatCurrency foi removido - usar formatCentsToBRL de @/lib/money
 export { formatCentsToBRL as formatCurrency } from "@/lib/money";

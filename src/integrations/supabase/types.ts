@@ -2328,6 +2328,7 @@ export type Database = {
           gateway_payment_id: string | null
           id: string
           idempotency_key: string | null
+          installments: number
           offer_id: string | null
           paid_at: string | null
           payment_method: string | null
@@ -2372,6 +2373,7 @@ export type Database = {
           gateway_payment_id?: string | null
           id?: string
           idempotency_key?: string | null
+          installments?: number
           offer_id?: string | null
           paid_at?: string | null
           payment_method?: string | null
@@ -2416,6 +2418,7 @@ export type Database = {
           gateway_payment_id?: string | null
           id?: string
           idempotency_key?: string | null
+          installments?: number
           offer_id?: string | null
           paid_at?: string | null
           payment_method?: string | null

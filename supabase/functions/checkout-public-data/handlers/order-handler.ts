@@ -37,6 +37,7 @@ export async function handleOrderByToken(ctx: HandlerContext): Promise<Response>
       coupon_code,
       discount_amount_cents,
       payment_method,
+      installments,
       vendor_id,
       created_at,
       utm_source,

@@ -57,6 +57,7 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
   onReady,
   onMount,
   isProcessing = false,
+  onInstallmentChange,
   textColor = '#ffffff',
   placeholderColor = '#9ca3af',
   backgroundColor = 'transparent',
@@ -297,7 +298,11 @@ export const MercadoPagoCardForm: React.FC<CardFormProps & {
         <div className="relative">
           <select
             value={state.selectedInstallment}
-            onChange={(e) => setSelectedInstallment(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSelectedInstallment(value);
+              onInstallmentChange?.(parseInt(value, 10));
+            }}
             className="w-full h-10 px-3 pr-8 rounded-xl border text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             style={{ 
               color: textColor,

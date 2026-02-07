@@ -41,6 +41,7 @@ export interface DynamicMercadoPagoFormProps {
   onSubmit: (result: CardTokenResult) => Promise<void>;
   isProcessing?: boolean;
   onMount?: (submitFn: () => void) => void;
+  onInstallmentChange?: (installments: number) => void;
   textColor?: string;
   placeholderColor?: string;
   backgroundColor?: string;

@@ -21,6 +21,7 @@ import { CheckCircle2, Mail, MessageCircle, Copy, Check, Package, ShoppingBag, G
 import { publicApi } from "@/lib/api/public-client";
 import { Button } from "@/components/ui/button";
 import { createLogger } from "@/lib/logger";
+import { formatInstallmentDisplay } from "@/lib/payment-gateways/installments";
 import { SuccessThemeProvider } from "@/components/theme-providers";
 
 const log = createLogger("PaymentSuccessPage");
@@ -66,6 +67,7 @@ interface OrderDetails {
   coupon_code: string | null;
   discount_amount_cents: number | null;
   payment_method?: string | null;
+  installments?: number;
   vendor_id?: string | null;
   created_at?: string | null;
   tracking_parameters?: TrackingParameters | null;
@@ -284,7 +286,10 @@ export const PaymentSuccessPage = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-[hsl(var(--success-text-secondary))]">Total Pago</span>
                       <span className="text-xl font-bold text-[hsl(var(--success-green))]">
-                        {formatCurrency(orderDetails.amount_cents)}
+                        {orderDetails.installments && orderDetails.installments > 1
+                          ? formatInstallmentDisplay(orderDetails.amount_cents, orderDetails.installments)
+                          : formatCurrency(orderDetails.amount_cents)
+                        }
                       </span>
                     </div>
                   </div>

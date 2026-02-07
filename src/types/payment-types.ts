@@ -193,6 +193,8 @@ export interface CardFormProps {
   onReady?: () => void;
   onMount?: (submitFn: () => void) => void;
   isProcessing?: boolean;
+  /** Callback fired when user changes installment selection */
+  onInstallmentChange?: (installments: number) => void;
   design?: {
     colors: {
       primaryText: string;

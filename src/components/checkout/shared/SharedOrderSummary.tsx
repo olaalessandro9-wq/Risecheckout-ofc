@@ -15,6 +15,7 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useCouponValidation } from '@/hooks/checkout/useCouponValidation';
+import { formatInstallmentDisplay } from '@/lib/payment-gateways/installments';
 import { validateCouponCode } from '@/hooks/checkout/validateCouponApi';
 import type { AppliedCoupon } from '@/types/checkout-shared.types';
 import { CouponInput } from './CouponInput';
@@ -60,6 +61,10 @@ interface SharedOrderSummaryProps {
   onApplyCoupon?: (coupon: AppliedCoupon) => void;
   /** Callback to remove coupon from XState (public checkout only) */
   onRemoveCoupon?: () => void;
+  /** Selected payment method for installment display */
+  selectedPaymentMethod?: 'pix' | 'credit_card';
+  /** Selected installment count from card form */
+  selectedInstallment?: number;
 }
 
 export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
@@ -71,6 +76,8 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
   appliedCoupon: controlledCoupon,
   onApplyCoupon,
   onRemoveCoupon,
+  selectedPaymentMethod,
+  selectedInstallment,
 }) => {
   // ============================================================================
   // COUPON MODE: Controlled (XState SSOT) vs Uncontrolled (local hook)
@@ -274,7 +281,10 @@ export const SharedOrderSummary: React.FC<SharedOrderSummaryProps> = ({
         <div className="flex justify-between items-center pt-4 mt-4 border-t" style={{ borderColor }}>
           <span className="font-medium text-base" style={{ color: design.colors.primaryText }}>Total</span>
           <span className="font-medium text-lg" style={{ color: design.colors.primaryText }}>
-            R$ {(totalPrice / 100).toFixed(2).replace('.', ',')}
+            {selectedPaymentMethod === 'credit_card' && selectedInstallment && selectedInstallment > 1
+              ? formatInstallmentDisplay(totalPrice, selectedInstallment)
+              : `R$ ${(totalPrice / 100).toFixed(2).replace('.', ',')}`
+            }
           </span>
         </div>
       </div>
