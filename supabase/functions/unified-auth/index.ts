@@ -27,6 +27,7 @@
  * - POST /mfa-verify-setup - Confirm MFA setup with TOTP code
  * - POST /mfa-verify - Verify TOTP code during login
  * - POST /mfa-disable - Disable MFA (requires password + code)
+ * - POST /mfa-status - Check if user has MFA enabled
  * 
  * @module unified-auth
  */
@@ -59,6 +60,7 @@ import { handleMfaSetup } from "./handlers/mfa-setup.ts";
 import { handleMfaVerifySetup } from "./handlers/mfa-verify-setup.ts";
 import { handleMfaVerify } from "./handlers/mfa-verify.ts";
 import { handleMfaDisable } from "./handlers/mfa-disable.ts";
+import { handleMfaStatus } from "./handlers/mfa-status.ts";
 
 const log = createLogger("UnifiedAuth");
 
@@ -148,6 +150,9 @@ serve(async (req: Request): Promise<Response> => {
         
       case "mfa-disable":
         return await handleMfaDisable(supabase, req, corsHeaders);
+        
+      case "mfa-status":
+        return await handleMfaStatus(supabase, req, corsHeaders);
         
       default:
         log.warn(`Unknown action: ${action}`);
