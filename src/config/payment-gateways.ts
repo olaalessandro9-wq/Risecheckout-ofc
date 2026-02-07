@@ -53,16 +53,12 @@ export const PAYMENT_GATEWAYS: Record<string, PaymentGateway> = {
     id: 'asaas',
     name: 'asaas',
     displayName: 'Asaas',
-    description: 'Gateway completo com PIX e Cartão de Crédito',
+    description: 'Gateway de PIX via Asaas',
     status: 'active',
-    supportedMethods: ['pix', 'credit_card'],
+    supportedMethods: ['pix'],
     fees: {
       pix: {
         percentage: 0.99, // 0,99%
-      },
-      credit_card: {
-        percentage: 3.49, // 3,49%
-        transaction: 49,  // R$ 0,49
       },
     },
     requiresCredentials: true,
@@ -299,4 +295,4 @@ export type ActiveGatewayId = 'asaas' | 'mercadopago' | 'pushinpay' | 'stripe';
 
 export type PixGatewayId = 'asaas' | 'mercadopago' | 'pushinpay';
 
-export type CreditCardGatewayId = 'asaas' | 'mercadopago' | 'stripe';
+export type CreditCardGatewayId = 'mercadopago' | 'stripe';

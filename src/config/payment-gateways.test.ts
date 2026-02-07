@@ -136,11 +136,11 @@ describe("getGatewaysByMethod", () => {
     expect(ids).toContain("pushinpay");
   });
 
-  it("should include asaas, mercadopago, stripe for credit_card", () => {
+  it("should include mercadopago, stripe for credit_card (asaas not implemented yet)", () => {
     const ccGateways = getGatewaysByMethod("credit_card");
     const ids = ccGateways.map((g) => g.id);
     
-    expect(ids).toContain("asaas");
+    expect(ids).not.toContain("asaas");
     expect(ids).toContain("mercadopago");
     expect(ids).toContain("stripe");
   });
@@ -311,11 +311,11 @@ describe("getGatewayDisplayName", () => {
 // ============================================================================
 
 describe("Gateway Fees Structure", () => {
-  it("asaas should have pix and credit_card fees", () => {
+  it("asaas should have only pix fees (credit_card not implemented)", () => {
     const asaas = PAYMENT_GATEWAYS.asaas;
     
     expect(asaas.fees.pix).toBeDefined();
-    expect(asaas.fees.credit_card).toBeDefined();
+    expect(asaas.fees.credit_card).toBeUndefined();
   });
 
   it("mercadopago should have pix and credit_card fees", () => {
