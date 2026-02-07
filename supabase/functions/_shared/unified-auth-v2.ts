@@ -374,12 +374,19 @@ export function hashPassword(password: string): string {
 
 /**
  * Verifies a password against a hash (synchronous for Edge Runtime compatibility).
+ * 
+ * RISE V3: Returns structured result to distinguish between
+ * "wrong password" (valid=false) and "bcrypt crash" (valid=false + error).
+ * This prevents silent error swallowing (Section 6.1 violation fix).
  */
-export function verifyPassword(password: string, hash: string): boolean {
+export function verifyPassword(password: string, hash: string): { valid: boolean; error?: string } {
   try {
-    return compareSync(password, hash);
-  } catch {
-    return false;
+    const result = compareSync(password, hash);
+    return { valid: result };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("bcrypt compareSync threw an exception (NOT a password mismatch):", msg);
+    return { valid: false, error: msg };
   }
 }
 

@@ -84,10 +84,20 @@ export async function handleLogin(
       return errorResponse("Conta sem senha configurada", corsHeaders, 403);
     }
     
-    // Sync function - no await needed
-    const validPassword = verifyPassword(password, user.password_hash);
-    if (!validPassword) {
-      log.debug("Invalid password for:", normalizedEmail);
+    // RISE V3: Structured password verification (bcrypt crash vs wrong password)
+    const passwordResult = verifyPassword(password, user.password_hash);
+
+    if (passwordResult.error) {
+      // bcrypt internal crash - NOT a password mismatch
+      log.error("bcrypt crash during login", {
+        email: normalizedEmail,
+        error: passwordResult.error,
+      });
+      return errorResponse("Erro interno ao verificar credenciais", corsHeaders, 500);
+    }
+
+    if (!passwordResult.valid) {
+      log.info("Invalid password attempt", { email: normalizedEmail });
       return errorResponse("Credenciais inválidas", corsHeaders, 401);
     }
     

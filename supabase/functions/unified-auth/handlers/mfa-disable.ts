@@ -75,7 +75,18 @@ export async function handleMfaDisable(
       );
     }
 
-    if (!verifyPassword(body.password, userData.password_hash)) {
+    // RISE V3: Structured password verification (bcrypt crash vs wrong password)
+    const passwordResult = verifyPassword(body.password, userData.password_hash);
+
+    if (passwordResult.error) {
+      log.error("bcrypt crash during MFA disable password check", {
+        userId: user.id,
+        error: passwordResult.error,
+      });
+      return errorResponse("Erro interno ao verificar senha", corsHeaders, 500);
+    }
+
+    if (!passwordResult.valid) {
       return errorResponse("Senha incorreta", corsHeaders, 401);
     }
 
