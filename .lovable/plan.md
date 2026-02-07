@@ -1,181 +1,144 @@
 
-# Implementar Verificacao de Email no Cadastro (Unified Auth)
 
-## Diagnostico da Causa Raiz
+# Auditoria Completa: Email Verification + Terms Acceptance
 
-O toggle "Confirm email" no painel do Supabase so afeta o sistema nativo `auth.signUp()` da tabela `auth.users`. O Rise Checkout usa um sistema de autenticacao **completamente customizado** (Unified Auth V2) que:
+## Resultado da Auditoria
 
-1. Cria usuarios diretamente na tabela `public.users`
-2. Gerencia suas proprias sessoes, cookies e hashing
-3. **Ignora completamente** o `auth.users` do Supabase
+### Banco de Dados - OK
+- Coluna `email_verification_token` (text, nullable) -- presente
+- Coluna `email_verification_token_expires_at` (timestamptz, nullable) -- presente
+- Coluna `terms_accepted_at` (timestamptz, nullable) -- presente
+- Coluna `email_verified` (boolean, default false) -- presente
+- Enum `account_status_enum` inclui `pending_email_verification` -- presente
 
-Portanto, aquele toggle nao tem nenhum efeito. O `register.ts` cria o usuario com `account_status: "active"` e imediatamente cria uma sessao, pulando toda verificacao.
+### Frontend - OK
+- `VerificarEmail.tsx` -- funcional, mascara email, resend com cooldown
+- `ConfirmarEmail.tsx` -- funcional, estados loading/success/error/expired
+- `ProducerRegistrationForm.tsx` -- checkbox obrigatorio, redirect correto
+- Rotas `/verificar-email` e `/confirmar-email` registradas em `publicRoutes.tsx`
 
-## O Que Sera Feito
+### Edge Functions Registry (`EDGE_FUNCTIONS_REGISTRY.md`) - OK
+- Linha 99: `unified-auth` documenta `Verify-Email/Resend-Verification`
+- Endpoints listados corretamente
 
-### 1. Banco de Dados - Nova coluna `email_verification_token`
+### Email Template (`email-templates-verification.ts`) - OK
+- Self-contained, sem wrappers deprecados
+- Gmail-compatible com `<style>` block
+- Re-exportado em `email-templates.ts` (agregador)
 
-A tabela `public.users` ja possui `email_verified` (boolean, default `false`). Falta a infraestrutura de token para verificacao.
+---
 
-Nova coluna:
+## PROBLEMAS ENCONTRADOS (3 violacoes RISE V3)
 
-| Coluna | Tipo | Default | Nullable | Descricao |
-|--------|------|---------|----------|-----------|
-| `email_verification_token` | `text` | `null` | YES | Token criptografico para verificacao |
-| `email_verification_token_expires_at` | `timestamptz` | `null` | YES | Expiracao do token (24 horas) |
+### Problema 1: String literals em vez do enum AccountStatus
 
-Tambem sera adicionado um novo valor ao enum `account_status_enum`:
+**Gravidade: ALTA** -- Viola Single Source of Truth (SOLID)
 
-| Valor | Descricao |
-|-------|-----------|
-| `pending_email_verification` | Aguardando confirmacao de email |
+Tres handlers usam strings literais `"pending_email_verification"` e `"active"` em vez do enum `AccountStatus`:
 
-### 2. Backend - Alterar `register.ts`
+| Arquivo | Linha | String Literal | Deveria Usar |
+|---------|-------|----------------|--------------|
+| `register.ts` | 126 | `"pending_email_verification"` | `AccountStatus.PENDING_EMAIL_VERIFICATION` |
+| `resend-verification.ts` | 60 | `"pending_email_verification"` | `AccountStatus.PENDING_EMAIL_VERIFICATION` |
+| `verify-email.ts` | 48 | `"active"` | `AccountStatus.ACTIVE` |
+| `verify-email.ts` | 67 | `"active"` | `AccountStatus.ACTIVE` |
 
-Mudancas no fluxo de registro:
+Se o valor do enum mudar no futuro, esses arquivos quebram silenciosamente (sem erro de compilacao).
 
-- Gerar token de verificacao criptografico (`crypto.randomUUID()`)
-- Criar usuario com `account_status: "pending_email_verification"` em vez de `"active"`
-- `email_verified` permanece `false` (default)
-- Gravar `email_verification_token` e `email_verification_token_expires_at` (24h)
-- **NAO criar sessao** apos registro
-- Enviar email de verificacao via ZeptoMail com link contendo o token
-- Retornar resposta de sucesso informando que email de verificacao foi enviado (sem cookies de sessao)
+**Correcao**: Importar `AccountStatus` de `auth-constants.ts` e substituir todas as string literals.
 
-### 3. Backend - Novo handler `verify-email.ts`
+### Problema 2: Docblock de `unified-auth/index.ts` desatualizado
 
-Novo endpoint `POST /unified-auth/verify-email`:
+**Gravidade: MEDIA** -- Documentacao incompleta
 
-- Receber `{ token: string }` no body
-- Buscar usuario com `email_verification_token` correspondente
-- Validar que token nao expirou (`email_verification_token_expires_at > NOW()`)
-- Atualizar usuario: `email_verified: true`, `account_status: "active"`, limpar token
-- Retornar sucesso (sem criar sessao - usuario fara login manualmente)
+O docblock (linhas 9-19) lista apenas 9 endpoints, mas a funcao roteia 16 endpoints. Os 7 endpoints ausentes:
 
-### 4. Backend - Novo handler `resend-verification.ts`
+| Endpoint ausente | Handler |
+|------------------|---------|
+| `request-refresh` | `handleRequestRefresh` |
+| `check-producer-buyer` | `handleCheckProducerBuyer` |
+| `ensure-producer-access` | `handleEnsureProducerAccess` |
+| `producer-login` | `handleProducerLogin` |
+| `check-email` | `handleCheckEmail` |
+| `verify-email` | `handleVerifyEmail` |
+| `resend-verification` | `handleResendVerification` |
 
-Novo endpoint `POST /unified-auth/resend-verification`:
+**Correcao**: Atualizar o docblock para listar todos os 16 endpoints.
 
-- Receber `{ email: string }` no body
-- Buscar usuario com `account_status: "pending_email_verification"`
-- Gerar novo token, atualizar no banco, enviar novo email
-- Rate limit: nao reenviar se ultimo envio foi ha menos de 60 segundos
+### Problema 3: `verify-email.ts` sem import do AccountStatus
 
-### 5. Backend - Alterar `login.ts`
+**Gravidade: ALTA** -- Mesmo problema do item 1, mas tambem falta o import
 
-Adicionar verificacao antes de permitir login:
+O arquivo nao importa `AccountStatus` de `auth-constants.ts`. Precisa adicionar o import E substituir as strings.
 
-- Se `email_verified === false` e `account_status === "pending_email_verification"`: bloquear login
-- Retornar mensagem informando que o email precisa ser confirmado antes de acessar a conta
-- Incluir sugestao de reenvio do email de verificacao
+---
 
-### 6. Email Template - `email-templates-verification.ts`
+## Nenhum Codigo Morto Encontrado
 
-Novo template seguindo o padrao dos existentes (inline `<style>`, Gmail-compatible):
+- Zero referencias a tabelas legadas (`buyer_sessions`, `producer_sessions`)
+- Zero headers legados (`x-buyer-token`, `x-producer-session-token`)
+- Zero imports nao utilizados
+- Todos os handlers importados em `index.ts` sao utilizados no switch
+- Template de email re-exportado corretamente no agregador
 
-- Header com logo Rise Checkout
-- Mensagem de boas-vindas com nome do usuario
-- Botao CTA: "Confirmar meu email"
-- Link de fallback em texto
-- Footer com dominio e suporte
-- Texto plano (versao text/plain)
+---
 
-### 7. Frontend - Tela de "Verifique seu Email"
+## Plano de Correcao
 
-Nova pagina `/verificar-email`:
+### Arquivo 1: `supabase/functions/unified-auth/handlers/register.ts`
+- Adicionar import: `import { AccountStatus } from "../../_shared/auth-constants.ts";`
+- Linha 126: trocar `"pending_email_verification"` por `AccountStatus.PENDING_EMAIL_VERIFICATION`
 
-- Exibida apos registro bem-sucedido (redirect de `ProducerRegistrationForm`)
-- Mostra icone de email, mensagem "Enviamos um link de confirmacao para seu email"
-- Exibe o email usado (parcialmente mascarado)
-- Botao "Reenviar email" com cooldown de 60 segundos
-- Link "Voltar ao login"
+### Arquivo 2: `supabase/functions/unified-auth/handlers/verify-email.ts`
+- Adicionar import: `import { AccountStatus } from "../../_shared/auth-constants.ts";`
+- Linha 48: trocar `"active"` por `AccountStatus.ACTIVE`
+- Linha 67: trocar `"active"` por `AccountStatus.ACTIVE`
 
-### 8. Frontend - Pagina `/confirmar-email`
+### Arquivo 3: `supabase/functions/unified-auth/handlers/resend-verification.ts`
+- Adicionar import: `import { AccountStatus } from "../../_shared/auth-constants.ts";`
+- Linha 60: trocar `"pending_email_verification"` por `AccountStatus.PENDING_EMAIL_VERIFICATION`
 
-Nova pagina que processa o link do email:
+### Arquivo 4: `supabase/functions/unified-auth/index.ts`
+- Atualizar docblock (linhas 9-19) para listar todos os 16 endpoints
 
-- Recebe token via query param: `/confirmar-email?token=xxx`
-- Chama `POST /unified-auth/verify-email` com o token
-- Exibe estados: carregando, sucesso (com botao "Ir para login"), ou erro (token expirado/invalido com opcao de reenvio)
-
-### 9. Frontend - Alterar `ProducerRegistrationForm.tsx`
-
-Apos registro bem-sucedido:
-
-- Em vez de navegar para `/auth`, navegar para `/verificar-email?email=xxx`
-- Remover criacao de sessao/cookies do fluxo de registro
-
-### 10. Frontend - Alterar tratamento de erro no login
-
-Quando login retornar erro de email nao verificado:
-
-- Exibir mensagem especifica: "Confirme seu email antes de acessar"
-- Oferecer link para reenviar verificacao
+### Deploy
+- Re-deploy `unified-auth` apos as correcoes
 
 ---
 
 ## Secao Tecnica
 
-### Arquivos criados
+### Analise de Solucoes
 
-| Arquivo | Descricao |
-|---------|-----------|
-| `supabase/functions/unified-auth/handlers/verify-email.ts` | Handler de verificacao de token |
-| `supabase/functions/unified-auth/handlers/resend-verification.ts` | Handler de reenvio de email |
-| `supabase/functions/_shared/email-templates-verification.ts` | Template HTML + texto do email |
-| `src/pages/VerificarEmail.tsx` | Pagina "verifique seu email" (pos-registro) |
-| `src/pages/ConfirmarEmail.tsx` | Pagina que processa o link do email |
+#### Solucao A: Corrigir apenas os 3 handlers com string literals
+- Manutenibilidade: 10/10
+- Zero DT: 10/10
+- Arquitetura: 10/10
+- Escalabilidade: 10/10
+- Seguranca: 10/10
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 15 minutos
 
-### Arquivos modificados
+#### Solucao B: Nao corrigir, "funciona igual"
+- Manutenibilidade: 6/10 (strings podem dessincronizar do enum)
+- Zero DT: 4/10 (e divida tecnica por definicao)
+- Arquitetura: 5/10 (viola SSOT/DRY)
+- Escalabilidade: 7/10 (se enum mudar, bugs silenciosos)
+- Seguranca: 8/10 (sem impacto direto)
+- **NOTA FINAL: 5.8/10**
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| Migracao SQL | Adicionar coluna, valor no enum |
-| `supabase/functions/unified-auth/index.ts` | Registrar novos handlers (verify-email, resend-verification) |
-| `supabase/functions/unified-auth/handlers/register.ts` | Gerar token, enviar email, NAO criar sessao |
-| `supabase/functions/unified-auth/handlers/login.ts` | Bloquear login se email nao verificado |
-| `supabase/functions/_shared/auth-constants.ts` | Adicionar `PENDING_EMAIL_VERIFICATION` ao enum |
-| `src/components/auth/ProducerRegistrationForm.tsx` | Redirecionar para `/verificar-email` apos registro |
-| `src/routes/publicRoutes.tsx` | Adicionar rotas `/verificar-email` e `/confirmar-email` |
-| `docs/EDGE_FUNCTIONS_REGISTRY.md` | Documentar novos endpoints |
+### DECISAO: Solucao A (Nota 10.0)
+A Solucao B e inferior porque viola o principio SSOT do Protocolo RISE V3. Strings literais duplicadas sao divida tecnica que pode causar bugs silenciosos se o enum for renomeado no futuro.
 
-### Fluxo completo
+### Arquivos modificados (resumo)
 
-```text
-[Usuario preenche cadastro]
-        |
-        v
-[POST /unified-auth/register]
-  - Cria usuario com account_status: "pending_email_verification"
-  - Gera token de verificacao (UUID)
-  - Salva token + expiracao (24h) no banco
-  - Envia email via ZeptoMail com link: /confirmar-email?token=xxx
-  - NAO cria sessao
-  - Retorna { success: true, requiresEmailVerification: true }
-        |
-        v
-[Frontend redireciona para /verificar-email]
-  - Mostra "Verifique seu email"
-  - Botao "Reenviar" com cooldown 60s
-        |
-        v
-[Usuario clica no link do email]
-        |
-        v
-[Abre /confirmar-email?token=xxx]
-  - Chama POST /unified-auth/verify-email
-  - Backend valida token, marca email_verified: true, account_status: "active"
-  - Frontend mostra sucesso + botao "Ir para login"
-        |
-        v
-[Usuario faz login normalmente em /auth]
-```
+| Arquivo | Linhas alteradas | Tipo |
+|---------|-----------------|------|
+| `unified-auth/handlers/register.ts` | +1 import, 1 string substituida | Correcao SSOT |
+| `unified-auth/handlers/verify-email.ts` | +1 import, 2 strings substituidas | Correcao SSOT |
+| `unified-auth/handlers/resend-verification.ts` | +1 import, 1 string substituida | Correcao SSOT |
+| `unified-auth/index.ts` | Docblock atualizado | Documentacao |
 
-### Seguranca
+### Impacto zero em funcionalidade
+Todas as correcoes sao refatoracoes seguras: o valor das constantes do enum e identico as strings que estao sendo substituidas. Nenhum comportamento muda em runtime.
 
-- Token gerado com `crypto.randomUUID()` (criptograficamente seguro)
-- Token expira em 24 horas
-- Token e de uso unico (limpo apos verificacao)
-- Rate limit no reenvio (60 segundos)
-- Login bloqueado ate verificacao
-- Validacao dupla: frontend (UX) + backend (seguranca)
