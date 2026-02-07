@@ -4,15 +4,16 @@
  * ============================================================================
  * 
  * @module _shared/facebook-capi/dispatcher
- * @version 1.0.0 - RISE Protocol V3
+ * @version 1.1.0 - RISE Protocol V3
  * 
  * Orchestrates CAPI event dispatch:
- * 1. Fetches order data
- * 2. Resolves active Facebook pixels for the product
+ * 1. Fetches order data (including ALL items: main + bumps)
+ * 2. Resolves active Facebook pixels for the primary product
  * 3. For each pixel, calls facebook-conversion-api with deterministic event_id
  * 4. Aggregates results
  * 
- * Follows the same pattern as _shared/utmify/dispatcher.ts.
+ * v1.1.0: Now includes ALL order items in content_ids and numItems for
+ *         accurate Facebook Ads optimization with order bumps.
  * ============================================================================
  */
 
@@ -30,7 +31,8 @@ import type {
 const log = createLogger("FacebookCAPIDispatcher");
 
 /**
- * Fetches order data needed for CAPI dispatch
+ * Fetches order data needed for CAPI dispatch.
+ * Includes all order items (main product + order bumps) for accurate content_ids.
  */
 async function fetchOrderForCAPI(
   supabase: SupabaseClient,
@@ -41,7 +43,7 @@ async function fetchOrderForCAPI(
     .select(`
       id, vendor_id, amount_cents, payment_method,
       customer_email, customer_name, customer_phone,
-      order_items (product_id, product_name)
+      order_items (product_id, product_name, is_bump)
     `)
     .eq("id", orderId)
     .single();
@@ -60,17 +62,27 @@ async function fetchOrderForCAPI(
 
   if (!data) return null;
 
-  const items = (data.order_items as Array<{
+  // Map all order items with bump flag
+  const rawItems = (data.order_items as Array<{
     product_id: string;
-    product_name: string;
+    product_name: string | null;
+    is_bump: boolean;
   }>) || [];
-  const firstItem = items[0];
+
+  const items = rawItems.map(item => ({
+    productId: item.product_id,
+    productName: item.product_name,
+    isBump: item.is_bump ?? false,
+  }));
+
+  // Primary product is the first non-bump item (used for pixel resolution)
+  const primaryItem = items.find(item => !item.isBump) || items[0];
 
   return {
     orderId: data.id,
     vendorId: data.vendor_id,
-    productId: firstItem?.product_id || '',
-    productName: firstItem?.product_name || null,
+    primaryProductId: primaryItem?.productId || '',
+    items,
     amountCents: data.amount_cents,
     customerEmail: data.customer_email,
     customerName: data.customer_name,
@@ -149,7 +161,7 @@ export async function dispatchFacebookCAPIForOrder(
     };
   }
 
-  if (!order.productId) {
+  if (!order.primaryProductId) {
     return {
       success: true,
       skipped: true,
@@ -161,10 +173,10 @@ export async function dispatchFacebookCAPIForOrder(
     };
   }
 
-  // 2. Resolve Facebook pixels
+  // 2. Resolve Facebook pixels (using primary product)
   const pixels = await resolveFacebookPixels(
     supabase,
-    order.productId,
+    order.primaryProductId,
     paymentMethod
   );
 
@@ -198,6 +210,14 @@ export async function dispatchFacebookCAPIForOrder(
     ? nameParts.slice(1).join(' ')
     : undefined;
 
+  // Extract content IDs from ALL items (main + bumps)
+  const contentIds = order.items.map(item => item.productId);
+  const numItems = order.items.length;
+  
+  // Get primary product name for content_name
+  const primaryItem = order.items.find(item => !item.isBump);
+  const contentName = primaryItem?.productName || order.items[0]?.productName || undefined;
+
   for (const pixel of pixels) {
     // Apply custom value percentage if configured
     const finalValue = pixel.customValuePercent
@@ -212,10 +232,11 @@ export async function dispatchFacebookCAPIForOrder(
       eventData: {
         currency: "BRL",
         value: finalValue,
-        contentIds: [order.productId],
+        contentIds,
         contentType: "product",
-        contentName: order.productName || undefined,
+        contentName,
         orderId: order.orderId,
+        numItems,
       },
       userData: {
         email: order.customerEmail,
@@ -229,6 +250,8 @@ export async function dispatchFacebookCAPIForOrder(
       orderId,
       eventId,
       value: finalValue,
+      contentIds,
+      numItems,
     });
 
     const result = await sendCAPIEvent(payload);

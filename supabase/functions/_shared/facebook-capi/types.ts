@@ -109,14 +109,25 @@ export interface FacebookCAPIDispatchResult {
 // ============================================================================
 
 /**
+ * A single item in an order (main product or order bump)
+ */
+export interface FacebookCAPIOrderItem {
+  productId: string;
+  productName: string | null;
+  isBump: boolean;
+}
+
+/**
  * Order data fetched for CAPI dispatch.
  * Used internally by dispatcher.ts — not part of the public API surface.
  */
 export interface FacebookCAPIOrderData {
   orderId: string;
   vendorId: string;
-  productId: string;
-  productName: string | null;
+  /** Primary product ID (first non-bump item) — used for pixel resolution */
+  primaryProductId: string;
+  /** All items in the order (main + bumps) */
+  items: FacebookCAPIOrderItem[];
   amountCents: number;
   customerEmail: string | null;
   customerName: string | null;
