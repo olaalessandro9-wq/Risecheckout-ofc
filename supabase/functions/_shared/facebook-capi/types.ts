@@ -133,4 +133,14 @@ export interface FacebookCAPIOrderData {
   customerName: string | null;
   customerPhone: string | null;
   paymentMethod: string;
+  /** ULTRA TRACKING: Facebook Browser ID (_fbp cookie) */
+  fbp: string | null;
+  /** ULTRA TRACKING: Facebook Click ID (_fbc cookie) */
+  fbc: string | null;
+  /** ULTRA TRACKING: Client IP address */
+  clientIpAddress: string | null;
+  /** ULTRA TRACKING: Client User-Agent string */
+  clientUserAgent: string | null;
+  /** ULTRA TRACKING: Checkout page URL */
+  eventSourceUrl: string | null;
 }

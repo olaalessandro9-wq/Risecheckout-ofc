@@ -14,6 +14,7 @@ import { publicApi } from "@/lib/api/public-client";
 import { getAffiliateCode } from "@/hooks/checkout/helpers";
 import { createLogger } from "@/lib/logger";
 import { extractUTMParameters } from "@/integrations/tracking/utmify/utils";
+import { captureFacebookBrowserIdentity } from "@/lib/tracking/facebook-cookies";
 
 const log = createLogger("CreateOrderActor");
 
@@ -61,6 +62,9 @@ export const createOrderActor = fromPromise<CreateOrderOutput, CreateOrderInput>
     // RISE V3: Extract UTM parameters for tracking persistence
     const utmParams = extractUTMParameters();
 
+    // ULTRA TRACKING: Capture Facebook browser identity (cookies + metadata)
+    const fbIdentity = captureFacebookBrowserIdentity();
+
     const payload = {
       product_id: input.productId,
       offer_id: input.offerId || input.productId,
@@ -84,6 +88,11 @@ export const createOrderActor = fromPromise<CreateOrderOutput, CreateOrderInput>
       affiliate_code: getAffiliateCode(),
       // RISE V3: Idempotency key per checkout submission attempt
       idempotency_key: input.idempotencyKey,
+      // ULTRA TRACKING: Facebook browser identity for CAPI EMQ 8.0+
+      fbp: fbIdentity.fbp,
+      fbc: fbIdentity.fbc,
+      customer_user_agent: fbIdentity.userAgent,
+      event_source_url: fbIdentity.eventSourceUrl,
     };
 
     const { data, error } = await publicApi.call<{

@@ -40,6 +40,7 @@ import type { OrderBump, CheckoutFormData } from "@/types/checkout";
 import type { UseCheckoutPublicMachineReturn } from "../hooks";
 import type { CardFormData } from "../machines/checkoutPublicMachine.types";
 import type { CheckoutComponent } from "@/types/checkoutEditor";
+import type { FacebookAdvancedMatchingData } from "@/integrations/tracking/facebook/types";
 
 interface CheckoutPublicContentProps {
   machine: UseCheckoutPublicMachineReturn;
@@ -203,6 +204,18 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
 
   // PHASE 2: UTMify config comes from machine (BFF unified, no extra HTTP call)
   const utmifyConfig = vendorIntegration?.active ? vendorIntegration.config : null;
+
+  // ULTRA TRACKING: Build Advanced Matching data from checkout form for Facebook Pixel
+  const advancedMatching = useMemo<FacebookAdvancedMatchingData | undefined>(() => {
+    if (!formData.email) return undefined;
+    const nameParts = (formData.name || '').trim().split(/\s+/);
+    return {
+      em: formData.email,
+      ph: formData.phone || undefined,
+      fn: nameParts[0] || undefined,
+      ln: nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined,
+    };
+  }, [formData.email, formData.name, formData.phone]);
 
   // Affiliate Tracking - modo 'persist' para persistência final com configs do produto
   const affiliateSettings = product.affiliate_settings;
@@ -377,6 +390,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
         productId={product.id} 
         productPixels={trackingPixels}
         utmifyConfig={utmifyConfig as import("@/integrations/tracking/utmify").UTMifyIntegration | null}
+        advancedMatching={advancedMatching}
       />
       <CheckoutPublicLayout design={design} customization={customization}>
         <SharedCheckoutLayout

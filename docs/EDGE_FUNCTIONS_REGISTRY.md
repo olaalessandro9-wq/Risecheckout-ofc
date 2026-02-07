@@ -289,7 +289,7 @@
 |------|-----|----------|------|-----------|
 | `utmify-conversion` | `.../utmify-conversion` | ✅ | public | **DEPRECATED** - Backend-only, não usar no frontend |
 | `utmify-validate-credentials` | `.../utmify-validate-credentials` | ✅ | sessions | Diagnóstico de tokens UTMify |
-| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public | Facebook CAPI v2.0.0 - Event ID + Retry + Failed Queue |
+| `facebook-conversion-api` | `.../facebook-conversion-api` | ✅ | public | Facebook CAPI v2.0.0 - Event ID + Retry + Failed Queue + **ULTRA TRACKING (EMQ 8.0+): fbc, fbp, IP, UA, event_source_url** |
 | `reprocess-failed-facebook-events` | `.../reprocess-failed-facebook-events` | ✅ | internal | Cron - Reprocessa eventos CAPI falhados (hourly) |
 | `dashboard-analytics` | `.../dashboard-analytics` | ✅ | sessions | Analytics do produtor |
 | `checkout-heartbeat` | `.../checkout-heartbeat` | ✅ | public | Heartbeat de checkout ativo |

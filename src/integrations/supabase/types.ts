@@ -2405,8 +2405,12 @@ export type Database = {
           customer_ip: string | null
           customer_name: string | null
           customer_phone: string | null
+          customer_user_agent: string | null
           discount_amount_cents: number | null
+          event_source_url: string | null
           expired_at: string | null
+          fbc: string | null
+          fbp: string | null
           gateway: string
           gateway_payment_id: string | null
           id: string
@@ -2450,8 +2454,12 @@ export type Database = {
           customer_ip?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          customer_user_agent?: string | null
           discount_amount_cents?: number | null
+          event_source_url?: string | null
           expired_at?: string | null
+          fbc?: string | null
+          fbp?: string | null
           gateway: string
           gateway_payment_id?: string | null
           id?: string
@@ -2495,8 +2503,12 @@ export type Database = {
           customer_ip?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          customer_user_agent?: string | null
           discount_amount_cents?: number | null
+          event_source_url?: string | null
           expired_at?: string | null
+          fbc?: string | null
+          fbp?: string | null
           gateway?: string
           gateway_payment_id?: string | null
           id?: string
