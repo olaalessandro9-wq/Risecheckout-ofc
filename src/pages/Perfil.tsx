@@ -16,8 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { Loader2, User } from "lucide-react";
+import { Loader2, User, ShieldAlert } from "lucide-react";
 import { MfaSettingsCard } from "@/components/auth/MfaSettingsCard";
 
 interface ProfileResponse {
@@ -66,7 +67,7 @@ function getInitials(name: string | null | undefined): string {
 }
 
 export default function Perfil() {
-  const { user, activeRole } = useUnifiedAuth();
+  const { user, activeRole, mfaSetupRequired } = useUnifiedAuth();
   const queryClient = useQueryClient();
   
   const [nome, setNome] = useState("");
@@ -167,10 +168,24 @@ export default function Perfil() {
   const isMfaEligible = activeRole === "admin" || activeRole === "owner";
   return (
     <div className="space-y-6">
+      {/* RISE V3: MFA Enforcement Banner */}
+      {mfaSetupRequired && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Configuração de Segurança Obrigatória</AlertTitle>
+          <AlertDescription>
+            Para garantir a segurança da sua conta, você precisa ativar a autenticação de dois
+            fatores (MFA) antes de acessar outras funcionalidades. Configure abaixo.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div>
         <h1 className="text-2xl font-bold">Meu Perfil</h1>
         <p className="text-muted-foreground">Gerencie suas informações pessoais</p>
       </div>
+      {/* MFA Settings - visible only for admin/owner (shown FIRST when enforcement is active) */}
+      {isMfaEligible && mfaSetupRequired && <MfaSettingsCard />}
       
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         {/* Avatar Card */}
@@ -272,8 +287,8 @@ export default function Perfil() {
         </Card>
       </div>
 
-      {/* MFA Settings - visible only for admin/owner */}
-      {isMfaEligible && <MfaSettingsCard />}
+      {/* MFA Settings - visible only for admin/owner (at bottom when not enforcing) */}
+      {isMfaEligible && !mfaSetupRequired && <MfaSettingsCard />}
     </div>
   );
 }

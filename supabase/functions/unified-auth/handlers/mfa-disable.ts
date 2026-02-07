@@ -40,6 +40,18 @@ export async function handleMfaDisable(
 ): Promise<Response> {
   try {
     const user = await requireAuthenticatedUser(supabase, req);
+    
+    // RISE V3: Block MFA disable for admin/owner (mandatory enforcement)
+    const isMfaEnforcedRole = user.activeRole === "admin" || user.activeRole === "owner";
+    if (isMfaEnforcedRole) {
+      log.warn("Admin/Owner attempted to disable mandatory MFA", { userId: user.id, role: user.activeRole });
+      return errorResponse(
+        "MFA é obrigatório para administradores e não pode ser desativado",
+        corsHeaders,
+        403
+      );
+    }
+    
     const body: MfaDisableRequest = await req.json();
 
     if (!body.password || !body.code) {

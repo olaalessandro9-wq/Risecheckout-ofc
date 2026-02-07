@@ -24,9 +24,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, ShieldCheck, ShieldOff } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, ShieldCheck, ShieldOff, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { getMfaStatus, mfaDisable } from "@/services/mfaService";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { MfaSetupWizard } from "./MfaSetupWizard";
 
 // ============================================================================
@@ -41,11 +43,15 @@ const MFA_STATUS_QUERY_KEY = ["mfa-status"] as const;
 
 export function MfaSettingsCard() {
   const queryClient = useQueryClient();
+  const { activeRole, mfaSetupRequired, invalidate: invalidateAuth } = useUnifiedAuth();
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
   const [isDisabling, setIsDisabling] = useState(false);
+  
+  /** Whether MFA is mandatory for this user's role (cannot be disabled) */
+  const isMfaMandatory = activeRole === "admin" || activeRole === "owner";
 
   const { data: mfaStatus, isLoading } = useQuery({
     queryKey: MFA_STATUS_QUERY_KEY,
@@ -54,8 +60,10 @@ export function MfaSettingsCard() {
 
   const handleSetupComplete = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: MFA_STATUS_QUERY_KEY });
+    // RISE V3: Re-validate session so mfa_setup_required flag is cleared
+    invalidateAuth();
     toast.success("Autenticação de dois fatores ativada!");
-  }, [queryClient]);
+  }, [queryClient, invalidateAuth]);
 
   const handleDisable = useCallback(
     async (e: React.FormEvent) => {
@@ -117,6 +125,18 @@ export function MfaSettingsCard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* RISE V3: Mandatory enforcement banner for admin/owner without MFA */}
+          {isMfaMandatory && mfaSetupRequired && (
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Configuração obrigatória:</strong> Para garantir a segurança da sua conta,
+                você precisa ativar a autenticação de dois fatores (MFA) antes de acessar outras
+                funcionalidades da plataforma.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           {isMfaEnabled ? (
             <>
               <p className="text-sm text-muted-foreground">
@@ -124,21 +144,26 @@ export function MfaSettingsCard() {
                 código do seu aplicativo autenticador será solicitado ao fazer
                 login.
               </p>
-              <Button
-                variant="destructive"
-                onClick={() => setShowDisableDialog(true)}
-              >
-                <ShieldOff className="mr-2 h-4 w-4" />
-                Desativar MFA
-              </Button>
+              {isMfaMandatory ? (
+                <p className="text-sm font-medium text-muted-foreground">
+                  MFA é obrigatório para administradores e não pode ser desativado.
+                </p>
+              ) : (
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDisableDialog(true)}
+                >
+                  <ShieldOff className="mr-2 h-4 w-4" />
+                  Desativar MFA
+                </Button>
+              )}
             </>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Proteja sua conta com autenticação de dois fatores. Ao ativar,
-                você precisará de um código do seu aplicativo autenticador
-                (Google Authenticator, Authy, etc.) além da senha ao fazer
-                login.
+                {isMfaMandatory
+                  ? "A autenticação de dois fatores é obrigatória para sua conta. Configure agora usando um aplicativo autenticador (Google Authenticator, Authy, etc.)."
+                  : "Proteja sua conta com autenticação de dois fatores. Ao ativar, você precisará de um código do seu aplicativo autenticador (Google Authenticator, Authy, etc.) além da senha ao fazer login."}
               </p>
               <Button onClick={() => setShowSetupWizard(true)}>
                 <ShieldCheck className="mr-2 h-4 w-4" />

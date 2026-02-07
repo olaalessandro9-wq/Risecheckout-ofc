@@ -87,6 +87,7 @@ function createMockAuthState(config: {
     isLoggingOut: false,
     isSwitching: false,
     loginError: null as string | null,
+    mfaSetupRequired: false,
   };
 }
 
