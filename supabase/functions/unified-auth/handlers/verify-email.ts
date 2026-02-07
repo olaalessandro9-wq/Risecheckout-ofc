@@ -12,6 +12,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "../../_shared/logger.ts";
 import { jsonResponse, errorResponse } from "../../_shared/response-helpers.ts";
+import { AccountStatus } from "../../_shared/auth-constants.ts";
 
 const log = createLogger("UnifiedAuth:VerifyEmail");
 
@@ -45,7 +46,7 @@ export async function handleVerifyEmail(
     }
 
     // Check if already verified
-    if (user.email_verified === true && user.account_status === "active") {
+    if (user.email_verified === true && user.account_status === AccountStatus.ACTIVE) {
       log.info("Email already verified", { userId: user.id });
       return jsonResponse({ success: true, alreadyVerified: true }, corsHeaders);
     }
@@ -64,7 +65,7 @@ export async function handleVerifyEmail(
       .from("users")
       .update({
         email_verified: true,
-        account_status: "active",
+        account_status: AccountStatus.ACTIVE,
         email_verification_token: null,
         email_verification_token_expires_at: null,
       })

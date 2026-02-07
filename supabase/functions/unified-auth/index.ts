@@ -8,14 +8,21 @@
  * 
  * Endpoints:
  * - POST /login - Authenticate user
- * - POST /register - Create new account
+ * - POST /register - Create new account (with email verification)
  * - POST /logout - End session
  * - POST /validate - Validate current session
  * - POST /refresh - Refresh access token
+ * - POST /request-refresh - Request new refresh token
  * - POST /switch-context - Switch active role (producer <-> buyer)
  * - POST /password-reset-request - Request password reset email
  * - POST /password-reset-verify - Verify reset token validity
  * - POST /password-reset - Reset password with token
+ * - POST /check-producer-buyer - Check if user has both roles
+ * - POST /ensure-producer-access - Ensure user has producer role
+ * - POST /producer-login - Authenticate as producer
+ * - POST /check-email - Check if email exists
+ * - POST /verify-email - Verify email with token
+ * - POST /resend-verification - Resend verification email
  * 
  * @module unified-auth
  */

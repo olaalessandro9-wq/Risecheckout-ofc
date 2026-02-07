@@ -15,6 +15,7 @@ import { jsonResponse, errorResponse } from "../../_shared/response-helpers.ts";
 import { sendEmail } from "../../_shared/zeptomail.ts";
 import { getEmailVerificationTemplate, getEmailVerificationTextTemplate } from "../../_shared/email-templates-verification.ts";
 import { buildSiteUrl } from "../../_shared/site-urls.ts";
+import { AccountStatus } from "../../_shared/auth-constants.ts";
 
 const log = createLogger("UnifiedAuth:ResendVerification");
 
@@ -57,7 +58,7 @@ export async function handleResendVerification(
     }
 
     // Only resend for pending verification accounts
-    if (user.account_status !== "pending_email_verification") {
+    if (user.account_status !== AccountStatus.PENDING_EMAIL_VERIFICATION) {
       log.debug("Resend requested for already active account", { userId: user.id });
       return jsonResponse({ success: true }, corsHeaders);
     }
