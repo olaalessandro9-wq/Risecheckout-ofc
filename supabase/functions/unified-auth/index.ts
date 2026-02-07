@@ -23,6 +23,10 @@
  * - POST /check-email - Check if email exists
  * - POST /verify-email - Verify email with token
  * - POST /resend-verification - Resend verification email
+ * - POST /mfa-setup - Generate TOTP secret for MFA setup
+ * - POST /mfa-verify-setup - Confirm MFA setup with TOTP code
+ * - POST /mfa-verify - Verify TOTP code during login
+ * - POST /mfa-disable - Disable MFA (requires password + code)
  * 
  * @module unified-auth
  */
@@ -51,6 +55,10 @@ import { handleProducerLogin } from "./handlers/producer-login.ts";
 import { handleCheckEmail } from "./handlers/check-email.ts";
 import { handleVerifyEmail } from "./handlers/verify-email.ts";
 import { handleResendVerification } from "./handlers/resend-verification.ts";
+import { handleMfaSetup } from "./handlers/mfa-setup.ts";
+import { handleMfaVerifySetup } from "./handlers/mfa-verify-setup.ts";
+import { handleMfaVerify } from "./handlers/mfa-verify.ts";
+import { handleMfaDisable } from "./handlers/mfa-disable.ts";
 
 const log = createLogger("UnifiedAuth");
 
@@ -127,6 +135,19 @@ serve(async (req: Request): Promise<Response> => {
         
       case "resend-verification":
         return await handleResendVerification(supabase, req, corsHeaders);
+        
+      // MFA (TOTP) handlers
+      case "mfa-setup":
+        return await handleMfaSetup(supabase, req, corsHeaders);
+        
+      case "mfa-verify-setup":
+        return await handleMfaVerifySetup(supabase, req, corsHeaders);
+        
+      case "mfa-verify":
+        return await handleMfaVerify(supabase, req, corsHeaders);
+        
+      case "mfa-disable":
+        return await handleMfaDisable(supabase, req, corsHeaders);
         
       default:
         log.warn(`Unknown action: ${action}`);

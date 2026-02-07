@@ -8,14 +8,17 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "../../_shared/logger.ts";
-import { errorResponse } from "../../_shared/response-helpers.ts";
+import { errorResponse, jsonResponse } from "../../_shared/response-helpers.ts";
 import {
   verifyPassword,
   createSession,
   createAuthResponse,
+  createUnifiedAuthCookies,
   type AppRole,
 } from "../../_shared/unified-auth-v2.ts";
-import { AccountStatus } from "../../_shared/auth-constants.ts";
+import { AccountStatus, ACCESS_TOKEN_DURATION_MINUTES } from "../../_shared/auth-constants.ts";
+import { createMfaSession } from "../../_shared/mfa-session.ts";
+import { jsonResponseWithCookies } from "../../_shared/cookie-helper.ts";
 
 const log = createLogger("UnifiedAuth:Login");
 
@@ -127,6 +130,41 @@ export async function handleLogin(
       }
     }
     
+    // ================================================================
+    // MFA CHECK (RISE V3: Admin/Owner TOTP verification)
+    // ================================================================
+    
+    let mfaSetupRequired = false;
+    const requiresMfa = roles.some(r => ["admin", "owner"].includes(r));
+    
+    if (requiresMfa) {
+      const { data: mfaRecord } = await supabase
+        .from("user_mfa")
+        .select("is_enabled")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (mfaRecord?.is_enabled) {
+        // MFA enabled - require TOTP verification before session creation
+        const mfaSession = await createMfaSession(supabase, user.id);
+        if (!mfaSession) {
+          return errorResponse("Erro ao iniciar verificação MFA", corsHeaders, 500);
+        }
+        
+        log.info("MFA verification required", { userId: user.id });
+        
+        return jsonResponse({
+          success: false,
+          mfa_required: true,
+          mfa_session_token: mfaSession.token,
+        }, corsHeaders, 200);
+      }
+      
+      // MFA not configured - flag for frontend notification
+      // Session will be created normally so user can access /perfil to setup
+      mfaSetupRequired = true;
+    }
+    
     // Determine active role
     let activeRole: AppRole = "buyer"; // Default
     
@@ -179,7 +217,25 @@ export async function handleLogin(
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", user.id);
     
-    log.info("Login successful", { userId: user.id, activeRole });
+    log.info("Login successful", { userId: user.id, activeRole, mfaSetupRequired });
+    
+    // Add MFA setup flag if admin/owner hasn't configured MFA yet
+    if (mfaSetupRequired) {
+      const authCookies = createUnifiedAuthCookies(session.sessionToken, session.refreshToken);
+      return jsonResponseWithCookies({
+        success: true,
+        mfa_setup_required: true,
+        expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60,
+        expiresAt: session.accessTokenExpiresAt.toISOString(),
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+        roles,
+        activeRole,
+      }, corsHeaders, authCookies);
+    }
     
     return createAuthResponse(session, user, roles, corsHeaders);
     
