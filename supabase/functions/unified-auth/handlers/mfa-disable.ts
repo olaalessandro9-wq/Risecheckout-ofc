@@ -1,17 +1,15 @@
 /**
- * MFA Disable Handler
+ * MFA Disable Guard (Defense-in-Depth)
  * 
- * Disables MFA for an authenticated user.
- * Requires both password AND current TOTP code for security.
+ * Blocks ALL MFA disable attempts for admin/owner roles.
+ * MFA is mandatory and cannot be deactivated.
  * 
- * Flow:
- * 1. Validate authenticated session
- * 2. Verify current password
- * 3. Verify current TOTP code
- * 4. Disable MFA and clear backup codes
+ * The frontend does NOT expose any UI to call this endpoint.
+ * This handler exists solely as a backend security guard against
+ * direct API calls attempting to bypass frontend restrictions.
  * 
  * @module unified-auth/handlers/mfa-disable
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
