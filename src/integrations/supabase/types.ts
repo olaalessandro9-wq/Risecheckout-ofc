@@ -4837,6 +4837,7 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: undefined
       }
+      increment_mfa_attempts: { Args: { p_token: string }; Returns: undefined }
       is_admin: { Args: { p_user_id: string }; Returns: boolean }
       is_ip_blocked: { Args: { check_ip: string }; Returns: boolean }
       is_product_in_active_public_checkout: {

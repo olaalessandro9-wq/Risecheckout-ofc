@@ -54,7 +54,7 @@ export async function handleMfaSetup(
       .from("user_mfa")
       .select("id, is_enabled")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (existingMfa?.is_enabled) {
       return errorResponse(

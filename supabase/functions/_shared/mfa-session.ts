@@ -10,10 +10,11 @@
  * Architecture:
  * - Token stored in `mfa_sessions` table (service_role only)
  * - Token is consumed after successful verification
- * - Attempt counter prevents brute-force attacks
+ * - Attempt counter uses atomic PostgreSQL RPC (increment_mfa_attempts)
+ * - Expired/used sessions are auto-purged on new session creation
  * 
  * @module _shared/mfa-session
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -45,11 +46,22 @@ export interface MfaSessionData {
 /**
  * Creates a temporary MFA session token.
  * Valid for 5 minutes, max 5 verification attempts.
+ * 
+ * Auto-purges expired and used sessions for the same user
+ * to prevent table bloat without requiring a cron job.
  */
 export async function createMfaSession(
   supabase: SupabaseClient,
   userId: string
 ): Promise<MfaSessionData | null> {
+  // Purge stale sessions for this user before creating a new one
+  const now = new Date().toISOString();
+  await supabase
+    .from("mfa_sessions")
+    .delete()
+    .eq("user_id", userId)
+    .or(`is_used.eq.true,expires_at.lt.${now}`);
+
   const token = crypto.randomUUID() + "-" + crypto.randomUUID();
   const expiresAt = new Date(
     Date.now() + MFA_SESSION_DURATION_MINUTES * 60 * 1000
@@ -108,36 +120,22 @@ export async function validateMfaSession(
 }
 
 /**
- * Increments the attempt counter for an MFA session.
+ * Atomically increments the attempt counter for an MFA session.
  * 
- * RISE V3 Architecture Decision:
- * Uses read-then-write pattern (SELECT + UPDATE) because Supabase JS client
- * does not support SQL expressions (e.g., `attempts = attempts + 1`) in `.update()`.
- * 
- * Race condition risk: NEGLIGIBLE
- * - Each MFA session belongs to a single user
- * - Only one device/tab submits codes per login attempt
- * - The 5-attempt max is a safety net, not a precision counter
- * 
- * Alternative considered: Creating a dedicated RPC function for atomic increment.
- * Rejected because it adds deployment complexity without meaningful benefit
- * in the single-user-per-session context.
+ * Uses PostgreSQL RPC function `increment_mfa_attempts` which executes
+ * `UPDATE mfa_sessions SET attempts = attempts + 1 WHERE token = ?`
+ * in a single atomic operation, eliminating any race condition.
  */
 export async function incrementMfaAttempts(
   supabase: SupabaseClient,
   token: string
 ): Promise<void> {
-  const { data } = await supabase
-    .from("mfa_sessions")
-    .select("attempts")
-    .eq("token", token)
-    .single();
+  const { error } = await supabase.rpc("increment_mfa_attempts", {
+    p_token: token,
+  });
 
-  if (data) {
-    await supabase
-      .from("mfa_sessions")
-      .update({ attempts: data.attempts + 1 })
-      .eq("token", token);
+  if (error) {
+    log.error("Failed to increment MFA attempts:", error.message);
   }
 }
 

@@ -52,10 +52,9 @@ const Auth = () => {
       // Use unified-auth login with preferred role "user" (producer)
       const result = await login(loginEmail, loginPassword, "user");
 
-      // Check if MFA is required
-      if (result && 'mfa_required' in result && (result as Record<string, unknown>).mfa_required) {
-        const mfaResult = result as Record<string, unknown>;
-        setMfaSessionToken(mfaResult.mfa_session_token as string);
+      // Check if MFA is required (login paused until TOTP verification)
+      if (result.mfa_required) {
+        setMfaSessionToken(result.mfa_session_token ?? "");
         setShowMfaDialog(true);
         setLoading(false);
         return;
@@ -65,6 +64,11 @@ const Auth = () => {
         toast.error(result.error || "Erro ao fazer login");
         setLoading(false);
         return;
+      }
+
+      // Notify admin/owner users to configure MFA (non-blocking)
+      if (result.mfa_setup_required) {
+        toast.info("Recomendamos ativar a autenticação de dois fatores em seu perfil.");
       }
 
       toast.success("Login realizado com sucesso!");

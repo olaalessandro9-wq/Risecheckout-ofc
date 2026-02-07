@@ -90,6 +90,12 @@ interface LoginResponse {
   activeRole?: AppRole;
   expiresIn?: number;
   error?: string;
+  /** MFA required - login paused until TOTP verification */
+  mfa_required?: boolean;
+  /** Temporary token for the MFA verification window */
+  mfa_session_token?: string;
+  /** Hint: user is admin/owner without MFA configured */
+  mfa_setup_required?: boolean;
 }
 
 interface SwitchContextResponse {
