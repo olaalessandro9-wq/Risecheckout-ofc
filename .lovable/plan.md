@@ -1,174 +1,114 @@
 
-# Fix: Consistent X-Axis Tick Distribution
 
-## Root Cause Analysis
+# Correcao Raiz: Exibir TODOS os Dias no Eixo X
 
-The function `selectEvenlySpaced` in `chartAxisUtils.ts` (line 81-94) uses a fractional step with `Math.round`, which creates **inconsistent gaps** between ticks:
+## Diagnostico da Doenca (Root Cause)
+
+O problema NAO esta no algoritmo de distribuicao (`selectWithConsistentStep`). O problema esta na **decisao arquitetural de PULAR ticks para periodos curtos**. O sistema foi desenhado para SEMPRE decidir quais ticks pular, quando para periodos de ate ~45 dias, a resposta correta e: **nao pular NENHUM**.
+
+A funcao `calculateDailyTicks` (linha 161-184) chama `selectWithConsistentStep` incondicionalmente. Independente de quantos dias existam, ela tenta "encaixar" dentro de um `maxTicks` calculado. Isso e a doenca. O sintoma e os dias faltando.
+
+O segundo fator e o formato dos labels. "8 Jan" ocupa ~40px. Com 30 labels a 40px = 1200px. Em charts com menos de 1200px de largura, os labels se sobrepoem. A solucao correta nao e pular dias -- e **usar um formato mais compacto** que permita mostrar TODOS.
+
+## Analise de Solucoes
+
+### Solucao A: Aumentar o threshold do `selectWithConsistentStep`
+
+- Manutenibilidade: 5/10 (nao resolve o problema em telas menores)
+- Zero DT: 3/10 (em telas < 1200px, 30 labels de "8 Jan" vao se sobrepor)
+- Arquitetura: 3/10 (continua tratando o sintoma, nao a doenca)
+- Escalabilidade: 3/10 (quebra em resoluces menores)
+- Seguranca: 10/10
+- **NOTA FINAL: 4.0/10**
+
+### Solucao B: Formato compacto adaptativo + exibicao total para periodos curtos
+
+Redesenhar `calculateDailyTicks` com duas faixas claras:
+
+1. **Periodos curtos (ate 45 dias)**: Mostrar TODOS os ticks, sem excecao. Usar formato compacto: numero do dia ("8", "9", "10"), com nome do mes apenas quando o mes muda ("1 Fev"). Isso garante ~15px por label, cabendo 45 labels em 675px (qualquer tela).
+
+2. **Periodos longos (46+ dias)**: Usar `selectWithConsistentStep` com formatos "DD Mon" ou "Mon/YY".
+
+- Manutenibilidade: 10/10 (logica clara: curto = tudo, longo = distribuicao)
+- Zero DT: 10/10 (funciona em qualquer largura de tela)
+- Arquitetura: 10/10 (resolve a doenca: a decisao de pular so existe para ranges longos)
+- Escalabilidade: 10/10 (45 labels a 15px = 675px, cabe ate em mobile landscape)
+- Seguranca: 10/10
+- **NOTA FINAL: 10.0/10**
+
+### DECISAO: Solucao B (Nota 10.0)
+
+A Solucao A trata o sintoma (ajustar threshold). A Solucao B trata a doenca (eliminar a decisao de pular para periodos curtos e usar formato que garante que tudo cabe).
+
+---
+
+## Plano de Execucao
+
+### Arquivo: `src/modules/dashboard/utils/chartAxisUtils.ts`
+
+**1. Novo formatador compacto para periodos curtos**
+
+Criar funcao `getCompactDailyFormatter` que retorna:
+- Numero do dia para a maioria dos ticks: "8", "9", "10"...
+- Dia + mes abreviado quando o mes muda: "1 Fev"
+- Dia + mes no primeiro tick se nao comecar no dia 1: "8 Jan"
+
+Exemplos de resultado visual para 30 dias (8 Jan a 6 Fev):
 
 ```text
-Example: 24 hourly items, maxTicks=13
-step = 23/12 = 1.9167
-
-Index 6: Math.round(11.5) = 12 -> 12:00
-Index 7: Math.round(13.417) = 13 -> 13:00
-Gap: 1 hour (all others are 2 hours) -- INCONSISTENT
-
-Example: 30 daily items, maxTicks=13
-step = 29/12 = 2.4167
-
-Gaps alternate between 2 and 3 days -- INCONSISTENT
+8 Jan  9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  1 Fev  2  3  4  5  6
 ```
 
-## Solution: Two-Pronged Fix
+Cada label ocupa ~12-15px (numeros) ou ~35px (com mes). Total: ~28 * 15 + 2 * 35 = 490px. Cabe em qualquer tela.
 
-### Fix 1: Natural Hour Intervals for Hourly Data
+**2. Refatorar `calculateDailyTicks`**
 
-Replace the generic `selectEvenlySpaced` approach for hourly data with **natural divisors of 24**: `[1, 2, 3, 4, 6, 8, 12]`.
-
-Pick the smallest interval where the resulting tick count fits:
-
-| maxTicks | Interval Chosen | Ticks Produced | Result |
-|----------|----------------|----------------|--------|
-| >= 24 | 1h | 24 | Every hour |
-| >= 12 | 2h | 12 | 00h, 02h, 04h, ..., 22h |
-| >= 8 | 3h | 8 | 00h, 03h, 06h, ..., 21h |
-| >= 6 | 4h | 6 | 00h, 04h, 08h, ..., 20h |
-| >= 4 | 6h | 4 | 00h, 06h, 12h, 18h |
-
-This guarantees **perfectly uniform spacing** with no rounding artifacts.
-
-For the user's screen (maxTicks=13 with old 80px; maxTicks=23 with new 45px):
-- Before: 00h, 02h, 04h, 06h, 08h, 10h, **12h, 13h**, 15h, 17h, 19h, 21h, 23h (inconsistent)
-- After: 00h, 01h, 02h, 03h, ..., 23h (every hour - all 24 fit at 45px each)
-
-### Fix 2: Fixed Integer Step for Daily Data
-
-Replace `selectEvenlySpaced` with a **fixed integer step** approach. Instead of a fractional step that rounds unevenly, always use `Math.ceil(length / maxTicks)` to get a consistent integer step.
+Substituir a logica atual por duas faixas:
 
 ```text
-Example: 30 items, maxTicks=18 (at 55px per label)
-step = ceil(30/18) = 2
-Ticks: day 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28 = 15 ticks
-ALL gaps are exactly 2 days -- CONSISTENT
-```
-
-Additionally, add a **tolerance threshold**: if `items.length <= maxTicks * 1.2`, show ALL items instead of skipping any (avoids removing just 1-2 items inconsistently).
-
-### Fix 3: Accurate Label Width Estimates
-
-Replace the fixed 80px with accurate estimates per format:
-
-| Format | Example | Estimated Width (with gap) |
-|--------|---------|---------------------------|
-| Hour | "09h" | 45px |
-| DD/MM | "15/01" | 50px |
-| DD Mon | "8 Jan" | 55px |
-| Mon/YY | "Jan/26" | 58px |
-
-## Expected Results
-
-| Period | Before | After |
-|--------|--------|-------|
-| Today (24h) | 00h 02h 04h...12h **13h** 15h...23h (uneven) | 00h 01h 02h...23h (all 24 hours) |
-| Yesterday | Same uneven issue | Same fix -- all 24 hours |
-| 7 days | Already correct | Remains correct |
-| 30 days | 8 Jan 10 Jan **13 Jan** 15 Jan... (alternating 2/3 day gaps) | 8 Jan 10 Jan 12 Jan 14 Jan... (consistent 2-day gaps) |
-
-## Technical Details
-
-### File: `src/modules/dashboard/utils/chartAxisUtils.ts`
-
-**1. Update `getMaxTicks`** to accept `estimatedLabelWidth` parameter:
-
-```typescript
-function getMaxTicks(chartWidth: number, estimatedLabelWidth: number = 55): number {
-  if (chartWidth <= 0) return 6;
-  return Math.max(4, Math.floor(chartWidth / estimatedLabelWidth));
+if (count <= 45) {
+  // TODOS os ticks, formato compacto
+  return { ticks: allDates, formatter: getCompactDailyFormatter(allDates) };
 }
+
+// Periodos longos: distribuicao + formato "DD Mon" ou "Mon/YY"
+const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
+const ticks = selectWithConsistentStep(allDates, maxTicks);
+return { ticks, formatter: getDailyFormatter(count) };
 ```
 
-**2. Replace `selectEvenlySpaced`** with fixed-integer-step logic + tolerance threshold:
+**3. Atualizar `getDailyFormatter` thresholds**
 
-```typescript
-function selectWithConsistentStep(
-  items: readonly string[],
-  maxCount: number,
-): string[] {
-  // Tolerance: if items nearly fit (within 20%), show all
-  if (items.length <= Math.ceil(maxCount * 1.2)) return [...items];
+Como periodos <= 45 dias agora usam o formato compacto, os thresholds de `getDailyFormatter` mudam:
 
-  // Use fixed integer step for consistent gaps
-  const step = Math.ceil(items.length / maxCount);
-  const result: string[] = [];
+| Range | Formato |
+|-------|---------|
+| <= 45 dias | Compacto (dia + mes em transicoes) -- novo formatador |
+| 46-90 dias | "DD Mon" ("15 Jan") |
+| 91+ dias | "Mon/YY" ("Jan/26") |
 
-  for (let i = 0; i < items.length; i += step) {
-    result.push(items[i]);
-  }
+**4. Nenhuma mudanca necessaria em:**
+- `calculateHourlyTicks` -- ja esta correto com intervalos naturais
+- `selectWithConsistentStep` -- continua sendo usado para ranges longos
+- `RevenueChart.tsx` -- nao precisa de alteracoes
+- `index.ts` -- exports ja existem
 
-  // Always include last item if not already included
-  if (result[result.length - 1] !== items[items.length - 1]) {
-    result.push(items[items.length - 1]);
-  }
+## Resultado Visual Esperado
 
-  return result;
-}
-```
+| Periodo | Ticks no Eixo X |
+|---------|----------------|
+| Hoje (24h) | 00h 01h 02h 03h ... 23h (todos, ja funciona) |
+| Ontem (24h) | 00h 01h 02h 03h ... 23h (todos, ja funciona) |
+| 7 dias | 31/01 01/02 02/02 03/02 04/02 05/02 06/02 (todos, ja funciona) |
+| 30 dias | 8 Jan 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 1 Fev 2 3 4 5 6 (TODOS) |
+| Maximo (anos) | Jan/25 Abr/25 Jul/25 Out/25 Jan/26 (distribuidos) |
 
-**3. Replace `calculateHourlyTicks`** with natural-interval logic:
-
-```typescript
-const NATURAL_HOUR_INTERVALS = [1, 2, 3, 4, 6, 8, 12] as const;
-
-function calculateHourlyTicks(data, chartWidth): XAxisConfig {
-  const maxTicks = getMaxTicks(chartWidth, 45); // "09h" is ~45px
-  const allDates = data.map(d => d.date);
-
-  // Find smallest natural interval that fits
-  let interval = 12;
-  for (const candidate of NATURAL_HOUR_INTERVALS) {
-    if (Math.ceil(allDates.length / candidate) <= maxTicks) {
-      interval = candidate;
-      break;
-    }
-  }
-
-  // Generate ticks at natural intervals
-  const ticks: string[] = [];
-  for (let i = 0; i < allDates.length; i += interval) {
-    ticks.push(allDates[i]);
-  }
-
-  return {
-    ticks,
-    formatter: (value) => `${value.split(":")[0]}h`,
-  };
-}
-```
-
-**4. Update `calculateDailyTicks`** to pass correct label width:
-
-```typescript
-function calculateDailyTicks(data, chartWidth): XAxisConfig {
-  const count = data.length;
-  let estimatedLabelWidth: number;
-  if (count <= 14) estimatedLabelWidth = 50;       // "15/01"
-  else if (count <= 62) estimatedLabelWidth = 55;   // "8 Jan"
-  else estimatedLabelWidth = 58;                     // "Jan/26"
-
-  const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
-  const allDates = data.map(d => d.date);
-  const ticks = selectWithConsistentStep(allDates, maxTicks);
-  const formatter = getDailyFormatter(count);
-
-  return { ticks, formatter };
-}
-```
-
-## File Tree
+## Arvore de Arquivos
 
 ```text
 src/modules/dashboard/utils/
-  chartAxisUtils.ts   -- EDIT (4 surgical changes, same file)
+  chartAxisUtils.ts   -- EDITAR (refatorar calculateDailyTicks + novo formatador compacto)
 ```
 
-Single file edit. No new files.
+1 arquivo editado. Zero arquivos novos.
+
