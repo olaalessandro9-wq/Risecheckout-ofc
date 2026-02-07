@@ -1,182 +1,90 @@
 
 
-# Correcao: Mobile Components + Timer Truncation no Checkout Publico
+# Correcao: Botao invisivel na pagina /verificar-email
 
-## Diagnostico da Causa Raiz (Root Cause Analysis)
+## Diagnostico da Causa Raiz
 
-### Problema 1: Componentes mobile NAO aparecem no checkout publico
+A pagina `VerificarEmail.tsx` usa tokens de tema auth (`--auth-bg`, `--auth-text-primary`, etc.) mas **NAO** esta envolvida pelo `AuthThemeProvider`.
 
-O arquivo `CheckoutPublicContent.tsx` (linha 334) usa:
+Todas as outras paginas de autenticacao do projeto usam esse provider:
+- `/auth` --> `AuthThemeProvider`
+- `/cadastro` --> `AuthThemeProvider` (via CadastroLayout)
+- `/recuperar-senha` --> `AuthThemeProvider`
+- `/minha-conta/auth` --> `AuthThemeProvider` (via BuyerAuthLayout)
 
-```text
-const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 768;
-```
+O `AuthThemeProvider` faz duas coisas criticas:
+1. Aplica a classe `.dark` -- ativa as variaveis CSS do tema escuro
+2. Aplica `data-theme="auth"` -- escopo semantico
 
-Isso esta dentro de um `useMemo` cujas dependencias sao apenas dados do checkout. `window.innerWidth` NAO e uma dependencia reativa do React. O resultado:
-
-- A deteccao mobile e computada UMA VEZ quando os dados do checkout chegam
-- NUNCA recomputa quando o viewport muda
-- Em cenarios como DevTools responsive mode, o valor fica stale
-
-O projeto ja possui o hook `useIsMobile()` em `src/hooks/use-mobile.tsx` que:
-- Usa `window.matchMedia` (API correta do browser)
-- Reage a mudancas de viewport via evento `change`
-- Retorna um boolean reativo
-- Ja e usado em outros pontos do projeto
-
-Mas esse hook NAO esta sendo usado no `CheckoutPublicContent`.
-
-### Problema 2: Texto do cronometro cortado com "..."
-
-O arquivo `CountdownTimer.tsx` (linhas 74-98) tem DOIS problemas que se sobrepoe:
-
-1. **Container** (linha 80): `overflow: 'hidden'` no inline style -- corta TUDO que ultrapassa
-2. **Texto** (linha 94): `truncate` class aplica `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` -- IMPEDE quebra de linha
-
-O layout flex `[TEMPO] [ICONE] [TEXTO]` comprime o texto em telas mobile porque tempo e icone sao `flex-shrink-0`. O texto deveria QUEBRAR EM MULTIPLAS LINHAS, nao truncar com "...".
-
-### Problema 3 (Bonus): backgroundImage NUNCA funciona no checkout publico
-
-O `CheckoutPublicContent` coloca `backgroundImage` dentro de `customization.design.backgroundImage`, mas o `CheckoutPublicLayout` le de `customization.backgroundImage` (raiz). Resultado: imagens de fundo NUNCA aparecem no checkout publico.
-
----
+Sem ele, o botao `variant="outline"` do shadcn/ui usa `bg-background` do tema **claro padrao** (branco). O texto do botao usa `--auth-text-secondary` (tom claro). Resultado: fundo branco + texto claro = texto invisivel.
 
 ## Analise de Solucoes
 
-### Problema 1: Mobile Detection
+### Solucao A: Envolver VerificarEmail com AuthThemeProvider (padrao do projeto)
 
-#### Solucao A: Usar `useIsMobile()` existente + adicionar como dependencia do useMemo
-
-- Manutenibilidade: 10/10 (reutiliza hook existente, DRY)
-- Zero DT: 10/10 (deteccao reativa, correta em todos os cenarios)
-- Arquitetura: 10/10 (segue padrao do projeto, Single Responsibility)
-- Escalabilidade: 10/10 (hook centralizado, facil de manter)
-- Seguranca: 10/10 (sem impacto)
-- **NOTA FINAL: 10.0/10**
-- Tempo estimado: 15 minutos
-
-#### Solucao B: Criar novo listener matchMedia inline no componente
-
-- Manutenibilidade: 7/10 (duplica logica existente no hook)
-- Zero DT: 8/10 (viola DRY -- 2 pontos de manutencao para mesma logica)
-- Arquitetura: 6/10 (ignora abstracoes existentes)
-- Escalabilidade: 7/10 (cada novo componente precisaria do mesmo codigo)
-- Seguranca: 10/10
-- **NOTA FINAL: 7.4/10**
-
-### DECISAO: Solucao A (Nota 10.0)
-
-A Solucao B e inferior porque duplica logica ja existente, violando DRY e criando dois pontos de manutencao para a mesma funcionalidade.
-
----
-
-### Problema 2: Timer Truncation
-
-#### Solucao A: Remover `truncate`, permitir wrapping natural do texto
-
-- Substituir `truncate` por `whitespace-normal` (permite quebra de linha)
-- Remover `overflow: 'hidden'` do container (permite conteudo fluir)
-- O texto ocupa o espaco disponivel e quebra quando necessario
-- Manutenibilidade: 10/10
-- Zero DT: 10/10
-- Arquitetura: 10/10 (respeita o fluxo natural do CSS)
+- Importar `AuthThemeProvider` e envolver todo o conteudo
+- Remover `bg-[hsl(var(--auth-bg))]` da div raiz (o provider ja aplica isso)
+- Remover `min-h-screen flex items-center justify-center` da div raiz e colocar numa div interna (o provider ja gerencia min-h-screen)
+- Manutenibilidade: 10/10 (segue padrao exato das outras paginas)
+- Zero DT: 10/10 (resolve a causa raiz, nao o sintoma)
+- Arquitetura: 10/10 (SSOT -- AuthThemeProvider e a fonte de verdade para tema auth)
 - Escalabilidade: 10/10
 - Seguranca: 10/10
 - **NOTA FINAL: 10.0/10**
 
-#### Solucao B: Reduzir font-size do texto em mobile
+### Solucao B: Adicionar classe `.dark` manualmente na div raiz
 
-- Manutenibilidade: 7/10 (pode precisar de ajustes futuros para textos de tamanhos variados)
-- Zero DT: 6/10 (nao resolve a raiz -- com textos longos, truncaria novamente)
-- Arquitetura: 5/10 (trata sintoma, nao causa)
-- Escalabilidade: 5/10 (cada novo tamanho de texto exigiria novo breakpoint)
+- Manutenibilidade: 5/10 (duplica responsabilidade do AuthThemeProvider)
+- Zero DT: 4/10 (se AuthThemeProvider mudar, esta pagina fica dessincronizada)
+- Arquitetura: 3/10 (viola SSOT -- duas fontes de verdade para tema auth)
+- Escalabilidade: 5/10
 - Seguranca: 10/10
-- **NOTA FINAL: 6.4/10**
+- **NOTA FINAL: 5.0/10**
+
+### Solucao C: Forcar cores no botao via classes inline
+
+- Manutenibilidade: 4/10 (trata sintoma, nao causa)
+- Zero DT: 3/10 (outros componentes shadcn na pagina tambem estarao quebrados)
+- Arquitetura: 2/10 (viola completamente o sistema de temas)
+- Escalabilidade: 3/10
+- Seguranca: 10/10
+- **NOTA FINAL: 4.0/10**
 
 ### DECISAO: Solucao A (Nota 10.0)
 
-A Solucao B trata o sintoma mas nao a causa. Textos longos ainda truncariam. Permitir wrapping e a solucao arquiteturalmente correta.
-
----
-
-### Problema 3: backgroundImage
-
-#### Solucao A: Mover backgroundImage para a raiz do objeto customization
-
-- Corrigir em `CheckoutPublicContent.tsx` para passar `backgroundImage` na raiz do objeto, alinhado com o contrato esperado pelo `CheckoutPublicLayout`
-- Manutenibilidade: 10/10
-- Zero DT: 10/10
-- Arquitetura: 10/10 (alinha dados com contrato da interface)
-- Escalabilidade: 10/10
-- Seguranca: 10/10
-- **NOTA FINAL: 10.0/10**
-
-#### Solucao B: Alterar CheckoutPublicLayout para ler de customization.design.backgroundImage
-
-- Manutenibilidade: 7/10 (acopla layout a estrutura interna de dados do design)
-- Zero DT: 7/10 (mistura responsabilidades -- layout nao deveria conhecer a estrutura de design)
-- Arquitetura: 6/10 (viola interface declarada)
-- Escalabilidade: 7/10
-- Seguranca: 10/10
-- **NOTA FINAL: 7.2/10**
-
-### DECISAO: Solucao A (Nota 10.0)
+As solucoes B e C tratam o sintoma. A causa raiz e a ausencia do `AuthThemeProvider`. Todas as outras paginas auth seguem esse padrao -- esta pagina e a unica que nao segue.
 
 ---
 
 ## Plano de Correcao
 
-### Arquivo 1: `src/modules/checkout-public/components/CheckoutPublicContent.tsx`
+### Arquivo: `src/pages/VerificarEmail.tsx`
 
-**3 correcoes:**
+1. **Importar** `AuthThemeProvider` de `@/components/theme-providers`
+2. **Envolver** todo o conteudo com `AuthThemeProvider`
+3. **Reestruturar** a div raiz:
+   - `AuthThemeProvider` gerencia `min-h-screen`, `bg-[hsl(var(--auth-bg))]`, `.dark` e `data-theme="auth"`
+   - Div interna gerencia apenas `flex items-center justify-center px-4` e `min-h-screen` para centralizacao
 
-1. **Import `useIsMobile`** no topo do arquivo
-2. **Chamar `useIsMobile()` ANTES do early return** (linha 169) -- obrigatorio por regras de React Hooks
-3. **Reescrever o `useMemo` de customization** (linhas 317-355):
-   - Substituir `window.innerWidth < 768` por `isMobile`
-   - Adicionar `isMobile` na lista de dependencias
-   - Mover `backgroundImage` para a raiz do objeto retornado (fora de `design`)
-   - Remover a propriedade `design` do customization (dado morto -- nunca consumido pelo layout)
-
-### Arquivo 2: `src/features/checkout-builder/components/CountdownTimer/CountdownTimer.tsx`
-
-**2 correcoes:**
-
-1. **Container** (linha 80): Remover `overflow: 'hidden'` do inline style
-2. **Texto** (linha 94): Substituir `truncate` por classes que permitam wrapping natural
+O botao `variant="outline"` passara a usar as variaveis do tema escuro automaticamente, tornando o texto visivel.
 
 ---
 
 ## Secao Tecnica
 
-### Arquivos modificados (resumo)
+### Arquivo modificado
 
-| Arquivo | Alteracao | Tipo |
-|---------|-----------|------|
-| `CheckoutPublicContent.tsx` | useIsMobile + fix backgroundImage path | Correcao arquitetural |
-| `CountdownTimer.tsx` | Remover truncate + overflow hidden | Correcao de CSS |
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/VerificarEmail.tsx` | Adicionar AuthThemeProvider como wrapper |
 
-### Verificacao de Protocol RISE V3
+### Verificacao RISE V3
 
 | Checkpoint | Status |
 |------------|--------|
-| Melhor solucao possivel? | Sim -- nota 10.0 em todos os 3 problemas |
+| Melhor solucao possivel? | Sim -- nota 10.0, alinhada com padrao existente |
 | Cria divida tecnica? | Zero |
 | Precisaremos "melhorar depois"? | Nao |
-| Codigo sobrevive 10 anos? | Sim -- usa padroes reativos corretos e CSS semantico |
-| Escolhido por ser mais rapido? | Nao -- escolhido por ser arquiteturalmente correto |
-
-### Codigo morto eliminado
-
-| Item removido | Razao |
-|---------------|-------|
-| `customization.design` | Nunca consumido pelo `CheckoutPublicLayout` -- propriedade fantasma |
-| `overflow: 'hidden'` no timer | Impedia renderizacao correta do conteudo |
-| `truncate` no timer text | Forcava truncamento desnecessario |
-
-### Impacto em funcionalidade
-
-- Componentes mobile do builder agora aparecem corretamente no checkout publico
-- Cronometro exibe texto completo em todas as resolucoes
-- Background images agora funcionam no checkout publico (bonus)
+| Codigo sobrevive 10 anos? | Sim -- segue exatamente o padrao das outras 5+ paginas auth |
+| Escolhido por ser mais rapido? | Nao -- escolhido por ser arquiteturalmente correto (SSOT) |
 
