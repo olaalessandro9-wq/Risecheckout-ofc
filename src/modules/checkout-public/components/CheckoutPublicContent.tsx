@@ -18,7 +18,7 @@
  * @module checkout-public/components
  */
 
-import React, { useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
@@ -81,6 +81,13 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     productPixels,
     vendorIntegration,
   } = machine;
+
+  // Track selected installment for order summary display
+  const [selectedInstallment, setSelectedInstallment] = useState(1);
+
+  const handleInstallmentChange = useCallback((installments: number) => {
+    setSelectedInstallment(installments);
+  }, []);
 
   // ============================================================================
   // RISE V3: PRELOAD PIX PAGE CHUNK WHEN USER SELECTS PIX
@@ -392,6 +399,8 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
           appliedCoupon={appliedCoupon}
           onApplyCoupon={applyCoupon}
           onRemoveCoupon={removeCoupon}
+          selectedInstallment={selectedInstallment}
+          onInstallmentChange={handleInstallmentChange}
           formWrapper={(children, formRef) => (
             <form ref={formRef as React.RefObject<HTMLFormElement>} onSubmit={handleSubmit} className="space-y-6">
               {children}

@@ -36,6 +36,7 @@ export interface GatewayCardFormProps {
   onSubmit: (result: CardTokenResult) => Promise<void>;
   isProcessing?: boolean;
   onMount?: (submitFn: () => void) => void;
+  onInstallmentChange?: (installments: number) => void;
   
   // Estilos customizáveis
   textColor?: string;
@@ -56,6 +57,7 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
   onSubmit,
   isProcessing = false,
   onMount,
+  onInstallmentChange,
   textColor,
   placeholderColor,
   backgroundColor,
@@ -99,6 +101,7 @@ export const GatewayCardForm: React.FC<GatewayCardFormProps> = ({
           onSubmit={onSubmit}
           isProcessing={isProcessing}
           onMount={onMount}
+          onInstallmentChange={onInstallmentChange}
           textColor={textColor}
           placeholderColor={placeholderColor}
           backgroundColor={backgroundColor}

@@ -54,6 +54,7 @@ interface SharedPaymentMethodSelectorProps {
   onSubmitPayment?: (token: string, installments: number, paymentMethodId: string, issuerId: string, holderDocument?: string) => Promise<void>;
   isProcessing?: boolean;
   onCardSubmitReady?: (submitFn: () => void) => void;
+  onInstallmentChange?: (installments: number) => void;
   
   // NOVO: Gateway de cartão configurado pelo vendedor
   creditCardGateway?: string;
@@ -73,6 +74,7 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
   onCardSubmitReady,
   creditCardGateway = 'mercadopago', // Default para Mercado Pago
   payerEmail,
+  onInstallmentChange,
 }) => {
   const isPixSelected = selectedPayment === 'pix';
   const isCardSelected = selectedPayment === 'credit_card';
@@ -187,6 +189,7 @@ export const SharedPaymentMethodSelector: React.FC<SharedPaymentMethodSelectorPr
             onSubmit={handleCardSubmit}
             isProcessing={isProcessing}
             onMount={onCardSubmitReady}
+            onInstallmentChange={onInstallmentChange}
             textColor={design.colors.creditCardFields?.textColor || design.colors.primaryText}
             placeholderColor={design.colors.creditCardFields?.placeholderColor || design.colors.secondaryText}
             backgroundColor={design.colors.creditCardFields?.backgroundColor || design.colors.formBackground}

@@ -40,6 +40,8 @@ interface SharedCheckoutLayoutProps {
   appliedCoupon?: AppliedCoupon | null;
   onApplyCoupon?: (coupon: AppliedCoupon) => void;
   onRemoveCoupon?: () => void;
+  selectedInstallment?: number;
+  onInstallmentChange?: (installments: number) => void;
   additionalContent?: React.ReactNode;
   formWrapper?: (children: React.ReactNode, formRef: React.RefObject<HTMLFormElement>) => React.ReactNode;
 }
@@ -47,7 +49,8 @@ interface SharedCheckoutLayoutProps {
 export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
   productData, orderBumps, design, selectedPayment, onPaymentChange, selectedBumps, onToggleBump,
   mode, formData, formErrors, onFieldChange, requiredFields, isProcessing, publicKey,
-  creditCardGateway, amount, onSubmitPayment, appliedCoupon, onApplyCoupon, onRemoveCoupon, additionalContent, formWrapper,
+  creditCardGateway, amount, onSubmitPayment, appliedCoupon, onApplyCoupon, onRemoveCoupon,
+  selectedInstallment, onInstallmentChange, additionalContent, formWrapper,
 }) => {
   const { formRef, handleCardSubmitReady, handleCheckoutClick } = useCheckoutSubmit(selectedPayment);
 
@@ -94,7 +97,7 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
         
         <div className="space-y-4">
           <SharedPaymentMethodSelector selectedPayment={selectedPayment} onPaymentChange={onPaymentChange} design={design} mode={mode} disabled={false}
-            publicKey={publicKey} creditCardGateway={creditCardGateway} amount={amount} onSubmitPayment={onSubmitPayment} isProcessing={isProcessing} onCardSubmitReady={handleCardSubmitReady} />
+            publicKey={publicKey} creditCardGateway={creditCardGateway} amount={amount} onSubmitPayment={onSubmitPayment} isProcessing={isProcessing} onCardSubmitReady={handleCardSubmitReady} onInstallmentChange={onInstallmentChange} />
 
           {selectedPayment === 'pix' && (
             <div 
@@ -131,7 +134,7 @@ export const SharedCheckoutLayout: React.FC<SharedCheckoutLayoutProps> = ({
       {productData && (
         <>
           <Divider />
-          <SharedOrderSummary productData={productData} orderBumps={orderBumps} selectedBumps={selectedBumps} design={design} mode={mode} appliedCoupon={appliedCoupon} onApplyCoupon={onApplyCoupon} onRemoveCoupon={onRemoveCoupon} />
+          <SharedOrderSummary productData={productData} orderBumps={orderBumps} selectedBumps={selectedBumps} design={design} mode={mode} appliedCoupon={appliedCoupon} onApplyCoupon={onApplyCoupon} onRemoveCoupon={onRemoveCoupon} selectedPaymentMethod={selectedPayment} selectedInstallment={selectedInstallment} />
         </>
       )}
 

@@ -257,6 +257,7 @@ serve(async (req) => {
       gateway_payment_id: result.transaction_id,
       status: result.status === 'approved' ? 'paid' : (order.status?.toLowerCase() || 'pending'),
       payment_method: paymentMethod.toLowerCase(), 
+      installments: installments || 1,
       updated_at: new Date().toISOString()
     };
     
