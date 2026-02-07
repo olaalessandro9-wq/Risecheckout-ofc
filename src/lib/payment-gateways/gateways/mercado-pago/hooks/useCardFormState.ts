@@ -58,7 +58,7 @@ export function useCardFormState(amount: number): CardFormStateReturn {
   // Gerar parcelas imediatamente
   useEffect(() => {
     if (amount > 0) {
-      const generatedInstallments = generateInstallments(amount);
+      const generatedInstallments = generateInstallments(amount, { maxInstallments: 9 });
       setInstallments(generatedInstallments);
       log.trace("Parcelas geradas:", generatedInstallments.length);
     }

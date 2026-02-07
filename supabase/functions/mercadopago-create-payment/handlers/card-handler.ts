@@ -104,6 +104,20 @@ export async function handleCardPayment(params: CardPaymentParams): Promise<Card
     items
   } = params;
 
+  // Validação: limite máximo de parcelas (9x para Mercado Pago)
+  const MAX_INSTALLMENTS = 9;
+  if (installments > MAX_INSTALLMENTS) {
+    log.error('Tentativa de parcelamento acima do limite', { 
+      orderId, 
+      installments, 
+      maxAllowed: MAX_INSTALLMENTS 
+    });
+    throw { 
+      code: 'INVALID_INSTALLMENTS', 
+      message: `Parcelamento máximo permitido: ${MAX_INSTALLMENTS}x` 
+    };
+  }
+
   // Validação crítica - paymentMethodId é OBRIGATÓRIO
   if (!paymentMethodId) {
     log.error('paymentMethodId não foi fornecido', { orderId });

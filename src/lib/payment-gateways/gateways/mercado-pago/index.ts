@@ -14,7 +14,7 @@ export const mercadoPagoGateway = {
   id: 'mercadopago' as const,
   displayName: 'Mercado Pago',
   
-  generateInstallments(amountCents: number, maxInstallments = 12) {
+  generateInstallments(amountCents: number, maxInstallments = 9) {
     return generateInstallments(amountCents, {
       interestRate: MERCADO_PAGO_INTEREST_RATE,
       maxInstallments,

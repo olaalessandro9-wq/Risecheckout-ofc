@@ -88,7 +88,7 @@ export const Brick = ({
               hidePaymentButton: false,
             },
             paymentMethods: {
-              maxInstallments: 12,
+              maxInstallments: 9,
               excluded: [],
             },
           },
