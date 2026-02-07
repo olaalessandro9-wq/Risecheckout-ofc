@@ -2,7 +2,7 @@
  * Barrel Export - Facebook Pixel Module
  * Módulo: src/integrations/tracking/facebook
  * 
- * @version 2.0.0 - RISE Protocol V3 Compliant
+ * @version 3.0.0 - RISE Protocol V3 - Event ID Deduplication
  * 
  * Este arquivo exporta a interface pública do módulo Facebook Pixel.
  * Permite importar tudo com: import * as Facebook from "@/integrations/tracking/facebook"

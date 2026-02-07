@@ -11,7 +11,7 @@
  * ============================================================================
  */
 
-// Types
+// Types (public API surface only — FacebookCAPIOrderData is internal to dispatcher)
 export type {
   ResolvedFacebookPixel,
   FacebookCAPIUserData,
@@ -19,7 +19,6 @@ export type {
   FacebookCAPIPayload,
   FacebookCAPIPixelResult,
   FacebookCAPIDispatchResult,
-  FacebookCAPIOrderData,
 } from "./types.ts";
 
 // Event ID Generation

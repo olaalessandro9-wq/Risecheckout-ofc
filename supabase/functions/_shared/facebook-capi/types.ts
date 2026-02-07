@@ -105,22 +105,12 @@ export interface FacebookCAPIDispatchResult {
 }
 
 // ============================================================================
-// DATABASE TYPES
+// INTERNAL TYPES (not re-exported via barrel)
 // ============================================================================
 
 /**
- * Raw row from vendor_pixels JOIN product_pixels query
- */
-export interface RawPixelRow {
-  vendor_pixel_id: string;
-  pixel_id: string;
-  access_token: string;
-  domain: string | null;
-  custom_value_percent: number | null;
-}
-
-/**
- * Order data fetched for CAPI dispatch
+ * Order data fetched for CAPI dispatch.
+ * Used internally by dispatcher.ts — not part of the public API surface.
  */
 export interface FacebookCAPIOrderData {
   orderId: string;

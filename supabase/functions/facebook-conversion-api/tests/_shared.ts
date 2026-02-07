@@ -11,7 +11,7 @@
 
 export const FUNCTION_URL = "https://test.supabase.co/functions/v1/facebook-conversion-api";
 
-export const FB_API_VERSION = "v18.0";
+export const FB_API_VERSION = "v21.0";
 export const FACEBOOK_API_VERSION = FB_API_VERSION;
 export const FB_API_BASE = `https://graph.facebook.com/${FB_API_VERSION}`;
 export const FACEBOOK_API_BASE_URL = "https://graph.facebook.com";
