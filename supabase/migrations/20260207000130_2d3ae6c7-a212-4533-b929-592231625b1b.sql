@@ -1,0 +1,1 @@
+ALTER TABLE public.checkouts ADD COLUMN is_mobile_synced BOOLEAN NOT NULL DEFAULT true;
