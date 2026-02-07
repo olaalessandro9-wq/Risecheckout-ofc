@@ -37,8 +37,8 @@ describe("UTMify Barrel Exports", () => {
       expect(typeof UTMify.shouldRunUTMify).toBe("function");
     });
 
-    it("should export Tracker component", () => {
-      expect(UTMify.Tracker).toBeDefined();
+    it("should export Pixel component", () => {
+      expect(UTMify.Pixel).toBeDefined();
     });
   });
 
@@ -63,7 +63,7 @@ describe("UTMify Barrel Exports", () => {
         "convertToReais",
         "useUTMifyConfig",
         "shouldRunUTMify",
-        "Tracker",
+        "Pixel",
       ];
 
       expectedExports.forEach((exportName) => {

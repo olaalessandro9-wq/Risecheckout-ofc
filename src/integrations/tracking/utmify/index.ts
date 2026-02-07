@@ -28,5 +28,5 @@ export * from "./events";
 // Hooks (usados pelo painel admin para configuração)
 export * from "./hooks";
 
-// Componente (logging/debug)
-export { Tracker } from "./Tracker";
+// Componente (pixel CDN + InitiateCheckout)
+export { Pixel } from "./Pixel";

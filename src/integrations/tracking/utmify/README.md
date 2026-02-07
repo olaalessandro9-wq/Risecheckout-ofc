@@ -6,9 +6,12 @@
 
 ---
 
-## ⚠️ IMPORTANTE: Arquitetura Backend SSOT
+## ⚠️ IMPORTANTE: Arquitetura Híbrida (Backend SSOT + Frontend Pixel)
 
-A partir da versão 4.0.0, **TODOS os eventos UTMify são disparados exclusivamente pelo backend**.
+A partir da versão 5.0.0, o UTMify usa uma **arquitetura híbrida**:
+
+- **Backend SSOT**: Eventos transacionais (purchase_approved, pix_generated, refund, chargeback) disparados via webhooks de pagamento
+- **Frontend Pixel**: Eventos comportamentais (InitiateCheckout) disparados pelo script CDN do UTMify
 
 ### O que mudou?
 
@@ -35,12 +38,12 @@ Este módulo frontend exporta **apenas utilitários e tipos**. A lógica de disp
 
 ```
 src/integrations/tracking/utmify/
-├── index.ts          # Barrel export (utils + types + hooks)
+├── index.ts          # Barrel export (utils + types + hooks + Pixel)
 ├── types.ts          # Tipos e interfaces TypeScript
 ├── events.ts         # Utils: extractUTMParameters, formatDateForUTMify
 ├── utils.ts          # Utils: convertToCents, convertToReais
 ├── hooks.ts          # Hooks React para config
-├── Tracker.tsx       # Componente de logging (debug)
+├── Pixel.tsx         # Componente: injeta CDN script + dispara InitiateCheckout
 └── README.md         # Este arquivo
 ```
 
@@ -118,7 +121,7 @@ const shouldRun = UTMify.shouldRunUTMify(utmifyIntegration, productId);
 
 | Componente | Descrição |
 |------------|-----------|
-| `Tracker` | Componente de logging/debug (invisível) |
+| `Pixel` | Injeta script CDN do UTMify e dispara InitiateCheckout |
 
 ### ❌ Funções REMOVIDAS (Backend SSOT)
 
@@ -129,10 +132,11 @@ As seguintes funções **NÃO existem mais** no frontend:
 - ~~`trackAddToCart()`~~ → Não suportado
 - ~~`trackPurchase()`~~ → Disparado pelo backend via webhook
 - ~~`trackRefund()`~~ → Disparado pelo backend via webhook
+- ~~`Tracker`~~ → Substituído por `Pixel` (v5.0.0)
 
 ---
 
-## 📊 Fluxo de Dados (Backend SSOT)
+## 📊 Fluxo de Dados (Arquitetura Híbrida)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -140,6 +144,8 @@ As seguintes funções **NÃO existem mais** no frontend:
 │                                                              │
 │  1. extractUTMParameters() captura UTMs da URL              │
 │  2. createOrderActor persiste UTMs na tabela orders         │
+│  3. UTMify.Pixel injeta CDN script + dispara IC             │
+│     └─ window.utmify('track', 'InitiateCheckout')           │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -265,6 +271,13 @@ src/integrations/tracking/utmify/__tests__/index.test.ts
 ---
 
 ## 📝 Changelog
+
+### v5.0.0 (07/02/2026) - Arquitetura Híbrida (Backend SSOT + Frontend Pixel)
+- ✅ Novo componente `Pixel.tsx`: injeta script CDN + dispara InitiateCheckout
+- ✅ Removido `Tracker.tsx` (código morto)
+- ✅ Atributos `data-utmify-prevent-*` para evitar conflito de UTMs
+- ✅ Retry com polling para `window.utmify` (3 tentativas, 500ms)
+- ✅ Tipagem global `UTMifyPixelFunction` em `global.d.ts`
 
 ### v4.0.0 (04/02/2026) - Backend SSOT
 - ✅ Migração completa para Backend SSOT
