@@ -17,6 +17,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { useRegistrationFormPersistence } from "@/hooks/useRegistrationFormPersistence";
@@ -35,6 +36,8 @@ export function ProducerRegistrationForm({
 }: ProducerRegistrationFormProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
   
   // RISE V3: Persistência via sessionStorage
   const { loadSavedData, saveData, clearData, isHydratedRef } = useRegistrationFormPersistence();
@@ -97,7 +100,11 @@ export function ProducerRegistrationForm({
       const isEmailValid = emailField.validate();
       const isPasswordValid = passwordField.validate();
 
-      if (!isNameValid || !isCpfCnpjValid || !isPhoneValid || !isEmailValid || !isPasswordValid) {
+      if (!termsAccepted) {
+        setTermsError("Você deve aceitar os Termos de Uso e Política de Privacidade");
+      }
+
+      if (!isNameValid || !isCpfCnpjValid || !isPhoneValid || !isEmailValid || !isPasswordValid || !termsAccepted) {
         toast.error("Corrija os erros no formulário antes de continuar");
         setLoading(false);
         return;
@@ -116,6 +123,7 @@ export function ProducerRegistrationForm({
         phone: phoneField.getRawValue() || undefined,
         cpf_cnpj: cpfCnpjField.getRawValue() || undefined,
         registrationType: registrationSource,
+        termsAccepted: true,
       });
 
       if (error || !data?.success) {
@@ -286,6 +294,49 @@ export function ProducerRegistrationForm({
           </div>
         </div>
 
+        {/* Terms Checkbox */}
+        <div className="space-y-1.5">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="terms-acceptance"
+              checked={termsAccepted}
+              onCheckedChange={(checked) => {
+                setTermsAccepted(checked === true);
+                if (checked === true) setTermsError(null);
+              }}
+              className="mt-0.5 border-[hsl(var(--auth-input-border)/0.3)] data-[state=checked]:bg-[hsl(var(--auth-accent))] data-[state=checked]:border-[hsl(var(--auth-accent))]"
+            />
+            <Label
+              htmlFor="terms-acceptance"
+              className="text-xs text-[hsl(var(--auth-text-subtle))] leading-relaxed cursor-pointer select-none"
+            >
+              Li e aceito os{" "}
+              <a
+                href="/termos-de-uso"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-[hsl(var(--auth-accent))] hover:text-[hsl(var(--auth-text-primary))]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Termos de Uso
+              </a>{" "}
+              e a{" "}
+              <a
+                href="/politica-de-privacidade"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-[hsl(var(--auth-accent))] hover:text-[hsl(var(--auth-text-primary))]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Política de Privacidade
+              </a>
+            </Label>
+          </div>
+          {termsError && (
+            <p className="text-xs text-red-400 pl-7">{termsError}</p>
+          )}
+        </div>
+
         {/* Submit Button */}
         <Button
           type="submit"
@@ -301,29 +352,6 @@ export function ProducerRegistrationForm({
             content.buttonText
           )}
         </Button>
-
-        {/* Terms */}
-        <p className="text-xs text-center text-[hsl(var(--auth-text-subtle))]">
-          Ao se registrar, você concorda com nossos{" "}
-          <a
-            href="/termos-de-uso"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-[hsl(var(--auth-text-primary))]"
-          >
-            Termos de Uso
-          </a>{" "}
-          e{" "}
-          <a
-            href="/politica-de-privacidade"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-[hsl(var(--auth-text-primary))]"
-          >
-            Política de Privacidade
-          </a>
-          .
-        </p>
       </form>
 
       {/* Footer Links */}
