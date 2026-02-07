@@ -1,144 +1,147 @@
 
-# Auditoria de Confirmacao Final: Step-Up MFA Implementation
+# Plano de Correção: Facebook CAPI com Order Bumps e numItems
 
-## Resultado Geral
+## Resumo Executivo
 
-Apos leitura completa e detalhada de TODOS os 15+ arquivos envolvidos na implementacao do Step-Up MFA, a auditoria identifica que **as 6 correcoes da rodada anterior foram aplicadas com sucesso**, com excecao de **2 problemas residuais** que ainda violam o Protocolo RISE V3.
+A auditoria identificou que o Facebook CAPI está funcionando corretamente para valor (com cupom e bumps), deduplicação e resiliência. Porém, **dois campos críticos estão incompletos**:
 
----
+1. `content_ids` — só envia o produto principal, ignorando order bumps
+2. `numItems` — não é enviado (deveria ser a quantidade total de itens)
 
-## Status das 6 Correcoes Anteriores
-
-| # | Problema Original | Status | Evidencia |
-|---|-------------------|--------|-----------|
-| 1 | `isChangingRole` morto / `isPending` sempre false | CORRIGIDO | Zero ocorrencias de `isChangingRole` no codebase. `AdminUsersTab.tsx` linha 239 usa `isPending={isUsersLoading}` corretamente. |
-| 2 | `ROLE_HIERARCHY` morto em manage-user-role | CORRIGIDO | Constante removida. `ROLE_HIERARCHY` existe APENAS em `_shared/role-validator.ts` onde e UTILIZADO ativamente (linhas 53, 70, 125). |
-| 3 | Numeracao de niveis MFA inconsistente | PARCIALMENTE CORRIGIDO | Header do `step-up-mfa.ts` (linhas 7-8) diz "Level 1 / SELF_MFA" e "Level 2 / OWNER_MFA" corretamente. Porem os DOCSTRINGS das funcoes (linhas 108 e 142) ainda dizem "Level 2 - Self" e "Level 3 - Owner". |
-| 4 | manage-user-status version desatualizada | CORRIGIDO | Header atualizado para `@version 3.0.0 - Step-Up MFA Owner integration` com descricao de seguranca completa. |
-| 5 | mfaCode nao limpo apos erro | CORRIGIDO | `useEffect` implementado em ambos `RoleChangeDialog.tsx` (linhas 52-56) e `UserActionDialog.tsx` (linhas 51-55). |
-| 6 | manage-user-role sem Sentry wrapper | CORRIGIDO | Linha 39: `Deno.serve(withSentry("manage-user-role", async (req: Request) => {` |
+Isso prejudica a otimização de campanhas e relatórios no Facebook Ads Manager.
 
 ---
 
-## Problemas Residuais Encontrados
+## Análise de Soluções (RISE V3 Obrigatório)
 
-### PROBLEMA RESIDUAL 1 - DOCSTRINGS DE FUNCAO AINDA COM NUMERACAO ANTIGA
+### Solução A: Patch Mínimo no Dispatcher
 
-| Severidade | Tipo | Arquivo |
-|------------|------|---------|
-| ALTA | Documentacao inconsistente | `supabase/functions/_shared/step-up-mfa.ts` |
+Adicionar extração de todos os product_ids diretamente na função `dispatchFacebookCAPIForOrder`.
 
-**Diagnostico:**
-O header do arquivo (linhas 7-8) foi corrigido para "Level 1 / SELF_MFA" e "Level 2 / OWNER_MFA". Porem, os docstrings das funcoes NAO foram atualizados:
+- Manutenibilidade: 7/10 — Lógica misturada no dispatcher
+- Zero DT: 6/10 — Pode precisar ajustes futuros se order_items mudar
+- Arquitetura: 6/10 — Viola SRP (dispatcher faz parse de dados)
+- Escalabilidade: 7/10 — Funciona mas não é extensível
+- Segurança: 10/10 — Sem impacto
+- **NOTA FINAL: 7.2/10**
+- Tempo estimado: 30 minutos
 
-- Linha 108: `Verifies the caller's own TOTP code (Level 2 - Self).` -- deveria ser `(Level 1 - Self / SELF_MFA)`
-- Linha 142: `Verifies the system Owner's TOTP code (Level 3 - Owner).` -- deveria ser `(Level 2 - Owner / OWNER_MFA)`
+### Solução B: Refatoração do Order Fetcher (SSOT)
 
-Isso cria uma contradica interna no MESMO arquivo: o header diz uma coisa, os docstrings dizem outra.
+Refatorar `fetchOrderForCAPI` para retornar estrutura completa com todos os itens, e atualizar o tipo `FacebookCAPIOrderData`. O dispatcher apenas orquestra, sem fazer parse de dados.
 
-**Correcao:**
-- Linha 108: Alterar para `Verifies the caller's own TOTP code (Level 1 / SELF_MFA).`
-- Linha 142: Alterar para `Verifies the system Owner's TOTP code (Level 2 / OWNER_MFA).`
+- Manutenibilidade: 10/10 — Dados estruturados na origem
+- Zero DT: 10/10 — Tipo correto reflete realidade do banco
+- Arquitetura: 10/10 — SSOT + SRP respeitados
+- Escalabilidade: 10/10 — Adicionar mais campos é trivial
+- Segurança: 10/10 — Sem impacto
+- **NOTA FINAL: 10.0/10**
+- Tempo estimado: 1 hora
 
----
+### DECISÃO: Solução B (Nota 10.0)
 
-### PROBLEMA RESIDUAL 2 - manage-user-status SEM SENTRY WRAPPER
-
-| Severidade | Tipo | Arquivo |
-|------------|------|---------|
-| MEDIA | Inconsistencia de observabilidade | `supabase/functions/manage-user-status/index.ts` |
-
-**Diagnostico:**
-A correcao #6 adicionou `withSentry` em `manage-user-role`, porem `manage-user-status` continua usando `Deno.serve(async (req) => {` diretamente (linha 29), sem o wrapper Sentry.
-
-Ambas as funcoes sao criticas (operacoes de moderacao), ambas deveriam ter observabilidade identica.
-
-**Correcao:**
-- Importar `withSentry` de `../_shared/sentry.ts`
-- Alterar linha 29 para `Deno.serve(withSentry("manage-user-status", async (req) => {`
+A Solução A é um patch que cria dívida técnica. A Solução B resolve na raiz, mantendo o padrão SSOT do projeto.
 
 ---
 
-## Verificacao Completa do Fluxo
+## Arquivos a Modificar
 
-### Backend (Edge Functions)
+### 1. `supabase/functions/_shared/facebook-capi/types.ts`
 
-| Componente | Status | Detalhes |
-|-----------|--------|----------|
-| `_shared/step-up-mfa.ts` | OK (com docstrings a corrigir) | `requireSelfMfa` e `requireOwnerMfa` funcionais |
-| `_shared/critical-operation-guard.ts` | PERFEITO | Enum `CriticalLevel`, audit logging, `guardCriticalOperation` |
-| `manage-user-role/index.ts` | PERFEITO | `guardCriticalOperation` + `withSentry` + audit log + sem dead code |
-| `manage-user-status/index.ts` | OK (sem Sentry) | `guardCriticalOperation` integrado, falta `withSentry` |
-| `unified-auth/handlers/mfa-verify.ts` | PERFEITO | `mfa_verified_at` atualizado apos verificacao (linhas 182-186) |
-| `_shared/audit-logger.ts` | PERFEITO | `STEP_UP_MFA_SUCCESS`, `STEP_UP_MFA_FAILED`, `OWNER_MFA_REQUIRED` registrados |
+Adicionar array de itens no tipo `FacebookCAPIOrderData`:
 
-### Frontend (React Components)
+```typescript
+export interface FacebookCAPIOrderItem {
+  productId: string;
+  productName: string | null;
+  isBump: boolean;
+}
 
-| Componente | Status | Detalhes |
-|-----------|--------|----------|
-| `OwnerMfaInput.tsx` | PERFEITO | Componente reutilizavel, 75 linhas, controlled, sem logica de validacao |
-| `RoleChangeDialog.tsx` | PERFEITO | `useEffect` para limpar mfaCode, `isPending` via props, 113 linhas |
-| `UserActionDialog.tsx` | PERFEITO | Mesmo padrao, `useEffect` para mfaError, 161 linhas |
-| `AdminUsersTab.tsx` | PERFEITO | `isPending={isUsersLoading}` na linha 239, sem dead code |
-| `UserDetailSheet.tsx` | PERFEITO | `actionMutation.isPending` para `isPending`, `mfaError` state gerenciado |
+export interface FacebookCAPIOrderData {
+  // ... campos existentes ...
+  items: FacebookCAPIOrderItem[];  // NOVO
+}
+```
 
-### State Management (XState)
+### 2. `supabase/functions/_shared/facebook-capi/dispatcher.ts`
 
-| Componente | Status | Detalhes |
-|-----------|--------|----------|
-| `adminMachine.types.ts` | PERFEITO | Zero `isChangingRole`, `mfaError` em `UsersRegionContext` |
-| `adminMachine.ts` | PERFEITO | `ROLE_CHANGE_MFA_ERROR` mantem dialog aberto com `mfaError`, `CONFIRM_ROLE_CHANGE` seta `usersLoading: true` |
-| `AdminContext.tsx` | PERFEITO | `confirmRoleChange` aceita `ownerMfaCode`, 239 linhas |
-| `adminHandlers.ts` | PERFEITO | Detecta `OWNER_MFA_REQUIRED` / `STEP_UP_MFA_FAILED` e envia `ROLE_CHANGE_MFA_ERROR` |
+**fetchOrderForCAPI:**
+- Adicionar `is_bump` ao select de `order_items`
+- Mapear todos os itens para o array `items`
 
-### Documentacao
+**dispatchFacebookCAPIForOrder:**
+- Extrair `contentIds` de todos os `order.items`
+- Calcular `numItems` = `order.items.length`
 
-| Componente | Status | Detalhes |
-|-----------|--------|----------|
-| `EDGE_FUNCTIONS_REGISTRY.md` | PERFEITO | Niveis documentados corretamente (Level 0/1/2), shared modules listados |
-| `mfaService.ts` | PERFEITO | `StepUpMfaErrorResponse` com tipos corretos |
+```typescript
+// ANTES
+contentIds: [order.productId],
 
----
+// DEPOIS
+contentIds: order.items.map(item => item.productId),
+numItems: order.items.length,
+```
 
-## Verificacao de Higiene RISE V3
+### 3. Deploy
 
-| Regra | Status | Detalhes |
-|-------|--------|----------|
-| Zero codigo morto | CORRIGIDO | `isChangingRole` e `ROLE_HIERARCHY` eliminados |
-| Limite 300 linhas | OK | Maior arquivo: `UserDetailSheet.tsx` (290 linhas), `manage-user-status/index.ts` (269 linhas) |
-| Zero `supabase.from()` no frontend | OK | Todas as chamadas via `api.call()` e `api.publicCall()` |
-| Zero console.log direto | OK | Todos os logs via `createLogger` |
-| Nomenclatura em ingles | OK | Todos os nomes de variaveis/funcoes em ingles |
-| Secrets protegidos | OK | `MFA_ENCRYPTION_KEY` via secrets, nao exposto |
-| Zero atalhos/gambiarras | OK | Nenhuma frase proibida encontrada |
+Redeployar a edge function após correção (o dispatcher é código compartilhado, usado pelo webhook-post-payment).
 
 ---
 
-## Plano de Correcao (2 itens restantes)
+## Fluxo Corrigido
 
-### Arquivo 1: `supabase/functions/_shared/step-up-mfa.ts`
-- Linha 108: Alterar docstring de `(Level 2 - Self)` para `(Level 1 / SELF_MFA)`
-- Linha 142: Alterar docstring de `(Level 3 - Owner)` para `(Level 2 / OWNER_MFA)`
-
-### Arquivo 2: `supabase/functions/manage-user-status/index.ts`
-- Adicionar import: `import { withSentry } from "../_shared/sentry.ts";`
-- Linha 29: Alterar `Deno.serve(async (req) => {` para `Deno.serve(withSentry("manage-user-status", async (req) => {`
-- Ultima linha: Fechar o parentese adicional do `withSentry`
-
-### Deploy
-- Redeployar `manage-user-status` apos correcao do Sentry wrapper
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  Pedido: Produto Principal + 2 Order Bumps                  │
+│  Total: R$ 297,00 (após cupom de 10%)                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  fetchOrderForCAPI                                           │
+│  - orderId: "abc-123"                                        │
+│  - amountCents: 29700 (valor FINAL com desconto)            │
+│  - items: [                                                  │
+│      { productId: "prod-1", productName: "Curso", isBump: false },
+│      { productId: "prod-2", productName: "Ebook", isBump: true },
+│      { productId: "prod-3", productName: "Planilha", isBump: true }
+│    ]                                                         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Facebook CAPI Payload                                       │
+│  - event_name: "Purchase"                                    │
+│  - event_id: "purchase_abc-123"                              │
+│  - value: 297.00 (BRL)                                       │
+│  - content_ids: ["prod-1", "prod-2", "prod-3"]              │
+│  - content_type: "product"                                   │
+│  - num_items: 3                                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Veredicto Final
+## Validação Pós-Correção
 
-Apos estas 2 correcoes residuais, a implementacao do Step-Up MFA estara em **100% de conformidade** com o Protocolo RISE V3:
+Após aplicar as correções, você pode testar:
 
-| Criterio | Nota |
-|----------|------|
-| Manutenibilidade Infinita | 10/10 - Middleware reutilizavel, componentes desacoplados |
-| Zero Divida Tecnica | 10/10 - Zero dead code, documentacao consistente |
-| Arquitetura Correta | 10/10 - 3 niveis claros, SOLID, Clean Architecture |
-| Escalabilidade | 10/10 - Adicionar nova operacao critica = 1 linha |
-| Seguranca | 10/10 - Admin comprometido NAO escala privilegios sem TOTP do Owner |
-| **NOTA FINAL** | **10.0/10** |
+1. **Criar um pedido com bumps** no checkout
+2. **Verificar logs** da edge function `facebook-conversion-api`
+3. **Conferir no Events Manager** se todos os `content_ids` aparecem
+4. **Verificar numItems** = quantidade de produtos no pedido
+
+---
+
+## Resumo da Auditoria
+
+| Aspecto | Status Antes | Status Após |
+|---------|--------------|-------------|
+| Valor com Cupom | ✅ Correto | ✅ Correto |
+| Valor com Bumps | ✅ Correto | ✅ Correto |
+| content_ids (todos os produtos) | ❌ Só principal | ✅ Todos os itens |
+| numItems | ❌ Ausente | ✅ Presente |
+| Deduplicação | ✅ Correto | ✅ Correto |
+| Resiliência (retry + queue) | ✅ Correto | ✅ Correto |
+
+**Após esta correção, o sistema de Facebook Pixel + CAPI estará 100% funcional para todos os cenários.**
