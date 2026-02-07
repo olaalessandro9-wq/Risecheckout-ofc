@@ -1,134 +1,139 @@
 
+# Limitar "Maximo" a 16 Meses
 
-# Reformatar Eixo X: DD/MM para 7 e 30 dias
+## Diagnostico da Raiz
 
-## Requisito do Usuario
+O preset "Maximo" usa `getMaxRange()` em `src/lib/date-range/service.ts` (linha 161-174), que define o inicio como `maxStartDate` -- por padrao `2020-01-01`. Isso gera ~2200 dias de dados no grafico, resultando na visualizacao bagunçada que aparece na screenshot (Jan/20 ate Fev/26 com labels sobrepostos e dados inuteis).
 
-| Periodo | Formato | Exibicao |
-|---------|---------|----------|
-| Hoje / Ontem | "00h", "01h", ... | Manter como esta |
-| Ultimos 7 dias | "31/01", "01/02", ... | Todos os dias (cabe perfeitamente) |
-| Ultimos 30 dias | "01/01", "03/01", "05/01", ... | 1 dia sim, 1 dia nao (step=2) |
-| Maximo (anos) | "Jan/26", "Abr/26", ... | Manter como esta |
+A doenca e: o `maxStartDate` e um valor fixo absoluto em vez de um valor relativo ao momento atual. A cura e: substituir por um calculo dinamico de "16 meses atras".
 
 ## Analise de Solucoes
 
-### Solucao A: Condicional dentro de `calculateDailyTicks` com threshold fixo
+### Solucao A: Mudar apenas o `DEFAULT_DATE_RANGE_CONFIG.maxStartDate`
 
-Dividir `calculateDailyTicks` em 3 faixas claras baseadas em `count`:
+Trocar o valor fixo `2020-01-01` por `new Date()` com calculo de 16 meses atras.
 
-1. `count <= 14`: Todos os ticks, formato "DD/MM"
-2. `15 <= count <= 45`: Step fixo de 2 (1 sim, 1 nao), formato "DD/MM"
-3. `count > 45`: `selectWithConsistentStep` + "DD Mon" ou "Mon/YY"
+- Manutenibilidade: 4/10 (o `maxStartDate` e avaliado uma unica vez no momento do import do modulo -- se a app ficar aberta por dias, o valor fica stale)
+- Zero DT: 3/10 (bug latente: valor calculado no module load, nao no momento da chamada)
+- Arquitetura: 3/10 (viola o principio de que configuracoes estaticas devem ser estaticas)
+- Escalabilidade: 5/10
+- Seguranca: 10/10
+- **NOTA FINAL: 4.4/10**
 
-- Manutenibilidade: 10/10 (3 faixas com logica cristalina, zero ambiguidade)
-- Zero DT: 10/10 (cada faixa e auto-contida, sem dependencia de largura de tela para ranges curtos)
-- Arquitetura: 10/10 (eliminacao total da funcao `getCompactDailyFormatter` que nao e mais necessaria)
-- Escalabilidade: 10/10 (step=2 para 30 dias = 15 labels a ~45px = 675px, cabe em qualquer tela)
+### Solucao B: Adicionar `maxMonthsBack` ao config + calculo dinamico em `getMaxRange`
+
+Adicionar um campo `maxMonthsBack: number` no `DateRangeConfig` (default: 16). O `getMaxRange()` calcula `now - maxMonthsBack meses` dinamicamente a cada chamada. Remover o campo `maxStartDate` que se torna obsoleto.
+
+- Manutenibilidade: 10/10 (calculo dinamico, sempre correto independente de quando e chamado)
+- Zero DT: 10/10 (sem valores stale, sem dependencia de module load time)
+- Arquitetura: 10/10 (config declarativa com um numero, calculo no service -- separacao perfeita)
+- Escalabilidade: 10/10 (mudar de 16 para 24 meses = trocar um numero)
 - Seguranca: 10/10
 - **NOTA FINAL: 10.0/10**
 
-### Solucao B: Manter `getCompactDailyFormatter` e adicionar logica de step condicional
+### Solucao C: Limitar apenas no chart (filtrar dados no frontend)
 
-Reutilizar o formatador compacto existente e adicionar step=2 para 30 dias.
+Manter a query buscando desde 2020 e cortar os dados no componente.
 
-- Manutenibilidade: 6/10 (mantem codigo morto -- o formatador compacto nao sera mais usado)
-- Zero DT: 6/10 (formatador compacto existe mas nunca e chamado -- confusao futura)
-- Arquitetura: 5/10 (viola Single Responsibility -- duas estrategias de formatacao coexistindo sem necessidade)
-- Escalabilidade: 10/10
+- Manutenibilidade: 3/10 (busca dados desnecessarios do banco)
+- Zero DT: 2/10 (desperdicio de bandwidth e processamento)
+- Arquitetura: 2/10 (o frontend nao deveria decidir a janela temporal -- isso e responsabilidade do service)
+- Escalabilidade: 1/10 (conforme dados crescem, performance degrada)
 - Seguranca: 10/10
-- **NOTA FINAL: 7.0/10**
+- **NOTA FINAL: 3.0/10**
 
-### DECISAO: Solucao A (Nota 10.0)
+### DECISAO: Solucao B (Nota 10.0)
 
-A Solucao B mantem codigo morto (`getCompactDailyFormatter` e `SHORT_RANGE_THRESHOLD`) que nunca sera chamado. A Solucao A remove tudo que nao e necessario e implementa a logica com 3 faixas claras e auto-documentadas.
+As outras soluçoes tratam sintomas. A Solucao B resolve na raiz: o service calcula dinamicamente a janela de 16 meses a cada chamada, sem valores stale e sem buscar dados desnecessarios do banco.
 
 ---
 
 ## Plano de Execucao
 
-### Arquivo: `src/modules/dashboard/utils/chartAxisUtils.ts`
+### Arquivo 1: `src/lib/date-range/types.ts`
 
-**1. REMOVER** `SHORT_RANGE_THRESHOLD` (linhas 158-166)
+**1. Adicionar campo `maxMonthsBack` ao `DateRangeConfig`**
 
-Constante nao sera mais usada.
-
-**2. REMOVER** `getCompactDailyFormatter` (linhas 168-214)
-
-Funcao inteira nao sera mais usada. O formato agora e sempre "DD/MM" para ranges curtos e medios.
-
-**3. REESCREVER** `calculateDailyTicks` (linhas 227-249)
-
-Nova logica com 3 faixas:
+Novo campo opcional com default de 16:
 
 ```text
-function calculateDailyTicks(data, chartWidth): XAxisConfig {
-  const count = data.length;
-  const allDates = data.map(d => d.date);
-  const ddmmFormatter = getDDMMFormatter();
-
-  // Faixa 1: ate 14 dias (cobre "7 dias") -- TODOS os ticks
-  if (count <= 14) {
-    return { ticks: [...allDates], formatter: ddmmFormatter };
-  }
-
-  // Faixa 2: 15-45 dias (cobre "30 dias") -- step fixo de 2
-  if (count <= 45) {
-    const ticks: string[] = [];
-    for (let i = 0; i < allDates.length; i += 2) {
-      ticks.push(allDates[i]);
-    }
-    return { ticks, formatter: ddmmFormatter };
-  }
-
-  // Faixa 3: 46+ dias (cobre "maximo") -- distribuicao inteligente
-  const estimatedLabelWidth = count <= 90 ? 55 : 58;
-  const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
-  const ticks = selectWithConsistentStep(allDates, maxTicks);
-  return { ticks, formatter: getDailyFormatter(count) };
+interface DateRangeConfig {
+  readonly timezone: IANATimezone;
+  readonly referenceDate?: Date;
+  readonly maxMonthsBack: number;  // NOVO (substitui maxStartDate)
 }
 ```
 
-**4. CRIAR** `getDDMMFormatter` (funcao nova, simples)
+**2. Atualizar `DEFAULT_DATE_RANGE_CONFIG`**
 
-Formatador "DD/MM" usado pelas faixas 1 e 2:
+Substituir `maxStartDate: new Date('2020-01-01...')` por `maxMonthsBack: 16`.
 
+**3. Remover campo `maxStartDate`** do `DateRangeConfig`
+
+Campo obsoleto -- substituido por `maxMonthsBack`.
+
+### Arquivo 2: `src/lib/date-range/service.ts`
+
+**1. Reescrever `getMaxRange`** (linhas 161-174)
+
+Calcular `startDate` dinamicamente: `now.setMonth(now.getMonth() - this.config.maxMonthsBack)`.
+
+Antes:
 ```text
-function getDDMMFormatter(): (value: string) => string {
-  return (value: string): string => {
-    const parts = value.split("-");
-    if (parts.length < 3) return value;
-    return `${parts[2]}/${parts[1]}`;
+private getMaxRange(now: Date): DateRangeOutput {
+  const maxStart = this.config.maxStartDate || new Date('2020-01-01...');
+  // ...
+}
+```
+
+Depois:
+```text
+private getMaxRange(now: Date): DateRangeOutput {
+  const startDate = new Date(now);
+  startDate.setMonth(startDate.getMonth() - this.config.maxMonthsBack);
+
+  const startBoundaries = this.timezoneService.getDateBoundaries(startDate);
+  const endBoundaries = this.timezoneService.getDateBoundaries(now);
+
+  return {
+    startISO: startBoundaries.startOfDay,
+    endISO: endBoundaries.endOfDay,
+    startDate: new Date(startBoundaries.startOfDay),
+    endDate: new Date(endBoundaries.endOfDay),
+    timezone: this.config.timezone,
+    preset: 'max',
   };
 }
 ```
 
-**5. ATUALIZAR** `getDailyFormatter` (linhas 260-281)
+Nota: agora usa `getDateBoundaries` para o start tambem (antes usava `maxStart.toISOString()` diretamente, que nao passava pelo timezone service -- isso era uma inconsistencia sutil).
 
-Como agora so e chamada para `count > 45`, os thresholds permanecem iguais (46-90 = "DD Mon", 91+ = "Mon/YY"). Nenhuma mudanca no corpo, apenas no JSDoc.
+### Arquivo 3: `src/lib/date-range/__tests__/service.test.ts` e `service.test.ts`
 
-**6. Nenhuma mudanca necessaria em:**
-- `calculateHourlyTicks` -- ja esta correto com intervalos naturais
-- `selectWithConsistentStep` -- continua sendo usado para ranges longos
-- `RevenueChart.tsx` -- nao precisa de alteracoes
-- `index.ts` -- exports ja existem
+Atualizar os testes de "max" para refletir o novo comportamento (16 meses atras em vez de 2020-01-01).
+
+### Nenhuma mudanca necessaria em:
+- `chartAxisUtils.ts` -- Tier 3 (46+ dias) com Mon/YY ja lida corretamente com ~487 dias (16 meses)
+- `useDashboardAnalytics.ts` -- consome `dateRange.startISO/endISO` que ja vem corretos do service
+- `useDateRangeState.ts` -- chama `dateRangeService.getRange('max')` que retornara o novo range
+- `index.ts` -- exports permanecem iguais
 
 ## Resultado Visual Esperado
 
-| Periodo | Ticks no Eixo X |
-|---------|----------------|
-| Hoje (24h) | 00h 01h 02h ... 23h (sem mudanca) |
-| Ontem (24h) | 00h 01h 02h ... 23h (sem mudanca) |
-| 7 dias | 31/01 01/02 02/02 03/02 04/02 05/02 06/02 (TODOS, formato DD/MM) |
-| 30 dias | 08/01 10/01 12/01 14/01 ... 30/01 01/02 03/02 05/02 (step=2, formato DD/MM) |
-| Maximo | Jan/25 Abr/25 Jul/25 Out/25 Jan/26 (sem mudanca) |
+| Periodo | Antes | Depois |
+|---------|-------|--------|
+| Maximo | Jan/20 Abr/20 ... Out/25 Fev/26 (~73 meses, labels sobrepostos) | Out/24 Nov/24 Dez/24 Jan/25 ... Jan/26 Fev/26 (16 meses, labels claros) |
+
+Com 16 meses (~487 dias) e Mon/YY a 58px, em um chart de ~900px: maxTicks = floor(900/58) = 15. Step = ceil(16/15) = 2. Resultado: ~8 labels distribuidos uniformemente -- limpo e legivel.
 
 ## Arvore de Arquivos
 
 ```text
-src/modules/dashboard/utils/
-  chartAxisUtils.ts   -- EDITAR (remover codigo morto + reescrever calculateDailyTicks + nova getDDMMFormatter)
+src/lib/date-range/
+  types.ts              -- EDITAR (maxStartDate -> maxMonthsBack)
+  service.ts            -- EDITAR (reescrever getMaxRange)
+  __tests__/service.test.ts  -- EDITAR (atualizar testes de max)
+  service.test.ts       -- EDITAR (atualizar testes de max)
 ```
 
-1 arquivo editado. Zero arquivos novos.
-
+4 arquivos editados. Zero arquivos novos.
