@@ -12,6 +12,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AuthThemeProvider } from "@/components/theme-providers";
+import { RiseLogo } from "@/components/brand/RiseLogo";
 import { brandingVariants } from "../motion";
 
 type ViewType = "choose-profile" | "already-has-account" | "producer-form";
@@ -39,9 +40,7 @@ export function CadastroLayout({ children, view, registrationSource }: CadastroL
             {/* Mobile Logo */}
             <div className="lg:hidden flex justify-center mb-8">
               <Link to="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
-                  <span className="font-bold text-[hsl(var(--auth-text-primary))]">R</span>
-                </div>
+                <RiseLogo size="sm" variant="auth" />
                 <span className="font-bold text-lg text-[hsl(var(--auth-text-primary))]">RiseCheckout</span>
               </Link>
             </div>
@@ -55,9 +54,7 @@ export function CadastroLayout({ children, view, registrationSource }: CadastroL
           {/* Logo */}
           <div className="relative z-10">
             <Link to="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--auth-accent))] to-[hsl(var(--auth-accent-secondary))] flex items-center justify-center shadow-lg shadow-[hsl(var(--auth-accent)/0.3)]">
-                <span className="font-bold text-[hsl(var(--auth-text-primary))] text-xl">R</span>
-              </div>
+              <RiseLogo size="md" variant="auth" />
               <span className="font-bold text-xl text-[hsl(var(--auth-text-primary))] tracking-tight">RiseCheckout</span>
             </Link>
           </div>

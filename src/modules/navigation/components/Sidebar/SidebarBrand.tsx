@@ -7,6 +7,7 @@
  */
 
 import { cn } from "@/lib/utils";
+import { RiseLogo } from "@/components/brand/RiseLogo";
 
 // ============================================================================
 // TYPES
@@ -38,9 +39,7 @@ export function SidebarBrand({ showLabels, fullWidth = false }: SidebarBrandProp
         )}
       >
         {/* Logo */}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg shadow-sm">
-          R
-        </div>
+        <RiseLogo size="md" variant="default" />
 
         {/* Nome (animado) */}
         {showLabels && (
