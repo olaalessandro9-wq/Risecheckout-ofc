@@ -23,10 +23,11 @@ import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { guardCriticalOperation, CriticalLevel } from "../_shared/critical-operation-guard.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { withSentry } from "../_shared/sentry.ts";
 
 const log = createLogger("manage-user-status");
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry("manage-user-status", async (req) => {
   // SECURITY: CORS V2 com separação de ambiente (prod/dev)
   const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
@@ -266,4 +267,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));
