@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { createLogger } from "@/lib/logger";
 import { toCheckoutFormData } from "../adapters";
 import { usePerformanceMetrics } from "../hooks/usePerformanceMetrics";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const log = createLogger("CheckoutPublicContent");
 
@@ -81,6 +82,9 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
     productPixels,
     vendorIntegration,
   } = machine;
+
+  // RISE V3: Reactive mobile detection via centralized hook (SSOT)
+  const isMobile = useIsMobile();
 
   // Track selected installment for order summary display
   const [selectedInstallment, setSelectedInstallment] = useState(1);
@@ -323,7 +327,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       ? (checkout.bottom_components as CheckoutComponent[])
       : [];
 
-    // RISE V3: Dual-Layout - Detect mobile and use mobile-specific components if available
+    // RISE V3: Dual-Layout - Reactive mobile detection via useIsMobile hook (SSOT)
     const mobileTop: CheckoutComponent[] = Array.isArray(checkout.mobile_top_components)
       ? (checkout.mobile_top_components as CheckoutComponent[])
       : [];
@@ -331,28 +335,24 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       ? (checkout.mobile_bottom_components as CheckoutComponent[])
       : [];
     const hasMobileComponents = mobileTop.length > 0 || mobileBottom.length > 0;
-    const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 768;
 
-    const resolvedTop = (isMobileDevice && hasMobileComponents) ? mobileTop : topComponents;
-    const resolvedBottom = (isMobileDevice && hasMobileComponents) ? mobileBottom : bottomComponents;
+    const resolvedTop = (isMobile && hasMobileComponents) ? mobileTop : topComponents;
+    const resolvedBottom = (isMobile && hasMobileComponents) ? mobileBottom : bottomComponents;
 
     // Extract backgroundImage from checkout.design (JSON field)
+    // Placed at root of customization to match CheckoutPublicLayout's interface contract
     const checkoutDesignJson = checkout.design as Record<string, unknown> | undefined;
     const backgroundImage = checkoutDesignJson?.backgroundImage as 
       { url?: string; fixed?: boolean; repeat?: boolean; expand?: boolean } | undefined;
 
     // Build customization for CheckoutPublicLayout (Phase 2 - lightweight layout)
+    // backgroundImage at root level matches CheckoutPublicCustomization interface
     return {
-      design: {
-        theme: checkout.theme || 'light',
-        font: checkout.font || 'Inter',
-        colors: design.colors,
-        backgroundImage,
-      },
       topComponents: resolvedTop,
       bottomComponents: resolvedBottom,
+      backgroundImage,
     };
-  }, [checkout.top_components, checkout.bottom_components, checkout.mobile_top_components, checkout.mobile_bottom_components, checkout.theme, checkout.font, checkout.design, design, checkout]);
+  }, [checkout.top_components, checkout.bottom_components, checkout.mobile_top_components, checkout.mobile_bottom_components, checkout.design, isMobile]);
 
   // ============================================================================
   // RENDER
