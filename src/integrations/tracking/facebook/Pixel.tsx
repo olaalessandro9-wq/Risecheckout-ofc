@@ -2,15 +2,21 @@
  * Componente Facebook Pixel
  * Módulo: src/integrations/tracking/facebook
  * 
- * @version 3.0.0 - RISE Protocol V3 - Advanced Matching
+ * @version 3.1.0 - RISE Protocol V3 - Advanced Matching (Stable Init)
  * Componente React responsável por injetar o script do Facebook Pixel
  * e inicializar o rastreamento com Advanced Matching (Manual Mode).
  * 
  * Advanced Matching sends hashed user data (email, phone, name) alongside
  * the pixel initialization, dramatically improving Event Match Quality (EMQ).
+ * 
+ * IMPORTANT: The Pixel uses a two-phase initialization strategy:
+ * Phase 1: Script load + basic fbq("init") without user data (on mount)
+ * Phase 2: fbq("init") with Advanced Matching when valid email arrives (once)
+ * This prevents re-init churn during form typing while ensuring the Pixel
+ * captures the richest possible identity data.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { FacebookPixelConfig, FacebookAdvancedMatchingData } from "./types";
 import { createLogger } from "@/lib/logger";
 
@@ -38,17 +44,33 @@ interface PixelProps {
  * @returns null (componente invisível)
  */
 export const Pixel = ({ config, advancedMatching }: PixelProps) => {
+  // Track initialization state to prevent redundant fbq("init") calls
+  // Stores the pixel_id that was initialized, or null if not yet initialized
+  const initializedPixelRef = useRef<string | null>(null);
+  // Track whether Advanced Matching has been applied (undefined -> valid = one-time transition)
+  const advancedMatchingAppliedRef = useRef(false);
+
+  // Phase 1: Load script and basic init (runs once per pixel_id)
   useEffect(() => {
-    // Validação: se config inválida, não fazer nada
     if (!config || !config.enabled || !config.pixel_id) {
       log.debug("Pixel não será carregado (config inválida ou desativada)");
       return;
     }
 
+    // Already initialized this pixel — skip
+    if (initializedPixelRef.current === config.pixel_id) {
+      return;
+    }
+
     const loadPixel = () => {
-      // Se fbq já foi carregado, não carregar novamente
+      // If fbq script already loaded globally, just init this pixel
       if (window.fbq) {
-        log.debug("fbq já foi carregado anteriormente");
+        window.fbq("init", config.pixel_id);
+        window.fbq("track", "PageView");
+        initializedPixelRef.current = config.pixel_id;
+        log.info("Pixel inicializado (script já presente)", {
+          pixel_id: config.pixel_id,
+        });
         return;
       }
 
@@ -96,30 +118,12 @@ export const Pixel = ({ config, advancedMatching }: PixelProps) => {
           document.head.appendChild(script);
         }
 
-        // Build Advanced Matching userData object
-        // The Pixel SDK auto-hashes plain text values (SHA-256)
-        const userData = buildAdvancedMatchingPayload(advancedMatching);
-
-        // Inicializar pixel com o ID + Advanced Matching
-        if (userData) {
-          window.fbq?.("init", config.pixel_id, userData);
-          log.info("Pixel inicializado com Advanced Matching", {
-            pixel_id: config.pixel_id,
-            has_email: !!advancedMatching?.em,
-            has_phone: !!advancedMatching?.ph,
-            has_name: !!(advancedMatching?.fn || advancedMatching?.ln),
-          });
-        } else {
-          window.fbq?.("init", config.pixel_id);
-          log.info("Pixel inicializado sem Advanced Matching", {
-            pixel_id: config.pixel_id,
-          });
-        }
-
-        // Disparar evento PageView
+        // Phase 1: Init without Advanced Matching (data may not be available yet)
+        window.fbq?.("init", config.pixel_id);
         window.fbq?.("track", "PageView");
+        initializedPixelRef.current = config.pixel_id;
 
-        log.info("Pixel ativo", {
+        log.info("Pixel ativo (Phase 1 - sem Advanced Matching)", {
           pixel_id: config.pixel_id,
           enabled: config.enabled,
           fire_purchase_on_pix: config.fire_purchase_on_pix,
@@ -134,7 +138,29 @@ export const Pixel = ({ config, advancedMatching }: PixelProps) => {
     if (typeof window !== "undefined") {
       loadPixel();
     }
-  }, [config?.pixel_id, config?.enabled, advancedMatching?.em]);
+  }, [config?.pixel_id, config?.enabled]);
+
+  // Phase 2: Re-init with Advanced Matching (one-time transition: undefined -> valid)
+  useEffect(() => {
+    if (!config?.pixel_id || !config.enabled) return;
+    if (!advancedMatching?.em) return; // No valid email yet — skip
+    if (advancedMatchingAppliedRef.current) return; // Already applied — skip
+    if (!window.fbq) return; // Script not loaded yet — skip
+
+    const userData = buildAdvancedMatchingPayload(advancedMatching);
+    if (!userData) return;
+
+    // Re-init pixel WITH user data for Advanced Matching
+    window.fbq("init", config.pixel_id, userData);
+    advancedMatchingAppliedRef.current = true;
+
+    log.info("Pixel re-inicializado com Advanced Matching (Phase 2)", {
+      pixel_id: config.pixel_id,
+      has_email: !!advancedMatching.em,
+      has_phone: !!advancedMatching.ph,
+      has_name: !!(advancedMatching.fn || advancedMatching.ln),
+    });
+  }, [config?.pixel_id, config?.enabled, advancedMatching]);
 
   // Componente invisível
   return null;
