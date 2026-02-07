@@ -14,7 +14,7 @@ import {
   hashPassword,
   type AppRole,
 } from "../../_shared/unified-auth-v2.ts";
-import { CURRENT_HASH_VERSION } from "../../_shared/auth-constants.ts";
+import { CURRENT_HASH_VERSION, AccountStatus } from "../../_shared/auth-constants.ts";
 import { sendEmail } from "../../_shared/zeptomail.ts";
 import { getEmailVerificationTemplate, getEmailVerificationTextTemplate } from "../../_shared/email-templates-verification.ts";
 import { buildSiteUrl } from "../../_shared/site-urls.ts";
@@ -123,7 +123,7 @@ export async function handleRegister(
         name: name || null,
         phone: normalizedPhone,
         cpf_cnpj: normalizedCpfCnpj,
-        account_status: "pending_email_verification",
+        account_status: AccountStatus.PENDING_EMAIL_VERIFICATION,
         is_active: true,
         email_verified: false,
         email_verification_token: verificationToken,
