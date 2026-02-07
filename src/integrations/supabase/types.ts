@@ -1578,6 +1578,48 @@ export type Database = {
         }
         Relationships: []
       }
+      failed_facebook_events: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_id: string
+          event_name: string
+          event_payload: Json
+          id: string
+          last_retry_at: string | null
+          pixel_id: string
+          reprocessed_at: string | null
+          retry_count: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_id: string
+          event_name: string
+          event_payload: Json
+          id?: string
+          last_retry_at?: string | null
+          pixel_id: string
+          reprocessed_at?: string | null
+          retry_count?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_id?: string
+          event_name?: string
+          event_payload?: Json
+          id?: string
+          last_retry_at?: string | null
+          pixel_id?: string
+          reprocessed_at?: string | null
+          retry_count?: number
+          status?: string
+        }
+        Relationships: []
+      }
       gateway_webhook_dlq: {
         Row: {
           attempts: number | null
@@ -4586,6 +4628,7 @@ export type Database = {
       }
       cleanup_old_data_with_log: { Args: never; Returns: undefined }
       cleanup_old_encryption_keys: { Args: never; Returns: number }
+      cleanup_old_failed_facebook_events: { Args: never; Returns: number }
       cleanup_old_rate_limits: { Args: never; Returns: number }
       cleanup_rate_limit_attempts: { Args: never; Returns: number }
       cleanup_security_events: { Args: never; Returns: number }
@@ -4734,6 +4777,28 @@ export type Database = {
           status: string
         }[]
       }
+      get_pending_failed_facebook_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          created_at: string
+          error_message: string | null
+          event_id: string
+          event_name: string
+          event_payload: Json
+          id: string
+          last_retry_at: string | null
+          pixel_id: string
+          reprocessed_at: string | null
+          retry_count: number
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "failed_facebook_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_policy_coverage: {
         Args: never
         Returns: {
@@ -4878,6 +4943,10 @@ export type Database = {
           p_vendor_id: string
         }
         Returns: string
+      }
+      mark_facebook_event_reprocessed: {
+        Args: { p_event_id: string; p_success: boolean }
+        Returns: undefined
       }
       offer_is_exposed_via_active_link: {
         Args: { p_offer_id: string }

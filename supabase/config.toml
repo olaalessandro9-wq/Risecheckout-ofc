@@ -316,6 +316,9 @@ verify_jwt = false
 [functions.facebook-conversion-api]
 verify_jwt = false
 
+[functions.reprocess-failed-facebook-events]
+verify_jwt = false
+
 [functions.dashboard-analytics]
 verify_jwt = false
 

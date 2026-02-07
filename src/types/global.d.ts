@@ -17,8 +17,8 @@ type FacebookPixelEventParams = Record<string, unknown>;
 /** Função principal do Facebook Pixel */
 interface FacebookPixelFunction {
   (method: 'init', pixelId: string): void;
-  (method: 'track', eventName: string, params?: FacebookPixelEventParams): void;
-  (method: 'trackCustom', eventName: string, params?: FacebookPixelEventParams): void;
+  (method: 'track', eventName: string, params?: FacebookPixelEventParams, options?: { eventID?: string }): void;
+  (method: 'trackCustom', eventName: string, params?: FacebookPixelEventParams, options?: { eventID?: string }): void;
   (...args: unknown[]): void;
 }
 
