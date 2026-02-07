@@ -132,9 +132,9 @@ export function AdminUsersTab() {
     });
   };
 
-  const handleConfirmRoleChange = async () => {
+  const handleConfirmRoleChange = async (ownerMfaCode: string) => {
     try {
-      await confirmRoleChange();
+      await confirmRoleChange(ownerMfaCode);
       toast.success("Role atualizado com sucesso!");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao atualizar role");
@@ -237,6 +237,7 @@ export function AdminUsersTab() {
           currentRole={usersContext.roleChangeDialog.currentRole}
           newRole={usersContext.roleChangeDialog.newRole}
           isPending={usersContext.isChangingRole || false}
+          error={usersContext.mfaError}
           onConfirm={handleConfirmRoleChange}
           onCancel={cancelRoleChange}
         />

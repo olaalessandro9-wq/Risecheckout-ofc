@@ -44,6 +44,11 @@ export const SecurityAction = {
   // Acesso negado
   ACCESS_DENIED: "access_denied",
   PERMISSION_DENIED: "permission_denied",
+  
+  // Step-Up MFA
+  STEP_UP_MFA_SUCCESS: "step_up_mfa_success",
+  STEP_UP_MFA_FAILED: "step_up_mfa_failed",
+  OWNER_MFA_REQUIRED: "owner_mfa_required",
 } as const;
 
 export type SecurityActionType = typeof SecurityAction[keyof typeof SecurityAction];

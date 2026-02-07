@@ -96,6 +96,7 @@ export function UserDetailSheet({
   });
 
   // Action mutation
+  const [mfaError, setMfaError] = useState<string | null>(null);
   const actionMutation = useMutation({
     mutationFn: async (params: {
       action: string;
@@ -104,10 +105,17 @@ export function UserDetailSheet({
       reason?: string;
       feePercent?: number | null;
       productId?: string;
+      ownerMfaCode: string;
     }) => {
-      const { data, error } = await api.call<{ error?: string }>("manage-user-status", params);
+      const { data, error } = await api.call<{ error?: string; code?: string }>("manage-user-status", params);
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) {
+        if (data.code === "OWNER_MFA_REQUIRED" || data.code === "STEP_UP_MFA_FAILED") {
+          setMfaError(data.error);
+          return null;
+        }
+        throw new Error(data.error);
+      }
       return data;
     },
     onSuccess: (_, variables) => {
@@ -125,10 +133,12 @@ export function UserDetailSheet({
       
       setActionDialog(null);
       setStatusReason("");
+      setMfaError(null);
     },
     onError: (error: Error) => {
       toast.error(error.message || "Erro ao executar ação");
       setActionDialog(null);
+      setMfaError(null);
     },
   });
 
@@ -144,8 +154,9 @@ export function UserDetailSheet({
     setActionDialog({ open: true, type: "productAction", productId, productName, productAction: action });
   };
 
-  const confirmAction = () => {
+  const confirmAction = (ownerMfaCode: string) => {
     if (!actionDialog) return;
+    setMfaError(null);
 
     if (actionDialog.type === "suspend" || actionDialog.type === "ban" || actionDialog.type === "activate") {
       const statusMap = { suspend: "suspended", ban: "banned", activate: "active" };
@@ -154,6 +165,7 @@ export function UserDetailSheet({
         userId,
         status: statusMap[actionDialog.type],
         reason: statusReason || undefined,
+        ownerMfaCode,
       });
     } else if (actionDialog.type === "updateFee") {
       const feeValue = parseFloat(customFee.replace(",", "."));
@@ -165,12 +177,14 @@ export function UserDetailSheet({
         action: "updateCustomFee",
         userId,
         feePercent: feeValue / 100,
+        ownerMfaCode,
       });
     } else if (actionDialog.type === "resetFee") {
       actionMutation.mutate({
         action: "updateCustomFee",
         userId,
         feePercent: null,
+        ownerMfaCode,
       });
     } else if (actionDialog.type === "productAction" && actionDialog.productId) {
       const statusMap = { activate: "active", block: "blocked", delete: "deleted" };
@@ -178,6 +192,7 @@ export function UserDetailSheet({
         action: "updateProductStatus",
         productId: actionDialog.productId,
         status: statusMap[actionDialog.productAction!],
+        ownerMfaCode,
       });
     }
   };
@@ -264,9 +279,11 @@ export function UserDetailSheet({
         userName={userName}
         customFee={customFee}
         statusReason={statusReason}
+        isPending={actionMutation.isPending}
+        mfaError={mfaError}
         onStatusReasonChange={setStatusReason}
         onConfirm={confirmAction}
-        onCancel={() => setActionDialog(null)}
+        onCancel={() => { setActionDialog(null); setMfaError(null); }}
       />
     </>
   );

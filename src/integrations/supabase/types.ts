@@ -3735,6 +3735,7 @@ export type Database = {
           ip_address: string | null
           is_valid: boolean | null
           last_activity_at: string | null
+          mfa_verified_at: string | null
           previous_refresh_token: string | null
           refresh_token: string | null
           refresh_token_expires_at: string | null
@@ -3751,6 +3752,7 @@ export type Database = {
           ip_address?: string | null
           is_valid?: boolean | null
           last_activity_at?: string | null
+          mfa_verified_at?: string | null
           previous_refresh_token?: string | null
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
@@ -3767,6 +3769,7 @@ export type Database = {
           ip_address?: string | null
           is_valid?: boolean | null
           last_activity_at?: string | null
+          mfa_verified_at?: string | null
           previous_refresh_token?: string | null
           refresh_token?: string | null
           refresh_token_expires_at?: string | null

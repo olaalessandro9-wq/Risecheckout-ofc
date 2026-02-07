@@ -61,7 +61,7 @@ export interface AdminContextValue {
   setUsersSearch: (term: string) => void;
   setUsersStatusFilter: (filter: UserStatusFilter) => void;
   openRoleChange: (dialog: RoleChangeDialog) => void;
-  confirmRoleChange: () => Promise<void>;
+  confirmRoleChange: (ownerMfaCode: string) => Promise<void>;
   cancelRoleChange: () => void;
   loadProducts: () => void;
   refreshProducts: () => void;
@@ -173,7 +173,7 @@ export function AdminProvider({ children }: AdminProviderProps) {
     return () => clearInterval(interval);
   }, [state.context.security.autoRefresh, send, doFetchSecurity]);
 
-  const confirmRoleChange = useCallback(() => handleConfirmRoleChange(state.context, send, role), [state.context, send, role]);
+  const confirmRoleChange = useCallback((ownerMfaCode: string) => handleConfirmRoleChange(state.context, send, role, ownerMfaCode), [state.context, send, role]);
   const confirmProductAction = useCallback(() => handleConfirmProductAction(state.context, send, state.context.period), [state.context, send]);
   const acknowledgeAlert = useCallback((alertId: string) => handleAcknowledgeAlert(alertId, send), [send]);
   const confirmBlockIP = useCallback((ip: string, reason: string, expiresInDays?: number) => handleConfirmBlockIP(ip, reason, expiresInDays, send), [send]);

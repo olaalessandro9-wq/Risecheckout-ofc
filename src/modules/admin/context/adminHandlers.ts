@@ -3,7 +3,7 @@
  * 
  * RISE Protocol V3 - Modularized from AdminContext
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Step-Up MFA Owner integration
  */
 
 import { api } from "@/lib/api";
@@ -24,7 +24,8 @@ type SendFn = (event: { type: string; [key: string]: unknown }) => void;
 export async function handleConfirmRoleChange(
   context: AdminMachineContext,
   send: SendFn,
-  role: AppRole
+  role: AppRole,
+  ownerMfaCode: string
 ): Promise<void> {
   const dialog = context.users.roleChangeDialog;
   if (!dialog) return;
@@ -32,12 +33,24 @@ export async function handleConfirmRoleChange(
   send({ type: "CONFIRM_ROLE_CHANGE" });
 
   try {
-    const { error, data } = await api.call<{ error?: string }>("manage-user-role", {
+    const { error, data } = await api.call<{ error?: string; code?: string }>("manage-user-role", {
       targetUserId: dialog.userId,
       newRole: dialog.newRole,
+      ownerMfaCode,
     });
 
-    if (error || data?.error) throw new Error(data?.error || error?.message);
+    if (error || data?.error) {
+      const errorMessage = data?.error || error?.message || "Erro ao alterar role";
+      const errorCode = data?.code;
+
+      // If MFA-related error, keep dialog open with error message
+      if (errorCode === "OWNER_MFA_REQUIRED" || errorCode === "STEP_UP_MFA_FAILED") {
+        send({ type: "ROLE_CHANGE_MFA_ERROR", error: errorMessage });
+        return;
+      }
+
+      throw new Error(errorMessage);
+    }
 
     send({ type: "ROLE_CHANGE_SUCCESS" });
     send({ type: "REFRESH_USERS" });

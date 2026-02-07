@@ -18,6 +18,7 @@ import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { guardCriticalOperation, CriticalLevel } from "../_shared/critical-operation-guard.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("manage-user-status");
@@ -72,7 +73,23 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, userId, status, reason, feePercent, productId } = body;
+    const { action, userId, status, reason, feePercent, productId, ownerMfaCode } = body;
+
+    // ========================================================================
+    // STEP-UP MFA: Require Owner's TOTP for status/moderation operations
+    // ========================================================================
+    const guardResult = await guardCriticalOperation({
+      supabase: supabaseAdmin,
+      req,
+      corsHeaders,
+      level: CriticalLevel.OWNER_MFA,
+      totpCode: ownerMfaCode,
+      callerId: producer.id,
+      callerRole: producer.role,
+      operationName: "manage-user-status",
+    });
+    if (guardResult) return guardResult;
+    // ========================================================================
 
     log.info(`Action: ${action} by owner ${producer.id}`);
 

@@ -179,7 +179,16 @@ export async function handleMfaVerify(
       return errorResponse("Erro ao criar sessão", corsHeaders, 500);
     }
 
-    log.info("MFA verified, session created", { userId, activeRole: context.activeRole });
+    // RISE V3: Mark session as MFA-verified (Step-Up MFA infrastructure)
+    await supabase
+      .from("sessions")
+      .update({ mfa_verified_at: new Date().toISOString() })
+      .eq("session_token", context.session.sessionToken);
+
+    log.info("MFA verified, session created (mfa_verified_at set)", {
+      userId,
+      activeRole: context.activeRole,
+    });
 
     return createAuthResponse(context.session, user, roles, corsHeaders);
   } catch (error: unknown) {

@@ -53,11 +53,12 @@ export const adminMachine = setup({
         DESELECT_USER: { actions: assign({ users: ({ context }) => ({ ...context.users, selectedUser: null }) }) },
         SET_USERS_SEARCH: { actions: assign({ users: ({ context, event }) => ({ ...context.users, searchTerm: event.term }) }) },
         SET_USERS_STATUS_FILTER: { actions: assign({ users: ({ context, event }) => ({ ...context.users, statusFilter: event.filter }) }) },
-        OPEN_ROLE_CHANGE: { actions: assign({ users: ({ context, event }) => ({ ...context.users, roleChangeDialog: event.dialog }) }) },
-        CONFIRM_ROLE_CHANGE: { actions: assign({ usersLoading: true }) },
-        ROLE_CHANGE_SUCCESS: { actions: assign({ usersLoading: false, users: ({ context }) => ({ ...context.users, roleChangeDialog: null }) }) },
-        ROLE_CHANGE_ERROR: { actions: assign({ usersLoading: false, users: ({ context, event }) => ({ ...context.users, roleChangeDialog: null, error: event.error }) }) },
-        CANCEL_ROLE_CHANGE: { actions: assign({ users: ({ context }) => ({ ...context.users, roleChangeDialog: null }) }) },
+        OPEN_ROLE_CHANGE: { actions: assign({ users: ({ context, event }) => ({ ...context.users, roleChangeDialog: event.dialog, mfaError: null }) }) },
+        CONFIRM_ROLE_CHANGE: { actions: assign({ usersLoading: true, users: ({ context }) => ({ ...context.users, mfaError: null }) }) },
+        ROLE_CHANGE_SUCCESS: { actions: assign({ usersLoading: false, users: ({ context }) => ({ ...context.users, roleChangeDialog: null, mfaError: null }) }) },
+        ROLE_CHANGE_ERROR: { actions: assign({ usersLoading: false, users: ({ context, event }) => ({ ...context.users, roleChangeDialog: null, mfaError: null, error: event.error }) }) },
+        ROLE_CHANGE_MFA_ERROR: { actions: assign({ usersLoading: false, users: ({ context, event }) => ({ ...context.users, mfaError: event.error }) }) },
+        CANCEL_ROLE_CHANGE: { actions: assign({ users: ({ context }) => ({ ...context.users, roleChangeDialog: null, mfaError: null }) }) },
 
         // Products
         LOAD_PRODUCTS: { actions: assign({ productsLoading: true, products: ({ context }) => ({ ...context.products, error: null }) }) },
