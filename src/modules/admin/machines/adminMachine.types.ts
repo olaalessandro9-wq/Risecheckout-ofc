@@ -41,6 +41,7 @@ export interface UsersRegionContext {
   searchTerm: string;
   statusFilter: UserStatusFilter;
   error: string | null;
+  mfaError: string | null;
   isChangingRole: boolean;
 }
 
@@ -125,6 +126,7 @@ type UsersEvent =
   | { type: "CONFIRM_ROLE_CHANGE" }
   | { type: "ROLE_CHANGE_SUCCESS" }
   | { type: "ROLE_CHANGE_ERROR"; error: string }
+  | { type: "ROLE_CHANGE_MFA_ERROR"; error: string }
   | { type: "CANCEL_ROLE_CHANGE" };
 
 // Products region events
@@ -197,6 +199,7 @@ export const initialUsersContext: UsersRegionContext = {
   searchTerm: "",
   statusFilter: "all",
   error: null,
+  mfaError: null,
   isChangingRole: false,
 };
 

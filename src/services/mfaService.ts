@@ -48,6 +48,11 @@ export interface MfaStatusResponse {
   mfaEnabled: boolean;
 }
 
+export interface StepUpMfaErrorResponse {
+  error: string;
+  code: "OWNER_MFA_REQUIRED" | "STEP_UP_MFA_FAILED" | "SELF_MFA_REQUIRED";
+}
+
 // ============================================================================
 // API CALLS
 // ============================================================================

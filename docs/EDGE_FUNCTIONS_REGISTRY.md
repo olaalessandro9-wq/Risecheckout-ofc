@@ -94,8 +94,8 @@
 | `coupon-management` | sessions | false | general | unified-auth-v2 |
 | `integration-management` | sessions | false | general | unified-auth-v2 |
 | **User Management** | | | | |
-| `manage-user-role` | sessions | false | admin | unified-auth-v2, owner only |
-| `manage-user-status` | sessions | false | admin | unified-auth-v2, admin+ |
+| `manage-user-role` | sessions | false | admin | unified-auth-v2, admin/owner + **Step-Up MFA Owner (Level 3)** |
+| `manage-user-status` | sessions | false | admin | unified-auth-v2, owner + **Step-Up MFA Owner (Level 3)** |
 | `unified-auth` | public | false | general | SSOT - Login/Register/Refresh/Request-Refresh/Verify-Email/Resend-Verification/MFA-Setup/MFA-Verify-Setup/MFA-Verify/MFA-Disable(guard-only)/MFA-Status endpoint |
 | **Security & Crypto** | | | | |
 | `decrypt-customer-data` | sessions | false | admin | unified-auth-v2, owner check |
@@ -230,6 +230,20 @@
 16. [LGPD/GDPR](#lgpdgdpr)
 17. [Vault & Credentials](#vault--credentials)
 18. [Health & Diagnostics](#health--diagnostics)
+
+### Shared Modules - Step-Up MFA (RISE V3 - v1.0.0)
+
+| Arquivo | Linhas | Responsabilidade |
+|---------|--------|------------------|
+| `_shared/step-up-mfa.ts` | ~170 | TOTP verification: `requireSelfMfa()` (Level 2), `requireOwnerMfa()` (Level 3) |
+| `_shared/critical-operation-guard.ts` | ~180 | Middleware: `guardCriticalOperation()` - classifica e protege operações por nível |
+
+> **Níveis de Step-Up MFA:**
+> - **Level 0 (NONE):** Sem verificação adicional
+> - **Level 1 (SELF_MFA):** Requer TOTP do próprio caller
+> - **Level 2 (OWNER_MFA):** Requer TOTP do Owner do sistema (proteção contra admin comprometido)
+>
+> **Audit Log Actions:** `STEP_UP_MFA_SUCCESS`, `STEP_UP_MFA_FAILED`, `OWNER_MFA_REQUIRED`
 
 ---
 

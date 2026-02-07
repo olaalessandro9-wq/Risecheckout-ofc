@@ -1,11 +1,12 @@
 /**
- * UserActionDialog - Dialog de confirmação de ações do usuário
+ * UserActionDialog - Dialog de confirmação com Step-Up MFA do Owner
  * 
- * RISE Protocol V3 - Componente puro
+ * RISE Protocol V3 - 10.0/10
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Step-Up MFA Owner integration
  */
 
+import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { OwnerMfaInput } from "@/components/auth/OwnerMfaInput";
 import type { UserActionDialog as UserActionDialogType } from "../../types/admin.types";
 
 interface UserActionDialogProps {
@@ -25,8 +27,10 @@ interface UserActionDialogProps {
   userName: string;
   customFee: string;
   statusReason: string;
+  isPending?: boolean;
+  mfaError?: string | null;
   onStatusReasonChange: (value: string) => void;
-  onConfirm: () => void;
+  onConfirm: (ownerMfaCode: string) => void;
   onCancel: () => void;
 }
 
@@ -35,18 +39,33 @@ export function UserActionDialog({
   userName,
   customFee,
   statusReason,
+  isPending = false,
+  mfaError,
   onStatusReasonChange,
   onConfirm,
   onCancel,
 }: UserActionDialogProps) {
+  const [mfaCode, setMfaCode] = useState("");
+
   if (!dialog) return null;
 
   const isDestructive =
     dialog.type === "ban" ||
     (dialog.type === "productAction" && dialog.productAction === "delete");
 
+  const handleCancel = () => {
+    setMfaCode("");
+    onCancel();
+  };
+
+  const handleConfirm = () => {
+    onConfirm(mfaCode);
+  };
+
+  const isCodeComplete = mfaCode.length === 6;
+
   return (
-    <AlertDialog open={dialog.open} onOpenChange={(open) => !open && onCancel()}>
+    <AlertDialog open={dialog.open} onOpenChange={(open) => !open && handleCancel()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar ação</AlertDialogTitle>
@@ -110,19 +129,23 @@ export function UserActionDialog({
                 </div>
               )}
 
-              <p className="text-sm text-muted-foreground">
-                Esta ação será registrada no log de segurança.
-              </p>
+              <OwnerMfaInput
+                value={mfaCode}
+                onChange={setMfaCode}
+                error={mfaError}
+                disabled={isPending}
+              />
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel onClick={handleCancel}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={handleConfirm}
+            disabled={isPending || !isCodeComplete}
             className={isDestructive ? "bg-destructive hover:bg-destructive/90" : ""}
           >
-            Confirmar
+            {isPending ? "Verificando..." : "Confirmar com MFA"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

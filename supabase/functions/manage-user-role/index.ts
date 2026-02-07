@@ -3,21 +3,26 @@
  * 
  * Permite que admins e owners alterem roles de usuários.
  * 
+ * RISE V3: Step-Up MFA (Owner) - Todas as operações de mudança de role
+ * exigem o código TOTP do Owner do sistema, mesmo que o caller seja admin.
+ * 
  * Regras de segurança:
  * - Apenas admin e owner podem usar esta função
  * - Admin pode promover: seller ↔ user
  * - Owner pode fazer qualquer promoção/rebaixamento
  * - Ninguém pode rebaixar a si mesmo
+ * - TODAS as operações exigem MFA do Owner (Step-Up Level 3)
  * - Todas as ações são registradas no audit log
  * - CORS restrito a domínios permitidos
  * 
- * @version 1.1.0
+ * @version 2.0.0 - Step-Up MFA Owner integration
  */
 
 import { getSupabaseClient } from "../_shared/supabase-client.ts";
 import { handleCorsV2 } from "../_shared/cors-v2.ts";
 import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared/rate-limiting/index.ts";
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
+import { guardCriticalOperation, CriticalLevel } from "../_shared/critical-operation-guard.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const log = createLogger("manage-user-role");
@@ -34,6 +39,7 @@ const ROLE_HIERARCHY: Record<AppRole, number> = {
 interface RequestBody {
   targetUserId: string;
   newRole: AppRole;
+  ownerMfaCode?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -89,7 +95,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body: RequestBody = await req.json();
-    const { targetUserId, newRole } = body;
+    const { targetUserId, newRole, ownerMfaCode } = body;
 
     if (!targetUserId || !newRole) {
       return new Response(
@@ -131,6 +137,22 @@ Deno.serve(async (req: Request) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // ========================================================================
+    // STEP-UP MFA: Require Owner's TOTP for ALL role changes
+    // ========================================================================
+    const guardResult = await guardCriticalOperation({
+      supabase: supabaseAdmin,
+      req,
+      corsHeaders,
+      level: CriticalLevel.OWNER_MFA,
+      totpCode: ownerMfaCode,
+      callerId: producer.id,
+      callerRole: producer.role,
+      operationName: "manage-user-role",
+    });
+    if (guardResult) return guardResult;
+    // ========================================================================
 
     const { data: targetRoleData, error: targetRoleError } = await supabaseAdmin
       .from("user_roles")
@@ -189,10 +211,11 @@ Deno.serve(async (req: Request) => {
         targetUserId,
         previousRole: currentRole,
         newRole,
+        mfaVerified: true,
       },
     });
 
-    log.info(`Role alterado: ${targetUserId} de ${currentRole} para ${newRole} por ${producer.id}`);
+    log.info(`Role alterado: ${targetUserId} de ${currentRole} para ${newRole} por ${producer.id} (MFA Owner verified)`);
 
     return new Response(
       JSON.stringify({
