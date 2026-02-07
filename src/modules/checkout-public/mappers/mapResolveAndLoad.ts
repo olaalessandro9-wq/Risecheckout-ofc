@@ -62,6 +62,8 @@ export interface CheckoutUIModel {
   components?: unknown[];
   top_components?: unknown[];
   bottom_components?: unknown[];
+  mobile_top_components?: unknown[];
+  mobile_bottom_components?: unknown[];
   rows?: unknown[];
   design?: unknown;
   theme?: string;
@@ -193,6 +195,8 @@ export function mapResolveAndLoad(response: ResolveAndLoadResponse): MappedCheck
     components: parseJsonSafely(checkout.components, []),
     top_components: parseJsonSafely(checkout.top_components, []),
     bottom_components: parseJsonSafely(checkout.bottom_components, []),
+    mobile_top_components: parseJsonSafely(checkout.mobile_top_components, []),
+    mobile_bottom_components: parseJsonSafely(checkout.mobile_bottom_components, []),
     rows: parseJsonSafely(checkout.components, []),
     design: parseJsonSafely(checkout.design, {}),
     theme: checkout.theme ?? undefined,
