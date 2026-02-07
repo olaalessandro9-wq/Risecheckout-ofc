@@ -1,6 +1,6 @@
 /**
  * Página: PublicCheckoutV2
- * 
+ *
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Migrado para usar o novo módulo checkout-public com XState.
