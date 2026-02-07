@@ -27,10 +27,19 @@ export function hashPassword(password: string): string {
 }
 
 /**
- * Verify password against bcrypt hash
+ * Verify password against bcrypt hash.
+ * 
+ * RISE V3: Returns structured result to distinguish between
+ * "wrong password" (valid=false) and "bcrypt crash" (valid=false + error).
  */
-export function verifyPassword(password: string, hash: string): boolean {
-  return compareSync(password, hash);
+export function verifyPassword(password: string, hash: string): { valid: boolean; error?: string } {
+  try {
+    const result = compareSync(password, hash);
+    return { valid: result };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return { valid: false, error: msg };
+  }
 }
 
 // ============================================
