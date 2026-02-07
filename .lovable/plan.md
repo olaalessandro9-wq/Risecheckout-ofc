@@ -1,176 +1,144 @@
 
-# Auditoria Completa: Step-Up MFA Implementation
+# Auditoria de Confirmacao Final: Step-Up MFA Implementation
 
 ## Resultado Geral
 
-A implementacao do Step-Up MFA esta **estruturalmente correta** - a arquitetura de 3 niveis funciona, o fluxo end-to-end esta conectado corretamente do frontend ao backend, e a seguranca critica (Owner MFA para operacoes de role/status) esta em vigor.
-
-Porem, a auditoria encontrou **6 problemas** que violam o Protocolo RISE V3. Nenhum compromete a seguranca diretamente, mas todos representam divida tecnica ou inconsistencia que devem ser eliminadas.
+Apos leitura completa e detalhada de TODOS os 15+ arquivos envolvidos na implementacao do Step-Up MFA, a auditoria identifica que **as 6 correcoes da rodada anterior foram aplicadas com sucesso**, com excecao de **2 problemas residuais** que ainda violam o Protocolo RISE V3.
 
 ---
 
-## Problemas Encontrados
+## Status das 6 Correcoes Anteriores
 
-### PROBLEMA 1 - BUG CRITICO: `isChangingRole` e estado morto (isPending sempre false)
+| # | Problema Original | Status | Evidencia |
+|---|-------------------|--------|-----------|
+| 1 | `isChangingRole` morto / `isPending` sempre false | CORRIGIDO | Zero ocorrencias de `isChangingRole` no codebase. `AdminUsersTab.tsx` linha 239 usa `isPending={isUsersLoading}` corretamente. |
+| 2 | `ROLE_HIERARCHY` morto em manage-user-role | CORRIGIDO | Constante removida. `ROLE_HIERARCHY` existe APENAS em `_shared/role-validator.ts` onde e UTILIZADO ativamente (linhas 53, 70, 125). |
+| 3 | Numeracao de niveis MFA inconsistente | PARCIALMENTE CORRIGIDO | Header do `step-up-mfa.ts` (linhas 7-8) diz "Level 1 / SELF_MFA" e "Level 2 / OWNER_MFA" corretamente. Porem os DOCSTRINGS das funcoes (linhas 108 e 142) ainda dizem "Level 2 - Self" e "Level 3 - Owner". |
+| 4 | manage-user-status version desatualizada | CORRIGIDO | Header atualizado para `@version 3.0.0 - Step-Up MFA Owner integration` com descricao de seguranca completa. |
+| 5 | mfaCode nao limpo apos erro | CORRIGIDO | `useEffect` implementado em ambos `RoleChangeDialog.tsx` (linhas 52-56) e `UserActionDialog.tsx` (linhas 51-55). |
+| 6 | manage-user-role sem Sentry wrapper | CORRIGIDO | Linha 39: `Deno.serve(withSentry("manage-user-role", async (req: Request) => {` |
 
-| Severidade | Tipo | Arquivo(s) |
-|------------|------|------------|
-| CRITICA | Bug funcional | `adminMachine.types.ts`, `adminMachine.ts`, `AdminUsersTab.tsx` |
+---
+
+## Problemas Residuais Encontrados
+
+### PROBLEMA RESIDUAL 1 - DOCSTRINGS DE FUNCAO AINDA COM NUMERACAO ANTIGA
+
+| Severidade | Tipo | Arquivo |
+|------------|------|---------|
+| ALTA | Documentacao inconsistente | `supabase/functions/_shared/step-up-mfa.ts` |
 
 **Diagnostico:**
-- O campo `isChangingRole` existe em `UsersRegionContext` (tipo na linha 45 + valor inicial na linha 203)
-- NENHUMA transicao da state machine (`adminMachine.ts`) JAMAIS altera esse campo para `true`
-- `CONFIRM_ROLE_CHANGE` (linha 57) faz `usersLoading: true` (campo TOP-LEVEL), NAO `users.isChangingRole`
-- `AdminUsersTab.tsx` (linha 239) passa `isPending={usersContext.isChangingRole || false}` que e SEMPRE `false`
+O header do arquivo (linhas 7-8) foi corrigido para "Level 1 / SELF_MFA" e "Level 2 / OWNER_MFA". Porem, os docstrings das funcoes NAO foram atualizados:
 
-**Impacto:**
-- O botao "Confirmar com MFA" do `RoleChangeDialog` NUNCA fica desabilitado durante a chamada API
-- O texto "Verificando..." NUNCA aparece
-- O usuario pode clicar multiplas vezes enviando requisicoes duplicadas
+- Linha 108: `Verifies the caller's own TOTP code (Level 2 - Self).` -- deveria ser `(Level 1 - Self / SELF_MFA)`
+- Linha 142: `Verifies the system Owner's TOTP code (Level 3 - Owner).` -- deveria ser `(Level 2 - Owner / OWNER_MFA)`
+
+Isso cria uma contradica interna no MESMO arquivo: o header diz uma coisa, os docstrings dizem outra.
 
 **Correcao:**
-Usar `isUsersLoading` (que ja e exposto pelo `AdminContext` na linha 185) no `AdminUsersTab.tsx` ao inves de `usersContext.isChangingRole`. E remover o campo morto `isChangingRole` do tipo e do contexto inicial.
+- Linha 108: Alterar para `Verifies the caller's own TOTP code (Level 1 / SELF_MFA).`
+- Linha 142: Alterar para `Verifies the system Owner's TOTP code (Level 2 / OWNER_MFA).`
 
 ---
 
-### PROBLEMA 2 - CODIGO MORTO: `ROLE_HIERARCHY` em manage-user-role
+### PROBLEMA RESIDUAL 2 - manage-user-status SEM SENTRY WRAPPER
 
-| Severidade | Tipo | Arquivo(s) |
-|------------|------|------------|
-| ALTA | Codigo morto | `manage-user-role/index.ts` (linhas 32-37) |
+| Severidade | Tipo | Arquivo |
+|------------|------|---------|
+| MEDIA | Inconsistencia de observabilidade | `supabase/functions/manage-user-status/index.ts` |
 
 **Diagnostico:**
-A constante `ROLE_HIERARCHY` e declarada mas NUNCA referenciada em nenhum lugar do arquivo. Zero ocorrencias de uso.
+A correcao #6 adicionou `withSentry` em `manage-user-role`, porem `manage-user-status` continua usando `Deno.serve(async (req) => {` diretamente (linha 29), sem o wrapper Sentry.
+
+Ambas as funcoes sao criticas (operacoes de moderacao), ambas deveriam ter observabilidade identica.
 
 **Correcao:**
-Deletar as linhas 32-37.
+- Importar `withSentry` de `../_shared/sentry.ts`
+- Alterar linha 29 para `Deno.serve(withSentry("manage-user-status", async (req) => {`
 
 ---
 
-### PROBLEMA 3 - DOCUMENTACAO INCONSISTENTE: Numeracao de niveis MFA
+## Verificacao Completa do Fluxo
 
-| Severidade | Tipo | Arquivo(s) |
-|------------|------|------------|
-| ALTA | Documentacao | `step-up-mfa.ts`, `critical-operation-guard.ts`, `EDGE_FUNCTIONS_REGISTRY.md` |
+### Backend (Edge Functions)
 
-**Diagnostico:**
-Tres sistemas de numeracao diferentes para os mesmos conceitos:
+| Componente | Status | Detalhes |
+|-----------|--------|----------|
+| `_shared/step-up-mfa.ts` | OK (com docstrings a corrigir) | `requireSelfMfa` e `requireOwnerMfa` funcionais |
+| `_shared/critical-operation-guard.ts` | PERFEITO | Enum `CriticalLevel`, audit logging, `guardCriticalOperation` |
+| `manage-user-role/index.ts` | PERFEITO | `guardCriticalOperation` + `withSentry` + audit log + sem dead code |
+| `manage-user-status/index.ts` | OK (sem Sentry) | `guardCriticalOperation` integrado, falta `withSentry` |
+| `unified-auth/handlers/mfa-verify.ts` | PERFEITO | `mfa_verified_at` atualizado apos verificacao (linhas 182-186) |
+| `_shared/audit-logger.ts` | PERFEITO | `STEP_UP_MFA_SUCCESS`, `STEP_UP_MFA_FAILED`, `OWNER_MFA_REQUIRED` registrados |
 
-| Local | Self MFA | Owner MFA |
-|-------|----------|-----------|
-| `step-up-mfa.ts` header (linhas 7-8) | "Level 2 (Self)" | "Level 3 (Owner)" |
-| `CriticalLevel` enum (linhas 41-45) | `SELF_MFA = 1` | `OWNER_MFA = 2` |
-| `EDGE_FUNCTIONS_REGISTRY.md` (linhas 243-244) | "Level 1 (SELF_MFA)" | "Level 2 (OWNER_MFA)" |
+### Frontend (React Components)
 
-**Correcao:**
-Unificar para a numeracao do `CriticalLevel` enum (que e o codigo executavel e portanto a SSOT):
-- Level 0 = NONE
-- Level 1 = SELF_MFA
-- Level 2 = OWNER_MFA
+| Componente | Status | Detalhes |
+|-----------|--------|----------|
+| `OwnerMfaInput.tsx` | PERFEITO | Componente reutilizavel, 75 linhas, controlled, sem logica de validacao |
+| `RoleChangeDialog.tsx` | PERFEITO | `useEffect` para limpar mfaCode, `isPending` via props, 113 linhas |
+| `UserActionDialog.tsx` | PERFEITO | Mesmo padrao, `useEffect` para mfaError, 161 linhas |
+| `AdminUsersTab.tsx` | PERFEITO | `isPending={isUsersLoading}` na linha 239, sem dead code |
+| `UserDetailSheet.tsx` | PERFEITO | `actionMutation.isPending` para `isPending`, `mfaError` state gerenciado |
 
-Atualizar header do `step-up-mfa.ts` de "Level 2/3" para "Level 1/2".
+### State Management (XState)
 
----
+| Componente | Status | Detalhes |
+|-----------|--------|----------|
+| `adminMachine.types.ts` | PERFEITO | Zero `isChangingRole`, `mfaError` em `UsersRegionContext` |
+| `adminMachine.ts` | PERFEITO | `ROLE_CHANGE_MFA_ERROR` mantem dialog aberto com `mfaError`, `CONFIRM_ROLE_CHANGE` seta `usersLoading: true` |
+| `AdminContext.tsx` | PERFEITO | `confirmRoleChange` aceita `ownerMfaCode`, 239 linhas |
+| `adminHandlers.ts` | PERFEITO | Detecta `OWNER_MFA_REQUIRED` / `STEP_UP_MFA_FAILED` e envia `ROLE_CHANGE_MFA_ERROR` |
 
-### PROBLEMA 4 - DOCUMENTACAO DESATUALIZADA: manage-user-status version
+### Documentacao
 
-| Severidade | Tipo | Arquivo(s) |
-|------------|------|------------|
-| MEDIA | Documentacao | `manage-user-status/index.ts` (linha 14) |
-
-**Diagnostico:**
-O docstring diz `@version 2.0.0 - Migrated from profiles to users (SSOT)`. Nao menciona a integracao com Step-Up MFA que acabou de ser implementada.
-
-**Correcao:**
-Atualizar para `@version 3.0.0 - Step-Up MFA Owner integration` e adicionar descricao do MFA nas regras de seguranca do header.
-
----
-
-### PROBLEMA 5 - UX: mfaCode nao limpo apos erro de MFA
-
-| Severidade | Tipo | Arquivo(s) |
-|------------|------|------------|
-| MEDIA | UX | `RoleChangeDialog.tsx`, `UserActionDialog.tsx` |
-
-**Diagnostico:**
-Quando o backend retorna `STEP_UP_MFA_FAILED` (codigo invalido), o modal permanece aberto com a mensagem de erro corretamente, porem o input OTP mantem o codigo antigo. Codigos TOTP rotacionam a cada 30 segundos, entao o codigo antigo e inutil.
-
-**Correcao:**
-Limpar `mfaCode` via `setMfaCode("")` quando `error` prop muda para um valor non-null. Usar `useEffect` observando `error`.
+| Componente | Status | Detalhes |
+|-----------|--------|----------|
+| `EDGE_FUNCTIONS_REGISTRY.md` | PERFEITO | Niveis documentados corretamente (Level 0/1/2), shared modules listados |
+| `mfaService.ts` | PERFEITO | `StepUpMfaErrorResponse` com tipos corretos |
 
 ---
 
-### PROBLEMA 6 - INCONSISTENCIA: manage-user-role sem Sentry wrapper
+## Verificacao de Higiene RISE V3
 
-| Severidade | Tipo | Arquivo(s) |
-|------------|------|------------|
-| MEDIA | Consistencia | `manage-user-role/index.ts` (linha 45) |
-
-**Diagnostico:**
-Usa `Deno.serve(async (req) => {...})` diretamente, enquanto outras edge functions (coupon-management, webhook-crud, etc.) usam `serve(withSentry("...", async (req) => {...}))`.
-
-Isso significa que erros nao capturados nesta funcao NAO sao reportados ao Sentry.
-
-**Correcao:**
-Migrar para `serve(withSentry("manage-user-role", async (req) => {...}))` seguindo o padrao das outras funcoes.
+| Regra | Status | Detalhes |
+|-------|--------|----------|
+| Zero codigo morto | CORRIGIDO | `isChangingRole` e `ROLE_HIERARCHY` eliminados |
+| Limite 300 linhas | OK | Maior arquivo: `UserDetailSheet.tsx` (290 linhas), `manage-user-status/index.ts` (269 linhas) |
+| Zero `supabase.from()` no frontend | OK | Todas as chamadas via `api.call()` e `api.publicCall()` |
+| Zero console.log direto | OK | Todos os logs via `createLogger` |
+| Nomenclatura em ingles | OK | Todos os nomes de variaveis/funcoes em ingles |
+| Secrets protegidos | OK | `MFA_ENCRYPTION_KEY` via secrets, nao exposto |
+| Zero atalhos/gambiarras | OK | Nenhuma frase proibida encontrada |
 
 ---
 
-## Resumo de Impacto
+## Plano de Correcao (2 itens restantes)
 
-| # | Problema | Violacao RISE V3 |
-|---|----------|-----------------|
-| 1 | `isChangingRole` morto / `isPending` sempre false | Secao 6.4 (Higiene de Codigo) + Bug funcional |
-| 2 | `ROLE_HIERARCHY` nunca usado | Secao 5.4 (Divida Tecnica Zero) |
-| 3 | Numeracao de niveis inconsistente em 3 arquivos | Secao 6.4 (Nomenclatura clara) |
-| 4 | Version/docstring desatualizado | Secao 8 (Registry como fonte de verdade) |
-| 5 | mfaCode nao limpo apos erro | Secao 5.5 (Feature deve funcionar corretamente) |
-| 6 | Missing Sentry wrapper | Secao 6.3 (Desacoplamento Radical - observabilidade consistente) |
+### Arquivo 1: `supabase/functions/_shared/step-up-mfa.ts`
+- Linha 108: Alterar docstring de `(Level 2 - Self)` para `(Level 1 / SELF_MFA)`
+- Linha 142: Alterar docstring de `(Level 3 - Owner)` para `(Level 2 / OWNER_MFA)`
 
----
-
-## Plano de Correcao
-
-### Arquivo 1: `src/modules/admin/machines/adminMachine.types.ts`
-- Remover campo `isChangingRole` de `UsersRegionContext` (linha 45)
-- Remover `isChangingRole: false` de `initialUsersContext` (linha 203)
-
-### Arquivo 2: `src/modules/admin/machines/adminMachine.ts`
-- `CONFIRM_ROLE_CHANGE`: Adicionar `users: ({ context }) => ({ ...context.users, mfaError: null, isChangingRole: true })` 
-
-Na verdade a melhor correcao e: REMOVER `isChangingRole` completamente (codigo morto) e usar `usersLoading` que ja funciona corretamente. A transicao `CONFIRM_ROLE_CHANGE` ja faz `usersLoading: true`. Entao:
-
-### Arquivo 3: `src/components/admin/AdminUsersTab.tsx`
-- Linha 239: Trocar `isPending={usersContext.isChangingRole || false}` para `isPending={isUsersLoading}`
-- Usar `isUsersLoading` que ja e exposto pelo AdminContext
-
-### Arquivo 4: `supabase/functions/manage-user-role/index.ts`
-- Remover `ROLE_HIERARCHY` (linhas 32-37)
-- Migrar `Deno.serve` para `serve(withSentry("manage-user-role", ...))` com imports necessarios
-
-### Arquivo 5: `supabase/functions/_shared/step-up-mfa.ts`
-- Corrigir header: "Level 2 (Self)" para "Level 1 (Self)" e "Level 3 (Owner)" para "Level 2 (Owner)"
-
-### Arquivo 6: `supabase/functions/manage-user-status/index.ts`
-- Atualizar `@version` para `3.0.0 - Step-Up MFA Owner integration`
-- Adicionar "Step-Up MFA (Owner)" nas regras de seguranca do header
-
-### Arquivo 7: `src/modules/admin/components/users/RoleChangeDialog.tsx`
-- Adicionar `useEffect` para limpar `mfaCode` quando `error` muda para valor non-null
-
-### Arquivo 8: `src/modules/admin/components/sheets/UserActionDialog.tsx`
-- Adicionar `useEffect` para limpar `mfaCode` quando `mfaError` muda para valor non-null
+### Arquivo 2: `supabase/functions/manage-user-status/index.ts`
+- Adicionar import: `import { withSentry } from "../_shared/sentry.ts";`
+- Linha 29: Alterar `Deno.serve(async (req) => {` para `Deno.serve(withSentry("manage-user-status", async (req) => {`
+- Ultima linha: Fechar o parentese adicional do `withSentry`
 
 ### Deploy
-- Redeployar `manage-user-role` e `manage-user-status` apos correcoes
+- Redeployar `manage-user-status` apos correcao do Sentry wrapper
 
 ---
 
-## Checkpoint RISE V3
+## Veredicto Final
 
-| Pergunta | Resposta |
-|----------|----------|
-| Todos os problemas sao REAIS? | Sim - 6 problemas verificados via leitura direta do codigo |
-| Alguma suposicao sem ler codigo? | Nenhuma - cada achado tem arquivo/linha especifica |
-| As correcoes criam divida tecnica? | Zero - removem divida existente |
-| O resultado final sobrevive 10 anos? | Sim - elimina inconsistencias e dead code |
+Apos estas 2 correcoes residuais, a implementacao do Step-Up MFA estara em **100% de conformidade** com o Protocolo RISE V3:
+
+| Criterio | Nota |
+|----------|------|
+| Manutenibilidade Infinita | 10/10 - Middleware reutilizavel, componentes desacoplados |
+| Zero Divida Tecnica | 10/10 - Zero dead code, documentacao consistente |
+| Arquitetura Correta | 10/10 - 3 niveis claros, SOLID, Clean Architecture |
+| Escalabilidade | 10/10 - Adicionar nova operacao critica = 1 linha |
+| Seguranca | 10/10 - Admin comprometido NAO escala privilegios sem TOTP do Owner |
+| **NOTA FINAL** | **10.0/10** |
