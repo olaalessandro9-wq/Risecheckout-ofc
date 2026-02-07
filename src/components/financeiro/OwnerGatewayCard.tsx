@@ -6,8 +6,9 @@
  * Ou "Em Breve" para gateways com status 'coming_soon'
  */
 
-import { LucideIcon, Check, Clock } from "lucide-react";
+import { LucideIcon, Check, Clock, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { GatewayStatus } from "@/config/gateways/types";
 
 interface OwnerGatewayCardProps {
@@ -16,6 +17,10 @@ interface OwnerGatewayCardProps {
   icon: LucideIcon;
   iconColor?: string;
   status?: GatewayStatus;
+  /** Callback para reconexão OAuth (renderiza botão quando presente) */
+  onConnect?: () => void;
+  /** Estado de loading durante OAuth */
+  connecting?: boolean;
 }
 
 export function OwnerGatewayCard({
@@ -24,6 +29,8 @@ export function OwnerGatewayCard({
   icon: Icon,
   iconColor = "#6366f1",
   status = "active",
+  onConnect,
+  connecting = false,
 }: OwnerGatewayCardProps) {
   const isComingSoon = status === "coming_soon";
 
@@ -52,7 +59,7 @@ export function OwnerGatewayCard({
         </p>
       </div>
 
-      {/* Badges condicionais */}
+      {/* Badges e ações condicionais */}
       {isComingSoon ? (
         <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border">
           <Clock className="w-3 h-3 text-muted-foreground" />
@@ -61,9 +68,9 @@ export function OwnerGatewayCard({
           </span>
         </div>
       ) : (
-        <>
+        <div className="flex-shrink-0 flex items-center gap-2">
           {/* Badge Integrado */}
-          <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/30">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/30">
             <Check className="w-3 h-3 text-green-500" />
             <span className="text-xs font-medium text-green-600 dark:text-green-400">
               Integrado via Secrets
@@ -71,13 +78,27 @@ export function OwnerGatewayCard({
           </div>
 
           {/* Badge Produção */}
-          <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/30">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/30">
             <Check className="w-3 h-3 text-green-500" />
             <span className="text-xs font-medium text-green-600 dark:text-green-400">
               Produção
             </span>
           </div>
-        </>
+
+          {/* Botão Reconectar (somente quando onConnect presente) */}
+          {onConnect && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onConnect}
+              disabled={connecting}
+              className="ml-1"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", connecting && "animate-spin")} />
+              {connecting ? "Conectando..." : "Reconectar"}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

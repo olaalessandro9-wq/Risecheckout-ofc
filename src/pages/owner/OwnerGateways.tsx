@@ -10,14 +10,25 @@
  */
 
 import { Shield } from "lucide-react";
+import { toast } from "sonner";
 import { OwnerGatewayCard } from "@/components/financeiro/OwnerGatewayCard";
 import { GATEWAY_REGISTRY, GATEWAY_ORDER } from "@/config/gateways";
+import { useMercadoPagoConnection } from "@/integrations/gateways/mercadopago/hooks/useMercadoPagoConnection";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import type { GatewayId } from "@/config/gateways/types";
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export default function OwnerGateways() {
+  const { user } = useUnifiedAuth();
+
+  const { connectingOAuth, handleConnectOAuth } = useMercadoPagoConnection({
+    userId: user?.id,
+    onConnectionChange: () => toast.success('Mercado Pago reconectado com sucesso!'),
+  });
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -50,6 +61,7 @@ export default function OwnerGateways() {
       <div className="max-w-3xl space-y-3">
         {GATEWAY_ORDER.map((gatewayId) => {
           const gateway = GATEWAY_REGISTRY[gatewayId];
+          const isMercadoPago = gatewayId === ('mercadopago' as GatewayId);
           return (
             <OwnerGatewayCard
               key={gatewayId}
@@ -58,6 +70,8 @@ export default function OwnerGateways() {
               icon={gateway.icon}
               iconColor={gateway.iconColor}
               status={gateway.status}
+              onConnect={isMercadoPago ? handleConnectOAuth : undefined}
+              connecting={isMercadoPago ? connectingOAuth : false}
             />
           );
         })}
