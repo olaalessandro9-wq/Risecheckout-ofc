@@ -6,7 +6,7 @@
  * @version 2.0.0 - Step-Up MFA Owner integration
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +46,13 @@ export function UserActionDialog({
   onCancel,
 }: UserActionDialogProps) {
   const [mfaCode, setMfaCode] = useState("");
+
+  // Clear stale TOTP code when backend returns MFA error
+  useEffect(() => {
+    if (mfaError) {
+      setMfaCode("");
+    }
+  }, [mfaError]);
 
   if (!dialog) return null;
 

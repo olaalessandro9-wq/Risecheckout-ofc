@@ -236,7 +236,7 @@ export function AdminUsersTab() {
           userName={usersContext.roleChangeDialog.userName}
           currentRole={usersContext.roleChangeDialog.currentRole}
           newRole={usersContext.roleChangeDialog.newRole}
-          isPending={usersContext.isChangingRole || false}
+          isPending={isUsersLoading}
           error={usersContext.mfaError}
           onConfirm={handleConfirmRoleChange}
           onCancel={cancelRoleChange}

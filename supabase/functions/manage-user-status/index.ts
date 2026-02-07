@@ -9,9 +9,12 @@
  * - updateCustomFee: Definir taxa personalizada do checkout
  * - updateProductStatus: Alterar status do produto (active, blocked, deleted)
  * 
- * Apenas owners podem usar esta função
+ * Segurança:
+ * - Apenas owners podem usar esta função
+ * - TODAS as operações exigem Step-Up MFA do Owner (Level 2 / OWNER_MFA)
+ * - Todas as ações são registradas no audit log
  * 
- * @version 2.0.0 - Migrated from profiles to users (SSOT)
+ * @version 3.0.0 - Step-Up MFA Owner integration
  */
 
 import { getSupabaseClient } from "../_shared/supabase-client.ts";

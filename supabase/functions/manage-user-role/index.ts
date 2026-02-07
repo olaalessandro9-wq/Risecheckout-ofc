@@ -11,11 +11,11 @@
  * - Admin pode promover: seller ↔ user
  * - Owner pode fazer qualquer promoção/rebaixamento
  * - Ninguém pode rebaixar a si mesmo
- * - TODAS as operações exigem MFA do Owner (Step-Up Level 3)
+ * - TODAS as operações exigem MFA do Owner (Step-Up Level 2 / OWNER_MFA)
  * - Todas as ações são registradas no audit log
  * - CORS restrito a domínios permitidos
  * 
- * @version 2.0.0 - Step-Up MFA Owner integration
+ * @version 3.0.0 - Step-Up MFA Owner integration + Sentry
  */
 
 import { getSupabaseClient } from "../_shared/supabase-client.ts";
@@ -24,17 +24,11 @@ import { rateLimitMiddleware, RATE_LIMIT_CONFIGS, getClientIP } from "../_shared
 import { requireAuthenticatedProducer, unauthorizedResponse } from "../_shared/unified-auth.ts";
 import { guardCriticalOperation, CriticalLevel } from "../_shared/critical-operation-guard.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { withSentry } from "../_shared/sentry.ts";
 
 const log = createLogger("manage-user-role");
 
 type AppRole = "owner" | "admin" | "user" | "seller";
-
-const ROLE_HIERARCHY: Record<AppRole, number> = {
-  owner: 1,
-  admin: 2,
-  user: 3,
-  seller: 4,
-};
 
 interface RequestBody {
   targetUserId: string;
@@ -42,7 +36,7 @@ interface RequestBody {
   ownerMfaCode?: string;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withSentry("manage-user-role", async (req: Request) => {
   // SECURITY: CORS V2 com separação de ambiente (prod/dev)
   const corsResult = handleCorsV2(req);
   if (corsResult instanceof Response) {
@@ -238,4 +232,4 @@ Deno.serve(async (req: Request) => {
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));

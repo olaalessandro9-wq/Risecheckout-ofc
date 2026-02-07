@@ -4,8 +4,8 @@
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
  * Provides two levels of step-up authentication:
- * - Level 2 (Self): Verifies the caller's own TOTP code
- * - Level 3 (Owner): Verifies the system Owner's TOTP code
+ * - Level 1 / SELF_MFA: Verifies the caller's own TOTP code
+ * - Level 2 / OWNER_MFA: Verifies the system Owner's TOTP code
  * 
  * This module is the SSOT for real-time MFA verification outside
  * the login flow. It reuses mfa-helpers.ts for crypto operations.
