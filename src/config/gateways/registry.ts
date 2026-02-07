@@ -36,13 +36,13 @@ export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDefinition>> = 
     id: 'asaas',
     integrationType: 'ASAAS',
     name: 'Asaas',
-    description: 'PIX e Cartão de Crédito',
+    description: 'Gateway de pagamento PIX',
     icon: CreditCard,
     iconColor: '#00B4D8',
     status: 'active',
     capabilities: {
       pix: true,
-      creditCard: true,
+      creditCard: false,
       boleto: true,
       debitCard: false,
     },
@@ -50,7 +50,6 @@ export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDefinition>> = 
     hasEnvironmentToggle: true,
     fees: {
       pix: { percentage: 0.99 },
-      credit_card: { percentage: 3.49, transaction: 49 },
     },
     documentationUrl: 'https://docs.asaas.com',
   },
