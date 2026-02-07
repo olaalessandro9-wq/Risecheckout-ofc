@@ -19,3 +19,11 @@ export {
   calculateHourlyChartData,
   calculateChartData,
 } from "./calculations";
+
+export {
+  detectTimeMode,
+  calculateXAxisConfig,
+  formatTooltipLabel,
+} from "./chartAxisUtils";
+
+export type { ChartTimeMode } from "./chartAxisUtils";
