@@ -5,6 +5,7 @@
  * de forma centralizada e isolada.
  * 
  * RISE Protocol V3: Usa product_pixels como fonte de dados.
+ * ULTRA TRACKING: Passes Advanced Matching userData to Facebook Pixel.
  */
 
 import React from "react";
@@ -16,6 +17,7 @@ import * as Kwai from "@/integrations/tracking/kwai";
 import { createLogger } from "@/lib/logger";
 import type { CheckoutPixel } from "@/types/checkout-pixels.types";
 import type { UTMifyIntegration } from "@/integrations/tracking/utmify/types";
+import type { FacebookAdvancedMatchingData } from "@/integrations/tracking/facebook/types";
 
 const log = createLogger("TrackingManager");
 
@@ -29,6 +31,8 @@ interface TrackingManagerProps {
   productPixels?: CheckoutPixel[];
   /** UTMify ainda não migrou para product_pixels */
   utmifyConfig?: UTMifyIntegration | null;
+  /** ULTRA TRACKING: User data for Facebook Advanced Matching */
+  advancedMatching?: FacebookAdvancedMatchingData;
 }
 
 // ============================================================================
@@ -40,11 +44,13 @@ interface TrackingManagerProps {
  * 
  * Renderiza os pixels de tracking via product_pixels.
  * UTMify usa sistema separado (não migrou para product_pixels).
+ * ULTRA TRACKING: Sends Advanced Matching data to all Facebook Pixels.
  */
 export const TrackingManager: React.FC<TrackingManagerProps> = ({
   productId,
   utmifyConfig,
   productPixels = [],
+  advancedMatching,
 }) => {
   // Separar pixels por plataforma
   const facebookPixels = productPixels.filter(p => p.platform === 'facebook' && p.is_active);
@@ -59,18 +65,20 @@ export const TrackingManager: React.FC<TrackingManagerProps> = ({
     tiktok: tiktokPixels.length,
     googleAds: googleAdsPixels.length,
     kwai: kwaiPixels.length,
+    hasAdvancedMatching: !!(advancedMatching?.em || advancedMatching?.ph),
   });
 
   return (
     <>
-      {/* Facebook Pixels */}
+      {/* Facebook Pixels with Advanced Matching */}
       {facebookPixels.map((pixel) => (
         <Facebook.Pixel 
           key={`fb-product-${pixel.id}`}
           config={{ 
             pixel_id: pixel.pixel_id,
             enabled: true,
-          }} 
+          }}
+          advancedMatching={advancedMatching}
         />
       ))}
 

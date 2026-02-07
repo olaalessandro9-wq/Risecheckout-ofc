@@ -74,6 +74,12 @@ export interface OrderCreationInput {
   
   // RISE V3: Idempotency key per checkout submission attempt
   idempotency_key?: string;
+
+  // ULTRA TRACKING: Facebook browser identity for CAPI EMQ
+  fbp?: string;
+  fbc?: string;
+  customer_user_agent?: string;
+  event_source_url?: string;
 }
 
 interface ExistingOrder {
@@ -131,7 +137,12 @@ export async function createOrder(
     src,
     sck,
     // RISE V3: Idempotency key per checkout submission attempt
-    idempotency_key
+    idempotency_key,
+    // ULTRA TRACKING: Facebook browser identity for CAPI EMQ
+    fbp,
+    fbc,
+    customer_user_agent,
+    event_source_url,
   } = input;
 
   // RISE V3: Idempotency by idempotency_key (NOT by email/offer/amount)
@@ -188,7 +199,7 @@ export async function createOrder(
   }
 
   // Inserir pedido com dados criptografados
-  // RISE V3: Incluir customer_ip + UTM params + idempotency_key
+  // RISE V3: Incluir customer_ip + UTM params + idempotency_key + ULTRA TRACKING
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -222,7 +233,12 @@ export async function createOrder(
       src: src || null,
       sck: sck || null,
       // RISE V3: Idempotency key per checkout submission attempt
-      idempotency_key: idempotency_key || null
+      idempotency_key: idempotency_key || null,
+      // ULTRA TRACKING: Facebook browser identity for CAPI EMQ 8.0+
+      fbp: fbp || null,
+      fbc: fbc || null,
+      customer_user_agent: customer_user_agent || null,
+      event_source_url: event_source_url || null,
     })
     .select()
     .single();

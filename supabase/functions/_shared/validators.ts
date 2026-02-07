@@ -149,6 +149,11 @@ export interface CreateOrderInput {
   sck?: string;
   // RISE V3: Idempotency key per checkout submission attempt
   idempotency_key?: string;
+  // ULTRA TRACKING: Facebook browser identity for CAPI EMQ
+  fbp?: string;
+  fbc?: string;
+  customer_user_agent?: string;
+  event_source_url?: string;
 }
 
 export function validateCreateOrderInput(data: unknown): ValidationResult<CreateOrderInput> {
@@ -231,6 +236,12 @@ export function validateCreateOrderInput(data: unknown): ValidationResult<Create
     return val.trim().slice(0, 500);
   };
 
+  // ULTRA TRACKING: Normalize tracking identity fields (trim, max length)
+  const normalizeTrackingField = (val: unknown, maxLen = 1000): string | undefined => {
+    if (typeof val !== 'string' || !val.trim()) return undefined;
+    return val.trim().slice(0, maxLen);
+  };
+
   return {
     success: true,
     data: {
@@ -256,6 +267,11 @@ export function validateCreateOrderInput(data: unknown): ValidationResult<Create
       sck: normalizeUTM(input.sck),
       // RISE V3: Idempotency key per checkout submission attempt
       idempotency_key: input.idempotency_key as string | undefined,
+      // ULTRA TRACKING: Facebook browser identity for CAPI EMQ
+      fbp: normalizeTrackingField(input.fbp, 500),
+      fbc: normalizeTrackingField(input.fbc, 500),
+      customer_user_agent: normalizeTrackingField(input.customer_user_agent, 512),
+      event_source_url: normalizeTrackingField(input.event_source_url, 2000),
     }
   };
 }

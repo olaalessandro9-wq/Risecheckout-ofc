@@ -34,6 +34,26 @@ export interface FacebookPixelConfig {
 }
 
 /**
+ * User data for Facebook Advanced Matching (Manual Mode).
+ * When provided to fbq("init", pixelId, userData), the Pixel SDK
+ * automatically hashes these values and sends them to Meta for
+ * improved Event Match Quality (EMQ).
+ * 
+ * IMPORTANT: Values must be sent in PLAIN TEXT — the Pixel SDK
+ * handles SHA-256 hashing automatically for Advanced Matching.
+ */
+export interface FacebookAdvancedMatchingData {
+  /** Customer email (plain text — SDK hashes it) */
+  em?: string;
+  /** Customer phone with country code, digits only (e.g., "5511999999999") */
+  ph?: string;
+  /** Customer first name (lowercase) */
+  fn?: string;
+  /** Customer last name (lowercase) */
+  ln?: string;
+}
+
+/**
  * Parâmetros de eventos do Facebook
  * Utilizados ao disparar eventos como ViewContent, Purchase, etc
  */

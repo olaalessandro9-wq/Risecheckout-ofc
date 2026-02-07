@@ -33,6 +33,7 @@ const log = createLogger("FacebookCAPIDispatcher");
 /**
  * Fetches order data needed for CAPI dispatch.
  * Includes all order items (main product + order bumps) for accurate content_ids.
+ * ULTRA TRACKING: Also fetches fbp, fbc, customer_ip, customer_user_agent, event_source_url.
  */
 async function fetchOrderForCAPI(
   supabase: SupabaseClient,
@@ -43,6 +44,8 @@ async function fetchOrderForCAPI(
     .select(`
       id, vendor_id, amount_cents, payment_method,
       customer_email, customer_name, customer_phone,
+      customer_ip, customer_user_agent, event_source_url,
+      fbp, fbc,
       order_items (product_id, product_name, is_bump)
     `)
     .eq("id", orderId)
@@ -88,6 +91,12 @@ async function fetchOrderForCAPI(
     customerName: data.customer_name,
     customerPhone: data.customer_phone,
     paymentMethod: data.payment_method || 'unknown',
+    // ULTRA TRACKING: Identity fields for EMQ 8.0+
+    fbp: data.fbp || null,
+    fbc: data.fbc || null,
+    clientIpAddress: data.customer_ip || null,
+    clientUserAgent: data.customer_user_agent || null,
+    eventSourceUrl: data.event_source_url || null,
   };
 }
 
@@ -243,7 +252,15 @@ export async function dispatchFacebookCAPIForOrder(
         phone: order.customerPhone,
         firstName,
         lastName,
+        // ULTRA TRACKING: Identity fields for EMQ 8.0+
+        clientIpAddress: order.clientIpAddress,
+        clientUserAgent: order.clientUserAgent,
+        fbc: order.fbc,
+        fbp: order.fbp,
+        externalId: order.orderId,
       },
+      // ULTRA TRACKING: Checkout page URL for event attribution
+      eventSourceUrl: order.eventSourceUrl || undefined,
     };
 
     log.info(`Dispatching ${eventName} to pixel ${pixel.pixelId}`, {

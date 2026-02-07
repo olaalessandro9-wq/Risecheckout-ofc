@@ -61,6 +61,11 @@ interface ValidatedOrderData {
   sck?: string;
   // RISE V3: Idempotency key per checkout submission attempt
   idempotency_key?: string;
+  // ULTRA TRACKING: Facebook browser identity for CAPI EMQ
+  fbp?: string;
+  fbc?: string;
+  customer_user_agent?: string;
+  event_source_url?: string;
 }
 
 interface ProductData {
@@ -143,7 +148,12 @@ serve(withSentry('create-order', async (req) => {
       src,
       sck,
       // RISE V3: Idempotency key per checkout submission attempt
-      idempotency_key
+      idempotency_key,
+      // ULTRA TRACKING: Facebook browser identity for CAPI EMQ
+      fbp,
+      fbc,
+      customer_user_agent,
+      event_source_url,
     } = validatedData;
 
     // RISE V3: Capturar IP real do cliente para UTMify e análise de fraude
@@ -201,7 +211,7 @@ serve(withSentry('create-order', async (req) => {
       allOrderItems
     });
 
-    // 8. CRIAR PEDIDO (RISE V3: Inclui customer_ip + UTM params + idempotency_key)
+    // 8. CRIAR PEDIDO (RISE V3: Inclui customer_ip + UTM params + idempotency_key + ULTRA TRACKING)
     const orderResult = await createOrder(
       supabase,
       {
@@ -235,7 +245,12 @@ serve(withSentry('create-order', async (req) => {
         src,
         sck,
         // RISE V3: Idempotency key per checkout submission attempt
-        idempotency_key
+        idempotency_key,
+        // ULTRA TRACKING: Facebook browser identity for CAPI EMQ
+        fbp,
+        fbc,
+        customer_user_agent,
+        event_source_url,
       },
       corsHeaders
     );
