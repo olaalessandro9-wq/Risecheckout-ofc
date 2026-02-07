@@ -1,13 +1,17 @@
 /**
  * PaymentSuccessPage - Página de sucesso de pagamento
  * 
- * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
+ * @version 5.0.0 - RISE Protocol V3 - Arquitetura Híbrida
  * 
- * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
- * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
- * Este componente NÃO dispara mais eventos UTMify - ZERO duplicação.
+ * Arquitetura Híbrida UTMify:
+ * - Eventos transacionais (purchase_approved) são disparados pelo backend (SSOT)
+ *   via _shared/utmify/dispatcher.ts nos webhooks de pagamento.
+ * - Eventos comportamentais (InitiateCheckout) são disparados pelo Pixel CDN
+ *   no componente de checkout, NÃO nesta página de sucesso.
  * 
- * @see docs/EDGE_FUNCTIONS_REGISTRY.md - UTMify Backend SSOT
+ * Este componente NÃO dispara eventos UTMify — ZERO duplicação.
+ * 
+ * @see docs/EDGE_FUNCTIONS_REGISTRY.md
  * @see RISE Protocol V3 - Zero database access from frontend
  */
 
@@ -113,9 +117,9 @@ export const PaymentSuccessPage = () => {
     fetchOrderDetails();
   }, [orderId, token]);
 
-  // RISE V3 - Backend SSOT: UTMify tracking é feito exclusivamente no backend
-  // via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
-  // Não há mais código de tracking aqui para evitar duplicação.
+  // Arquitetura Híbrida UTMify: eventos transacionais são disparados pelo backend (SSOT)
+  // via _shared/utmify/dispatcher.ts nos webhooks de pagamento.
+  // InitiateCheckout é disparado pelo Pixel CDN no checkout, não aqui.
 
   const handleCopyOrderId = () => {
     if (orderId) {

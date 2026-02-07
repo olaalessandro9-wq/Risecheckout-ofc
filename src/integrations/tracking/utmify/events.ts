@@ -2,16 +2,17 @@
  * UTMify Events - Re-exports de Utils
  * Módulo: src/integrations/tracking/utmify
  * 
- * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
+ * @version 5.0.0 - RISE Protocol V3 - Arquitetura Híbrida
  * 
- * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
- * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+ * Arquitetura Híbrida UTMify:
+ * - Eventos transacionais no backend (SSOT) via _shared/utmify/dispatcher.ts
+ * - Eventos comportamentais (InitiateCheckout) no frontend via Pixel CDN
  * 
  * Este arquivo mantém apenas os re-exports de utils para compatibilidade
  * com código existente que importa daqui.
  * 
- * @see docs/EDGE_FUNCTIONS_REGISTRY.md - UTMify Backend SSOT
- * @see supabase/functions/_shared/utmify-dispatcher.ts
+ * @see docs/EDGE_FUNCTIONS_REGISTRY.md
+ * @see supabase/functions/_shared/utmify/dispatcher.ts
  */
 
 // Re-export utils para compatibilidade (usado pelo createOrderActor)
