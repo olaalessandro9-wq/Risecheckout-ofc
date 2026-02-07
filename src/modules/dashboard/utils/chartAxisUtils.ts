@@ -66,45 +66,84 @@ export function detectTimeMode(data: readonly ChartDataPoint[]): ChartTimeMode {
 
 /**
  * Calculate the maximum number of ticks that fit comfortably
- * based on chart width.
+ * based on chart width and estimated label width.
+ * 
+ * @param chartWidth - Available chart width in pixels
+ * @param estimatedLabelWidth - Estimated pixel width per label (with gap)
  */
-function getMaxTicks(chartWidth: number): number {
+function getMaxTicks(chartWidth: number, estimatedLabelWidth: number = 55): number {
   if (chartWidth <= 0) return 6;
-  // ~80px per tick label is comfortable
-  return Math.max(4, Math.floor(chartWidth / 80));
+  return Math.max(4, Math.floor(chartWidth / estimatedLabelWidth));
 }
 
 /**
- * Select evenly-distributed indices from an array.
- * Always includes first and last elements.
+ * Select items with a consistent fixed integer step.
+ * 
+ * Unlike the previous fractional-step approach, this uses
+ * Math.ceil to produce a fixed integer step, guaranteeing
+ * perfectly uniform gaps between selected items.
+ * 
+ * Includes a 20% tolerance threshold: if items nearly fit
+ * (within 120% of maxCount), all items are shown to avoid
+ * removing just 1-2 items inconsistently.
  */
-function selectEvenlySpaced(items: readonly string[], maxCount: number): string[] {
-  if (items.length <= maxCount) return [...items];
+function selectWithConsistentStep(
+  items: readonly string[],
+  maxCount: number,
+): string[] {
+  // Tolerance: if items nearly fit (within 20%), show all
+  if (items.length <= Math.ceil(maxCount * 1.2)) return [...items];
 
-  const result: string[] = [items[0]];
-  const step = (items.length - 1) / (maxCount - 1);
+  // Use fixed integer step for consistent gaps
+  const step = Math.ceil(items.length / maxCount);
+  const result: string[] = [];
 
-  for (let i = 1; i < maxCount - 1; i++) {
-    const index = Math.round(step * i);
-    result.push(items[index]);
+  for (let i = 0; i < items.length; i += step) {
+    result.push(items[i]);
   }
 
-  result.push(items[items.length - 1]);
+  // Always include last item if not already included
+  if (result[result.length - 1] !== items[items.length - 1]) {
+    result.push(items[items.length - 1]);
+  }
+
   return result;
 }
 
 /**
- * Calculate hourly ticks.
- * Shows ticks at regular intervals (every 3h by default),
- * adapting to chart width.
+ * Natural divisors of 24 for perfectly uniform hourly tick spacing.
+ * Each interval divides 24 evenly, guaranteeing consistent gaps.
+ */
+const NATURAL_HOUR_INTERVALS = [1, 2, 3, 4, 6, 8, 12] as const;
+
+/**
+ * Calculate hourly ticks using natural divisors of 24.
+ * 
+ * Instead of fractional steps that cause rounding artifacts
+ * (e.g., 12h followed by 13h), this selects the smallest
+ * natural interval where the resulting tick count fits.
  */
 function calculateHourlyTicks(
   data: readonly ChartDataPoint[],
   chartWidth: number,
 ): XAxisConfig {
-  const maxTicks = getMaxTicks(chartWidth);
+  const maxTicks = getMaxTicks(chartWidth, 45); // "09h" labels are ~45px
   const allDates = data.map((d) => d.date);
-  const ticks = selectEvenlySpaced(allDates, maxTicks);
+
+  // Find smallest natural interval that fits within maxTicks
+  let interval = 12;
+  for (const candidate of NATURAL_HOUR_INTERVALS) {
+    if (Math.ceil(allDates.length / candidate) <= maxTicks) {
+      interval = candidate;
+      break;
+    }
+  }
+
+  // Generate ticks at natural intervals
+  const ticks: string[] = [];
+  for (let i = 0; i < allDates.length; i += interval) {
+    ticks.push(allDates[i]);
+  }
 
   return {
     ticks,
@@ -124,9 +163,20 @@ function calculateDailyTicks(
   chartWidth: number,
 ): XAxisConfig {
   const count = data.length;
-  const maxTicks = getMaxTicks(chartWidth);
+
+  // Estimate label width based on the format that will be used
+  let estimatedLabelWidth: number;
+  if (count <= 14) {
+    estimatedLabelWidth = 50;  // "15/01" format
+  } else if (count <= 62) {
+    estimatedLabelWidth = 55;  // "8 Jan" format
+  } else {
+    estimatedLabelWidth = 58;  // "Jan/26" format
+  }
+
+  const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
   const allDates = data.map((d) => d.date);
-  const ticks = selectEvenlySpaced(allDates, maxTicks);
+  const ticks = selectWithConsistentStep(allDates, maxTicks);
 
   // Choose formatter based on total data points
   const formatter = getDailyFormatter(count);
