@@ -1,80 +1,64 @@
 
-# Corrigir Links Externos no Editor de Conteudo da Area de Membros
+# Limitar Parcelamento do Mercado Pago a 9x
 
-## Problema Diagnosticado
+## Problema
 
-O bug ocorre em duas camadas:
-
-1. **Insercao (Editor)**: A funcao `addLink()` no `RichTextEditor.tsx` (linha 45-49) salva a URL exatamente como o usuario digita. Se o usuario digita `loja.risestore.online` (sem `https://`), o TipTap grava `href="loja.risestore.online"`.
-
-2. **Renderizacao (Buyer)**: O navegador interpreta `href="loja.risestore.online"` como um caminho **relativo**, resultando em `https://sandrodev.lovable.app/.../aula/loja.risestore.online`.
+O dropdown de parcelamento no checkout exibe opcoes de 1x ate 12x. O produtor deseja limitar o parcelamento via Mercado Pago a no maximo **9 parcelas**.
 
 ## Causa Raiz
 
-A funcao `addLink()` nao normaliza a URL adicionando protocolo quando ausente. Alem disso, a configuracao do TipTap Link extension nao valida URLs.
+O valor `maxInstallments` esta definido como `12` em tres locais diferentes do codigo, e o backend nao valida o limite maximo de parcelas recebido do frontend.
 
-## O que sera feito
+## Alteracoes Necessarias
 
-### 1. Criar funcao `normalizeUrl()` no `RichTextEditor.tsx`
+### 1. Hook de Estado do Formulario (Frontend - Gerador de Parcelas)
 
-Uma funcao pura que garante que toda URL tenha protocolo:
+**Arquivo:** `src/lib/payment-gateways/gateways/mercado-pago/hooks/useCardFormState.ts`
+
+Na linha 61, a chamada `generateInstallments(amount)` nao passa `maxInstallments`, herdando o default de 12. Sera alterada para:
 
 ```text
-Entrada: "loja.risestore.online"     -> Saida: "https://loja.risestore.online"
-Entrada: "http://exemplo.com"        -> Saida: "http://exemplo.com" (mantido)
-Entrada: "https://exemplo.com"       -> Saida: "https://exemplo.com" (mantido)
-Entrada: "mailto:user@email.com"     -> Saida: "mailto:user@email.com" (mantido)
-Entrada: "tel:+5511999999999"        -> Saida: "tel:+5511999999999" (mantido)
-Entrada: ""                          -> Saida: null (invalido, nao insere)
-Entrada: "   "                       -> Saida: null (invalido, nao insere)
+generateInstallments(amount, { maxInstallments: 9 })
 ```
 
-### 2. Atualizar `addLink()` para usar `normalizeUrl()`
+Este e o ponto principal -- e aqui que a lista de parcelas visivel no checkout e gerada.
 
-A funcao de adicionar link passara a normalizar a URL antes de inserir no editor. Tambem adicionara validacao para rejeitar URLs vazias/invalidas com feedback ao usuario.
+### 2. Definicao do Gateway Mercado Pago
 
-### 3. Configurar `autolink` no TipTap Link Extension
+**Arquivo:** `src/lib/payment-gateways/gateways/mercado-pago/index.ts`
 
-Adicionar `autolink: true` na configuracao do `Link.configure()` para que URLs digitadas diretamente no texto (sem usar o botao de link) tambem sejam detectadas automaticamente com protocolo correto.
+Na linha 17, o default do parametro `maxInstallments` sera alterado de `12` para `9`, garantindo que qualquer chamada a `mercadoPagoGateway.generateInstallments(amount)` respeite o novo limite.
 
-### 4. Adicionar `target: "_blank"` e `rel: "noopener noreferrer"`
+### 3. Configuracao do Brick (componente legado)
 
-Para que links externos abram em nova aba (comportamento esperado pelo usuario) e com seguranca contra ataques de `window.opener`.
+**Arquivo:** `src/integrations/gateways/mercadopago/Brick.tsx`
+
+Na linha 91, `maxInstallments: 12` sera alterado para `maxInstallments: 9`.
+
+### 4. Validacao no Backend (Edge Function)
+
+**Arquivo:** `supabase/functions/mercadopago-create-payment/handlers/card-handler.ts`
+
+Adicionar validacao na funcao `handleCardPayment` para rejeitar requisicoes com `installments > 9`. Isso impede que um usuario mal-intencionado envie um valor manipulado diretamente na API, ignorando a restricao do frontend.
+
+```text
+Se installments > 9 → retorna erro 400 com mensagem clara
+```
 
 ## Secao Tecnica
 
-### Arquivo alterado
+### Arquivos alterados (4 arquivos, 0 criados, 0 deletados)
 
 ```text
-src/modules/members-area/components/editor/RichTextEditor.tsx
+src/lib/payment-gateways/gateways/mercado-pago/hooks/useCardFormState.ts  (linha 61)
+src/lib/payment-gateways/gateways/mercado-pago/index.ts                   (linha 17)
+src/integrations/gateways/mercadopago/Brick.tsx                            (linha 91)
+supabase/functions/mercadopago-create-payment/handlers/card-handler.ts     (apos linha 105)
 ```
-
-1 arquivo editado. Zero arquivos criados. Zero arquivos deletados.
-
-### Mudancas especificas
-
-**Funcao `normalizeUrl` (nova, ~15 linhas)**:
-- Trim e validacao de string vazia
-- Deteccao de protocolos existentes via regex (`/^[a-zA-Z][a-zA-Z\d+\-.]*:/`)
-- Se nao tem protocolo, prepend `https://`
-- Retorna `null` para entradas invalidas
-
-**Funcao `addLink` (linhas 45-49, refatorada)**:
-- Chama `normalizeUrl()` na URL digitada pelo usuario
-- Se `normalizeUrl()` retorna `null`, nao insere o link
-- URL normalizada e passada ao `setLink()`
-
-**`Link.configure()` (linhas 216-221, atualizado)**:
-- Adicionar `autolink: true`
-- Adicionar `defaultProtocol: 'https'` (recurso nativo do TipTap)
-- Adicionar `HTMLAttributes` com `target: "_blank"` e `rel: "noopener noreferrer"`
-
-### Dados ja salvos no banco
-
-Links que ja foram salvos sem protocolo (como o `loja.risestore.online` atual) continuarao quebrados ate serem re-editados pelo produtor. Isso e esperado -- o fix corrige a **insercao** de novos links, nao retroage sobre conteudo ja persistido.
 
 ### Impacto
 
-- Zero breaking changes
-- Renderizacao no buyer nao precisa de alteracao (o HTML salvo ja tera `https://`)
-- DOMPurify continua sanitizando normalmente
+- O dropdown de parcelamento passara a exibir opcoes de 1x ate 9x (maximo)
+- A API rejeitara qualquer tentativa de parcelamento acima de 9x
+- Zero breaking changes -- apenas reduz o range de opcoes
+- Stripe nao e afetado (mantem seus proprios limites separadamente)
