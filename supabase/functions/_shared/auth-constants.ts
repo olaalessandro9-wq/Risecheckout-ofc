@@ -77,6 +77,7 @@ export enum AccountStatus {
   PENDING_SETUP = "pending_setup",
   RESET_REQUIRED = "reset_required",
   OWNER_NO_PASSWORD = "owner_no_password",
+  PENDING_EMAIL_VERIFICATION = "pending_email_verification",
 }
 
 // ============================================

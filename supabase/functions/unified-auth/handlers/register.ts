@@ -3,21 +3,26 @@
  * 
  * RISE ARCHITECT PROTOCOL V3 - 10.0/10
  * 
- * Creates new user account with appropriate roles.
+ * Creates new user account with email verification flow.
+ * User is NOT auto-logged-in; must verify email first.
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "../../_shared/logger.ts";
-import { errorResponse } from "../../_shared/response-helpers.ts";
+import { jsonResponse, errorResponse } from "../../_shared/response-helpers.ts";
 import {
   hashPassword,
-  createSession,
-  createAuthResponse,
   type AppRole,
 } from "../../_shared/unified-auth-v2.ts";
 import { CURRENT_HASH_VERSION } from "../../_shared/auth-constants.ts";
+import { sendEmail } from "../../_shared/zeptomail.ts";
+import { getEmailVerificationTemplate, getEmailVerificationTextTemplate } from "../../_shared/email-templates-verification.ts";
+import { buildSiteUrl } from "../../_shared/site-urls.ts";
 
 const log = createLogger("UnifiedAuth:Register");
+
+/** Verification token validity in milliseconds (24 hours) */
+const TOKEN_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
 interface RegisterRequest {
   email: string;
@@ -99,16 +104,16 @@ export async function handleRegister(
     const passwordHash = await hashPassword(password);
     
     // RISE V3: Map all registration types to their correct sources
-    // - producer → registration_source: "organic"
-    // - affiliate → registration_source: "affiliate"
-    // - buyer → registration_source: "checkout"
-    // Note: role assignment is the same for producer/affiliate (both get "seller")
     const registrationSourceValue = 
       registrationType === "producer" ? "organic" : 
       registrationType === "affiliate" ? "affiliate" : 
       "checkout";
     
-    // Create user
+    // Generate email verification token
+    const verificationToken = crypto.randomUUID();
+    const tokenExpiresAt = new Date(Date.now() + TOKEN_VALIDITY_MS).toISOString();
+    
+    // Create user with pending_email_verification status (NOT active)
     const { data: newUser, error: createError } = await supabase
       .from("users")
       .insert({
@@ -118,8 +123,11 @@ export async function handleRegister(
         name: name || null,
         phone: normalizedPhone,
         cpf_cnpj: normalizedCpfCnpj,
-        account_status: "active",
+        account_status: "pending_email_verification",
         is_active: true,
+        email_verified: false,
+        email_verification_token: verificationToken,
+        email_verification_token_expires_at: tokenExpiresAt,
         registration_source: registrationSourceValue,
         terms_accepted_at: new Date().toISOString(),
       })
@@ -132,9 +140,7 @@ export async function handleRegister(
     }
     
     // Assign roles based on registration type
-    // RISE V3: Cadastro via /cadastro = sempre recebe role "seller"
-    // Origem (producer/affiliate) é apenas marcação interna
-    const roles: AppRole[] = ["buyer"]; // Everyone is a buyer
+    const roles: AppRole[] = ["buyer"];
     
     if (registrationType === "producer" || registrationType === "affiliate") {
       const { error: roleError } = await supabase.from("user_roles").insert({
@@ -144,7 +150,6 @@ export async function handleRegister(
       
       if (roleError) {
         log.error("Failed to assign role:", roleError.message);
-        // Rollback: deletar usuário criado
         await supabase.from("users").delete().eq("id", newUser.id);
         return errorResponse("Erro ao configurar permissões", corsHeaders, 500);
       }
@@ -152,7 +157,7 @@ export async function handleRegister(
       roles.push("seller");
     }
     
-    // Set active role (seller para produtores/afiliados, buyer para compradores)
+    // Set active role
     const activeRole: AppRole = (registrationType === "producer" || registrationType === "affiliate") ? "seller" : "buyer";
     
     // Set initial context
@@ -161,15 +166,43 @@ export async function handleRegister(
       active_role: activeRole,
     });
     
-    // Create session
-    const session = await createSession(supabase, newUser.id, activeRole, req);
-    if (!session) {
-      return errorResponse("Erro ao criar sessão", corsHeaders, 500);
+    // Build verification URL
+    const verificationUrl = buildSiteUrl(`/confirmar-email?token=${verificationToken}`);
+    
+    // Send verification email via ZeptoMail
+    const emailResult = await sendEmail({
+      to: { email: normalizedEmail, name: name || normalizedEmail },
+      subject: "Confirme seu email - Rise Checkout",
+      htmlBody: getEmailVerificationTemplate({
+        userName: name || "Usuário",
+        verificationUrl,
+      }),
+      textBody: getEmailVerificationTextTemplate({
+        userName: name || "Usuário",
+        verificationUrl,
+      }),
+      type: "transactional",
+      trackClicks: false,
+      trackOpens: false,
+    });
+    
+    if (!emailResult.success) {
+      log.error("Failed to send verification email:", emailResult.error);
+      // Don't fail registration - user can resend later
     }
     
-    log.info("Registration successful", { userId: newUser.id, type: registrationType });
+    log.info("Registration successful (pending verification)", { 
+      userId: newUser.id, 
+      type: registrationType,
+      emailSent: emailResult.success,
+    });
     
-    return createAuthResponse(session, newUser, roles, corsHeaders);
+    // RISE V3: Do NOT create session. Return success with verification flag.
+    return jsonResponse({
+      success: true,
+      requiresEmailVerification: true,
+      email: normalizedEmail,
+    }, corsHeaders);
     
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);

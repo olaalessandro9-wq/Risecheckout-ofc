@@ -67,6 +67,15 @@ export async function handleLogin(
       return errorResponse("Redefinição de senha necessária", corsHeaders, 403);
     }
     
+    // RISE V3: Block login if email not verified
+    if (user.account_status === AccountStatus.PENDING_EMAIL_VERIFICATION) {
+      return errorResponse(
+        "Confirme seu email antes de acessar. Verifique sua caixa de entrada.",
+        corsHeaders,
+        403,
+      );
+    }
+    
     // Verify password
     if (!user.password_hash) {
       return errorResponse("Conta sem senha configurada", corsHeaders, 403);

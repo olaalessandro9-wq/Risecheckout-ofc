@@ -41,6 +41,10 @@ const PoliticaDePagamentos = lazyWithRetry(() => import("@/pages/legal/PoliticaD
 const PoliticaDeConteudo = lazyWithRetry(() => import("@/pages/legal/PoliticaDeConteudo"));
 const PoliticaDeDireitosAutorais = lazyWithRetry(() => import("@/pages/legal/PoliticaDeDireitosAutorais"));
 
+// Email Verification
+const VerificarEmail = lazyWithRetry(() => import("@/pages/VerificarEmail"));
+const ConfirmarEmail = lazyWithRetry(() => import("@/pages/ConfirmarEmail"));
+
 // ============================================================================
 // PAGE LOADER (for non-auth pages)
 // ============================================================================
@@ -78,6 +82,14 @@ export const publicRoutes: RouteObject[] = [
   { 
     path: "/redefinir-senha", 
     element: <Suspense fallback={<AuthPageLoader />}><RedefinirSenha /></Suspense> 
+  },
+  { 
+    path: "/verificar-email", 
+    element: <Suspense fallback={<AuthPageLoader />}><VerificarEmail /></Suspense> 
+  },
+  { 
+    path: "/confirmar-email", 
+    element: <Suspense fallback={<AuthPageLoader />}><ConfirmarEmail /></Suspense> 
   },
   
   // Checkout & Payments

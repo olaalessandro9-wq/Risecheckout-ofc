@@ -42,6 +42,8 @@ import { handleCheckProducerBuyer } from "./handlers/check-producer-buyer.ts";
 import { handleEnsureProducerAccess } from "./handlers/ensure-producer-access.ts";
 import { handleProducerLogin } from "./handlers/producer-login.ts";
 import { handleCheckEmail } from "./handlers/check-email.ts";
+import { handleVerifyEmail } from "./handlers/verify-email.ts";
+import { handleResendVerification } from "./handlers/resend-verification.ts";
 
 const log = createLogger("UnifiedAuth");
 
@@ -112,6 +114,12 @@ serve(async (req: Request): Promise<Response> => {
         
       case "check-email":
         return await handleCheckEmail(supabase, req, corsHeaders);
+        
+      case "verify-email":
+        return await handleVerifyEmail(supabase, req, corsHeaders);
+        
+      case "resend-verification":
+        return await handleResendVerification(supabase, req, corsHeaders);
         
       default:
         log.warn(`Unknown action: ${action}`);
