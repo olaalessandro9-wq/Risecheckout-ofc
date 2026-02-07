@@ -59,6 +59,7 @@ export function createMockAuthState(config: {
     setActiveRole: () => {},
     loginWithMagicLink: async () => {},
     loginError: "",
+    mfaSetupRequired: false,
   };
 }
 

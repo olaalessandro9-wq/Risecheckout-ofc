@@ -35,6 +35,24 @@ export async function handleValidate(
       // Access token is valid - return user info
       log.debug("Session validated", { userId: user.id });
       
+      // RISE V3: Check if admin/owner needs MFA enforcement
+      const isMfaEnforcedRole = user.activeRole === "admin" || user.activeRole === "owner";
+      let mfaSetupRequired = false;
+      
+      if (isMfaEnforcedRole) {
+        const { data: mfaRecord } = await supabase
+          .from("user_mfa")
+          .select("is_enabled")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        mfaSetupRequired = !mfaRecord?.is_enabled;
+        
+        if (mfaSetupRequired) {
+          log.info("Admin/Owner without MFA - enforcement flag set", { userId: user.id });
+        }
+      }
+      
       return jsonResponse({
         valid: true,
         user: {
@@ -46,6 +64,7 @@ export async function handleValidate(
         roles: user.roles,
         activeRole: user.activeRole,
         expiresIn: ACCESS_TOKEN_DURATION_MINUTES * 60,
+        ...(mfaSetupRequired && { mfa_setup_required: true }),
       }, corsHeaders);
     }
     

@@ -66,9 +66,10 @@ const Auth = () => {
         return;
       }
 
-      // Notify admin/owner users to configure MFA (non-blocking)
+      // RISE V3: Notify admin/owner that MFA is mandatory (non-blocking toast)
+      // The MfaEnforcementGuard will handle the actual blocking
       if (result.mfa_setup_required) {
-        toast.info("Recomendamos ativar a autenticação de dois fatores em seu perfil.");
+        toast.warning("Você precisa ativar a autenticação de dois fatores para acessar a plataforma. Configure no seu perfil.");
       }
 
       toast.success("Login realizado com sucesso!");

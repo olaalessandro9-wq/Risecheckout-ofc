@@ -75,6 +75,8 @@ interface ValidateResponse {
   roles?: AppRole[];
   activeRole?: AppRole;
   expiresIn?: number;
+  /** Backend signals admin/owner must configure MFA before accessing dashboard */
+  mfa_setup_required?: boolean;
 }
 
 interface LoginRequest {
@@ -281,6 +283,7 @@ export function useUnifiedAuth() {
   const roles = data?.roles ?? [];
   const activeRole = data?.activeRole ?? null;
   const expiresIn = data?.expiresIn ?? null;
+  const mfaSetupRequired = data?.mfa_setup_required ?? false;
   
   // Role checks
   const isProducer = useMemo(() => {
@@ -411,6 +414,9 @@ export function useUnifiedAuth() {
     roles,
     activeRole,
     expiresIn,
+    
+    /** Backend-enforced: admin/owner must configure MFA */
+    mfaSetupRequired,
     
     // Role checks
     isProducer,

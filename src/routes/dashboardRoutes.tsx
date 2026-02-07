@@ -13,6 +13,7 @@ import { Navigate } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 import { ProducerRoute } from "@/components/guards";
 import { MarketplaceRoute } from "@/components/guards/MarketplaceRoute";
+import { MfaEnforcementGuard } from "@/components/guards/MfaEnforcementGuard";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import { ThemeProvider } from "@/providers/theme";
 import { NavigationGuardProvider } from "@/providers/NavigationGuardProvider";
@@ -51,7 +52,9 @@ function DashboardLayout() {
       <ThemeProvider>
         <UltrawidePerformanceProvider>
           <NavigationGuardProvider>
-            <AppShell />
+            <MfaEnforcementGuard>
+              <AppShell />
+            </MfaEnforcementGuard>
           </NavigationGuardProvider>
         </UltrawidePerformanceProvider>
       </ThemeProvider>
