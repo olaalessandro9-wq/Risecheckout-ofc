@@ -10,6 +10,7 @@
  * - Zero framer-motion para máxima performance
  * - CSS Containment para isolar repaints
  * - useChartDimensions customizado (substitui ResponsiveContainer)
+ * - Sistema inteligente de ticks no eixo X (auto-detecção de granularidade)
  */
 
 import { useMemo, useId, useRef } from "react";
@@ -25,6 +26,12 @@ import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUltrawidePerformance } from "@/contexts/UltrawidePerformanceContext";
 import { useChartDimensions } from "@/hooks/useChartDimensions";
+import {
+  detectTimeMode,
+  calculateXAxisConfig,
+  formatTooltipLabel,
+} from "../../utils/chartAxisUtils";
+import type { ChartTimeMode } from "../../utils/chartAxisUtils";
 
 // ============================================================================
 // CONSTANTS - Cores RISE (Azul Primário)
@@ -43,18 +50,21 @@ interface RevenueChartProps {
   readonly isLoading?: boolean;
 }
 
-type CustomTooltipProps = TooltipProps<number, string>;
+type CustomTooltipProps = TooltipProps<number, string> & {
+  readonly timeMode?: ChartTimeMode;
+};
 
 // ============================================================================
 // COMPONENTS
 // ============================================================================
 
-function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, timeMode = "daily" }: CustomTooltipProps) {
   if (active && payload && payload.length) {
+    const formattedLabel = formatTooltipLabel(String(label ?? ""), timeMode);
     return (
       <div className="bg-card border border-border rounded-xl p-4 shadow-lg">
         <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">
-          {label}
+          {formattedLabel}
         </p>
         <p className="text-xl font-bold text-card-foreground tracking-tight flex items-center gap-1">
           <span
@@ -147,10 +157,18 @@ export function RevenueChart({
   const { isUltrawide, chartConfig } = useUltrawidePerformance();
   const gradientId = useId();
   const yAxisConfig = useMemo(() => calculateYAxisConfig(data), [data]);
+
+  // Auto-detect time granularity and compute explicit ticks
+  const timeMode = useMemo(() => detectTimeMode(data), [data]);
   
   // Hook customizado com delay reduzido (FLIP elimina layout thrash)
   // 100ms é suficiente agora que não há mais reflow por frame
   const { width, height } = useChartDimensions(containerRef, 100);
+
+  const xAxisConfig = useMemo(
+    () => calculateXAxisConfig(data, timeMode, width),
+    [data, timeMode, width],
+  );
 
   // Renderizar gráfico apenas quando dimensões válidas
   const showChart = width > 0 && height > 0 && !isLoading;
@@ -230,8 +248,9 @@ export function RevenueChart({
               axisLine={false}
               dy={10}
               padding={{ left: 5, right: 5 }}
-              interval={isUltrawide ? "preserveStartEnd" : "preserveEnd"}
-              minTickGap={isUltrawide ? 100 : 50}
+              ticks={xAxisConfig.ticks}
+              tickFormatter={xAxisConfig.formatter}
+              interval={0}
             />
 
             <YAxis
@@ -250,7 +269,7 @@ export function RevenueChart({
               }}
             />
 
-            <Tooltip content={<CustomTooltip />} cursor={cursorStyle} />
+            <Tooltip content={<CustomTooltip timeMode={timeMode} />} cursor={cursorStyle} />
 
             <Area
               type="monotone"
