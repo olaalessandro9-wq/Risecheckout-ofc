@@ -27,7 +27,7 @@ export async function handleMfaStatus(
       .from("user_mfa")
       .select("is_enabled")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     return jsonResponse(
       {
