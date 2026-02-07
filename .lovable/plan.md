@@ -1,164 +1,174 @@
 
-# Melhoria do Eixo X do Grafico: Formatacao Inteligente de Ticks
+# Fix: Consistent X-Axis Tick Distribution
 
-## Diagnostico
+## Root Cause Analysis
 
-O problema esta no `RevenueChart.tsx`, linhas 225-235. O eixo X (XAxis) usa a configuracao:
+The function `selectEvenlySpaced` in `chartAxisUtils.ts` (line 81-94) uses a fractional step with `Math.round`, which creates **inconsistent gaps** between ticks:
 
-```typescript
-interval={isUltrawide ? "preserveStartEnd" : "preserveEnd"}
-minTickGap={isUltrawide ? 100 : 50}
+```text
+Example: 24 hourly items, maxTicks=13
+step = 23/12 = 1.9167
+
+Index 6: Math.round(11.5) = 12 -> 12:00
+Index 7: Math.round(13.417) = 13 -> 13:00
+Gap: 1 hour (all others are 2 hours) -- INCONSISTENT
+
+Example: 30 daily items, maxTicks=13
+step = 29/12 = 2.4167
+
+Gaps alternate between 2 and 3 days -- INCONSISTENT
 ```
 
-O Recharts recebe os valores raw como labels do eixo X e decide automaticamente quais ticks mostrar, resultando em:
+## Solution: Two-Pronged Fix
 
-- **Horario (1 dia)**: Mostra "00:00", "02:00", "04:00", "06:00"... pulando horas impares
-- **Diario (7 dias)**: Mostra "2026-01-15", "2026-01-16"... no formato raw ISO, ilegivel
-- **Diario (30 dias)**: Pula varios dias e mostra YYYY-MM-DD cru
-- **Maximo**: Comportamento imprevisivel com muitos pontos
+### Fix 1: Natural Hour Intervals for Hourly Data
 
-A raiz do problema e dupla:
-1. Nenhum `tickFormatter` e aplicado ao XAxis (labels exibidos como raw strings)
-2. O `interval` automatico do Recharts e impreciso -- ele decide quais ticks pular baseado em heuristica interna
+Replace the generic `selectEvenlySpaced` approach for hourly data with **natural divisors of 24**: `[1, 2, 3, 4, 6, 8, 12]`.
 
-## Analise de Solucoes
+Pick the smallest interval where the resulting tick count fits:
 
-### Solucao A: Apenas adicionar `tickFormatter` ao XAxis
+| maxTicks | Interval Chosen | Ticks Produced | Result |
+|----------|----------------|----------------|--------|
+| >= 24 | 1h | 24 | Every hour |
+| >= 12 | 2h | 12 | 00h, 02h, 04h, ..., 22h |
+| >= 8 | 3h | 8 | 00h, 03h, 06h, ..., 21h |
+| >= 6 | 4h | 6 | 00h, 04h, 08h, ..., 20h |
+| >= 4 | 6h | 4 | 00h, 06h, 12h, 18h |
 
-- Manutenibilidade: 5/10 (resolve a formatacao mas nao o skip de ticks)
-- Zero DT: 4/10 (o interval automatico continua imprevisivel)
-- Arquitetura: 4/10 (meia solucao)
-- Escalabilidade: 4/10 (nao se adapta a diferentes periodos)
-- Seguranca: 10/10
-- **NOTA FINAL: 4.6/10**
+This guarantees **perfectly uniform spacing** with no rounding artifacts.
 
-### Solucao B: Sistema inteligente de ticks com auto-deteccao de granularidade
+For the user's screen (maxTicks=13 with old 80px; maxTicks=23 with new 45px):
+- Before: 00h, 02h, 04h, 06h, 08h, 10h, **12h, 13h**, 15h, 17h, 19h, 21h, 23h (inconsistent)
+- After: 00h, 01h, 02h, 03h, ..., 23h (every hour - all 24 fit at 45px each)
 
-Criar um sistema que:
-1. Detecta automaticamente se os dados sao horarios ou diarios (pelo formato do campo `date`)
-2. Calcula os ticks explicitamente (quais labels mostrar) baseado na quantidade de dados e largura do grafico
-3. Formata cada tick de acordo com a granularidade
-4. Aplica o mesmo formato ao tooltip
+### Fix 2: Fixed Integer Step for Daily Data
 
-- Manutenibilidade: 10/10 (logica centralizada em funcoes puras testadas)
-- Zero DT: 10/10 (controle total sobre quais ticks aparecem)
-- Arquitetura: 10/10 (auto-deteccao funciona para Dashboard e Admin, sem prop extra)
-- Escalabilidade: 10/10 (adaptavel a qualquer periodo, e responsivo a largura)
-- Seguranca: 10/10
-- **NOTA FINAL: 10.0/10**
+Replace `selectEvenlySpaced` with a **fixed integer step** approach. Instead of a fractional step that rounds unevenly, always use `Math.ceil(length / maxTicks)` to get a consistent integer step.
 
-### DECISAO: Solucao B (Nota 10.0)
+```text
+Example: 30 items, maxTicks=18 (at 55px per label)
+step = ceil(30/18) = 2
+Ticks: day 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28 = 15 ticks
+ALL gaps are exactly 2 days -- CONSISTENT
+```
 
-A Solucao A resolve apenas metade do problema. A Solucao B garante controle total e formatacao perfeita em todos os cenarios.
+Additionally, add a **tolerance threshold**: if `items.length <= maxTicks * 1.2`, show ALL items instead of skipping any (avoids removing just 1-2 items inconsistently).
 
----
+### Fix 3: Accurate Label Width Estimates
 
-## Plano de Execucao
+Replace the fixed 80px with accurate estimates per format:
 
-### Fase 1: Criar utilidade de X-Axis Ticks
+| Format | Example | Estimated Width (with gap) |
+|--------|---------|---------------------------|
+| Hour | "09h" | 45px |
+| DD/MM | "15/01" | 50px |
+| DD Mon | "8 Jan" | 55px |
+| Mon/YY | "Jan/26" | 58px |
 
-**CRIAR** `src/modules/dashboard/utils/chartAxisUtils.ts` (~80 linhas)
+## Expected Results
 
-Funcoes puras que calculam os ticks e formatadores:
+| Period | Before | After |
+|--------|--------|-------|
+| Today (24h) | 00h 02h 04h...12h **13h** 15h...23h (uneven) | 00h 01h 02h...23h (all 24 hours) |
+| Yesterday | Same uneven issue | Same fix -- all 24 hours |
+| 7 days | Already correct | Remains correct |
+| 30 days | 8 Jan 10 Jan **13 Jan** 15 Jan... (alternating 2/3 day gaps) | 8 Jan 10 Jan 12 Jan 14 Jan... (consistent 2-day gaps) |
+
+## Technical Details
+
+### File: `src/modules/dashboard/utils/chartAxisUtils.ts`
+
+**1. Update `getMaxTicks`** to accept `estimatedLabelWidth` parameter:
 
 ```typescript
-type ChartTimeMode = "hourly" | "daily";
-
-// Auto-detecta pela formato do campo date
-function detectTimeMode(data): ChartTimeMode
-
-// Calcula quais ticks exibir e como formata-los
-function calculateXAxisConfig(data, mode, chartWidth): {
-  ticks: string[];
-  formatter: (value: string) => string;
+function getMaxTicks(chartWidth: number, estimatedLabelWidth: number = 55): number {
+  if (chartWidth <= 0) return 6;
+  return Math.max(4, Math.floor(chartWidth / estimatedLabelWidth));
 }
 ```
 
-**Logica por granularidade:**
-
-| Modo | Dados | Ticks Exibidos | Formato |
-|------|-------|----------------|---------|
-| Horario | 24 pontos ("00:00"..."23:00") | A cada 3h: 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 | "00h", "03h", "06h"... |
-| Diario (2-7 dias) | 2-7 pontos ("2026-01-15") | Todos os dias | "15/01", "16/01"... |
-| Diario (8-14 dias) | 8-14 pontos | A cada 2 dias | "15/01", "17/01"... |
-| Diario (15-31 dias) | 15-31 pontos | ~8-10 ticks distribuidos | "15 Jan", "20 Jan"... |
-| Diario (>31 dias) | 32+ pontos | ~6-8 ticks distribuidos | "Jan", "Fev", "Mar"... |
-
-A funcao tambem considera a largura do grafico (`chartWidth`) para ajustar a quantidade de ticks dinamicamente -- em telas menores, menos ticks.
-
-### Fase 2: Criar formatador de tooltip
-
-No mesmo arquivo, adicionar:
+**2. Replace `selectEvenlySpaced`** with fixed-integer-step logic + tolerance threshold:
 
 ```typescript
-function formatTooltipLabel(value: string, mode: ChartTimeMode): string
+function selectWithConsistentStep(
+  items: readonly string[],
+  maxCount: number,
+): string[] {
+  // Tolerance: if items nearly fit (within 20%), show all
+  if (items.length <= Math.ceil(maxCount * 1.2)) return [...items];
+
+  // Use fixed integer step for consistent gaps
+  const step = Math.ceil(items.length / maxCount);
+  const result: string[] = [];
+
+  for (let i = 0; i < items.length; i += step) {
+    result.push(items[i]);
+  }
+
+  // Always include last item if not already included
+  if (result[result.length - 1] !== items[items.length - 1]) {
+    result.push(items[items.length - 1]);
+  }
+
+  return result;
+}
 ```
 
-| Modo | Input | Output |
-|------|-------|--------|
-| Horario | "09:00" | "09:00" |
-| Diario | "2026-01-15" | "15/01/2026" |
+**3. Replace `calculateHourlyTicks`** with natural-interval logic:
 
-### Fase 3: Integrar no RevenueChart
-
-**EDITAR** `src/modules/dashboard/components/Charts/RevenueChart.tsx`
-
-Mudancas:
-1. Importar `detectTimeMode`, `calculateXAxisConfig`, `formatTooltipLabel`
-2. No componente, usar `useMemo` para calcular a configuracao do XAxis:
-   ```typescript
-   const timeMode = useMemo(() => detectTimeMode(data), [data]);
-   const xAxisConfig = useMemo(
-     () => calculateXAxisConfig(data, timeMode, width),
-     [data, timeMode, width]
-   );
-   ```
-3. Atualizar o `XAxis` para usar ticks explicitos e formatter:
-   ```typescript
-   <XAxis
-     dataKey="date"
-     ticks={xAxisConfig.ticks}
-     tickFormatter={xAxisConfig.formatter}
-     interval={0}  // Mostrar TODOS os ticks que nos calculamos
-     ...
-   />
-   ```
-4. Atualizar o `CustomTooltip` para formatar o label:
-   ```typescript
-   <p>{formatTooltipLabel(label, timeMode)}</p>
-   ```
-
-### Fase 4: Atualizar barrel exports
-
-**EDITAR** `src/modules/dashboard/utils/index.ts`
-
-Adicionar export do novo modulo:
 ```typescript
-export { detectTimeMode, calculateXAxisConfig, formatTooltipLabel } from "./chartAxisUtils";
+const NATURAL_HOUR_INTERVALS = [1, 2, 3, 4, 6, 8, 12] as const;
+
+function calculateHourlyTicks(data, chartWidth): XAxisConfig {
+  const maxTicks = getMaxTicks(chartWidth, 45); // "09h" is ~45px
+  const allDates = data.map(d => d.date);
+
+  // Find smallest natural interval that fits
+  let interval = 12;
+  for (const candidate of NATURAL_HOUR_INTERVALS) {
+    if (Math.ceil(allDates.length / candidate) <= maxTicks) {
+      interval = candidate;
+      break;
+    }
+  }
+
+  // Generate ticks at natural intervals
+  const ticks: string[] = [];
+  for (let i = 0; i < allDates.length; i += interval) {
+    ticks.push(allDates[i]);
+  }
+
+  return {
+    ticks,
+    formatter: (value) => `${value.split(":")[0]}h`,
+  };
+}
 ```
 
-## Arvore de Arquivos
+**4. Update `calculateDailyTicks`** to pass correct label width:
+
+```typescript
+function calculateDailyTicks(data, chartWidth): XAxisConfig {
+  const count = data.length;
+  let estimatedLabelWidth: number;
+  if (count <= 14) estimatedLabelWidth = 50;       // "15/01"
+  else if (count <= 62) estimatedLabelWidth = 55;   // "8 Jan"
+  else estimatedLabelWidth = 58;                     // "Jan/26"
+
+  const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
+  const allDates = data.map(d => d.date);
+  const ticks = selectWithConsistentStep(allDates, maxTicks);
+  const formatter = getDailyFormatter(count);
+
+  return { ticks, formatter };
+}
+```
+
+## File Tree
 
 ```text
-src/modules/dashboard/
-  utils/
-    chartAxisUtils.ts              -- CRIAR (logica de ticks e formatacao)
-    index.ts                       -- EDITAR (adicionar exports)
-  components/Charts/
-    RevenueChart.tsx               -- EDITAR (integrar sistema de ticks)
+src/modules/dashboard/utils/
+  chartAxisUtils.ts   -- EDIT (4 surgical changes, same file)
 ```
 
-## Resultado Visual Esperado
-
-| Periodo | Antes (eixo X) | Depois (eixo X) |
-|---------|----------------|-----------------|
-| Hoje | "00:00 02:00 04:00 06:00..." (pula horas) | "00h  03h  06h  09h  12h  15h  18h  21h" |
-| Ontem | Mesmo problema | Mesmo formato horario correto |
-| 7 dias | "2026-01-10 2026-01-12..." (raw ISO) | "10/01  11/01  12/01  13/01  14/01  15/01  16/01" |
-| 30 dias | "2026-01-01 2026-01-08..." (pula muitos) | "01 Jan  05 Jan  10 Jan  15 Jan  20 Jan  25 Jan  30 Jan" |
-| Maximo | Imprevisivel | "Jan  Fev  Mar  Abr  Mai  Jun..." |
-| Custom (1 dia) | Igual "Hoje" | Formato horario correto |
-
-O tooltip tambem sera formatado: "2026-01-15" vira "15/01/2026" e "09:00" permanece "09:00".
-
-Ambos os consumidores (`Dashboard` e `AdminFinanceTab`) se beneficiam automaticamente sem nenhuma alteracao, pois a deteccao e feita internamente no `RevenueChart`.
+Single file edit. No new files.
