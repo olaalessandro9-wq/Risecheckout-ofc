@@ -98,6 +98,13 @@ Deno.serve(withSentry('pushinpay-create-pix', async (req) => {
     // 1. Criar cliente Supabase
     const supabase: SupabaseClient = getSupabaseClient('payments');
 
+    // Obter URL do Supabase para webhook_url e chamadas internas
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    if (!supabaseUrl) {
+      log.error('SUPABASE_URL nao configurada');
+      throw new Error('Configuracao do servidor incompleta: SUPABASE_URL');
+    }
+
     // Rate limiting
     const rateLimitResult = await rateLimitMiddleware(
       supabase,
