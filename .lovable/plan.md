@@ -1,149 +1,72 @@
 
-# Substituir o "R" Generico pela Logo Real em Todo o Projeto
+
+# Unificar Botao "Salvar Alteracoes" com "Salvar Produto"
 
 ## Diagnostico
 
-Identifiquei **12 instancias** do "R" generico em texto, distribuidas em **6 arquivos**. Cada arquivo tem 2 variantes: uma logo menor (mobile, 32x32) e uma logo maior (desktop, 40x40).
+No arquivo `src/components/products/ProductSettingsPanel.tsx`:
 
-### Mapeamento Completo
+- **Linhas 170-180**: Existe um `handleSave` local que chama `executeSave()` -- salvando APENAS as configuracoes de checkout (settings, required_fields, gateways).
+- **Linhas 216-219**: O botao "Salvar Alteracoes" usa esse handler local.
 
-| Arquivo | Linhas | Contexto |
-|---------|--------|----------|
-| `src/modules/navigation/components/Sidebar/SidebarBrand.tsx` | 41-42 | Sidebar do painel (40x40, texto "R") |
-| `src/pages/Auth.tsx` | 83-84, 159-160 | Tela de login (mobile 32x32 + desktop 40x40) |
-| `src/pages/RecuperarSenha.tsx` | 98-99, 257-258 | Recuperar senha (mobile + desktop) |
-| `src/pages/cadastro/components/CadastroLayout.tsx` | 42-43, 58-59 | Cadastro (mobile + desktop) |
-| `src/components/auth/reset-password/ResetPasswordLayout.tsx` | 33-34, 49-50 | Reset password (mobile + desktop) |
-| `src/modules/members-area/components/BuyerAuthLayout.tsx` | 50-51, 66-67 | Auth do comprador (mobile + desktop) |
+No `ProductHeader.tsx`:
 
-## Analise de Solucoes
+- **Linha 34**: O botao "Salvar Produto" chama `saveAll` do `ProductContext`, que salva TUDO (geral, imagem, ofertas, upsell, afiliados, checkout settings, etc.) via o Save Registry Pattern.
 
-### Solucao A: Substituir diretamente o texto "R" por `<img>` em cada arquivo
-
-- Manutenibilidade: 3/10 (12 substituicoes manuais, qualquer mudanca futura na logo requer editar 6 arquivos)
-- Zero DT: 3/10 (duplicacao massiva de logica de renderizacao)
-- Arquitetura: 3/10 (viola DRY completamente)
-- Escalabilidade: 3/10 (cada nova pagina de auth precisa copiar o padrao)
-- Seguranca: 10/10
-- **NOTA FINAL: 3.6/10**
-
-### Solucao B: Criar componente SSOT `RiseLogo` + asset local
-
-Copiar a imagem para `src/assets/logo.jpeg`, criar um componente `RiseLogo` que encapsula toda a logica de renderizacao (tamanhos, background gradient, shadow), e importa-lo nos 6 arquivos. Qualquer mudanca futura na logo requer alterar apenas 1 arquivo.
-
-- Manutenibilidade: 10/10 (Single Source of Truth - mudar logo = 1 arquivo)
-- Zero DT: 10/10 (elimina 12 duplicacoes de codigo)
-- Arquitetura: 10/10 (componente atomico reutilizavel, SOLID)
-- Escalabilidade: 10/10 (qualquer nova pagina importa `RiseLogo`)
-- Seguranca: 10/10
-- **NOTA FINAL: 10.0/10**
-
-### DECISAO: Solucao B (Nota 10.0)
-
-A Solucao A viola DRY e cria 12 pontos de manutencao. A Solucao B centraliza tudo em um componente atomico.
-
----
+O usuario quer que o botao inferior faca exatamente a mesma coisa que o botao superior.
 
 ## Plano de Execucao
 
-### Fase 1: Copiar Asset
+### EDITAR `src/components/products/ProductSettingsPanel.tsx`
 
-Copiar `user-uploads://3.jpg.jpeg` para `src/assets/logo.jpeg`.
+1. **Remover** a funcao `handleSave` local (linhas 170-180) -- codigo morto apos a mudanca
+2. **Remover** a funcao `executeSave` local (linhas 135-167) -- ja existe no save registry via `useGlobalValidationHandlers`
+3. **Remover** o estado `saving` local (linha 47) -- usar o `saving` do ProductContext
+4. **Importar** `saveAll`, `saving`, `hasUnsavedChanges` do `useProductContext()`
+5. **Atualizar** o botao para:
+   - Texto: "Salvar Produto" (em vez de "Salvar Alteracoes")
+   - Handler: `saveAll` (em vez de `handleSave`)
+   - Disabled: `saving || !hasUnsavedChanges` (mesmo comportamento do header)
+   - Icone de loading: `Loader2` com spin quando `saving`
 
-### Fase 2: Criar Componente `RiseLogo`
-
-**CRIAR** `src/components/brand/RiseLogo.tsx`
-
-Componente atomico com props de tamanho:
-
-```typescript
-interface RiseLogoProps {
-  size?: "sm" | "md";  // sm = 32px (mobile), md = 40px (desktop/sidebar)
-  className?: string;
-}
-```
-
-- Importa `logo.jpeg` de `@/assets/logo.jpeg`
-- Renderiza `<img>` com `object-contain` dentro do container com gradient + shadow
-- Tamanhos: `sm` = `w-8 h-8`, `md` = `w-10 h-10`
-- Mantam o `rounded-lg`/`rounded-xl` e o gradient background como container
-
-### Fase 3: Atualizar os 6 Arquivos
-
-Em cada arquivo, substituir o bloco:
+### Resultado no botao
 
 ```tsx
-<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[...] to-[...] flex items-center justify-center shadow-lg shadow-[...]">
-  <span className="font-bold text-[...]">R</span>
-</div>
+// DE:
+<Button onClick={handleSave} disabled={saving}>
+  {saving ? "Salvando..." : "Salvar Alterações"}
+</Button>
+
+// PARA:
+<Button onClick={saveAll} disabled={saving || !hasUnsavedChanges}>
+  {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+  {saving ? "Salvando..." : "Salvar Produto"}
+</Button>
 ```
 
-Por:
+### Limpeza de codigo morto
 
-```tsx
-<RiseLogo size="sm" />
-```
+Com a remocao de `executeSave` e `handleSave`, tambem serao removidos os imports que se tornam desnecessarios:
 
-E o bloco desktop (40x40):
-
-```tsx
-<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[...] to-[...] flex items-center justify-center shadow-lg shadow-[...]">
-  <span className="font-bold text-[...] text-xl">R</span>
-</div>
-```
-
-Por:
-
-```tsx
-<RiseLogo size="md" />
-```
-
-### Fase 4: Sidebar (caso especial)
-
-O `SidebarBrand.tsx` usa `bg-primary` em vez do auth gradient. O `RiseLogo` tera uma variante que funciona em ambos os contextos (auth theme e dashboard theme), mantendo o container com gradient no auth e `bg-primary` no dashboard.
-
-O componente aceitara uma prop `variant`:
-- `"auth"` - usa o gradient auth-accent (para paginas de auth)
-- `"default"` - usa `bg-primary` (para o sidebar do dashboard)
-
----
+- `getGatewayById` e `isGatewayAvailable` (usados apenas no `executeSave`)
+- Estado local `saving` (substituido pelo do context)
 
 ## Arvore de Arquivos
 
 ```text
-src/assets/
-  logo.jpeg                                          -- CRIAR (copiar da imagem enviada)
-
-src/components/brand/
-  RiseLogo.tsx                                       -- CRIAR (componente SSOT)
-
-src/modules/navigation/components/Sidebar/
-  SidebarBrand.tsx                                   -- EDITAR (usar RiseLogo)
-
-src/pages/
-  Auth.tsx                                           -- EDITAR (2 instancias -> RiseLogo)
-  RecuperarSenha.tsx                                 -- EDITAR (2 instancias -> RiseLogo)
-
-src/pages/cadastro/components/
-  CadastroLayout.tsx                                 -- EDITAR (2 instancias -> RiseLogo)
-
-src/components/auth/reset-password/
-  ResetPasswordLayout.tsx                            -- EDITAR (2 instancias -> RiseLogo)
-
-src/modules/members-area/components/
-  BuyerAuthLayout.tsx                                -- EDITAR (2 instancias -> RiseLogo)
+src/components/products/
+  ProductSettingsPanel.tsx   -- EDITAR (remover handler local, usar saveAll do context)
 ```
+
+Apenas 1 arquivo precisa de alteracao. Nenhum novo arquivo.
 
 ## Resultado
 
-| Local | Antes | Depois |
-|-------|-------|--------|
-| Sidebar | Quadrado azul com texto "R" | Quadrado com logo real |
-| Login (mobile) | Quadrado gradient com "R" | Logo real no container gradient |
-| Login (desktop) | Quadrado gradient com "R" | Logo real no container gradient |
-| Cadastro (mobile + desktop) | Quadrado gradient com "R" | Logo real no container gradient |
-| Recuperar Senha (mobile + desktop) | Quadrado gradient com "R" | Logo real no container gradient |
-| Reset Password (mobile + desktop) | Quadrado gradient com "R" | Logo real no container gradient |
-| Buyer Auth (mobile + desktop) | Quadrado gradient com "R" | Logo real no container gradient |
+| Aspecto | Antes | Depois |
+|---------|-------|--------|
+| Texto do botao | "Salvar Alteracoes" | "Salvar Produto" |
+| Handler | `handleSave` (salva so settings) | `saveAll` (salva tudo) |
+| Disabled | Apenas durante saving | Durante saving OU sem alteracoes |
+| Loading icon | Sem icone | Loader2 com spin |
+| Codigo morto removido | -- | ~50 linhas de `executeSave` + `handleSave` |
 
-Todas as 12 instancias do "R" generico serao substituidas pela logo real, com um unico ponto de manutencao (`RiseLogo.tsx`).
