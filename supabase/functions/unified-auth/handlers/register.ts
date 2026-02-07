@@ -26,6 +26,7 @@ interface RegisterRequest {
   phone?: string;
   cpf_cnpj?: string;
   registrationType?: "producer" | "affiliate" | "buyer";
+  termsAccepted?: boolean;
 }
 
 export async function handleRegister(
@@ -35,11 +36,16 @@ export async function handleRegister(
 ): Promise<Response> {
   try {
     const body: RegisterRequest = await req.json();
-    const { email, password, name, phone, cpf_cnpj, registrationType = "buyer" } = body;
+    const { email, password, name, phone, cpf_cnpj, registrationType = "buyer", termsAccepted } = body;
     
     // Validate input
     if (!email || !password) {
       return errorResponse("Email e senha são obrigatórios", corsHeaders, 400);
+    }
+    
+    // RISE V3: Validar aceite obrigatório de termos
+    if (termsAccepted !== true) {
+      return errorResponse("É obrigatório aceitar os Termos de Uso e Política de Privacidade", corsHeaders, 400);
     }
     
     if (password.length < 8) {
@@ -115,6 +121,7 @@ export async function handleRegister(
         account_status: "active",
         is_active: true,
         registration_source: registrationSourceValue,
+        terms_accepted_at: new Date().toISOString(),
       })
       .select("id, email, name")
       .single();

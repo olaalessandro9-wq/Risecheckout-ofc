@@ -3945,6 +3945,7 @@ export type Database = {
           status_reason: string | null
           stripe_account_id: string | null
           stripe_connected_at: string | null
+          terms_accepted_at: string | null
           test_mode_enabled: boolean | null
           test_public_key: string | null
           timezone: string | null
@@ -3983,6 +3984,7 @@ export type Database = {
           status_reason?: string | null
           stripe_account_id?: string | null
           stripe_connected_at?: string | null
+          terms_accepted_at?: string | null
           test_mode_enabled?: boolean | null
           test_public_key?: string | null
           timezone?: string | null
@@ -4021,6 +4023,7 @@ export type Database = {
           status_reason?: string | null
           stripe_account_id?: string | null
           stripe_connected_at?: string | null
+          terms_accepted_at?: string | null
           test_mode_enabled?: boolean | null
           test_public_key?: string | null
           timezone?: string | null
