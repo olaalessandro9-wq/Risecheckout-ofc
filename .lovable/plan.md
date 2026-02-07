@@ -1,173 +1,226 @@
 
-# Auditoria e Correcao de Divida Tecnica MFA
 
-## Descobertas da Auditoria
+# Auditoria RISE V3 - MFA Implementation (Validation Final)
 
-A investigacao profunda do codigo MFA revelou **6 problemas**, sendo 2 de severidade CRITICA sob o Protocolo RISE V3 e 4 de severidade ALTA.
+## Resultado da Investigacao
 
-| # | Problema | Severidade | Arquivo |
-|---|----------|-----------|---------|
-| 1 | Race condition no `incrementMfaAttempts` (SELECT+UPDATE) | CRITICA | `_shared/mfa-session.ts` |
-| 2 | `mfa_setup_required` nao tratado no frontend | CRITICA | `Auth.tsx` / `useUnifiedAuth.ts` |
-| 3 | `.single()` ao inves de `.maybeSingle()` em queries MFA | ALTA | `mfa-setup.ts`, `mfa-status.ts` |
-| 4 | `LoginResponse` sem tipagem MFA (casting inseguro) | ALTA | `useUnifiedAuth.ts`, `Auth.tsx` |
-| 5 | Sessoes MFA expiradas acumulam no banco sem limpeza | ALTA | `mfa-session.ts` |
-| 6 | Comentario contraditorio ("10.0/10" com race condition documentada) | ALTA | `mfa-session.ts` |
+Realizei uma auditoria completa de todos os 12 arquivos MFA (backend + frontend), tabelas, RLS, RPC, e documentacao. Identifiquei **3 problemas reais** que violam o Protocolo RISE V3.
+
+---
+
+## Problemas Encontrados
+
+| # | Problema | Severidade | Arquivo | Linha |
+|---|----------|-----------|---------|-------|
+| 1 | `.single()` em query MFA no login handler | ALTA | `handlers/login.ts` | 145 |
+| 2 | Duplicacao massiva de logica de sessao (DRY violation) | CRITICA | `mfa-verify.ts` vs `login.ts` | 150-203 |
+| 3 | `.single()` em query MFA no disable handler | MEDIA | `handlers/mfa-disable.ts` | 77 |
+
+---
+
+## Analise Detalhada
+
+### Problema 1: `.single()` no login.ts (linha 145)
+
+O plano anterior corrigiu `.single()` para `.maybeSingle()` em `mfa-setup.ts` e `mfa-status.ts`, mas **NAO corrigiu** o `login.ts` linha 145:
+
+```text
+// login.ts linha 141-145 (ATUAL - INCORRETO)
+const { data: mfaRecord } = await supabase
+  .from("user_mfa")
+  .select("is_enabled")
+  .eq("user_id", user.id)
+  .single();  // <<< GERA erro PostgREST 406 quando nao existe registro
+```
+
+Quando um admin/owner faz login pela **primeira vez** (nunca configurou MFA), nao existe registro em `user_mfa`. O `.single()` gera um erro PostgREST 406 silencioso. O codigo funciona porque `data` retorna `null` e `mfaRecord?.is_enabled` avalia como `false`, mas:
+
+- Polui logs com erros desnecessarios
+- Semanticamente incorreto (`.maybeSingle()` existe exatamente para este caso)
+- Inconsistente com `mfa-setup.ts` e `mfa-status.ts` que ja foram corrigidos
+
+**Correcao:** `.single()` -> `.maybeSingle()` na linha 145.
+
+### Problema 2: Violacao DRY - Logica duplicada entre `mfa-verify.ts` e `login.ts` (CRITICA)
+
+O `mfa-verify.ts` (linhas 150-203) duplica **~50 linhas** de logica de criacao de sessao que ja existe no `login.ts` (linhas 168-240):
+
+```text
+Codigo duplicado em mfa-verify.ts:
+  1. Buscar user em 'users' table
+  2. Buscar roles em 'user_roles' table
+  3. Garantir role 'buyer' default
+  4. Buscar ultimo contexto ativo em 'user_active_context'
+  5. Resolver active role (owner > admin > buyer)
+  6. Criar sessao via createSession()
+  7. Atualizar last_login_at
+  8. Retornar createAuthResponse()
+```
+
+Esta duplicacao:
+- Viola SRP e DRY (SOLID)
+- Se a logica de role resolution mudar no `login.ts`, alguem precisa lembrar de atualizar o `mfa-verify.ts` tambem
+- O `login.ts` tem logica adicional que o `mfa-verify.ts` NAO tem: invalidacao de sessoes antigas (max 5) e auto-assign de seller role
+- O `mfa-verify.ts` tem uma resolucao de active role **SIMPLIFICADA** que nao inclui o `preferredRole` - o que e correto neste contexto mas diverge na estrutura
+
+### Problema 3: `.single()` no mfa-disable.ts (linha 77)
+
+Mesmo padrao do Problema 1, mas no handler de desativar MFA:
+
+```text
+// mfa-disable.ts linha 73-77 (ATUAL)
+const { data: mfaRecord } = await supabase
+  .from("user_mfa")
+  .select("totp_secret_encrypted, totp_secret_iv, is_enabled")
+  .eq("user_id", user.id)
+  .single();  // <<< Edge case: se registro nao existir
+```
+
+Se nao existir registro, `.single()` gera erro mas o null check `!mfaRecord?.is_enabled` retorna corretamente "MFA nao esta ativado". Semanticamente deveria ser `.maybeSingle()`.
 
 ---
 
 ## Analise de Solucoes (Secao 4 RISE V3)
 
-### Problema 1: Race Condition `incrementMfaAttempts`
+### Para Problema 2 (DRY Violation - o mais critico)
 
-#### Solucao A: Manter padrao atual (SELECT+UPDATE com comentario)
-- Manutenibilidade: 7/10 (comentario nao elimina o problema)
-- Zero DT: 5/10 (race condition documentada = divida tecnica aceita)
-- Arquitetura: 6/10 (viola atomicidade)
-- Escalabilidade: 8/10 (funcional no contexto single-user)
-- Seguranca: 7/10 (rate limiting pode ser burlado)
-- **NOTA FINAL: 6.5/10**
+#### Solucao A: Manter duplicacao, apenas documentar
 
-#### Solucao B: RPC function atomica no Postgres
-- Manutenibilidade: 10/10 (operacao atomica, auto-explicativa)
-- Zero DT: 10/10 (zero race conditions possiveis)
-- Arquitetura: 10/10 (banco garante atomicidade - responsabilidade correta)
-- Escalabilidade: 10/10 (funciona sob qualquer concorrencia)
-- Seguranca: 10/10 (rate limiting garantido por construcao)
+- Manutenibilidade: 5/10 (mudanca em um requer mudanca no outro)
+- Zero DT: 3/10 (duplicacao E divida tecnica por definicao)
+- Arquitetura: 4/10 (viola DRY e SRP)
+- Escalabilidade: 5/10 (cada novo auth handler replicaria a mesma logica)
+- Seguranca: 8/10 (funciona, mas divergencias podem criar brechas)
+- **NOTA FINAL: 4.8/10**
+
+#### Solucao B: Extrair funcao `resolveUserSessionContext` em `_shared/unified-auth-v2.ts`
+
+Criar uma funcao compartilhada que encapsula:
+- Fetch user data
+- Fetch roles (com buyer default)
+- Resolve active role (com suporte a preferredRole optional)
+- Session cleanup (invalidacao de sessoes antigas)
+- Create session
+- Update last_login_at
+- Return auth response
+
+Tanto `login.ts` quanto `mfa-verify.ts` passam a chamar esta funcao unica.
+
+- Manutenibilidade: 10/10 (SSOT para criacao de sessao)
+- Zero DT: 10/10 (zero duplicacao)
+- Arquitetura: 10/10 (SRP + DRY + Clean Architecture)
+- Escalabilidade: 10/10 (novos auth handlers usam a mesma funcao)
+- Seguranca: 10/10 (logica de sessao centralizada, impossivel divergir)
 - **NOTA FINAL: 10.0/10**
 
-**DECISAO: Solucao B (Nota 10.0)**  
-Criar uma funcao PostgreSQL `increment_mfa_attempts(p_token TEXT)` que executa `UPDATE mfa_sessions SET attempts = attempts + 1 WHERE token = p_token` atomicamente. O comentario que justifica a Solucao A viola diretamente a Secao 4.1 do protocolo ("Se nota 10 demora mais, escolhemos nota 10").
+#### DECISAO: Solucao B (Nota 10.0)
+
+A Solucao A viola diretamente os principios SOLID e cria risco real de divergencia. A Solucao B garante que qualquer mudanca na logica de sessao (ex: mudar max sessoes de 5 para 3) se propaga automaticamente para todos os handlers.
 
 ---
 
 ## Plano de Correcao
 
-### Correcao 1: RPC atomica para incremento de tentativas
+### Correcao 1: `.single()` -> `.maybeSingle()` em login.ts e mfa-disable.ts
 
-**Migracao SQL:**
-```sql
-CREATE OR REPLACE FUNCTION public.increment_mfa_attempts(p_token TEXT)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  UPDATE mfa_sessions
-  SET attempts = attempts + 1
-  WHERE token = p_token;
-END;
-$$;
-```
+**Arquivos:**
+- `supabase/functions/unified-auth/handlers/login.ts` linha 145
+- `supabase/functions/unified-auth/handlers/mfa-disable.ts` linha 77
 
-**Arquivo:** `supabase/functions/_shared/mfa-session.ts`
+### Correcao 2: Extrair `resolveUserSessionContext` para `_shared/unified-auth-v2.ts`
 
-Reescrever `incrementMfaAttempts`:
+**Nova funcao em `_shared/unified-auth-v2.ts`:**
+
 ```typescript
-export async function incrementMfaAttempts(
-  supabase: SupabaseClient,
-  token: string
-): Promise<void> {
-  const { error } = await supabase.rpc("increment_mfa_attempts", {
-    p_token: token,
-  });
-
-  if (error) {
-    log.error("Failed to increment MFA attempts:", error.message);
-  }
+interface SessionContextParams {
+  supabase: SupabaseClient;
+  userId: string;
+  req: Request;
+  corsHeaders: Record<string, string>;
+  preferredRole?: AppRole;
 }
-```
 
-Remover comentario longo sobre race condition e substituir por documentacao limpa.
-
-### Correcao 2: Tratar `mfa_setup_required` no frontend
-
-**Arquivo:** `src/hooks/useUnifiedAuth.ts`
-
-Adicionar campos MFA ao `LoginResponse`:
-```typescript
-interface LoginResponse {
-  success: boolean;
-  mfa_required?: boolean;
-  mfa_session_token?: string;
-  mfa_setup_required?: boolean;
-  user?: UnifiedUser;
-  roles?: AppRole[];
-  activeRole?: AppRole;
-  expiresIn?: number;
-  error?: string;
+interface SessionContextResult {
+  user: { id: string; email: string; name: string | null };
+  roles: AppRole[];
+  activeRole: AppRole;
+  session: SessionData;
 }
+
+export async function resolveUserSessionContext(
+  params: SessionContextParams
+): Promise<SessionContextResult>
 ```
 
-**Arquivo:** `src/pages/Auth.tsx`
+A funcao encapsula:
+1. Fetch user data (`users` table)
+2. Fetch roles (`user_roles` table) + buyer default
+3. Resolve active role (last context -> preferred -> hierarchy)
+4. Invalidate old sessions (max 5 ativas)
+5. Create session via `createSession()`
+6. Update `last_login_at`
 
-Tratar `mfa_setup_required` apos login bem-sucedido:
-- Exibir toast informativo: "Recomendamos ativar a autenticacao de dois fatores em seu perfil"
-- Nao bloquear o login (a sessao ja foi criada pelo backend)
-- Eliminar casting inseguro `Record<string, unknown>`
+**Refatorar `login.ts`:**
+- Substituir linhas 168-218 pela chamada a `resolveUserSessionContext`
+- Manter logica de `mfa_setup_required` e seller auto-assign (sao especificas do login)
 
-### Correcao 3: `.single()` para `.maybeSingle()`
+**Refatorar `mfa-verify.ts`:**
+- Substituir linhas 150-199 pela chamada a `resolveUserSessionContext`
+- Manter logica de `consumeMfaSession` e `last_used_at` update (sao especificas do MFA verify)
 
-**Arquivos afetados:**
-- `mfa-setup.ts` linha 57: `.single()` -> `.maybeSingle()`
-- `mfa-status.ts` linha 30: `.single()` -> `.maybeSingle()`
+### Correcao 3: Verificar contagem de linhas
 
-Estas queries buscam registros em `user_mfa` que podem nao existir (primeiro acesso). `.single()` lanca erro PostgREST quando nenhum registro e encontrado, enquanto `.maybeSingle()` retorna `null` graciosamente.
+Apos a refatoracao, confirmar que `unified-auth-v2.ts` permanece dentro do limite de 300 linhas ou, se exceder marginalmente, documentar a excecao (similar ao `useUnifiedAuth.ts`).
 
-### Correcao 4: Tipagem segura no fluxo MFA do login
+---
 
-**Arquivo:** `src/pages/Auth.tsx`
+## O Que Esta CORRETO (Validado)
 
-Eliminar casting inseguro:
-```typescript
-// ANTES (inseguro):
-if (result && 'mfa_required' in result && (result as Record<string, unknown>).mfa_required) {
-  const mfaResult = result as Record<string, unknown>;
-  setMfaSessionToken(mfaResult.mfa_session_token as string);
+| Item | Status | Evidencia |
+|------|--------|-----------|
+| Tabela `user_mfa` | OK | 11 colunas, defaults corretos, FK para users |
+| Tabela `mfa_sessions` | OK | 8 colunas, defaults corretos |
+| RLS em `user_mfa` | OK | `Deny all client access` (false/false) |
+| RLS em `mfa_sessions` | OK | `Deny all client access` (false/false) |
+| RPC `increment_mfa_attempts` | OK | Atomico, `attempts = attempts + 1` |
+| `mfa-helpers.ts` | OK | AES-256-GCM + bcrypt, sem dead code |
+| `mfa-session.ts` | OK | Purge automatico, RPC atomica |
+| `mfa-setup.ts` | OK | `.maybeSingle()` correto |
+| `mfa-verify-setup.ts` | OK | `.single()` correto (registro DEVE existir) |
+| `mfa-status.ts` | OK | `.maybeSingle()` correto |
+| `MfaVerifyDialog.tsx` | OK | 230 linhas, auto-submit, backup mode |
+| `MfaSetupWizard.tsx` | OK | 398 linhas - PRECISA verificar (>300) |
+| `MfaSettingsCard.tsx` | OK | 232 linhas, query + disable dialog |
+| `mfaService.ts` | OK | 173 linhas, zero DB access |
+| `Auth.tsx` | OK | MFA dialog integrado, tipagem correta |
+| `Perfil.tsx` | OK | MfaSettingsCard com role check |
+| `useUnifiedAuth.ts` | OK | LoginResponse tipado com MFA fields |
+| EDGE_FUNCTIONS_REGISTRY.md | OK | MFA endpoints documentados na linha 99 |
+| Zero `console.*` | OK | Todos usam `createLogger` |
+| Zero DB access frontend | OK | Tudo via Edge Functions |
+| MFA_ENCRYPTION_KEY | OK | Secret configurado |
 
-// DEPOIS (tipado):
-if (result.mfa_required) {
-  setMfaSessionToken(result.mfa_session_token ?? "");
-```
-
-### Correcao 5: Limpeza de sessoes MFA expiradas
-
-Adicionar limpeza automatica em `createMfaSession`:
-```typescript
-// Before creating a new session, purge expired ones for this user
-await supabase
-  .from("mfa_sessions")
-  .delete()
-  .eq("user_id", userId)
-  .or("is_used.eq.true,expires_at.lt." + new Date().toISOString());
-```
-
-Isso garante que cada novo login limpa sessoes antigas do mesmo usuario, sem necessidade de cron job separado.
-
-### Correcao 6: Atualizar documentacao e comentarios
-
-**Arquivo:** `supabase/functions/_shared/mfa-session.ts`
-
-Remover o bloco de comentario nas linhas 110-124 que documenta a race condition aceita e substituir por documentacao correta referenciando a RPC atomica.
-
-Atualizar o header do modulo para refletir o uso da RPC.
+**ALERTA:** `MfaSetupWizard.tsx` tem 398 linhas, excedendo o limite de 300. Isso precisa de refatoracao para extrair os sub-steps em componentes separados.
 
 ---
 
 ## Arvore de Arquivos Modificados
 
 ```text
-Migracao SQL (nova):
-  - increment_mfa_attempts RPC function
-
 Modificados:
-  - supabase/functions/_shared/mfa-session.ts       (RPC atomica + limpeza)
-  - supabase/functions/unified-auth/handlers/mfa-setup.ts   (.maybeSingle)
-  - supabase/functions/unified-auth/handlers/mfa-status.ts  (.maybeSingle)
-  - src/hooks/useUnifiedAuth.ts                     (LoginResponse tipagem)
-  - src/pages/Auth.tsx                              (MFA tipagem + setup notification)
+  supabase/functions/_shared/unified-auth-v2.ts     (+~50 linhas: resolveUserSessionContext)
+  supabase/functions/unified-auth/handlers/login.ts  (-~40 linhas: usa resolveUserSessionContext)
+  supabase/functions/unified-auth/handlers/mfa-verify.ts (-~50 linhas: usa resolveUserSessionContext)
+  supabase/functions/unified-auth/handlers/mfa-disable.ts (1 linha: .maybeSingle)
+
+Refatorados (split 300-line limit):
+  src/components/auth/MfaSetupWizard.tsx            (split em sub-componentes)
+  src/components/auth/mfa-setup/QrCodeStep.tsx       (novo)
+  src/components/auth/mfa-setup/VerifyStep.tsx       (novo)
+  src/components/auth/mfa-setup/BackupCodesStep.tsx  (novo)
 ```
+
+---
 
 ## Checkpoint RISE V3
 
@@ -179,3 +232,4 @@ Modificados:
 | Precisaremos "melhorar depois"? | Nao |
 | O codigo sobrevive 10 anos sem refatoracao? | Sim |
 | Estou escolhendo isso por ser mais rapido? | Nao |
+
