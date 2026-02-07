@@ -1,147 +1,250 @@
 
+# Step-Up MFA: Verificacao do Owner para Operacoes Criticas
 
-# Correcao: MFA_ENCRYPTION_KEY - Base64 Invalida + Hardening do Validador
+## Contexto do Problema
 
-## Diagnostico Preciso
+### Estado Atual
 
-### Erro nos Logs
-```
-MFA setup error: Failed to decode base64
-```
+O sistema de MFA hoje tem **apenas 2 funcoes**:
+1. Proteger o LOGIN de admin/owner (exige TOTP para entrar)
+2. Forcar o SETUP de MFA (bloqueia dashboard ate configurar)
 
-### Causa Raiz
+### Brechas Identificadas
 
-A chave `k7Hj9Lm2Np4Qr6St8Uv0Wx2Yz4Ab6Cd8Ef0Gh2Ij4K=` tem **43 caracteres**. Base64 valido exige comprimento **multiplo de 4**.
-
-| Caracteres | Multiplo de 4? | Status |
-|-----------|----------------|--------|
-| 43        | NAO (43/4 = 10.75) | INVALIDO |
-| 44        | SIM (44/4 = 11)    | VALIDO |
-
-O `atob()` do Deno rejeita ANTES de decodificar, gerando `Failed to decode base64`.
-
-### Por que o codigo nao ajudou a diagnosticar
-
-A funcao `getMfaEncryptionKey()` em `mfa-helpers.ts` (linha 60) chama `atob(keyBase64)` **sem try-catch**. O erro generico do runtime (`Failed to decode base64`) propaga sem contexto, sem indicar que a chave esta com formato invalido nem como corrigi-la.
-
-Isso viola RISE V3 Secao 6.1 (Root Cause Only): o erro deveria informar **exatamente o que esta errado e como corrigir**.
+| Brecha | Gravidade | Cenario de Ataque |
+|--------|-----------|-------------------|
+| `manage-user-role` nao exige MFA | CRITICA | Admin com sessao roubada promove hacker a admin |
+| Sessao nao marca se MFA foi verificado | ALTA | Nao da para distinguir sessao MFA-verified de nao-verified |
+| Zero re-autenticacao em acoes criticas | CRITICA | Admin logado faz qualquer acao sem confirmar identidade |
+| Nao existe conceito de "MFA do Owner" | CRITICA | Admin promove outro admin sem aprovacao do Owner |
 
 ---
 
 ## Analise de Solucoes
 
-### Solucao A: Apenas orientar o usuario a trocar a chave
+### Solucao A: Flag `mfa_verified` na sessao + check nas Edge Functions
 
-- Manutenibilidade: 5/10 (proximo usuario com chave invalida tera o mesmo erro generico)
-- Zero DT: 4/10 (funcao fragil continua sem validacao adequada)
-- Arquitetura: 5/10 (funcao de seguranca sem tratamento de erro robusto)
-- Escalabilidade: 6/10 (nao impacta)
-- Seguranca: 6/10 (mensagem de erro nao ajuda em auditoria)
-- **NOTA FINAL: 5.0/10**
+Marcar na sessao se o usuario passou MFA e verificar nas edge functions criticas.
 
-### Solucao B: Hardening do validador + orientacao da chave
+- Manutenibilidade: 6/10 (nao resolve o problema do Owner)
+- Zero DT: 5/10 (precisa ser expandida depois para step-up do owner)
+- Arquitetura: 6/10 (incompleta - falta re-autenticacao)
+- Escalabilidade: 7/10
+- Seguranca: 6/10 (protege contra sessao sem MFA, mas nao contra admin comprometido)
+- **NOTA FINAL: 6.0/10**
 
-Melhorar `getMfaEncryptionKey()` com:
-1. Try-catch ao redor do `atob()` com mensagem actionable
-2. Validacao de formato base64 (multiplo de 4) ANTES de decodificar
-3. Log claro com instrucoes de geracao
-4. Orientar o usuario a gerar e configurar a chave correta
+### Solucao B: Step-Up MFA Completo com Verificacao do Owner
 
-- Manutenibilidade: 10/10 (qualquer erro futuro tera diagnostico automatico)
-- Zero DT: 10/10 (nenhuma "correcao futura" necessaria)
-- Arquitetura: 10/10 (funcao de seguranca com tratamento robusto)
-- Escalabilidade: 10/10 (nao impacta)
-- Seguranca: 10/10 (validacao completa, mensagens claras em auditoria)
+Arquitetura completa de 3 niveis:
+1. `mfa_verified_at` na tabela `sessions` (marca quando MFA foi usado no login)
+2. **Step-Up MFA Middleware** no backend que exige TOTP em tempo real para acoes criticas
+3. **Owner-Only Step-Up** para acoes ultra-criticas: exige o TOTP do OWNER, nao do caller
+
+- Manutenibilidade: 10/10 (middleware reutilizavel em qualquer edge function)
+- Zero DT: 10/10 (cobre todos os cenarios de ataque)
+- Arquitetura: 10/10 (3 niveis claros, SOLID, desacoplado)
+- Escalabilidade: 10/10 (novas operacoes criticas sao protegidas adicionando 1 linha)
+- Seguranca: 10/10 (ate admin comprometido nao escala privilegios sem TOTP do owner)
 - **NOTA FINAL: 10.0/10**
 
 ### DECISAO: Solucao B (Nota 10.0)
 
-A Solucao A resolve o problema de HOJE. A Solucao B resolve o problema para SEMPRE.
+A Solucao A protege contra sessoes nao-verificadas, mas NAO resolve o cenario principal: admin comprometido tentando escalar privilegios. A Solucao B cria uma camada de seguranca que NENHUM compromisso de admin pode ultrapassar.
+
+---
+
+## Arquitetura de 3 Niveis de MFA
+
+```text
+NIVEL 1: MFA de Login (ja existe)
+  Quando: Login de admin/owner
+  Quem verifica: O proprio usuario
+  O que protege: Acesso ao dashboard
+  Status: IMPLEMENTADO
+
+NIVEL 2: Step-Up MFA (Self)
+  Quando: Operacoes sensiveis (alterar email, desativar MFA, etc.)
+  Quem verifica: O proprio usuario (seu proprio TOTP)
+  O que protege: Acoes que afetam a propria conta
+  Status: A IMPLEMENTAR
+
+NIVEL 3: Step-Up MFA (Owner)
+  Quando: Operacoes ultra-criticas (promover admin, alterar roles)
+  Quem verifica: O OWNER (o TOTP do owner, nao do caller)
+  O que protege: Escalacao de privilegios e acoes destrutivas
+  Status: A IMPLEMENTAR
+```
+
+---
+
+## Classificacao de Operacoes Criticas
+
+```text
+NIVEL 2 - Requer MFA do proprio usuario:
+  - Alterar email da propria conta
+  - Desativar MFA
+  - Excluir propria conta
+  - Alterar senha (alem de confirmar senha atual)
+
+NIVEL 3 - Requer MFA do OWNER:
+  - manage-user-role: Promover/rebaixar qualquer usuario
+  - manage-user-status: Desativar/suspender contas
+  - Alterar configuracoes criticas do sistema
+  - Acessar dados financeiros sensiveis
+  - Qualquer operacao futura de risco
+```
 
 ---
 
 ## Plano de Execucao
 
-### 1. Hardening de `getMfaEncryptionKey()` em `mfa-helpers.ts`
+### Fase 1: Infraestrutura de Step-Up MFA
 
-Reescrever a funcao para:
+#### 1.1 Migracao SQL: `mfa_verified_at` na tabela `sessions`
+
+Adicionar coluna na tabela `sessions` para rastrear quando a sessao passou por MFA:
 
 ```text
-function getMfaEncryptionKey(): Uint8Array {
-  const keyBase64 = Deno.env.get("MFA_ENCRYPTION_KEY");
-  
-  // 1. Verifica se existe
-  if (!keyBase64) {
-    throw new Error("MFA_ENCRYPTION_KEY not configured. Set it via: openssl rand -base64 32");
-  }
+ALTER TABLE sessions ADD COLUMN mfa_verified_at TIMESTAMPTZ DEFAULT NULL;
+```
 
-  // 2. Valida formato base64 (multiplo de 4, caracteres validos)
-  const trimmed = keyBase64.trim();
-  if (trimmed.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(trimmed)) {
-    throw new Error(
-      `MFA_ENCRYPTION_KEY is not valid base64 (length ${trimmed.length}, must be multiple of 4). ` +
-      `Generate with: openssl rand -base64 32`
-    );
-  }
+Quando o login passa por MFA (handler `mfa-verify.ts`), marcar o timestamp. Sessoes sem MFA (admin que ainda nao configurou) terao `NULL`.
 
-  // 3. Decodifica com try-catch (defesa em profundidade)
-  let keyBytes: Uint8Array;
-  try {
-    keyBytes = Uint8Array.from(atob(trimmed), (c) => c.charCodeAt(0));
-  } catch {
-    throw new Error(
-      "MFA_ENCRYPTION_KEY failed base64 decoding. Generate a new key with: openssl rand -base64 32"
-    );
-  }
+#### 1.2 Shared Module: `step-up-mfa.ts`
 
-  // 4. Valida tamanho exato (AES-256 = 32 bytes)
-  if (keyBytes.length !== 32) {
-    throw new Error(
-      `MFA_ENCRYPTION_KEY must decode to exactly 32 bytes (got ${keyBytes.length}). ` +
-      `Generate with: openssl rand -base64 32`
-    );
-  }
+Novo arquivo em `supabase/functions/_shared/step-up-mfa.ts` com:
 
-  return keyBytes;
+**Funcao `requireSelfMfa(supabase, req, userId, totpCode)`**
+- Verifica o TOTP do proprio usuario em tempo real
+- Busca o `user_mfa` do `userId` que fez a requisicao
+- Decodifica o secret e valida o codigo
+- Retorna `{ verified: true }` ou `{ verified: false, error: "..." }`
+
+**Funcao `requireOwnerMfa(supabase, req, ownerTotpCode)`**
+- Encontra o usuario com role `owner` no sistema
+- Busca o `user_mfa` do OWNER (nao do caller)
+- Decodifica o secret do owner e valida o codigo informado
+- Retorna `{ verified: true }` ou `{ verified: false, error: "..." }`
+- Se o owner nao tem MFA configurado, retorna erro especifico
+
+**Funcao auxiliar `getOwnerUserId(supabase)`**
+- Query na tabela `user_roles` buscando `role = 'owner'`
+- Cache em memoria para evitar query repetida dentro da mesma requisicao
+
+#### 1.3 Shared Module: `critical-operation-guard.ts`
+
+Middleware que classifica e protege operacoes:
+
+```text
+enum CriticalLevel {
+  NONE = 0,      // Sem verificacao adicional
+  SELF_MFA = 1,  // Requer TOTP do proprio usuario
+  OWNER_MFA = 2, // Requer TOTP do owner
 }
 ```
 
-**Mudancas:**
-- Trim da chave (remove espacos acidentais)
-- Validacao regex de formato base64 ANTES do atob
-- Try-catch ao redor do atob com mensagem actionable
-- Todas as mensagens de erro incluem o comando de geracao
+Funcao `guardCriticalOperation(supabase, req, level, totpCode)`:
+- Nivel 0: Pass-through
+- Nivel 1: Chama `requireSelfMfa`
+- Nivel 2: Chama `requireOwnerMfa`
+- Retorna Response de erro (403 + mensagem clara) ou null (passou)
 
-### 2. Orientacao para gerar chave correta
+### Fase 2: Integracao com Edge Functions Existentes
 
-O usuario precisa gerar uma chave que:
-- Seja base64 valida (multiplo de 4 caracteres)
-- Decodifique para exatamente 32 bytes
+#### 2.1 `manage-user-role/index.ts`
 
-**Metodo 1 - Terminal (recomendado):**
+Alterar para:
+- Receber campo `ownerMfaCode` no body da requisicao
+- Antes de executar a mudanca de role, chamar `guardCriticalOperation(supabase, req, OWNER_MFA, ownerMfaCode)`
+- Se falhar: retornar 403 com mensagem "Codigo MFA do Owner necessario para esta operacao"
+- Registrar no audit log se a verificacao MFA falhou
+
+#### 2.2 `manage-user-status` (se existir)
+
+Mesma logica: exigir TOTP do owner para desativar/suspender contas.
+
+#### 2.3 `mfa-verify.ts` (handler de login)
+
+Apos verificacao MFA bem-sucedida, atualizar a sessao criada com `mfa_verified_at = now()`.
+
+### Fase 3: Frontend - Modal de Step-Up MFA
+
+#### 3.1 Componente `OwnerMfaModal`
+
+Modal reutilizavel que:
+- Exibe mensagem explicando que a operacao requer o codigo do OWNER
+- Input de 6 digitos para o TOTP
+- Retorna o codigo para o caller via callback `onVerified(code: string)`
+- Nao faz verificacao local - o backend valida
+
+#### 3.2 Integracao na UI de Gerenciamento de Roles
+
+Quando admin/owner clica para alterar um role:
+1. Abre o `OwnerMfaModal`
+2. Coleta o codigo TOTP
+3. Envia para `manage-user-role` com o campo `ownerMfaCode`
+4. Se backend retorna 403 (MFA invalido): exibe erro no modal
+5. Se backend retorna 200: fecha modal, mostra sucesso
+
+### Fase 4: Registro e Documentacao
+
+#### 4.1 Atualizar `EDGE_FUNCTIONS_REGISTRY.md`
+
+Documentar os novos modulos shared:
+- `_shared/step-up-mfa.ts`
+- `_shared/critical-operation-guard.ts`
+
+#### 4.2 Audit Log
+
+Todas as tentativas de step-up MFA (sucesso e falha) serao registradas via `log_security_event` com acoes:
+- `STEP_UP_MFA_SUCCESS`
+- `STEP_UP_MFA_FAILED`
+- `OWNER_MFA_REQUIRED`
+
+---
+
+## Fluxo de Ataque Mitigado
+
+```text
+CENARIO: Hacker rouba cookies de sessao de um Admin
+
+ANTES (vulneravel):
+  Hacker → manage-user-role(promover hacker para admin) → SUCESSO
+  Hacker agora e admin com acesso total
+
+DEPOIS (com Step-Up MFA do Owner):
+  Hacker → manage-user-role(promover hacker para admin)
+  Backend → "Informe o codigo MFA do Owner"
+  Hacker → NAO tem o celular do Owner
+  Backend → 403 BLOQUEADO
+  Audit Log → ALERTA de tentativa de escalacao
+
+CENARIO: Admin comprometido (email+senha vazados, MFA do admin tambem)
+  Hacker loga como admin (passa MFA do admin)
+  Hacker → manage-user-role(promover complice)
+  Backend → "Informe o codigo MFA do OWNER" (nao do admin!)
+  Hacker → NAO tem acesso ao autenticador do Owner
+  Backend → 403 BLOQUEADO
 ```
-openssl rand -base64 32
-```
-Isso gera exatamente 32 bytes aleatorios e os codifica em base64 (resultado: 44 caracteres).
-
-**Metodo 2 - Console do navegador:**
-```
-btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
-```
-
-O resultado sera uma string de 44 caracteres terminando em `=`. Essa string deve ser configurada como o valor do secret `MFA_ENCRYPTION_KEY` no Supabase.
-
-### 3. Deploy da edge function
-
-Apos modificar `mfa-helpers.ts`, deployar `unified-auth` para que a nova validacao entre em vigor.
 
 ---
 
 ## Arvore de Arquivos
 
 ```text
+Novos:
+  supabase/functions/_shared/step-up-mfa.ts        (~80 linhas)
+  supabase/functions/_shared/critical-operation-guard.ts (~60 linhas)
+  src/components/auth/OwnerMfaModal.tsx             (~120 linhas)
+
 Modificados:
-  supabase/functions/_shared/mfa-helpers.ts  (~15 linhas alteradas na funcao getMfaEncryptionKey)
+  supabase/functions/unified-auth/handlers/mfa-verify.ts  (adicionar mfa_verified_at)
+  supabase/functions/manage-user-role/index.ts             (integrar guardCriticalOperation)
+  src/services/mfaService.ts                               (adicionar tipo para step-up)
+  docs/EDGE_FUNCTIONS_REGISTRY.md                          (documentar novos modulos)
+
+Migracao SQL:
+  ALTER TABLE sessions ADD COLUMN mfa_verified_at TIMESTAMPTZ DEFAULT NULL;
 ```
 
 ---
@@ -150,10 +253,9 @@ Modificados:
 
 | Pergunta | Resposta |
 |----------|----------|
-| Esta e a MELHOR solucao possivel? | Sim, nota 10.0 |
+| Esta e a MELHOR solucao possivel? | Sim, nota 10.0 - protecao em 3 niveis |
 | Existe alguma solucao com nota maior? | Nao |
-| Isso cria divida tecnica? | Zero - remove fragilidade existente |
-| Precisaremos "melhorar depois"? | Nao |
-| O codigo sobrevive 10 anos sem refatoracao? | Sim |
-| Estou escolhendo isso por ser mais rapido? | Nao |
-
+| Isso cria divida tecnica? | Zero - middleware reutilizavel para qualquer operacao futura |
+| Precisaremos "melhorar depois"? | Nao - o sistema de niveis e extensivel por design |
+| O codigo sobrevive 10 anos sem refatoracao? | Sim - padroes de step-up MFA sao standard da industria |
+| Estou escolhendo isso por ser mais rapido? | Nao - e a unica que cobre admin comprometido |
