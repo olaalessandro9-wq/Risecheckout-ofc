@@ -52,3 +52,11 @@ export {
   getNewSaleTemplate,
   getNewSaleTextTemplate,
 } from "./email-templates-seller.ts";
+
+// Email verification templates
+export {
+  getEmailVerificationTemplate,
+  getEmailVerificationTextTemplate,
+} from "./email-templates-verification.ts";
+
+export type { EmailVerificationData } from "./email-templates-verification.ts";

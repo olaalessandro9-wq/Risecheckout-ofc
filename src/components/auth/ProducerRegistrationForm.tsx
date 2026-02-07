@@ -116,6 +116,8 @@ export function ProducerRegistrationForm({
       const { data, error } = await api.publicCall<{
         success: boolean;
         error?: string;
+        requiresEmailVerification?: boolean;
+        email?: string;
       }>("unified-auth/register", {
         email: emailField.value,
         password: passwordField.value,
@@ -147,8 +149,14 @@ export function ProducerRegistrationForm({
       // RISE V3: Limpar sessionStorage após sucesso
       clearData();
       
-      toast.success("Cadastro realizado! Faça login para continuar.");
-      navigate("/auth");
+      // RISE V3: Redirect to email verification page (no auto-login)
+      if (data?.requiresEmailVerification) {
+        toast.success("Conta criada! Verifique seu email para ativá-la.");
+        navigate(`/verificar-email?email=${encodeURIComponent(emailField.value)}`);
+      } else {
+        toast.success("Cadastro realizado! Faça login para continuar.");
+        navigate("/auth");
+      }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Erro ao criar conta");
     } finally {

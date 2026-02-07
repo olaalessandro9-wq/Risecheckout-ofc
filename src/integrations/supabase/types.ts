@@ -3925,6 +3925,8 @@ export type Database = {
           document_encrypted: string | null
           document_hash: string | null
           email: string
+          email_verification_token: string | null
+          email_verification_token_expires_at: string | null
           email_verified: boolean | null
           id: string
           is_active: boolean | null
@@ -3964,6 +3966,8 @@ export type Database = {
           document_encrypted?: string | null
           document_hash?: string | null
           email: string
+          email_verification_token?: string | null
+          email_verification_token_expires_at?: string | null
           email_verified?: boolean | null
           id?: string
           is_active?: boolean | null
@@ -4003,6 +4007,8 @@ export type Database = {
           document_encrypted?: string | null
           document_hash?: string | null
           email?: string
+          email_verification_token?: string | null
+          email_verification_token_expires_at?: string | null
           email_verified?: boolean | null
           id?: string
           is_active?: boolean | null
@@ -4836,6 +4842,7 @@ export type Database = {
         | "pending_setup"
         | "reset_required"
         | "owner_no_password"
+        | "pending_email_verification"
       app_role: "admin" | "user" | "owner" | "seller" | "buyer"
       credit_card_gateway_type: "mercadopago" | "stripe" | "asaas"
       delivery_type_enum: "standard" | "members_area" | "external"
@@ -4977,6 +4984,7 @@ export const Constants = {
         "pending_setup",
         "reset_required",
         "owner_no_password",
+        "pending_email_verification",
       ],
       app_role: ["admin", "user", "owner", "seller", "buyer"],
       credit_card_gateway_type: ["mercadopago", "stripe", "asaas"],
