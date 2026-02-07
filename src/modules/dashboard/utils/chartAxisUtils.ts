@@ -2,7 +2,7 @@
  * Chart X-Axis Utilities
  * 
  * @module dashboard/utils
- * @version RISE V3 Compliant - Solution B (10.0 score)
+ * @version RISE V3 Compliant - 3-Tier DD/MM (10.0 score)
  * 
  * Intelligent tick calculation and formatting for the RevenueChart.
  * Auto-detects data granularity (hourly vs daily) and calculates
@@ -156,73 +156,32 @@ function calculateHourlyTicks(
 }
 
 /**
- * Maximum number of daily data points that will be shown WITHOUT any
- * tick-skipping. For ranges within this threshold, EVERY single day
- * appears on the X-axis using the compact format.
+ * Formatter that converts ISO dates ("YYYY-MM-DD") to "DD/MM" format.
  *
- * 45 labels × ~15px each = 675px — fits on any screen including
- * mobile landscape.
+ * Used for short (≤14 days) and medium (15-45 days) ranges where
+ * the exact date is shown compactly. Examples: "31/01", "01/02".
  */
-const SHORT_RANGE_THRESHOLD = 45;
-
-/**
- * Build a compact formatter for short date ranges (≤45 days).
- *
- * The format minimises label width so every day fits on screen:
- *  - First tick: always "D Mon" (e.g. "8 Jan") to anchor the viewer.
- *  - Month-transition ticks: "D Mon" (e.g. "1 Fev") so the month
- *    change is clearly visible.
- *  - All other ticks: just the day number ("9", "10", "31").
- *
- * This yields ~12-15px per numeric label and ~35px for anchored
- * labels, totalling well under any realistic chart width.
- */
-function getCompactDailyFormatter(
-  allDates: readonly string[],
-): (value: string) => string {
-  // Pre-compute a Set of dates that need the month suffix.
-  const anchoredDates = new Set<string>();
-
-  if (allDates.length > 0) {
-    // First date always gets the month suffix.
-    anchoredDates.add(allDates[0]);
-
-    // Every date whose month differs from its predecessor gets the suffix.
-    for (let i = 1; i < allDates.length; i++) {
-      const prevMonth = allDates[i - 1].substring(5, 7);
-      const currMonth = allDates[i].substring(5, 7);
-      if (currMonth !== prevMonth) {
-        anchoredDates.add(allDates[i]);
-      }
-    }
-  }
-
+function getDDMMFormatter(): (value: string) => string {
   return (value: string): string => {
     const parts = value.split("-");
     if (parts.length < 3) return value;
-
-    const day = parseInt(parts[2], 10);
-
-    if (anchoredDates.has(value)) {
-      const monthIndex = parseInt(parts[1], 10) - 1;
-      const monthName = MONTH_SHORT[monthIndex] ?? parts[1];
-      return `${day} ${monthName}`;
-    }
-
-    return String(day);
+    return `${parts[2]}/${parts[1]}`;
   };
 }
 
 /**
- * Calculate daily ticks with two clearly separated strategies:
+ * Calculate daily ticks with three clearly separated tiers:
  *
- * 1. Short ranges (≤ SHORT_RANGE_THRESHOLD days):
- *    Show EVERY single day using the compact formatter.
- *    No tick-skipping. No distribution algorithm. Zero days missing.
+ * Tier 1 — Short range (≤14 days, e.g. "7 dias"):
+ *   Show EVERY day. Format "DD/MM". All ticks fit comfortably.
  *
- * 2. Long ranges (> SHORT_RANGE_THRESHOLD days):
- *    Use selectWithConsistentStep to distribute ticks evenly,
- *    with "DD Mon" or "Mon/YY" formatting.
+ * Tier 2 — Medium range (15-45 days, e.g. "30 dias"):
+ *   Show every OTHER day (step=2). Format "DD/MM".
+ *   15 labels × ~45px = 675px — fits any screen.
+ *
+ * Tier 3 — Long range (46+ days, e.g. "Máximo"):
+ *   Use selectWithConsistentStep for even distribution.
+ *   Format "DD Mon" (≤90) or "Mon/YY" (91+).
  */
 function calculateDailyTicks(
   data: readonly ChartDataPoint[],
@@ -230,29 +189,34 @@ function calculateDailyTicks(
 ): XAxisConfig {
   const count = data.length;
   const allDates = data.map((d) => d.date);
+  const ddmmFormatter = getDDMMFormatter();
 
-  // ── Short range: show ALL ticks, compact format ──────────────
-  if (count <= SHORT_RANGE_THRESHOLD) {
-    return {
-      ticks: [...allDates],
-      formatter: getCompactDailyFormatter(allDates),
-    };
+  // ── Tier 1: ≤14 days — ALL ticks, DD/MM ─────────────────────
+  if (count <= 14) {
+    return { ticks: [...allDates], formatter: ddmmFormatter };
   }
 
-  // ── Long range: distributed ticks with full-width labels ─────
+  // ── Tier 2: 15-45 days — step=2 (every other day), DD/MM ───
+  if (count <= 45) {
+    const ticks: string[] = [];
+    for (let i = 0; i < allDates.length; i += 2) {
+      ticks.push(allDates[i]);
+    }
+    return { ticks, formatter: ddmmFormatter };
+  }
+
+  // ── Tier 3: 46+ days — smart distribution, full labels ──────
   const estimatedLabelWidth = count <= 90 ? 55 : 58;
   const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
   const ticks = selectWithConsistentStep(allDates, maxTicks);
-  const formatter = getDailyFormatter(count);
-
-  return { ticks, formatter };
+  return { ticks, formatter: getDailyFormatter(count) };
 }
 
 /**
- * Get the appropriate date formatter for LONG ranges (> 45 days).
+ * Get the appropriate date formatter for LONG ranges (46+ days).
  *
- * Short ranges (≤45 days) never reach this function — they use
- * getCompactDailyFormatter instead.
+ * Tiers 1 and 2 (≤45 days) use getDDMMFormatter and never
+ * reach this function.
  *
  * - 46-90 days: "DD Mon" (e.g., "15 Jan")
  * - 91+ days: "Mon/YY" (e.g., "Jan/26")
