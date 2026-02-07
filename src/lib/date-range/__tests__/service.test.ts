@@ -139,11 +139,13 @@ describe("DateRangeService", () => {
       expect(range.preset).toBe("max");
     });
 
-    it("should use default maxStartDate from 2020", () => {
+    it("should start 16 months before reference date by default", () => {
       const service = new DateRangeService({ referenceDate });
       const range = service.getRange("max");
 
-      expect(range.startDate.getFullYear()).toBe(2020);
+      // referenceDate is Jan 15, 2026 → 16 months back → Sep 15, 2024
+      const startYear = range.startDate.getFullYear();
+      expect(startYear).toBe(2024);
     });
 
     it("should end at today", () => {
@@ -154,12 +156,21 @@ describe("DateRangeService", () => {
       expect(max.endISO).toBe(today.endISO);
     });
 
-    it("should allow custom maxStartDate", () => {
-      const customMaxStart = new Date("2022-06-01T03:00:00.000Z");
-      const service = new DateRangeService({ referenceDate, maxStartDate: customMaxStart });
+    it("should use timezone-aware boundaries for start date", () => {
+      const service = new DateRangeService({ referenceDate });
       const range = service.getRange("max");
 
-      expect(range.startDate.getFullYear()).toBe(2022);
+      // Start should be at a clean day boundary (00:00:00.000 in timezone)
+      expect(range.startISO).toMatch(/T\d{2}:00:00\.000Z$/);
+    });
+
+    it("should allow custom maxMonthsBack", () => {
+      const service = new DateRangeService({ referenceDate, maxMonthsBack: 6 });
+      const range = service.getRange("max");
+
+      // referenceDate is Jan 15, 2026 → 6 months back → Jul 15, 2025
+      expect(range.startDate.getFullYear()).toBe(2025);
+      expect(range.startDate.getMonth()).toBeGreaterThanOrEqual(6); // July or later
     });
   });
 

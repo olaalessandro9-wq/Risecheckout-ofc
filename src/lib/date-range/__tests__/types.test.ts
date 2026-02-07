@@ -66,11 +66,8 @@ describe("DateRange Types", () => {
       expect(DEFAULT_DATE_RANGE_CONFIG.timezone).toBe("America/Sao_Paulo");
     });
 
-    it("should have maxStartDate set to 2020-01-01", () => {
-      expect(DEFAULT_DATE_RANGE_CONFIG.maxStartDate).toBeDefined();
-      expect(DEFAULT_DATE_RANGE_CONFIG.maxStartDate?.getFullYear()).toBe(2020);
-      expect(DEFAULT_DATE_RANGE_CONFIG.maxStartDate?.getMonth()).toBe(0); // January
-      expect(DEFAULT_DATE_RANGE_CONFIG.maxStartDate?.getDate()).toBe(1);
+    it("should have maxMonthsBack set to 16", () => {
+      expect(DEFAULT_DATE_RANGE_CONFIG.maxMonthsBack).toBe(16);
     });
 
     it("should not have referenceDate set (use current date)", () => {

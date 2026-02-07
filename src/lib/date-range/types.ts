@@ -85,11 +85,11 @@ export interface DateRangeConfig {
   readonly timezone: IANATimezone;
   /** Date to consider as "today" (default: new Date()) - useful for testing */
   readonly referenceDate?: Date;
-  /** Start date for "max" preset (default: 2020-01-01) */
-  readonly maxStartDate?: Date;
+  /** Number of months back for "max" preset (default: 16) */
+  readonly maxMonthsBack: number;
 }
 
 export const DEFAULT_DATE_RANGE_CONFIG: DateRangeConfig = {
   timezone: 'America/Sao_Paulo',
-  maxStartDate: new Date('2020-01-01T03:00:00.000Z'), // Jan 1, 2020 00:00 SP
+  maxMonthsBack: 16,
 } as const;
