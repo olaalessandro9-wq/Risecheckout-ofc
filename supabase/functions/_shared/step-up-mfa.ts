@@ -105,7 +105,7 @@ async function getUserTotpSecret(
 // ============================================================================
 
 /**
- * Verifies the caller's own TOTP code (Level 2 - Self).
+ * Verifies the caller's own TOTP code (Level 1 / SELF_MFA).
  * 
  * Use for operations that affect the caller's own account:
  * - Changing email
@@ -139,7 +139,7 @@ export async function requireSelfMfa(
 }
 
 /**
- * Verifies the system Owner's TOTP code (Level 3 - Owner).
+ * Verifies the system Owner's TOTP code (Level 2 / OWNER_MFA).
  * 
  * Use for ultra-critical operations that require Owner authorization:
  * - Promoting/demoting users (manage-user-role)
