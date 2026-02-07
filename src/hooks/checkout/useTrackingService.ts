@@ -1,18 +1,23 @@
 /**
  * Hook: useTrackingService
  * 
- * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
+ * @version 5.0.0 - RISE Protocol V3 - Arquitetura Híbrida
  * 
- * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
- * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+ * Arquitetura Híbrida UTMify:
+ * - Eventos transacionais (purchase, refund) são disparados no backend (SSOT)
+ *   via _shared/utmify/dispatcher.ts nos webhooks de pagamento.
+ * - Eventos comportamentais (InitiateCheckout) são disparados no frontend
+ *   via componente Pixel.tsx (CDN script do UTMify).
  * 
- * Este hook permanece para compatibilidade de API, mas NÃO dispara mais
- * eventos UTMify no frontend - isso é feito pelo backend.
+ * Este hook permanece para compatibilidade de API, mas NÃO dispara eventos
+ * UTMify diretamente — o Pixel CDN cuida do InitiateCheckout e o backend
+ * cuida dos eventos transacionais.
  * 
  * Outros pixels (Facebook, Google Ads, TikTok, Kwai) são disparados
  * automaticamente pelos componentes de pixel via TrackingManager.
  * 
- * @see docs/EDGE_FUNCTIONS_REGISTRY.md - UTMify Backend SSOT
+ * @see docs/EDGE_FUNCTIONS_REGISTRY.md
+ * @see docs/TRACKING_MODULE.md
  */
 
 import { useCallback } from "react";
@@ -49,11 +54,13 @@ interface UseTrackingServiceReturn {
 /**
  * Hook para gerenciar o tracking de eventos do checkout.
  * 
- * RISE V3 - Backend SSOT: UTMify tracking é feito exclusivamente no backend
- * via _shared/utmify-dispatcher.ts. Este hook NÃO dispara mais eventos UTMify.
+ * Arquitetura Híbrida UTMify:
+ * - InitiateCheckout: disparado pelo componente Pixel.tsx (frontend CDN)
+ * - Eventos transacionais: disparados pelo backend (SSOT) via webhooks
  * 
- * Outros pixels (Facebook, Google Ads, TikTok, Kwai) são renderizados pelo 
- * TrackingManager e disparam eventos automaticamente.
+ * Este hook NÃO dispara eventos UTMify diretamente. O Pixel CDN e o backend
+ * cuidam disso automaticamente. Outros pixels (Facebook, Google Ads, TikTok,
+ * Kwai) são renderizados pelo TrackingManager.
  * 
  * @param props - Configurações de tracking
  * @returns Funções para disparar eventos de tracking (no-op para UTMify)
@@ -65,7 +72,7 @@ export function useTrackingService({
   trackingConfig: _trackingConfig,
 }: UseTrackingServiceProps): UseTrackingServiceReturn {
   // Disparar evento de início de checkout
-  // NOTA: UTMify não tem evento de InitiateCheckout
+  // NOTA: InitiateCheckout UTMify é disparado pelo componente Pixel.tsx (CDN script)
   // Outros pixels são gerenciados pelo TrackingManager
   const fireInitiateCheckout = useCallback(
     (_selectedBumps: Set<string>, _orderBumps: OrderBump[]) => {
@@ -76,14 +83,14 @@ export function useTrackingService({
   );
 
   // Disparar evento de compra
-  // RISE V3: UTMify tracking é feito exclusivamente no backend
+  // Arquitetura Híbrida: eventos transacionais UTMify são disparados pelo backend (SSOT)
+  // via _shared/utmify/dispatcher.ts nos webhooks de pagamento.
   const firePurchase = useCallback(
     (purchaseData: PurchaseData) => {
       if (!productId || !productName || !vendorId) return;
 
-      // RISE V3 - Backend SSOT: UTMify tracking é feito no backend
-      // via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
-      // Este código foi removido para evitar disparo duplicado.
+      // Eventos transacionais UTMify são disparados pelo backend (SSOT)
+      // via _shared/utmify/dispatcher.ts nos webhooks de pagamento.
       log.debug("firePurchase chamado (no-op: UTMify é backend SSOT)", {
         orderId: purchaseData.orderId,
         vendorId,

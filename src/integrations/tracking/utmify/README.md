@@ -1,7 +1,7 @@
 # UTMify Integration Module
 **Módulo**: `src/integrations/tracking/utmify`  
 **Status**: ✅ Implementado  
-**Versão**: 4.0.0 - Backend SSOT  
+**Versão**: 5.0.0 - Arquitetura Híbrida (Backend SSOT + Frontend Pixel)  
 **RISE V3 Score**: 10.0/10
 
 ---
@@ -15,7 +15,7 @@ A partir da versão 5.0.0, o UTMify usa uma **arquitetura híbrida**:
 
 ### O que mudou?
 
-| Antes (v2.x) | Agora (v4.x) |
+| Antes (v2.x) | Agora (v5.x) |
 |--------------|--------------|
 | Frontend enviava conversões via Edge Function | Backend dispara eventos automaticamente |
 | `trackPurchase()` chamado no frontend | Webhook de pagamento dispara `purchase_approved` |
@@ -32,7 +32,7 @@ A partir da versão 5.0.0, o UTMify usa uma **arquitetura híbrida**:
 
 ## 📋 Visão Geral
 
-Este módulo frontend exporta **apenas utilitários e tipos**. A lógica de disparo está em `supabase/functions/_shared/utmify/`.
+Este módulo frontend exporta **utilitários, tipos, hooks e o componente Pixel**. A lógica de disparo de eventos transacionais está em `supabase/functions/_shared/utmify/`.
 
 ### Estrutura do Módulo Frontend
 

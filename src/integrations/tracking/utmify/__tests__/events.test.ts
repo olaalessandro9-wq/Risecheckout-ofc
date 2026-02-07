@@ -2,10 +2,11 @@
  * @file events.test.ts
  * @description Tests for UTMify events (re-exports)
  * 
- * @version 4.0.0 - RISE Protocol V3 - Backend SSOT
+ * @version 5.0.0 - RISE Protocol V3 - Arquitetura Híbrida
  * 
- * IMPORTANTE: O tracking UTMify é agora feito EXCLUSIVAMENTE no backend
- * via _shared/utmify-dispatcher.ts nos webhooks de pagamento.
+ * Arquitetura Híbrida UTMify:
+ * - Eventos transacionais no backend (SSOT) via _shared/utmify/dispatcher.ts
+ * - Eventos comportamentais (InitiateCheckout) no frontend via Pixel CDN
  * 
  * Este arquivo testa apenas os re-exports de utils.
  */
