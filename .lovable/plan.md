@@ -1,123 +1,51 @@
 
-# Correcao: Componentes Mobile Nao Renderizados no Checkout Publico
+# Correcao: "supabaseUrl is not defined" no pushinpay-create-pix
 
-## Diagnostico (Causa Raiz Confirmada)
+## Diagnostico
 
-O cronometro adicionado no builder mobile esta **corretamente persistido no banco de dados**. Confirmado via query direta:
+Os logs da Edge Function confirmam o erro:
 
-```text
-checkout_id: 5884a6c4-42d7-40c7-9790-c4a274745046
-is_mobile_synced: false
-mobile_top_components: [{ type: "timer", id: "component-1770422671347-...", content: {...} }]
-top_components: [] (desktop vazio)
+```
+2026-02-07T03:57:28Z ERROR "supabaseUrl is not defined"
+2026-02-07T03:53:40Z ERROR "supabaseUrl is not defined"
 ```
 
-O problema esta em **3 camadas** do pipeline de dados no frontend que **descartam silenciosamente** os campos `mobile_top_components` e `mobile_bottom_components`:
+No arquivo `supabase/functions/pushinpay-create-pix/index.ts`, a variavel `supabaseUrl` e referenciada em **duas linhas** mas **nunca declarada**:
 
-### Camada 1: Zod Schema (Contract)
-O `CheckoutSchema` em `resolveAndLoadResponse.schema.ts` define os campos do checkout que sao aceitos. Os campos `mobile_top_components` e `mobile_bottom_components` **NAO estao declarados**. O `z.object()` do Zod remove chaves desconhecidas por padrao (`strip` mode), entao esses campos sao **silenciosamente descartados** durante a validacao do response da API.
+- **Linha 180:** passada para `buildPixPayload()` -- monta a `webhook_url` do PIX
+- **Linha 197:** passada para `triggerPixGeneratedWebhook()` -- chama a Edge Function `trigger-webhooks`
 
-### Camada 2: Interface TypeScript (UI Model)
-O `CheckoutUIModel` em `mapResolveAndLoad.ts` nao declara `mobile_top_components` nem `mobile_bottom_components`.
+JavaScript/TypeScript lanca `ReferenceError` na primeira referencia (linha 180), que e capturada pelo bloco `catch` e retornada como resposta `400 Bad Request` com `{ ok: false, error: "supabaseUrl is not defined" }`.
 
-### Camada 3: Mapper (Object Construction)
-A funcao `mapResolveAndLoad` constroi o objeto `checkoutUI` explicitamente campo a campo (linhas 185-199) e nao inclui os campos mobile.
-
-### Resultado
-Quando o `CheckoutPublicContent.tsx` tenta acessar:
-```text
-const checkoutAny = checkout as unknown as Record<string, unknown>;
-const mobileTopRaw = checkoutAny.mobile_top_components; // SEMPRE undefined!
-```
-O campo nao existe no objeto porque foi removido 3 camadas antes. O `hasMobileComponents` e sempre `false`, entao o checkout publico **sempre usa os componentes desktop**, ignorando completamente o layout mobile independente.
+A variavel `SUPABASE_URL` e uma variavel de ambiente **automaticamente disponivel** em todas as Edge Functions do Supabase. Nao precisa configurar nenhum secret -- basta ler com `Deno.env.get('SUPABASE_URL')`.
 
 ## O Que Sera Feito
 
-### 1. Adicionar campos mobile ao Zod Schema (Contract)
+### Arquivo unico: `supabase/functions/pushinpay-create-pix/index.ts`
 
-**Arquivo:** `src/modules/checkout-public/contracts/resolveAndLoadResponse.schema.ts`
+Adicionar 4 linhas apos a criacao do cliente Supabase (linha 99), antes do rate limiting (linha 102):
 
-Adicionar `mobile_top_components` e `mobile_bottom_components` ao `CheckoutSchema`:
 ```text
-mobile_top_components: z.unknown().nullable().optional(),
-mobile_bottom_components: z.unknown().nullable().optional(),
-```
-Ambos opcionais para nao quebrar checkouts antigos que nao tem esses campos.
-
-### 2. Adicionar campos mobile ao UI Model (Interface)
-
-**Arquivo:** `src/modules/checkout-public/mappers/mapResolveAndLoad.ts`
-
-Adicionar ao `CheckoutUIModel`:
-```text
-mobile_top_components?: unknown[];
-mobile_bottom_components?: unknown[];
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+if (!supabaseUrl) {
+  log.error('SUPABASE_URL nao configurada');
+  throw new Error('Configuracao do servidor incompleta: SUPABASE_URL');
+}
 ```
 
-### 3. Mapear campos mobile no Mapper
-
-**Arquivo:** `src/modules/checkout-public/mappers/mapResolveAndLoad.ts`
-
-Na construcao do `checkoutUI` (linhas 185-199), adicionar:
-```text
-mobile_top_components: parseJsonSafely(checkout.mobile_top_components, []),
-mobile_bottom_components: parseJsonSafely(checkout.mobile_bottom_components, []),
-```
-
-### 4. Eliminar cast inseguro no CheckoutPublicContent
-
-**Arquivo:** `src/modules/checkout-public/components/CheckoutPublicContent.tsx`
-
-Remover o cast `as unknown as Record<string, unknown>` e acessar os campos diretamente do `checkout` tipado, agora que eles existem na interface:
-```text
-// ANTES (inseguro):
-const checkoutAny = checkout as unknown as Record<string, unknown>;
-const mobileTopRaw = checkoutAny.mobile_top_components;
-
-// DEPOIS (tipado):
-const mobileTopRaw = checkout.mobile_top_components;
-const mobileBottomRaw = checkout.mobile_bottom_components;
-```
+Isso resolve ambas as referencias:
+- Linha 180: `buildPixPayload({ ..., supabaseUrl, ... })` -- agora funciona
+- Linha 197: `triggerPixGeneratedWebhook({ supabaseUrl, ... })` -- agora funciona
 
 ## Secao Tecnica
 
-### Arquivos alterados (3 arquivos)
+### Localizacao exata
 
-```text
-src/modules/checkout-public/contracts/resolveAndLoadResponse.schema.ts  (Zod schema)
-src/modules/checkout-public/mappers/mapResolveAndLoad.ts                (interface + mapper)
-src/modules/checkout-public/components/CheckoutPublicContent.tsx        (remover cast inseguro)
-```
-
-### Fluxo corrigido
-
-```text
-[API Response]
-  mobile_top_components: [{timer}]
-  mobile_bottom_components: []
-       |
-       v
-[Zod Validation] -- ANTES: campos removidos (strip mode)
-                 -- DEPOIS: campos preservados (declarados no schema)
-       |
-       v
-[Mapper] -- ANTES: campos nao mapeados para CheckoutUIModel
-         -- DEPOIS: campos explicitamente mapeados
-       |
-       v
-[CheckoutPublicContent] -- ANTES: cast inseguro, sempre undefined
-                        -- DEPOIS: acesso direto tipado, dados presentes
-       |
-       v
-[isMobileDevice && hasMobileComponents] --> TRUE no mobile
-       |
-       v
-[Renderiza componentes mobile (cronometro)]
-```
+Entre a linha 99 (`const supabase = getSupabaseClient('payments')`) e a linha 102 (`const rateLimitResult = ...`).
 
 ### Impacto
 
-- Zero breaking changes para checkouts existentes (campos opcionais com default [])
-- O checkout desktop continua usando `top_components` / `bottom_components`
-- Apenas dispositivos mobile (viewport < 768px) com componentes mobile independentes serao afetados
-- Checkouts com `is_mobile_synced: true` continuam sem mobile_top/bottom (arrays vazios no banco), logo o fallback para desktop funciona normalmente
+- Correcao de 4 linhas em 1 arquivo
+- Zero breaking changes
+- `SUPABASE_URL` e automatica no Supabase (nao precisa configurar secrets)
+- Apos deploy, o PIX via PushinPay voltara a funcionar normalmente
