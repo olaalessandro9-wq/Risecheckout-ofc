@@ -1,44 +1,47 @@
 
 
-# Correcao Raiz: Exibir TODOS os Dias no Eixo X
+# Reformatar Eixo X: DD/MM para 7 e 30 dias
 
-## Diagnostico da Doenca (Root Cause)
+## Requisito do Usuario
 
-O problema NAO esta no algoritmo de distribuicao (`selectWithConsistentStep`). O problema esta na **decisao arquitetural de PULAR ticks para periodos curtos**. O sistema foi desenhado para SEMPRE decidir quais ticks pular, quando para periodos de ate ~45 dias, a resposta correta e: **nao pular NENHUM**.
-
-A funcao `calculateDailyTicks` (linha 161-184) chama `selectWithConsistentStep` incondicionalmente. Independente de quantos dias existam, ela tenta "encaixar" dentro de um `maxTicks` calculado. Isso e a doenca. O sintoma e os dias faltando.
-
-O segundo fator e o formato dos labels. "8 Jan" ocupa ~40px. Com 30 labels a 40px = 1200px. Em charts com menos de 1200px de largura, os labels se sobrepoem. A solucao correta nao e pular dias -- e **usar um formato mais compacto** que permita mostrar TODOS.
+| Periodo | Formato | Exibicao |
+|---------|---------|----------|
+| Hoje / Ontem | "00h", "01h", ... | Manter como esta |
+| Ultimos 7 dias | "31/01", "01/02", ... | Todos os dias (cabe perfeitamente) |
+| Ultimos 30 dias | "01/01", "03/01", "05/01", ... | 1 dia sim, 1 dia nao (step=2) |
+| Maximo (anos) | "Jan/26", "Abr/26", ... | Manter como esta |
 
 ## Analise de Solucoes
 
-### Solucao A: Aumentar o threshold do `selectWithConsistentStep`
+### Solucao A: Condicional dentro de `calculateDailyTicks` com threshold fixo
 
-- Manutenibilidade: 5/10 (nao resolve o problema em telas menores)
-- Zero DT: 3/10 (em telas < 1200px, 30 labels de "8 Jan" vao se sobrepor)
-- Arquitetura: 3/10 (continua tratando o sintoma, nao a doenca)
-- Escalabilidade: 3/10 (quebra em resoluces menores)
-- Seguranca: 10/10
-- **NOTA FINAL: 4.0/10**
+Dividir `calculateDailyTicks` em 3 faixas claras baseadas em `count`:
 
-### Solucao B: Formato compacto adaptativo + exibicao total para periodos curtos
+1. `count <= 14`: Todos os ticks, formato "DD/MM"
+2. `15 <= count <= 45`: Step fixo de 2 (1 sim, 1 nao), formato "DD/MM"
+3. `count > 45`: `selectWithConsistentStep` + "DD Mon" ou "Mon/YY"
 
-Redesenhar `calculateDailyTicks` com duas faixas claras:
-
-1. **Periodos curtos (ate 45 dias)**: Mostrar TODOS os ticks, sem excecao. Usar formato compacto: numero do dia ("8", "9", "10"), com nome do mes apenas quando o mes muda ("1 Fev"). Isso garante ~15px por label, cabendo 45 labels em 675px (qualquer tela).
-
-2. **Periodos longos (46+ dias)**: Usar `selectWithConsistentStep` com formatos "DD Mon" ou "Mon/YY".
-
-- Manutenibilidade: 10/10 (logica clara: curto = tudo, longo = distribuicao)
-- Zero DT: 10/10 (funciona em qualquer largura de tela)
-- Arquitetura: 10/10 (resolve a doenca: a decisao de pular so existe para ranges longos)
-- Escalabilidade: 10/10 (45 labels a 15px = 675px, cabe ate em mobile landscape)
+- Manutenibilidade: 10/10 (3 faixas com logica cristalina, zero ambiguidade)
+- Zero DT: 10/10 (cada faixa e auto-contida, sem dependencia de largura de tela para ranges curtos)
+- Arquitetura: 10/10 (eliminacao total da funcao `getCompactDailyFormatter` que nao e mais necessaria)
+- Escalabilidade: 10/10 (step=2 para 30 dias = 15 labels a ~45px = 675px, cabe em qualquer tela)
 - Seguranca: 10/10
 - **NOTA FINAL: 10.0/10**
 
-### DECISAO: Solucao B (Nota 10.0)
+### Solucao B: Manter `getCompactDailyFormatter` e adicionar logica de step condicional
 
-A Solucao A trata o sintoma (ajustar threshold). A Solucao B trata a doenca (eliminar a decisao de pular para periodos curtos e usar formato que garante que tudo cabe).
+Reutilizar o formatador compacto existente e adicionar step=2 para 30 dias.
+
+- Manutenibilidade: 6/10 (mantem codigo morto -- o formatador compacto nao sera mais usado)
+- Zero DT: 6/10 (formatador compacto existe mas nunca e chamado -- confusao futura)
+- Arquitetura: 5/10 (viola Single Responsibility -- duas estrategias de formatacao coexistindo sem necessidade)
+- Escalabilidade: 10/10
+- Seguranca: 10/10
+- **NOTA FINAL: 7.0/10**
+
+### DECISAO: Solucao A (Nota 10.0)
+
+A Solucao B mantem codigo morto (`getCompactDailyFormatter` e `SHORT_RANGE_THRESHOLD`) que nunca sera chamado. A Solucao A remove tudo que nao e necessario e implementa a logica com 3 faixas claras e auto-documentadas.
 
 ---
 
@@ -46,48 +49,65 @@ A Solucao A trata o sintoma (ajustar threshold). A Solucao B trata a doenca (eli
 
 ### Arquivo: `src/modules/dashboard/utils/chartAxisUtils.ts`
 
-**1. Novo formatador compacto para periodos curtos**
+**1. REMOVER** `SHORT_RANGE_THRESHOLD` (linhas 158-166)
 
-Criar funcao `getCompactDailyFormatter` que retorna:
-- Numero do dia para a maioria dos ticks: "8", "9", "10"...
-- Dia + mes abreviado quando o mes muda: "1 Fev"
-- Dia + mes no primeiro tick se nao comecar no dia 1: "8 Jan"
+Constante nao sera mais usada.
 
-Exemplos de resultado visual para 30 dias (8 Jan a 6 Fev):
+**2. REMOVER** `getCompactDailyFormatter` (linhas 168-214)
 
-```text
-8 Jan  9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  1 Fev  2  3  4  5  6
-```
+Funcao inteira nao sera mais usada. O formato agora e sempre "DD/MM" para ranges curtos e medios.
 
-Cada label ocupa ~12-15px (numeros) ou ~35px (com mes). Total: ~28 * 15 + 2 * 35 = 490px. Cabe em qualquer tela.
+**3. REESCREVER** `calculateDailyTicks` (linhas 227-249)
 
-**2. Refatorar `calculateDailyTicks`**
-
-Substituir a logica atual por duas faixas:
+Nova logica com 3 faixas:
 
 ```text
-if (count <= 45) {
-  // TODOS os ticks, formato compacto
-  return { ticks: allDates, formatter: getCompactDailyFormatter(allDates) };
+function calculateDailyTicks(data, chartWidth): XAxisConfig {
+  const count = data.length;
+  const allDates = data.map(d => d.date);
+  const ddmmFormatter = getDDMMFormatter();
+
+  // Faixa 1: ate 14 dias (cobre "7 dias") -- TODOS os ticks
+  if (count <= 14) {
+    return { ticks: [...allDates], formatter: ddmmFormatter };
+  }
+
+  // Faixa 2: 15-45 dias (cobre "30 dias") -- step fixo de 2
+  if (count <= 45) {
+    const ticks: string[] = [];
+    for (let i = 0; i < allDates.length; i += 2) {
+      ticks.push(allDates[i]);
+    }
+    return { ticks, formatter: ddmmFormatter };
+  }
+
+  // Faixa 3: 46+ dias (cobre "maximo") -- distribuicao inteligente
+  const estimatedLabelWidth = count <= 90 ? 55 : 58;
+  const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
+  const ticks = selectWithConsistentStep(allDates, maxTicks);
+  return { ticks, formatter: getDailyFormatter(count) };
 }
-
-// Periodos longos: distribuicao + formato "DD Mon" ou "Mon/YY"
-const maxTicks = getMaxTicks(chartWidth, estimatedLabelWidth);
-const ticks = selectWithConsistentStep(allDates, maxTicks);
-return { ticks, formatter: getDailyFormatter(count) };
 ```
 
-**3. Atualizar `getDailyFormatter` thresholds**
+**4. CRIAR** `getDDMMFormatter` (funcao nova, simples)
 
-Como periodos <= 45 dias agora usam o formato compacto, os thresholds de `getDailyFormatter` mudam:
+Formatador "DD/MM" usado pelas faixas 1 e 2:
 
-| Range | Formato |
-|-------|---------|
-| <= 45 dias | Compacto (dia + mes em transicoes) -- novo formatador |
-| 46-90 dias | "DD Mon" ("15 Jan") |
-| 91+ dias | "Mon/YY" ("Jan/26") |
+```text
+function getDDMMFormatter(): (value: string) => string {
+  return (value: string): string => {
+    const parts = value.split("-");
+    if (parts.length < 3) return value;
+    return `${parts[2]}/${parts[1]}`;
+  };
+}
+```
 
-**4. Nenhuma mudanca necessaria em:**
+**5. ATUALIZAR** `getDailyFormatter` (linhas 260-281)
+
+Como agora so e chamada para `count > 45`, os thresholds permanecem iguais (46-90 = "DD Mon", 91+ = "Mon/YY"). Nenhuma mudanca no corpo, apenas no JSDoc.
+
+**6. Nenhuma mudanca necessaria em:**
 - `calculateHourlyTicks` -- ja esta correto com intervalos naturais
 - `selectWithConsistentStep` -- continua sendo usado para ranges longos
 - `RevenueChart.tsx` -- nao precisa de alteracoes
@@ -97,17 +117,17 @@ Como periodos <= 45 dias agora usam o formato compacto, os thresholds de `getDai
 
 | Periodo | Ticks no Eixo X |
 |---------|----------------|
-| Hoje (24h) | 00h 01h 02h 03h ... 23h (todos, ja funciona) |
-| Ontem (24h) | 00h 01h 02h 03h ... 23h (todos, ja funciona) |
-| 7 dias | 31/01 01/02 02/02 03/02 04/02 05/02 06/02 (todos, ja funciona) |
-| 30 dias | 8 Jan 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 1 Fev 2 3 4 5 6 (TODOS) |
-| Maximo (anos) | Jan/25 Abr/25 Jul/25 Out/25 Jan/26 (distribuidos) |
+| Hoje (24h) | 00h 01h 02h ... 23h (sem mudanca) |
+| Ontem (24h) | 00h 01h 02h ... 23h (sem mudanca) |
+| 7 dias | 31/01 01/02 02/02 03/02 04/02 05/02 06/02 (TODOS, formato DD/MM) |
+| 30 dias | 08/01 10/01 12/01 14/01 ... 30/01 01/02 03/02 05/02 (step=2, formato DD/MM) |
+| Maximo | Jan/25 Abr/25 Jul/25 Out/25 Jan/26 (sem mudanca) |
 
 ## Arvore de Arquivos
 
 ```text
 src/modules/dashboard/utils/
-  chartAxisUtils.ts   -- EDITAR (refatorar calculateDailyTicks + novo formatador compacto)
+  chartAxisUtils.ts   -- EDITAR (remover codigo morto + reescrever calculateDailyTicks + nova getDDMMFormatter)
 ```
 
 1 arquivo editado. Zero arquivos novos.
