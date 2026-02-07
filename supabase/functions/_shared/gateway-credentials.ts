@@ -14,6 +14,7 @@ import {
   OWNER_GATEWAY_SECRETS, 
   type GatewayType 
 } from "./platform-constants.ts";
+import { getVendorCredentials } from "./vault-credentials.ts";
 import { createLogger } from "./logger.ts";
 
 const log = createLogger("GatewayCredentials");
@@ -107,6 +108,35 @@ export async function getGatewayCredentials(
         }
 
         case 'mercadopago': {
+          // PRIORIDADE 1: Vault (OAuth) — Owner pode ter conectado via OAuth
+          const vaultResult = await getVendorCredentials(supabase, vendorId, 'mercadopago');
+          if (vaultResult.success && vaultResult.credentials?.access_token) {
+            log.info(`Owner usando credenciais OAuth do Vault para mercadopago`);
+            credentials.access_token = vaultResult.credentials.access_token;
+            credentials.accessToken = vaultResult.credentials.access_token;
+
+            // Buscar collector_id do vendor_integrations (salvo no OAuth callback)
+            const { data: vi } = await supabase
+              .from('vendor_integrations')
+              .select('config')
+              .eq('vendor_id', vendorId)
+              .eq('integration_type', 'MERCADOPAGO')
+              .eq('active', true)
+              .maybeSingle();
+
+            if (vi?.config) {
+              const viConfig = vi.config as Record<string, unknown>;
+              const oauthCollectorId = (viConfig.user_id as string) || (viConfig.collector_id as string);
+              credentials.collector_id = oauthCollectorId;
+              credentials.collectorId = oauthCollectorId;
+            }
+
+            credentials.source = 'vendor_integration';
+            break;
+          }
+
+          // PRIORIDADE 2: Secrets globais (fallback)
+          log.info(`Owner usando Secrets globais para mercadopago (Vault vazio ou sem credenciais)`);
           const secrets = OWNER_GATEWAY_SECRETS.mercadopago;
           const accessToken = Deno.env.get(secrets.accessToken);
           const collectorId = Deno.env.get(secrets.collectorId);
