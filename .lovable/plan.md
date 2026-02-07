@@ -1,251 +1,168 @@
 
-# Step-Up MFA: Verificacao do Owner para Operacoes Criticas
+# Auditoria Completa: Step-Up MFA Implementation
 
-## Contexto do Problema
+## Resultado Geral
 
-### Estado Atual
+A implementacao do Step-Up MFA esta **estruturalmente correta** - a arquitetura de 3 niveis funciona, o fluxo end-to-end esta conectado corretamente do frontend ao backend, e a seguranca critica (Owner MFA para operacoes de role/status) esta em vigor.
 
-O sistema de MFA hoje tem **apenas 2 funcoes**:
-1. Proteger o LOGIN de admin/owner (exige TOTP para entrar)
-2. Forcar o SETUP de MFA (bloqueia dashboard ate configurar)
-
-### Brechas Identificadas
-
-| Brecha | Gravidade | Cenario de Ataque |
-|--------|-----------|-------------------|
-| `manage-user-role` nao exige MFA | CRITICA | Admin com sessao roubada promove hacker a admin |
-| Sessao nao marca se MFA foi verificado | ALTA | Nao da para distinguir sessao MFA-verified de nao-verified |
-| Zero re-autenticacao em acoes criticas | CRITICA | Admin logado faz qualquer acao sem confirmar identidade |
-| Nao existe conceito de "MFA do Owner" | CRITICA | Admin promove outro admin sem aprovacao do Owner |
+Porem, a auditoria encontrou **6 problemas** que violam o Protocolo RISE V3. Nenhum compromete a seguranca diretamente, mas todos representam divida tecnica ou inconsistencia que devem ser eliminadas.
 
 ---
 
-## Analise de Solucoes
+## Problemas Encontrados
 
-### Solucao A: Flag `mfa_verified` na sessao + check nas Edge Functions
+### PROBLEMA 1 - BUG CRITICO: `isChangingRole` e estado morto (isPending sempre false)
 
-Marcar na sessao se o usuario passou MFA e verificar nas edge functions criticas.
+| Severidade | Tipo | Arquivo(s) |
+|------------|------|------------|
+| CRITICA | Bug funcional | `adminMachine.types.ts`, `adminMachine.ts`, `AdminUsersTab.tsx` |
 
-- Manutenibilidade: 6/10 (nao resolve o problema do Owner)
-- Zero DT: 5/10 (precisa ser expandida depois para step-up do owner)
-- Arquitetura: 6/10 (incompleta - falta re-autenticacao)
-- Escalabilidade: 7/10
-- Seguranca: 6/10 (protege contra sessao sem MFA, mas nao contra admin comprometido)
-- **NOTA FINAL: 6.0/10**
+**Diagnostico:**
+- O campo `isChangingRole` existe em `UsersRegionContext` (tipo na linha 45 + valor inicial na linha 203)
+- NENHUMA transicao da state machine (`adminMachine.ts`) JAMAIS altera esse campo para `true`
+- `CONFIRM_ROLE_CHANGE` (linha 57) faz `usersLoading: true` (campo TOP-LEVEL), NAO `users.isChangingRole`
+- `AdminUsersTab.tsx` (linha 239) passa `isPending={usersContext.isChangingRole || false}` que e SEMPRE `false`
 
-### Solucao B: Step-Up MFA Completo com Verificacao do Owner
+**Impacto:**
+- O botao "Confirmar com MFA" do `RoleChangeDialog` NUNCA fica desabilitado durante a chamada API
+- O texto "Verificando..." NUNCA aparece
+- O usuario pode clicar multiplas vezes enviando requisicoes duplicadas
 
-Arquitetura completa de 3 niveis:
-1. `mfa_verified_at` na tabela `sessions` (marca quando MFA foi usado no login)
-2. **Step-Up MFA Middleware** no backend que exige TOTP em tempo real para acoes criticas
-3. **Owner-Only Step-Up** para acoes ultra-criticas: exige o TOTP do OWNER, nao do caller
-
-- Manutenibilidade: 10/10 (middleware reutilizavel em qualquer edge function)
-- Zero DT: 10/10 (cobre todos os cenarios de ataque)
-- Arquitetura: 10/10 (3 niveis claros, SOLID, desacoplado)
-- Escalabilidade: 10/10 (novas operacoes criticas sao protegidas adicionando 1 linha)
-- Seguranca: 10/10 (ate admin comprometido nao escala privilegios sem TOTP do owner)
-- **NOTA FINAL: 10.0/10**
-
-### DECISAO: Solucao B (Nota 10.0)
-
-A Solucao A protege contra sessoes nao-verificadas, mas NAO resolve o cenario principal: admin comprometido tentando escalar privilegios. A Solucao B cria uma camada de seguranca que NENHUM compromisso de admin pode ultrapassar.
+**Correcao:**
+Usar `isUsersLoading` (que ja e exposto pelo `AdminContext` na linha 185) no `AdminUsersTab.tsx` ao inves de `usersContext.isChangingRole`. E remover o campo morto `isChangingRole` do tipo e do contexto inicial.
 
 ---
 
-## Arquitetura de 3 Niveis de MFA
+### PROBLEMA 2 - CODIGO MORTO: `ROLE_HIERARCHY` em manage-user-role
 
-```text
-NIVEL 1: MFA de Login (ja existe)
-  Quando: Login de admin/owner
-  Quem verifica: O proprio usuario
-  O que protege: Acesso ao dashboard
-  Status: IMPLEMENTADO
+| Severidade | Tipo | Arquivo(s) |
+|------------|------|------------|
+| ALTA | Codigo morto | `manage-user-role/index.ts` (linhas 32-37) |
 
-NIVEL 2: Step-Up MFA (Self)
-  Quando: Operacoes sensiveis (alterar email, desativar MFA, etc.)
-  Quem verifica: O proprio usuario (seu proprio TOTP)
-  O que protege: Acoes que afetam a propria conta
-  Status: A IMPLEMENTAR
+**Diagnostico:**
+A constante `ROLE_HIERARCHY` e declarada mas NUNCA referenciada em nenhum lugar do arquivo. Zero ocorrencias de uso.
 
-NIVEL 3: Step-Up MFA (Owner)
-  Quando: Operacoes ultra-criticas (promover admin, alterar roles)
-  Quem verifica: O OWNER (o TOTP do owner, nao do caller)
-  O que protege: Escalacao de privilegios e acoes destrutivas
-  Status: A IMPLEMENTAR
-```
+**Correcao:**
+Deletar as linhas 32-37.
 
 ---
 
-## Classificacao de Operacoes Criticas
+### PROBLEMA 3 - DOCUMENTACAO INCONSISTENTE: Numeracao de niveis MFA
 
-```text
-NIVEL 2 - Requer MFA do proprio usuario:
-  - Alterar email da propria conta
-  - Desativar MFA
-  - Excluir propria conta
-  - Alterar senha (alem de confirmar senha atual)
+| Severidade | Tipo | Arquivo(s) |
+|------------|------|------------|
+| ALTA | Documentacao | `step-up-mfa.ts`, `critical-operation-guard.ts`, `EDGE_FUNCTIONS_REGISTRY.md` |
 
-NIVEL 3 - Requer MFA do OWNER:
-  - manage-user-role: Promover/rebaixar qualquer usuario
-  - manage-user-status: Desativar/suspender contas
-  - Alterar configuracoes criticas do sistema
-  - Acessar dados financeiros sensiveis
-  - Qualquer operacao futura de risco
-```
+**Diagnostico:**
+Tres sistemas de numeracao diferentes para os mesmos conceitos:
 
----
+| Local | Self MFA | Owner MFA |
+|-------|----------|-----------|
+| `step-up-mfa.ts` header (linhas 7-8) | "Level 2 (Self)" | "Level 3 (Owner)" |
+| `CriticalLevel` enum (linhas 41-45) | `SELF_MFA = 1` | `OWNER_MFA = 2` |
+| `EDGE_FUNCTIONS_REGISTRY.md` (linhas 243-244) | "Level 1 (SELF_MFA)" | "Level 2 (OWNER_MFA)" |
 
-## Plano de Execucao
+**Correcao:**
+Unificar para a numeracao do `CriticalLevel` enum (que e o codigo executavel e portanto a SSOT):
+- Level 0 = NONE
+- Level 1 = SELF_MFA
+- Level 2 = OWNER_MFA
 
-### Fase 1: Infraestrutura de Step-Up MFA
-
-#### 1.1 Migracao SQL: `mfa_verified_at` na tabela `sessions`
-
-Adicionar coluna na tabela `sessions` para rastrear quando a sessao passou por MFA:
-
-```text
-ALTER TABLE sessions ADD COLUMN mfa_verified_at TIMESTAMPTZ DEFAULT NULL;
-```
-
-Quando o login passa por MFA (handler `mfa-verify.ts`), marcar o timestamp. Sessoes sem MFA (admin que ainda nao configurou) terao `NULL`.
-
-#### 1.2 Shared Module: `step-up-mfa.ts`
-
-Novo arquivo em `supabase/functions/_shared/step-up-mfa.ts` com:
-
-**Funcao `requireSelfMfa(supabase, req, userId, totpCode)`**
-- Verifica o TOTP do proprio usuario em tempo real
-- Busca o `user_mfa` do `userId` que fez a requisicao
-- Decodifica o secret e valida o codigo
-- Retorna `{ verified: true }` ou `{ verified: false, error: "..." }`
-
-**Funcao `requireOwnerMfa(supabase, req, ownerTotpCode)`**
-- Encontra o usuario com role `owner` no sistema
-- Busca o `user_mfa` do OWNER (nao do caller)
-- Decodifica o secret do owner e valida o codigo informado
-- Retorna `{ verified: true }` ou `{ verified: false, error: "..." }`
-- Se o owner nao tem MFA configurado, retorna erro especifico
-
-**Funcao auxiliar `getOwnerUserId(supabase)`**
-- Query na tabela `user_roles` buscando `role = 'owner'`
-- Cache em memoria para evitar query repetida dentro da mesma requisicao
-
-#### 1.3 Shared Module: `critical-operation-guard.ts`
-
-Middleware que classifica e protege operacoes:
-
-```text
-enum CriticalLevel {
-  NONE = 0,      // Sem verificacao adicional
-  SELF_MFA = 1,  // Requer TOTP do proprio usuario
-  OWNER_MFA = 2, // Requer TOTP do owner
-}
-```
-
-Funcao `guardCriticalOperation(supabase, req, level, totpCode)`:
-- Nivel 0: Pass-through
-- Nivel 1: Chama `requireSelfMfa`
-- Nivel 2: Chama `requireOwnerMfa`
-- Retorna Response de erro (403 + mensagem clara) ou null (passou)
-
-### Fase 2: Integracao com Edge Functions Existentes
-
-#### 2.1 `manage-user-role/index.ts`
-
-Alterar para:
-- Receber campo `ownerMfaCode` no body da requisicao
-- Antes de executar a mudanca de role, chamar `guardCriticalOperation(supabase, req, OWNER_MFA, ownerMfaCode)`
-- Se falhar: retornar 403 com mensagem "Codigo MFA do Owner necessario para esta operacao"
-- Registrar no audit log se a verificacao MFA falhou
-
-#### 2.2 `manage-user-status` (se existir)
-
-Mesma logica: exigir TOTP do owner para desativar/suspender contas.
-
-#### 2.3 `mfa-verify.ts` (handler de login)
-
-Apos verificacao MFA bem-sucedida, atualizar a sessao criada com `mfa_verified_at = now()`.
-
-### Fase 3: Frontend - Modal de Step-Up MFA
-
-#### 3.1 Componente `OwnerMfaModal`
-
-Modal reutilizavel que:
-- Exibe mensagem explicando que a operacao requer o codigo do OWNER
-- Input de 6 digitos para o TOTP
-- Retorna o codigo para o caller via callback `onVerified(code: string)`
-- Nao faz verificacao local - o backend valida
-
-#### 3.2 Integracao na UI de Gerenciamento de Roles
-
-Quando admin/owner clica para alterar um role:
-1. Abre o `OwnerMfaModal`
-2. Coleta o codigo TOTP
-3. Envia para `manage-user-role` com o campo `ownerMfaCode`
-4. Se backend retorna 403 (MFA invalido): exibe erro no modal
-5. Se backend retorna 200: fecha modal, mostra sucesso
-
-### Fase 4: Registro e Documentacao
-
-#### 4.1 Atualizar `EDGE_FUNCTIONS_REGISTRY.md`
-
-Documentar os novos modulos shared:
-- `_shared/step-up-mfa.ts`
-- `_shared/critical-operation-guard.ts`
-
-#### 4.2 Audit Log
-
-Todas as tentativas de step-up MFA (sucesso e falha) serao registradas via `log_security_event` com acoes:
-- `STEP_UP_MFA_SUCCESS`
-- `STEP_UP_MFA_FAILED`
-- `OWNER_MFA_REQUIRED`
+Atualizar header do `step-up-mfa.ts` de "Level 2/3" para "Level 1/2".
 
 ---
 
-## Fluxo de Ataque Mitigado
+### PROBLEMA 4 - DOCUMENTACAO DESATUALIZADA: manage-user-status version
 
-```text
-CENARIO: Hacker rouba cookies de sessao de um Admin
+| Severidade | Tipo | Arquivo(s) |
+|------------|------|------------|
+| MEDIA | Documentacao | `manage-user-status/index.ts` (linha 14) |
 
-ANTES (vulneravel):
-  Hacker → manage-user-role(promover hacker para admin) → SUCESSO
-  Hacker agora e admin com acesso total
+**Diagnostico:**
+O docstring diz `@version 2.0.0 - Migrated from profiles to users (SSOT)`. Nao menciona a integracao com Step-Up MFA que acabou de ser implementada.
 
-DEPOIS (com Step-Up MFA do Owner):
-  Hacker → manage-user-role(promover hacker para admin)
-  Backend → "Informe o codigo MFA do Owner"
-  Hacker → NAO tem o celular do Owner
-  Backend → 403 BLOQUEADO
-  Audit Log → ALERTA de tentativa de escalacao
-
-CENARIO: Admin comprometido (email+senha vazados, MFA do admin tambem)
-  Hacker loga como admin (passa MFA do admin)
-  Hacker → manage-user-role(promover complice)
-  Backend → "Informe o codigo MFA do OWNER" (nao do admin!)
-  Hacker → NAO tem acesso ao autenticador do Owner
-  Backend → 403 BLOQUEADO
-```
+**Correcao:**
+Atualizar para `@version 3.0.0 - Step-Up MFA Owner integration` e adicionar descricao do MFA nas regras de seguranca do header.
 
 ---
 
-## Arvore de Arquivos
+### PROBLEMA 5 - UX: mfaCode nao limpo apos erro de MFA
 
-```text
-Novos:
-  supabase/functions/_shared/step-up-mfa.ts        (~80 linhas)
-  supabase/functions/_shared/critical-operation-guard.ts (~60 linhas)
-  src/components/auth/OwnerMfaModal.tsx             (~120 linhas)
+| Severidade | Tipo | Arquivo(s) |
+|------------|------|------------|
+| MEDIA | UX | `RoleChangeDialog.tsx`, `UserActionDialog.tsx` |
 
-Modificados:
-  supabase/functions/unified-auth/handlers/mfa-verify.ts  (adicionar mfa_verified_at)
-  supabase/functions/manage-user-role/index.ts             (integrar guardCriticalOperation)
-  src/services/mfaService.ts                               (adicionar tipo para step-up)
-  docs/EDGE_FUNCTIONS_REGISTRY.md                          (documentar novos modulos)
+**Diagnostico:**
+Quando o backend retorna `STEP_UP_MFA_FAILED` (codigo invalido), o modal permanece aberto com a mensagem de erro corretamente, porem o input OTP mantem o codigo antigo. Codigos TOTP rotacionam a cada 30 segundos, entao o codigo antigo e inutil.
 
-Migracao SQL:
-  ALTER TABLE sessions ADD COLUMN mfa_verified_at TIMESTAMPTZ DEFAULT NULL;
-```
+**Correcao:**
+Limpar `mfaCode` via `setMfaCode("")` quando `error` prop muda para um valor non-null. Usar `useEffect` observando `error`.
+
+---
+
+### PROBLEMA 6 - INCONSISTENCIA: manage-user-role sem Sentry wrapper
+
+| Severidade | Tipo | Arquivo(s) |
+|------------|------|------------|
+| MEDIA | Consistencia | `manage-user-role/index.ts` (linha 45) |
+
+**Diagnostico:**
+Usa `Deno.serve(async (req) => {...})` diretamente, enquanto outras edge functions (coupon-management, webhook-crud, etc.) usam `serve(withSentry("...", async (req) => {...}))`.
+
+Isso significa que erros nao capturados nesta funcao NAO sao reportados ao Sentry.
+
+**Correcao:**
+Migrar para `serve(withSentry("manage-user-role", async (req) => {...}))` seguindo o padrao das outras funcoes.
+
+---
+
+## Resumo de Impacto
+
+| # | Problema | Violacao RISE V3 |
+|---|----------|-----------------|
+| 1 | `isChangingRole` morto / `isPending` sempre false | Secao 6.4 (Higiene de Codigo) + Bug funcional |
+| 2 | `ROLE_HIERARCHY` nunca usado | Secao 5.4 (Divida Tecnica Zero) |
+| 3 | Numeracao de niveis inconsistente em 3 arquivos | Secao 6.4 (Nomenclatura clara) |
+| 4 | Version/docstring desatualizado | Secao 8 (Registry como fonte de verdade) |
+| 5 | mfaCode nao limpo apos erro | Secao 5.5 (Feature deve funcionar corretamente) |
+| 6 | Missing Sentry wrapper | Secao 6.3 (Desacoplamento Radical - observabilidade consistente) |
+
+---
+
+## Plano de Correcao
+
+### Arquivo 1: `src/modules/admin/machines/adminMachine.types.ts`
+- Remover campo `isChangingRole` de `UsersRegionContext` (linha 45)
+- Remover `isChangingRole: false` de `initialUsersContext` (linha 203)
+
+### Arquivo 2: `src/modules/admin/machines/adminMachine.ts`
+- `CONFIRM_ROLE_CHANGE`: Adicionar `users: ({ context }) => ({ ...context.users, mfaError: null, isChangingRole: true })` 
+
+Na verdade a melhor correcao e: REMOVER `isChangingRole` completamente (codigo morto) e usar `usersLoading` que ja funciona corretamente. A transicao `CONFIRM_ROLE_CHANGE` ja faz `usersLoading: true`. Entao:
+
+### Arquivo 3: `src/components/admin/AdminUsersTab.tsx`
+- Linha 239: Trocar `isPending={usersContext.isChangingRole || false}` para `isPending={isUsersLoading}`
+- Usar `isUsersLoading` que ja e exposto pelo AdminContext
+
+### Arquivo 4: `supabase/functions/manage-user-role/index.ts`
+- Remover `ROLE_HIERARCHY` (linhas 32-37)
+- Migrar `Deno.serve` para `serve(withSentry("manage-user-role", ...))` com imports necessarios
+
+### Arquivo 5: `supabase/functions/_shared/step-up-mfa.ts`
+- Corrigir header: "Level 2 (Self)" para "Level 1 (Self)" e "Level 3 (Owner)" para "Level 2 (Owner)"
+
+### Arquivo 6: `supabase/functions/manage-user-status/index.ts`
+- Atualizar `@version` para `3.0.0 - Step-Up MFA Owner integration`
+- Adicionar "Step-Up MFA (Owner)" nas regras de seguranca do header
+
+### Arquivo 7: `src/modules/admin/components/users/RoleChangeDialog.tsx`
+- Adicionar `useEffect` para limpar `mfaCode` quando `error` muda para valor non-null
+
+### Arquivo 8: `src/modules/admin/components/sheets/UserActionDialog.tsx`
+- Adicionar `useEffect` para limpar `mfaCode` quando `mfaError` muda para valor non-null
+
+### Deploy
+- Redeployar `manage-user-role` e `manage-user-status` apos correcoes
 
 ---
 
@@ -253,9 +170,7 @@ Migracao SQL:
 
 | Pergunta | Resposta |
 |----------|----------|
-| Esta e a MELHOR solucao possivel? | Sim, nota 10.0 - protecao em 3 niveis |
-| Existe alguma solucao com nota maior? | Nao |
-| Isso cria divida tecnica? | Zero - middleware reutilizavel para qualquer operacao futura |
-| Precisaremos "melhorar depois"? | Nao - o sistema de niveis e extensivel por design |
-| O codigo sobrevive 10 anos sem refatoracao? | Sim - padroes de step-up MFA sao standard da industria |
-| Estou escolhendo isso por ser mais rapido? | Nao - e a unica que cobre admin comprometido |
+| Todos os problemas sao REAIS? | Sim - 6 problemas verificados via leitura direta do codigo |
+| Alguma suposicao sem ler codigo? | Nenhuma - cada achado tem arquivo/linha especifica |
+| As correcoes criam divida tecnica? | Zero - removem divida existente |
+| O resultado final sobrevive 10 anos? | Sim - elimina inconsistencias e dead code |
