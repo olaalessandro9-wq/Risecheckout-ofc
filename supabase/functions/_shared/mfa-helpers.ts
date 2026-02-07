@@ -49,18 +49,56 @@ const BACKUP_CODE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /**
  * Gets the MFA encryption key from environment.
- * @throws Error if MFA_ENCRYPTION_KEY is not configured or invalid length
+ * 
+ * Validates:
+ * 1. Secret exists in environment
+ * 2. Base64 format (length multiple of 4, valid charset)
+ * 3. Successful base64 decoding
+ * 4. Exact 32-byte output (AES-256 requirement)
+ * 
+ * Every error message includes the generation command so operators
+ * can self-service without searching documentation.
+ * 
+ * @throws Error with actionable message if key is missing, malformed, or wrong size
  */
 function getMfaEncryptionKey(): Uint8Array {
+  const GENERATION_HINT = "Generate with: openssl rand -base64 32";
+
   const keyBase64 = Deno.env.get("MFA_ENCRYPTION_KEY");
   if (!keyBase64) {
-    throw new Error("MFA_ENCRYPTION_KEY not configured");
+    throw new Error(
+      `MFA_ENCRYPTION_KEY not configured. ${GENERATION_HINT}`
+    );
   }
 
-  const keyBytes = Uint8Array.from(atob(keyBase64), (c) => c.charCodeAt(0));
+  // Trim whitespace (prevents copy-paste accidents with trailing newlines/spaces)
+  const trimmed = keyBase64.trim();
+
+  // Validate base64 format BEFORE attempting decode
+  // - Length must be multiple of 4
+  // - Only valid base64 characters (A-Z, a-z, 0-9, +, /) with up to 2 trailing '='
+  if (trimmed.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(trimmed)) {
+    throw new Error(
+      `MFA_ENCRYPTION_KEY is not valid base64 (length ${trimmed.length}, ` +
+      `must be multiple of 4 with valid charset). ${GENERATION_HINT}`
+    );
+  }
+
+  // Defense-in-depth: catch any remaining decode failures
+  let keyBytes: Uint8Array;
+  try {
+    keyBytes = Uint8Array.from(atob(trimmed), (c) => c.charCodeAt(0));
+  } catch {
+    throw new Error(
+      `MFA_ENCRYPTION_KEY failed base64 decoding. ${GENERATION_HINT}`
+    );
+  }
+
+  // AES-256-GCM requires exactly 32 bytes (256 bits)
   if (keyBytes.length !== 32) {
     throw new Error(
-      `MFA_ENCRYPTION_KEY must be exactly 32 bytes (got ${keyBytes.length})`
+      `MFA_ENCRYPTION_KEY must decode to exactly 32 bytes ` +
+      `(got ${keyBytes.length}). ${GENERATION_HINT}`
     );
   }
 
