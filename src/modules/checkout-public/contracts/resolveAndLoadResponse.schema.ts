@@ -109,6 +109,8 @@ export const CheckoutSchema = z.object({
   components: z.unknown().nullable(),
   top_components: z.unknown().nullable(),
   bottom_components: z.unknown().nullable(),
+  mobile_top_components: z.unknown().nullable().optional(),
+  mobile_bottom_components: z.unknown().nullable().optional(),
   design: z.unknown().nullable(),
   theme: z.string().nullable(),
   pix_gateway: z.string().nullable(),

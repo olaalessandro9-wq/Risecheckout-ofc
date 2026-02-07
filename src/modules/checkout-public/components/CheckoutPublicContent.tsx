@@ -324,11 +324,12 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       : [];
 
     // RISE V3: Dual-Layout - Detect mobile and use mobile-specific components if available
-    const checkoutAny = checkout as unknown as Record<string, unknown>;
-    const mobileTopRaw = checkoutAny.mobile_top_components;
-    const mobileBottomRaw = checkoutAny.mobile_bottom_components;
-    const mobileTop: CheckoutComponent[] = Array.isArray(mobileTopRaw) ? (mobileTopRaw as CheckoutComponent[]) : [];
-    const mobileBottom: CheckoutComponent[] = Array.isArray(mobileBottomRaw) ? (mobileBottomRaw as CheckoutComponent[]) : [];
+    const mobileTop: CheckoutComponent[] = Array.isArray(checkout.mobile_top_components)
+      ? (checkout.mobile_top_components as CheckoutComponent[])
+      : [];
+    const mobileBottom: CheckoutComponent[] = Array.isArray(checkout.mobile_bottom_components)
+      ? (checkout.mobile_bottom_components as CheckoutComponent[])
+      : [];
     const hasMobileComponents = mobileTop.length > 0 || mobileBottom.length > 0;
     const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 768;
 
@@ -351,7 +352,7 @@ export const CheckoutPublicContent: React.FC<CheckoutPublicContentProps> = ({ ma
       topComponents: resolvedTop,
       bottomComponents: resolvedBottom,
     };
-  }, [checkout.top_components, checkout.bottom_components, checkout.theme, checkout.font, checkout.design, design, checkout]);
+  }, [checkout.top_components, checkout.bottom_components, checkout.mobile_top_components, checkout.mobile_bottom_components, checkout.theme, checkout.font, checkout.design, design, checkout]);
 
   // ============================================================================
   // RENDER
