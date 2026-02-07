@@ -156,17 +156,22 @@ export class DateRangeService {
   }
 
   /**
-   * Get "Max" range (from configured start date to now)
+   * Get "Max" range (dynamically calculated: now - maxMonthsBack months)
+   * 
+   * Uses getDateBoundaries for both start and end to ensure
+   * consistent timezone-aware day boundaries.
    */
   private getMaxRange(now: Date): DateRangeOutput {
-    const maxStart = this.config.maxStartDate || new Date('2020-01-01T03:00:00.000Z');
-    
+    const startDate = new Date(now);
+    startDate.setMonth(startDate.getMonth() - this.config.maxMonthsBack);
+
+    const startBoundaries = this.timezoneService.getDateBoundaries(startDate);
     const endBoundaries = this.timezoneService.getDateBoundaries(now);
-    
+
     return {
-      startISO: maxStart.toISOString(),
+      startISO: startBoundaries.startOfDay,
       endISO: endBoundaries.endOfDay,
-      startDate: maxStart,
+      startDate: new Date(startBoundaries.startOfDay),
       endDate: new Date(endBoundaries.endOfDay),
       timezone: this.config.timezone,
       preset: 'max',
