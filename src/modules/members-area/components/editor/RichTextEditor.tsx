@@ -35,6 +35,21 @@ interface RichTextEditorProps {
   onChange: (content: string) => void;
 }
 
+/**
+ * Normalizes a URL ensuring it has a valid protocol.
+ * Returns null for empty/whitespace-only inputs.
+ *
+ * - Preserves existing protocols (http, https, mailto, tel, ftp, etc.)
+ * - Prepends "https://" when no protocol is detected
+ */
+function normalizeUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+
+  const hasProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed);
+  return hasProtocol ? trimmed : `https://${trimmed}`;
+}
+
 interface ToolbarProps {
   editor: Editor | null;
 }
@@ -43,10 +58,13 @@ function Toolbar({ editor }: ToolbarProps) {
   if (!editor) return null;
 
   const addLink = () => {
-    const url = window.prompt("URL do link:");
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
+    const raw = window.prompt("URL do link:");
+    if (!raw) return;
+
+    const url = normalizeUrl(raw);
+    if (!url) return;
+
+    editor.chain().focus().setLink({ href: url }).run();
   };
 
   const addImage = () => {
@@ -215,8 +233,12 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
       }),
       Link.configure({
         openOnClick: false,
+        autolink: true,
+        defaultProtocol: "https",
         HTMLAttributes: {
           class: "text-primary underline",
+          target: "_blank",
+          rel: "noopener noreferrer",
         },
       }),
       Image.configure({
