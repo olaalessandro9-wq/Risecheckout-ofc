@@ -1,159 +1,179 @@
 
-# Exibir Valor Parcelado no Total do Checkout e na Pagina de Sucesso
+# Permitir Owner Conectar Mercado Pago via OAuth
 
 ## Problema
 
-Quando o cliente seleciona parcelamento (ex: 9x), o resumo do pedido exibe o valor total cheio (ex: "Total R$ 49,90"). Isso confunde o cliente, que pensa que nao parcelou. O correto e exibir "Total 9x de R$ 7,01" -- assim como concorrentes (Cakto, Kiwify) fazem.
-
-O mesmo problema ocorre na pagina de sucesso: exibe "Total Pago R$ 49,90" sem informar quantas parcelas o cliente esta pagando.
+O Owner precisa trocar sua conta Mercado Pago, mas a pagina `OwnerGateways.tsx` e somente leitura (exibe cards estaticos sem botao de conexao). Alem disso, o backend tem uma inconsistencia critica: a Edge Function `mercadopago-create-payment` ja busca credenciais do Vault primeiro (e funcionaria com OAuth), mas a Edge Function `mercadopago-webhook` usa `getGatewayCredentials()` que para o Owner **sempre** busca dos Secrets, ignorando completamente o Vault/vendor_integrations.
 
 ## Analise de Solucoes
 
-### Solucao A: Apenas frontend (passar installments via props)
+### Solucao A: Redirecionar Owner para a pagina de Vendors (Financeiro)
 
-- Manutenibilidade: 7/10 -- funciona no checkout mas a pagina de sucesso nao tem acesso ao dado de parcelas (nao esta salvo no banco)
-- Zero DT: 5/10 -- pagina de sucesso fica sem a info, criando inconsistencia
-- Arquitetura: 6/10 -- dado de parcelas nao e persistido, perdendo rastreabilidade
-- Escalabilidade: 5/10 -- qualquer nova pagina que precise exibir parcelas nao tera o dado
-- Seguranca: 10/10
-- **NOTA FINAL: 6.2/10**
+- Manutenibilidade: 4/10 -- confunde responsabilidades entre Owner e Vendor
+- Zero DT: 3/10 -- Owner usando fluxo de Vendor cria ambiguidade sobre fonte de credenciais
+- Arquitetura: 3/10 -- viola separacao de responsabilidades Owner vs Vendor
+- Escalabilidade: 4/10 -- futuras mudancas no fluxo Vendor afetam Owner
+- Seguranca: 8/10
+- **NOTA FINAL: 4.0/10**
 
-### Solucao B: Frontend + Backend (persistir installments no banco + exibir em ambos os locais)
+### Solucao B: Adicionar botao OAuth exclusivo para MercadoPago na pagina OwnerGateways + unificar backend
 
-- Manutenibilidade: 10/10 -- dado persistido, disponivel em qualquer contexto
-- Zero DT: 10/10 -- checkout e sucesso exibem corretamente, dado disponivel para relatorios futuros
-- Arquitetura: 10/10 -- o numero de parcelas e um atributo do pedido e DEVE ser persistido
-- Escalabilidade: 10/10 -- emails, relatorios, dashboard, webhooks podem usar o dado
-- Seguranca: 10/10
+- Manutenibilidade: 10/10 -- Owner tem seu proprio fluxo, independente do Vendor
+- Zero DT: 10/10 -- backend unificado: Vault > Secrets (cascata consistente)
+- Arquitetura: 10/10 -- respeita separacao Owner/Vendor, backend usa single credential resolution strategy
+- Escalabilidade: 10/10 -- padrao extensivel para qualquer gateway futuro que precise OAuth
+- Seguranca: 10/10 -- OAuth e mais seguro que secrets estaticos, Vault tem audit logging
 - **NOTA FINAL: 10.0/10**
 
 ### DECISAO: Solucao B (Nota 10.0)
 
-A Solucao A e inferior porque o numero de parcelas e um dado transacional que pertence ao pedido. Nao persisti-lo cria divida tecnica imediata (pagina de sucesso sem info, relatorios incompletos, webhooks sem dado de parcelas).
+A Solucao A e inferior porque mistura responsabilidades entre Owner e Vendor, criando acoplamento indesejado e confusao sobre qual fonte de credenciais esta ativa.
 
 ## O que sera feito
 
-### 1. Adicionar coluna `installments` na tabela `orders` (Migration)
+### 1. Backend: Unificar resolucao de credenciais em `gateway-credentials.ts`
 
-Coluna `integer`, default `1`, para armazenar o numero de parcelas escolhido pelo cliente.
+**Arquivo:** `supabase/functions/_shared/gateway-credentials.ts`
 
-### 2. Salvar installments no backend ao processar pagamento
+Atualmente, o bloco `if (isOwner)` vai direto para Secrets. A mudanca introduz uma **cascata de prioridade para MercadoPago do Owner**:
 
-Na Edge Function `mercadopago-create-payment`, ao atualizar a order apos pagamento aprovado, incluir o campo `installments` no `updateData`.
+1. Primeiro, tenta buscar do Vault (via `getVendorCredentials`) -- caso o Owner tenha conectado via OAuth
+2. Se nao encontrar no Vault, faz fallback para os Secrets globais (comportamento atual)
 
-### 3. Exibir valor parcelado no Total do checkout (SharedOrderSummary)
+Para os demais gateways (asaas, pushinpay, stripe), o comportamento permanece identico: somente Secrets.
 
-- Adicionar props `selectedPaymentMethod` e `selectedInstallment` ao `SharedOrderSummary`
-- Quando `selectedPaymentMethod === 'credit_card'` e `selectedInstallment > 1`, o Total exibe: "9x de R$ 7,01"
-- Quando PIX ou 1x, continua exibindo: "R$ 49,90"
-- O calculo da parcela usa a funcao `generateInstallments` ja existente para garantir consistencia com o dropdown
+Isso resolve a inconsistencia onde `mercadopago-create-payment` ja usava Vault-first mas `mercadopago-webhook` nao.
 
-### 4. Propagar installments do formulario ate o SharedOrderSummary
+### 2. Frontend: Adicionar botao OAuth para MercadoPago no `OwnerGatewayCard`
 
-- `SharedCheckoutLayout` recebe `selectedPaymentMethod` (ja recebe) e `selectedInstallment` (novo)
-- `CheckoutPublicContent` extrai o `selectedInstallment` do `cardFormData` no contexto da maquina ou via um state local sincronizado com o formulario de cartao
+**Arquivo:** `src/components/financeiro/OwnerGatewayCard.tsx`
 
-### 5. Exibir valor parcelado na pagina de sucesso (PaymentSuccessPage)
+Adicionar prop opcional `onConnect` que, quando presente, renderiza um botao "Reconectar" ao lado dos badges. Somente o card do Mercado Pago tera esse botao.
 
-- O `order-handler.ts` agora inclui `installments` no SELECT da query
-- O frontend `PaymentSuccessPage` exibe "9x de R$ 7,01" quando `installments > 1`
+### 3. Frontend: Integrar hook de conexao OAuth na pagina `OwnerGateways.tsx`
 
-### 6. Recalcular parcela no frontend para exibicao
+**Arquivo:** `src/pages/owner/OwnerGateways.tsx`
 
-Criar uma funcao utilitaria `formatInstallmentDisplay(totalCents, installments)` que:
-- Calcula o valor da parcela com juros usando a mesma logica de `generateInstallments`
-- Retorna string formatada: "9x de R$ 7,01"
+- Importar e usar `useMercadoPagoConnection` (mesmo hook que os Vendors usam)
+- Passar `onConnect` para o `OwnerGatewayCard` do MercadoPago
+- Apos conexao bem-sucedida, exibir toast de confirmacao
+
+### 4. Backend: Garantir que o webhook tambem resolve corretamente
+
+Como o `mercadopago-webhook` usa `getGatewayCredentials`, a mudanca no passo 1 automaticamente corrige o webhook. Nenhuma alteracao adicional necessaria no webhook.
 
 ## Secao Tecnica
 
-### Arquivos alterados
+### Arquivos alterados (3 arquivos, 0 criados, 0 deletados)
 
 ```text
-Banco de dados:
-  - Migration: ALTER TABLE orders ADD COLUMN installments integer DEFAULT 1
-
-Backend (Edge Functions):
-  - supabase/functions/mercadopago-create-payment/index.ts (salvar installments no updateData)
-  - supabase/functions/checkout-public-data/handlers/order-handler.ts (incluir installments no SELECT)
-
-Frontend:
-  - src/lib/payment-gateways/installments.ts (adicionar funcao formatInstallmentDisplay)
-  - src/components/checkout/shared/SharedOrderSummary.tsx (receber e exibir installments)
-  - src/components/checkout/shared/SharedCheckoutLayout.tsx (propagar selectedInstallment)
-  - src/modules/checkout-public/components/CheckoutPublicContent.tsx (extrair e passar installment)
-  - src/pages/PaymentSuccessPage.tsx (exibir parcelas na pagina de sucesso)
+supabase/functions/_shared/gateway-credentials.ts   (cascata Vault > Secrets para Owner + MercadoPago)
+src/components/financeiro/OwnerGatewayCard.tsx       (prop onConnect + botao Reconectar)
+src/pages/owner/OwnerGateways.tsx                    (integrar hook OAuth para MercadoPago)
 ```
 
-Total: 1 migration + 2 backend + 5 frontend = 8 alteracoes
+### Detalhe da mudanca em `gateway-credentials.ts`
 
-### Detalhes de cada mudanca
+No bloco `if (isOwner)`, especificamente para `case 'mercadopago'`:
 
-**Migration (SQL):**
 ```text
-ALTER TABLE orders ADD COLUMN installments integer DEFAULT 1;
+ANTES:
+  case 'mercadopago': {
+    const secrets = OWNER_GATEWAY_SECRETS.mercadopago;
+    const accessToken = Deno.env.get(secrets.accessToken);
+    // ... retorna credentials dos Secrets
+  }
+
+DEPOIS:
+  case 'mercadopago': {
+    // PRIORIDADE 1: Vault (OAuth) -- Owner pode ter conectado via OAuth
+    const vaultResult = await getVendorCredentials(supabase, vendorId, 'mercadopago');
+    if (vaultResult.success && vaultResult.credentials?.access_token) {
+      credentials.access_token = vaultResult.credentials.access_token;
+      credentials.accessToken = vaultResult.credentials.access_token;
+      // Buscar collector_id do vendor_integrations
+      const { data: vi } = await supabase
+        .from('vendor_integrations')
+        .select('config')
+        .eq('vendor_id', vendorId)
+        .eq('integration_type', 'MERCADOPAGO')
+        .eq('active', true)
+        .maybeSingle();
+      if (vi?.config) {
+        const viConfig = vi.config as Record<string, unknown>;
+        credentials.collector_id = viConfig.user_id as string || viConfig.collector_id as string;
+        credentials.collectorId = credentials.collector_id;
+      }
+      credentials.source = 'vendor_integration'; // indica que veio do OAuth
+      break;
+    }
+
+    // PRIORIDADE 2: Secrets globais (fallback)
+    const secrets = OWNER_GATEWAY_SECRETS.mercadopago;
+    const accessToken = Deno.env.get(secrets.accessToken);
+    // ... comportamento atual mantido integralmente
+  }
 ```
 
-**mercadopago-create-payment/index.ts (~linha 255-261):**
-- No `updateData`, adicionar: `installments: installments || 1`
-- Isso persiste o numero de parcelas ao atualizar a order
+### Detalhe da mudanca em `OwnerGatewayCard.tsx`
 
-**order-handler.ts (~linha 27-55):**
-- Adicionar `installments` ao SELECT da query que busca dados para a pagina de sucesso
-
-**installments.ts (funcao nova):**
 ```text
-formatInstallmentDisplay(totalCents: number, installments: number, interestRate?: number): string
-- Se installments === 1: retorna formatCentsToBRL(totalCents)
-- Se installments > 1: calcula valor da parcela com juros e retorna "Nx de R$ X,XX"
+interface OwnerGatewayCardProps {
+  // ... props existentes
+  onConnect?: () => void;       // Callback para reconexao OAuth
+  connecting?: boolean;         // Estado de loading durante OAuth
+}
+
+// Renderiza botao "Reconectar" apenas quando onConnect esta presente
 ```
 
-**SharedOrderSummary.tsx:**
-- Novas props: `selectedPaymentMethod?: 'pix' | 'credit_card'`, `selectedInstallment?: number`
-- Na seção Total: se credit_card e installment > 1, usa `formatInstallmentDisplay`
-- No editor/preview (mode !== 'public'), nenhuma mudanca visual
-
-**SharedCheckoutLayout.tsx:**
-- Nova prop: `selectedInstallment?: number`
-- Propaga para SharedOrderSummary
-
-**CheckoutPublicContent.tsx:**
-- O `selectedInstallment` vem do estado local do formulario de cartao
-- Precisa de uma forma de comunicar o installment selecionado do `MercadoPagoCardForm` ate o `SharedOrderSummary`
-- Solucao: usar um state local `selectedInstallment` com callback `onInstallmentChange` passado ao card form
-
-**PaymentSuccessPage.tsx:**
-- Adicionar `installments` ao tipo `OrderDetails`
-- Na secao "Total Pago": se `installments > 1`, exibir "Nx de R$ X,XX" ao lado do total
-
-### Fluxo de dados
+### Detalhe da mudanca em `OwnerGateways.tsx`
 
 ```text
-[MercadoPagoCardForm] --onChange--> [CheckoutPublicContent (state local)]
-                                          |
-                                          v
-                                   [SharedCheckoutLayout]
-                                          |
-                                          v
-                                   [SharedOrderSummary]
-                                    "Total: 9x de R$ 7,01"
+import { useMercadoPagoConnection } from "@/integrations/gateways/mercadopago/hooks/useMercadoPagoConnection";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+
+// Dentro do componente:
+const { user } = useUnifiedAuth();
+const { connectingOAuth, handleConnectOAuth } = useMercadoPagoConnection({
+  userId: user?.id,
+  onConnectionChange: () => toast.success('Mercado Pago reconectado!'),
+});
+
+// No map de gateways, para mercadopago:
+<OwnerGatewayCard
+  ...
+  onConnect={gatewayId === 'mercadopago' ? handleConnectOAuth : undefined}
+  connecting={gatewayId === 'mercadopago' ? connectingOAuth : false}
+/>
 ```
 
+### Fluxo apos implementacao
+
 ```text
-[mercadopago-create-payment] --save--> [orders.installments]
-                                          |
-                                          v
-                                   [order-handler.ts SELECT]
-                                          |
-                                          v
-                                   [PaymentSuccessPage]
-                                    "Total Pago: 9x de R$ 7,01"
+[Owner clica "Reconectar"] 
+  --> [init-oauth (backend gera URL + state)]
+  --> [Popup MercadoPago abre]
+  --> [Usuario autoriza nova conta]
+  --> [mercadopago-oauth-callback]
+    --> [Salva access_token no Vault]
+    --> [Salva metadados em vendor_integrations]
+  --> [Redirect success]
+
+[Pagamento futuro]
+  --> [mercadopago-create-payment] 
+    --> [getVendorCredentials (Vault)] --> ENCONTRA --> usa OAuth token
+  
+  --> [mercadopago-webhook]
+    --> [getGatewayCredentials]
+      --> [isOwner + mercadopago]
+        --> [Vault PRIMEIRO] --> ENCONTRA --> usa OAuth token
+        --> [Se nao: fallback para Secrets]
 ```
 
 ### Impacto
 
-- A exibicao e puramente visual -- o valor cobrado nao muda
-- PIX continua exibindo valor cheio (nao tem parcelamento)
-- Cartao 1x (a vista) tambem exibe valor cheio
-- Apenas parcelamento 2x+ muda a exibicao do Total
-- Zero breaking changes nos componentes de editor/preview
-- Dado de installments fica disponivel para futuros usos (relatorios, webhooks, emails)
+- Os demais gateways (Asaas, PushinPay, Stripe) continuam exclusivamente via Secrets para o Owner
+- A cascata Vault > Secrets garante retrocompatibilidade: se o Owner nunca conectou via OAuth, os Secrets continuam funcionando normalmente
+- O webhook passa a usar as credenciais corretas (da nova conta) automaticamente
+- Zero breaking changes para Vendors (fluxo deles permanece identico)
